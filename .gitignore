@@ -1,0 +1,15 @@
+.vscode/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+bin/
+cmake_install.cmake
+lib/CMakeCache.txt
+lib/CMakeFiles/
+lib/Makefile
+lib/cmake_install.cmake
+lib/libmwalib.a
+test/CMakeFiles/
+test/Makefile
+test/cmake_install.cmake
+test/mwalib.code-workspace
