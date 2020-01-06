@@ -68,7 +68,7 @@ int get_fits_string_value(fitsfile* fptr, char* keyword, char* value, char* erro
     if ( fits_read_key(fptr, TSTRING, keyword, value, NULL, &status) )
     {        
         fits_get_errstatus(status, errorMessage);
-        sprintf(errorMessage, "%s (%s)", errorMessage, keyword);        
+        sprintf(errorMessage + strlen(errorMessage), " (%s)", keyword);
         return EXIT_FAILURE;
     }
         

@@ -39,7 +39,7 @@ int set_metafits_filename(mwalibArgs_s* args, char* filename)
 {
     // Set file to our struct
     args->metafits_filename = (char*)malloc(sizeof(char) * (strlen(filename) + 1) );
-    strncpy(args->metafits_filename, filename, strlen(filename)); 
+    strcpy(args->metafits_filename, filename);
     return EXIT_SUCCESS;
 }
 
@@ -56,7 +56,7 @@ int add_gpubox_filename(mwalibArgs_s* args, char* filename)
     args->gpubox_filename_count = args->gpubox_filename_count + 1;
     
     args->gpubox_filenames[args->gpubox_filename_count] = (char*)malloc(sizeof(char) * (strlen(filename) + 1) );
-    strncpy(args->gpubox_filenames[args->gpubox_filename_count], filename, strlen(filename));
+    strcpy(args->gpubox_filenames[args->gpubox_filename_count], filename);
     return EXIT_SUCCESS;
 }
 
