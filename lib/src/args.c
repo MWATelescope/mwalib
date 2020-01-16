@@ -44,6 +44,12 @@ int set_metafits_filename(mwalibArgs_s *args, char *filename)
 {
     // Set file to our struct
     args->metafits_filename = (char *)malloc(sizeof(char) * (strlen(filename) + 1));
+    if (args->metafits_filename == NULL) {
+        // This function currently only returns EXIT_FAILURE in one spot, so we
+        // can assume that if this function ever fails, it's because malloc
+        // failed.
+        return EXIT_FAILURE;
+    }
     strcpy(args->metafits_filename, filename);
     return EXIT_SUCCESS;
 }
