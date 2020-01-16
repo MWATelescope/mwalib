@@ -10,7 +10,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(PROGSRC src/args.c src/fitsreader.c)            # define sources
+# define sources
+set(PROGSRC src/args.c src/fitsreader.c src/gpubox.c)
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS_DEBUG "-g")

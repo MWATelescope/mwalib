@@ -13,6 +13,7 @@
 #include "args.h"
 #include "fitsreader.h"
 #include "global.h"
+#include "gpubox.h"
 
 /**
  *
@@ -24,9 +25,6 @@
 int initialise_args(mwalibArgs_s *args)
 {
     args->gpubox_filename_count = 0;
-    args->metafits_ptr = NULL;
-
-    args->obs_id = 0;
 
     return EXIT_SUCCESS;
 }
@@ -80,104 +78,17 @@ int add_gpubox_filename(mwalibArgs_s *args, char *filename)
 }
 
 /**
- * @brief Given a populated mwalibArgs_s, determine the proper start and end
- * times of the observation. Probably necessary only for old MWA correlator
- * data.
- * @param[in] args Pointer to the mwalibArgs_s structure where we put the
- * parsed arguments.
- * @param[inout] startTime Pointer to a long long containing the UNIX time of
- * the start of the observation (in milliseconds).
- * milliseconds since startTime.
- * @param[inout] endTime Pointer to a long long containing the UNIX time of
- * the end of the observation (in milliseconds).
+ * @brief This function validates the mwalibArgs_s passed in, and populates a
+ * mwaObsContext_s with it. Returns success if all good.
+ * @param[in] args Pointer to the mwalibArgs_s structure where we put the parsed
+ * arguments.
+ * @param[inout] obs Pointer to the mwaObsContext_s to be populated.
  * @param[inout] errorMessage Pointer to a string of length
- * ARG_ERROR_MESSAGE_LEN containing an error message or empty string if no error
+ * MWALIB_ERROR_MESSAGE_LEN containing an error message or empty string if no
+ * error.
  * @returns EXIT_SUCCESS on success, or EXIT_FAILURE if there was an error.
  */
-int determine_obs_times(mwalibArgs_s *args, long long *startTime, long long *endTime, char *errorMessage)
-{
-    // Determine the start and end times.
-    // Because gpubox files may not all start and end at the same time, anything
-    // "dangling" is trimmed. e.g.
-    // time:     0123456789abcdef
-    // gpubox01: ################
-    // gpubox02:  ###############
-    // gpubox03: ################
-    // gpubox04:   ##############
-    // gpubox05: ###############
-    // gpubox06: ################
-    // Here, we start collecting data from time=2, and end at time=e, because
-    // these are the first and last places that all gpubox files have data. All
-    // other data is ignored.
-
-    // Deliberately overwrite anything that could be in the time variables.
-    *startTime = 0;
-    *endTime = 0;
-
-    // For every gpubox file, determine its start and end times, and put them in
-    // the inout variables passed to this function.
-    for (int i = 0; i < args->gpubox_filename_count; i++) {
-        long long thisStartTime = 0, thisEndTime = 0;
-        int thisStartMilliTime = 0, thisEndMilliTime = 0;
-        if (get_fits_long_long_value(args->gpubox_ptrs[i], "TIME", &thisStartTime, errorMessage) != EXIT_SUCCESS) {
-            return EXIT_FAILURE;
-        }
-        if (get_fits_int_value(args->gpubox_ptrs[i], "MILLITIM", &thisStartMilliTime, errorMessage) != EXIT_SUCCESS) {
-            return EXIT_FAILURE;
-        }
-
-        // Assign a new startTime, if the current gpubox file starts later than
-        // anything we've already seen. Do comparisons only on ints. Scale the
-        // value from time (which has units of seconds) by 1000 so that it now
-        // is in milliseconds and can be neatly compared.
-        thisStartTime = thisStartTime * 1000 + thisStartMilliTime;
-        if (thisStartTime > *startTime) {
-            *startTime = thisStartTime;
-        }
-
-        // Determine the number of HDUs, so we can work out the end time of this
-        // gpubox file.
-        int hduCount = 0;
-        if (get_fits_hdu_count(args->gpubox_ptrs[i], &hduCount, errorMessage) != EXIT_SUCCESS) {
-            return EXIT_FAILURE;
-        }
-        // Move to the last HDU, and grab the time. Note that move_to_fits_hdu
-        // assumes that all HDU types are "0".
-        if (move_to_fits_hdu(args->gpubox_ptrs[i], hduCount, errorMessage) != EXIT_SUCCESS) {
-            return EXIT_FAILURE;
-        }
-        if (get_fits_long_long_value(args->gpubox_ptrs[i], "TIME", &thisEndTime, errorMessage) != EXIT_SUCCESS) {
-            return EXIT_FAILURE;
-        }
-        if (get_fits_int_value(args->gpubox_ptrs[i], "MILLITIM", &thisEndMilliTime, errorMessage) != EXIT_SUCCESS) {
-            return EXIT_FAILURE;
-        }
-
-        thisEndTime = thisEndTime * 1000 + thisEndMilliTime;
-        if (*endTime == 0 || thisEndTime < *endTime) {
-            *endTime = thisEndTime;
-        }
-
-        // Move back to the first HDU.
-        if (move_to_fits_hdu(args->gpubox_ptrs[i], 1, errorMessage) != EXIT_SUCCESS) {
-            return EXIT_FAILURE;
-        }
-    }
-
-    return EXIT_SUCCESS;
-}
-
-/**
- *
- *  @brief This function validates command line arguments. Returns success if
- * all good.
- *  @param[in] args Pointer to the mwalibArgs_s structure where we put the
- * parsed arguments.
- *  @param[inout] errorMessage Pointer to a string of length
- * ARG_ERROR_MESSAGE_LEN containing an error message or empty string if no error
- *  @returns EXIT_SUCCESS on success, or EXIT_FAILURE if there was an error.
- */
-int process_args(mwalibArgs_s *args, char *errorMessage)
+int process_args(mwalibArgs_s *args, mwaObsContext_s *obs, char *errorMessage)
 {
     // Initialise errorMessage
     strncpy(errorMessage, "", MWALIB_ERROR_MESSAGE_LEN);
@@ -195,49 +106,79 @@ int process_args(mwalibArgs_s *args, char *errorMessage)
     }
 
     // Open the metafits file
-    if (open_fits(&(args->metafits_ptr), args->metafits_filename, errorMessage) != EXIT_SUCCESS) {
+    obs->metafits_filename = args->metafits_filename;
+    if (open_fits(&(obs->metafits_ptr), obs->metafits_filename, errorMessage) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
 
     // Get the OBSID
-    if (get_fits_int_value(args->metafits_ptr, "GPSTIME", &(args->obs_id), errorMessage) != EXIT_SUCCESS) {
+    if (get_fits_int_value(obs->metafits_ptr, "GPSTIME", &(obs->obsid), errorMessage) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
 
+    // Always assume that MWA data has four polarisations. Would this ever not
+    // be true?
+    obs->num_pols = 4;
+
+    // Calculate the number of baselines. There are twice as many inputs as
+    // there are antennas; halve that value.
+    int num_inputs = 0;
+    if (get_fits_int_value(obs->metafits_ptr, "NINPUTS", &num_inputs, errorMessage) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    num_inputs /= 2;
+    obs->num_baselines = num_inputs / 2 * (num_inputs - 1);
+
     // CHANNELS
     char coarse_channel_string[1024] = {""};
-    if (get_fits_string_value(args->metafits_ptr, "CHANNELS", coarse_channel_string, errorMessage) != EXIT_SUCCESS) {
+    if (get_fits_string_value(obs->metafits_ptr, "CHANNELS", coarse_channel_string, errorMessage) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
     printf("Coarse channels = %s\n", coarse_channel_string);
 
     // Open the gpubox files.
-    for (int i = 0; i < args->gpubox_filename_count; i++) {
-        if (open_fits(&args->gpubox_ptrs[i], args->gpubox_filenames[i], errorMessage) != EXIT_SUCCESS) {
+    obs->gpubox_filename_count = args->gpubox_filename_count;
+    // Allocate the obs struct's gpubox_filenames and gpubox_ptrs members.
+    obs->gpubox_filenames = (char **)malloc(sizeof(char *) * obs->gpubox_filename_count);
+    obs->gpubox_ptrs = (fitsfile **)malloc(sizeof(fitsfile *) * obs->gpubox_filename_count);
+    if (obs->gpubox_filenames == NULL) {
+        snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN, "malloc failed for obs->gpubox_filenames");
+        return EXIT_FAILURE;
+    }
+    if (obs->gpubox_ptrs == NULL) {
+        snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN, "malloc failed for obs->gpubox_ptrs");
+        return EXIT_FAILURE;
+    }
+
+    for (int i = 0; i < obs->gpubox_filename_count; i++) {
+        // Copy the gpubox filename from the args struct to the obs struct.
+        obs->gpubox_filenames[i] = (char *)malloc(sizeof(char) * MWALIB_MAX_GPUBOX_FILENAME_LEN);
+        if (obs->gpubox_filenames[i] == NULL) {
+            snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN, "malloc failed for obs->gpubox_filenames[i], i = %d", i);
+            return EXIT_FAILURE;
+        }
+        obs->gpubox_filenames[i] = args->gpubox_filenames[i];
+
+        if (open_fits(&obs->gpubox_ptrs[i], obs->gpubox_filenames[i], errorMessage) != EXIT_SUCCESS) {
             return EXIT_FAILURE;
         }
     }
 
-    long long startTime = 0, endTime = 0;
-    if (determine_obs_times(args, &startTime, &endTime, errorMessage) != EXIT_SUCCESS) {
-        sprintf(errorMessage + strlen(errorMessage), " (determine_obs_times)");
+    // Populate the fine channels. For some reason, this isn't in the metafits.
+    if (determine_gpubox_fine_channels(obs, errorMessage) != EXIT_SUCCESS) {
+        sprintf(errorMessage + strlen(errorMessage), " (determine_gpubox_fine_channels)");
         return EXIT_FAILURE;
     }
 
-    // Determine the number of fine channels. Why isn't this in the metafits?
-    // At this point, there is definitely at least one gpubox file in
-    // available. However, the following does assume that NAXIS2 is the same for
-    // all gpubox files. But, this is a pretty reasonable assumption.
-    // Move gpubox file 0 to HDU 2 (first HDU containing NAXIS2).
-    if (move_to_fits_hdu(args->gpubox_ptrs[0], 2, errorMessage) != EXIT_SUCCESS) {
+    // Populate the gpubox batches.
+    if (determine_gpubox_batches(obs, errorMessage) != EXIT_SUCCESS) {
+        sprintf(errorMessage + strlen(errorMessage), " (determine_gpubox_batches)");
         return EXIT_FAILURE;
     }
-    int numFineChannels = 0;
-    if (get_fits_int_value(args->gpubox_ptrs[0], "NAXIS2", &numFineChannels, errorMessage) != EXIT_SUCCESS) {
-        return EXIT_FAILURE;
-    }
-    // Move gpubox file 0 back to HDU 0, as all other gpubox files are there.
-    if (move_to_fits_hdu(args->gpubox_ptrs[0], 1, errorMessage) != EXIT_SUCCESS) {
+
+    // Populate the start and end times of the observation.
+    if (determine_obs_times(obs, errorMessage) != EXIT_SUCCESS) {
+        sprintf(errorMessage + strlen(errorMessage), " (determine_obs_times)");
         return EXIT_FAILURE;
     }
 

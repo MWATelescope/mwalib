@@ -91,9 +91,9 @@ int main(int argc, char *argv[])
         i++; // Skip to the next argument
     }
 
-    // Initialise mwalibArgs struct
+    // Create structs.
     mwalibArgs_s args;
-
+    mwaObsContext_s obs;
     initialise_args(&args);
 
     //
@@ -128,13 +128,15 @@ int main(int argc, char *argv[])
 
     // Check and parse what we have given the mwalib library
     printf("Processing passed in arguments...\n");
-    if (process_args(&args, error) != EXIT_SUCCESS) {
+    if (process_args(&args, &obs, error) != EXIT_SUCCESS) {
         printf("Error: %s\n", error);
         print_usage();
         return 1;
     }
 
-    printf("Observation ID: %d\n", args.obs_id);
+    printf("Observation ID: %d\n", obs.obsid);
+    printf("Start time (UNIX milliseconds): %lld\n", obs.start_time_milliseconds);
+    printf("End time   (UNIX milliseconds): %lld\n", obs.end_time_milliseconds);
 
     printf("Success!\n");
     return EXIT_SUCCESS;
