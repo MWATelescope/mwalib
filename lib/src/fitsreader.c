@@ -23,8 +23,6 @@
  */
 int open_fits(fitsfile **fptr, const char *filename, char *errorMessage)
 {
-    // Initialise errorMessage
-    strncpy(errorMessage, "", MWALIB_ERROR_MESSAGE_LEN);
     int status = 0;
 
     if (fits_open_file(fptr, filename, READONLY, &status)) {
