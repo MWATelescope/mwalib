@@ -114,8 +114,6 @@ int main(int argc, char *argv[])
                 printf("Error adding gpubox file: %s\n", gpubox_filenames[i]);
                 return 1;
             }
-
-            printf("%s\n", args.gpubox_filenames[args.gpubox_filename_count]);
         }
         printf("\n");
     }

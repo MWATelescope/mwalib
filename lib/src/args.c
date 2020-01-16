@@ -66,10 +66,16 @@ int set_metafits_filename(mwalibArgs_s *args, char *filename)
 int add_gpubox_filename(mwalibArgs_s *args, char *filename)
 {
     // Set file to our struct
+    args->gpubox_filenames[args->gpubox_filename_count] = (char *)malloc(sizeof(char) * (strlen(filename) + 1));
+    if (args->gpubox_filenames[args->gpubox_filename_count] == NULL) {
+        // This function currently only returns EXIT_FAILURE in one spot, so we
+        // can assume that if this function ever fails, it's because malloc
+        // failed.
+        return EXIT_FAILURE;
+    }
+    strcpy(args->gpubox_filenames[args->gpubox_filename_count], filename);
     args->gpubox_filename_count = args->gpubox_filename_count + 1;
 
-    args->gpubox_filenames[args->gpubox_filename_count] = (char *)malloc(sizeof(char) * (strlen(filename) + 1));
-    strcpy(args->gpubox_filenames[args->gpubox_filename_count], filename);
     return EXIT_SUCCESS;
 }
 
