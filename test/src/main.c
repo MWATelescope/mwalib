@@ -60,6 +60,11 @@ int main(int argc, char *argv[])
     int i = 2; // Start at 2 to skip argv[0] and argv[1]
     int gpuboxCount = 0;
 
+    if (argc == 1) {
+        printf("No arguments supplied; exiting.\n");
+        return 1;
+    }
+
     while (i < argc) {
         if ((opt = getopt_long(argc, argv, optString, longOpts, &longIndex)) != -1) {
             /* Options */
@@ -103,6 +108,9 @@ int main(int argc, char *argv[])
         }
 
         printf("Metafits file: %s\n", args.metafits_filename);
+    } else {
+        printf("Metafits file not supplied; exiting.\n");
+        return 1;
     }
 
     // gpubox filenames
