@@ -57,6 +57,35 @@ int close_fits(fitsfile **fptr)
     return (EXIT_SUCCESS);
 }
 
+int get_fits_hdu_count(fitsfile *fptr, int *hduCount, char *errorMessage)
+{
+    int status = 0;
+
+    if (fits_get_num_hdus(fptr, hduCount, &status)) {
+        fits_get_errstatus(status, errorMessage);
+        sprintf(errorMessage + strlen(errorMessage), " (get_fits_hdu_count)");
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+/*
+ * This function assumes that all HDUs have type 0 (in cfitsio nomenclature)!
+ */
+int move_to_fits_hdu(fitsfile *fptr, int hduNum, char *errorMessage)
+{
+    int status = 0;
+
+    if (fits_movabs_hdu(fptr, hduNum, 0, &status)) {
+        fits_get_errstatus(status, errorMessage);
+        sprintf(errorMessage + strlen(errorMessage), " (move_to_fits_hdu)");
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
 int get_fits_string_value(fitsfile *fptr, char *keyword, char *value, char *errorMessage)
 {
     int status = 0;
@@ -89,6 +118,19 @@ int get_fits_long_value(fitsfile *fptr, char *keyword, long *value, char *errorM
 
     if (get_fits_string_value(fptr, keyword, string_value, errorMessage) == EXIT_SUCCESS) {
         *value = atol(string_value);
+        return EXIT_SUCCESS;
+    }
+    else {
+        return EXIT_FAILURE;
+    }
+}
+
+int get_fits_long_long_value(fitsfile *fptr, char *keyword, long long *value, char *errorMessage)
+{
+    char string_value[100] = {""};
+
+    if (get_fits_string_value(fptr, keyword, string_value, errorMessage) == EXIT_SUCCESS) {
+        *value = atoll(string_value);
         return EXIT_SUCCESS;
     }
     else {

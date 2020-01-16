@@ -80,6 +80,94 @@ int add_gpubox_filename(mwalibArgs_s *args, char *filename)
 }
 
 /**
+ * @brief Given a populated mwalibArgs_s, determine the proper start and end
+ * times of the observation. Probably necessary only for old MWA correlator
+ * data.
+ * @param[in] args Pointer to the mwalibArgs_s structure where we put the
+ * parsed arguments.
+ * @param[inout] startTime Pointer to a long long containing the UNIX time of
+ * the start of the observation (in milliseconds).
+ * milliseconds since startTime.
+ * @param[inout] endTime Pointer to a long long containing the UNIX time of
+ * the end of the observation (in milliseconds).
+ * @param[inout] errorMessage Pointer to a string of length
+ * ARG_ERROR_MESSAGE_LEN containing an error message or empty string if no error
+ * @returns EXIT_SUCCESS on success, or EXIT_FAILURE if there was an error.
+ */
+int determine_obs_times(mwalibArgs_s *args, long long *startTime, long long *endTime, char *errorMessage)
+{
+    // Determine the start and end times.
+    // Because gpubox files may not all start and end at the same time, anything
+    // "dangling" is trimmed. e.g.
+    // time:     0123456789abcdef
+    // gpubox01: ################
+    // gpubox02:  ###############
+    // gpubox03: ################
+    // gpubox04:   ##############
+    // gpubox05: ###############
+    // gpubox06: ################
+    // Here, we start collecting data from time=2, and end at time=e, because
+    // these are the first and last places that all gpubox files have data. All
+    // other data is ignored.
+
+    // Deliberately overwrite anything that could be in the time variables.
+    *startTime = 0;
+    *endTime = 0;
+
+    // For every gpubox file, determine its start and end times, and put them in
+    // the inout variables passed to this function.
+    for (int i = 0; i < args->gpubox_filename_count; i++) {
+        long long thisStartTime = 0, thisEndTime = 0;
+        int thisStartMilliTime = 0, thisEndMilliTime = 0;
+        if (get_fits_long_long_value(args->gpubox_ptrs[i], "TIME", &thisStartTime, errorMessage) != EXIT_SUCCESS) {
+            return EXIT_FAILURE;
+        }
+        if (get_fits_int_value(args->gpubox_ptrs[i], "MILLITIM", &thisStartMilliTime, errorMessage) != EXIT_SUCCESS) {
+            return EXIT_FAILURE;
+        }
+
+        // Assign a new startTime, if the current gpubox file starts later than
+        // anything we've already seen. Do comparisons only on ints. Scale the
+        // value from time (which has units of seconds) by 1000 so that it now
+        // is in milliseconds and can be neatly compared.
+        thisStartTime = thisStartTime * 1000 + thisStartMilliTime;
+        if (thisStartTime > *startTime) {
+            *startTime = thisStartTime;
+        }
+
+        // Determine the number of HDUs, so we can work out the end time of this
+        // gpubox file.
+        int hduCount = 0;
+        if (get_fits_hdu_count(args->gpubox_ptrs[i], &hduCount, errorMessage) != EXIT_SUCCESS) {
+            return EXIT_FAILURE;
+        }
+        // Move to the last HDU, and grab the time. Note that move_to_fits_hdu
+        // assumes that all HDU types are "0".
+        if (move_to_fits_hdu(args->gpubox_ptrs[i], hduCount, errorMessage) != EXIT_SUCCESS) {
+            return EXIT_FAILURE;
+        }
+        if (get_fits_long_long_value(args->gpubox_ptrs[i], "TIME", &thisEndTime, errorMessage) != EXIT_SUCCESS) {
+            return EXIT_FAILURE;
+        }
+        if (get_fits_int_value(args->gpubox_ptrs[i], "MILLITIM", &thisEndMilliTime, errorMessage) != EXIT_SUCCESS) {
+            return EXIT_FAILURE;
+        }
+
+        thisEndTime = thisEndTime * 1000 + thisEndMilliTime;
+        if (*endTime == 0 || thisEndTime < *endTime) {
+            *endTime = thisEndTime;
+        }
+
+        // Move back to the first HDU.
+        if (move_to_fits_hdu(args->gpubox_ptrs[i], 1, errorMessage) != EXIT_SUCCESS) {
+            return EXIT_FAILURE;
+        }
+    }
+
+    return EXIT_SUCCESS;
+}
+
+/**
  *
  *  @brief This function validates command line arguments. Returns success if
  * all good.
@@ -87,7 +175,7 @@ int add_gpubox_filename(mwalibArgs_s *args, char *filename)
  * parsed arguments.
  *  @param[inout] errorMessage Pointer to a string of length
  * ARG_ERROR_MESSAGE_LEN containing an error message or empty string if no error
- *  @returns EXIT_SUCCESS on success, or -1 if there was an error.
+ *  @returns EXIT_SUCCESS on success, or EXIT_FAILURE if there was an error.
  */
 int process_args(mwalibArgs_s *args, char *errorMessage)
 {
@@ -122,6 +210,36 @@ int process_args(mwalibArgs_s *args, char *errorMessage)
         return EXIT_FAILURE;
     }
     printf("Coarse channels = %s\n", coarse_channel_string);
+
+    // Open the gpubox files.
+    for (int i = 0; i < args->gpubox_filename_count; i++) {
+        if (open_fits(&args->gpubox_ptrs[i], args->gpubox_filenames[i], errorMessage) != EXIT_SUCCESS) {
+            return EXIT_FAILURE;
+        }
+    }
+
+    long long startTime = 0, endTime = 0;
+    if (determine_obs_times(args, &startTime, &endTime, errorMessage) != EXIT_SUCCESS) {
+        sprintf(errorMessage + strlen(errorMessage), " (determine_obs_times)");
+        return EXIT_FAILURE;
+    }
+
+    // Determine the number of fine channels. Why isn't this in the metafits?
+    // At this point, there is definitely at least one gpubox file in
+    // available. However, the following does assume that NAXIS2 is the same for
+    // all gpubox files. But, this is a pretty reasonable assumption.
+    // Move gpubox file 0 to HDU 2 (first HDU containing NAXIS2).
+    if (move_to_fits_hdu(args->gpubox_ptrs[0], 2, errorMessage) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    int numFineChannels = 0;
+    if (get_fits_int_value(args->gpubox_ptrs[0], "NAXIS2", &numFineChannels, errorMessage) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    // Move gpubox file 0 back to HDU 0, as all other gpubox files are there.
+    if (move_to_fits_hdu(args->gpubox_ptrs[0], 1, errorMessage) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
