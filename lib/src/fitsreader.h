@@ -20,3 +20,4 @@ int get_fits_long_long_value(fitsfile *fptr, char *keyword, long long *value, ch
 int get_fits_float_value(fitsfile *fptr, char *keyword, float *value, char *errorMessage);
 int get_fits_double_value(fitsfile *fptr, char *keyword, double *value, char *errorMessage);
 int get_fits_string_value(fitsfile *fptr, char *keyword, char *value, char *errorMessage);
+int get_fits_comma_delimited_ints(fitsfile *fptr, char *keyword, int string_size, char *string, int *int_count, int *int_array, char *errorMessage);

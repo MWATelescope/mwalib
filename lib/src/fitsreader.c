@@ -163,3 +163,40 @@ int get_fits_double_value(fitsfile *fptr, char *keyword, double *value, char *er
         return EXIT_FAILURE;
     }
 }
+
+int get_fits_comma_delimited_ints(fitsfile *fptr, char *keyword, int string_size, char *string, int *int_count,
+                                  int *int_array, char *errorMessage)
+{
+    int status = 0;
+    int long_string_size = 0;
+
+    // N.B. We start at "character 1", because (I think) "character 0" is "'",
+    // which makes everything break.
+    if (fits_read_string_key(fptr, keyword, 1, string_size, string, &long_string_size, NULL, &status)) {
+        fits_get_errstatus(status, errorMessage);
+        sprintf(errorMessage + strlen(errorMessage), " (%s)", keyword);
+        return EXIT_FAILURE;
+    }
+
+    // Fail if the cfitsio-parsed long string is too long for the supplied input string.
+    if (long_string_size > string_size) {
+        snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN,
+                 "cfitsio-read long string associated with fits key %s is too long for supplied input string (size: "
+                 "%d) (get_fits_comma_delimited_ints)",
+                 keyword, string_size);
+        return EXIT_FAILURE;
+    }
+
+    char *found;
+    while ((found = strsep(&string, " ,@")) != NULL) {
+        int count = sscanf(found, "%d%*c", &int_array[*int_count]);
+        if (count != 1) {
+            snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN,
+                     "Failed to parse int from string in fits file (get_fits_comma_delimited_ints)");
+            return EXIT_FAILURE;
+        }
+        (*int_count)++;
+    }
+
+    return EXIT_SUCCESS;
+}

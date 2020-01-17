@@ -129,13 +129,6 @@ int process_args(mwalibArgs_s *args, mwaObsContext_s *obs, char *errorMessage)
     num_inputs /= 2;
     obs->num_baselines = num_inputs / 2 * (num_inputs - 1);
 
-    // CHANNELS
-    char coarse_channel_string[1024] = {""};
-    if (get_fits_string_value(obs->metafits_ptr, "CHANNELS", coarse_channel_string, errorMessage) != EXIT_SUCCESS) {
-        return EXIT_FAILURE;
-    }
-    printf("Coarse channels = %s\n", coarse_channel_string);
-
     // Open the gpubox files.
     obs->gpubox_filename_count = args->gpubox_filename_count;
     // Allocate the obs struct's gpubox_filenames and gpubox_ptrs members.
@@ -164,15 +157,42 @@ int process_args(mwalibArgs_s *args, mwaObsContext_s *obs, char *errorMessage)
         }
     }
 
-    // Populate the fine channels. For some reason, this isn't in the metafits.
-    if (determine_gpubox_fine_channels(obs, errorMessage) != EXIT_SUCCESS) {
-        sprintf(errorMessage + strlen(errorMessage), " (determine_gpubox_fine_channels)");
-        return EXIT_FAILURE;
-    }
-
     // Populate the gpubox batches.
     if (determine_gpubox_batches(obs, errorMessage) != EXIT_SUCCESS) {
         sprintf(errorMessage + strlen(errorMessage), " (determine_gpubox_batches)");
+        return EXIT_FAILURE;
+    }
+
+    // CHANNELS
+    char *coarse_channel_string = (char *)malloc(sizeof(char) * 1024);
+    obs->coarse_channels = (int *)malloc(sizeof(int) * MWALIB_MAX_COARSE_CHANNELS);
+    if (coarse_channel_string == NULL) {
+        snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN, "malloc failed for coarse_channel_string");
+        return EXIT_FAILURE;
+    }
+    if (obs->coarse_channels == NULL) {
+        snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN, "malloc failed for obs->coarse_channels");
+        return EXIT_FAILURE;
+    }
+
+    if (get_fits_comma_delimited_ints(obs->metafits_ptr, "CHANNELS", 1023, coarse_channel_string,
+                                      &obs->num_coarse_channels, obs->coarse_channels, errorMessage) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    free(coarse_channel_string);
+
+    // Check that the number of coarse-band channels is also the same as the
+    // number of files in a gpubox file batch.
+    if (obs->gpubox_filename_count / obs->gpubox_batch_count != obs->num_coarse_channels) {
+        snprintf(
+            errorMessage, MWALIB_ERROR_MESSAGE_LEN,
+            "The number of gpubox files does not match the number of coarse-band channels specified by the metafits!");
+        return EXIT_FAILURE;
+    }
+
+    // Populate the fine channels. For some reason, this isn't in the metafits.
+    if (determine_gpubox_fine_channels(obs, errorMessage) != EXIT_SUCCESS) {
+        sprintf(errorMessage + strlen(errorMessage), " (determine_gpubox_fine_channels)");
         return EXIT_FAILURE;
     }
 

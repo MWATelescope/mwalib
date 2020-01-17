@@ -108,7 +108,8 @@ int main(int argc, char *argv[])
         }
 
         printf("Metafits file: %s\n", args.metafits_filename);
-    } else {
+    }
+    else {
         printf("Metafits file not supplied; exiting.\n");
         return 1;
     }
@@ -137,6 +138,12 @@ int main(int argc, char *argv[])
     printf("Observation ID: %d\n", obs.obsid);
     printf("Start time (UNIX milliseconds): %lld\n", obs.start_time_milliseconds);
     printf("End time   (UNIX milliseconds): %lld\n", obs.end_time_milliseconds);
+    printf("Number of coarse-band channels: %d\n", obs.num_coarse_channels);
+    printf("Coarse channels: ");
+    for (int i = 0; i < obs.num_coarse_channels - 1; i++) {
+        printf("%d,", obs.coarse_channels[i]);
+    }
+    printf("%d\n", obs.coarse_channels[obs.num_coarse_channels - 1]);
 
     printf("Success!\n");
     return EXIT_SUCCESS;
