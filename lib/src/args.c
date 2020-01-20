@@ -16,15 +16,41 @@
 #include "gpubox.h"
 
 /**
- *
- *  @brief This function initialises all of the members of the args struct
- *  @param[in] args Pointer to the mwalibArgs_s structure where we put the
+ * @brief This function initialises all of the members of the args struct. The
+ * helper functions set_metafits_filename and add_gpubox_filename should be used
+ * to fully populate the struct, after this function is called.
+ * @param[in] args Pointer to the mwalibArgs_s structure where we put the
  * parsed arguments.
- *  @returns EXIT_SUCCESS on success, or -1 if there was an error.
+ * @returns EXIT_SUCCESS on success, or EXIT_FAILURE if there was an error.
  */
 int initialise_args(mwalibArgs_s *args)
 {
+    args->metafits_filename = NULL;
     args->gpubox_filename_count = 0;
+    args->gpubox_filenames = (char **)malloc(sizeof(char *) * MWALIB_MAX_GPUBOX_FILENAMES);
+    if (args->gpubox_filenames == NULL) {
+        // This function currently only returns EXIT_FAILURE in one spot, so we
+        // can assume that if this function ever fails, it's because malloc
+        // failed.
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+/**
+ * @brief Deallocate the members of the args struct.
+ * @param[in] args Pointer to the mwalibArgs_s structure whose members are to be
+ * deallocated.
+ * @returns EXIT_SUCCESS on success, or EXIT_FAILURE if there was an error.
+ */
+int free_args(mwalibArgs_s *args)
+{
+    free(args->metafits_filename);
+    for (int i = 0; i < args->gpubox_filename_count; i++) {
+        free(args->gpubox_filenames[i]);
+    }
+    free(args->gpubox_filenames);
 
     return EXIT_SUCCESS;
 }
@@ -105,14 +131,24 @@ int process_args(mwalibArgs_s *args, mwaObsContext_s *obs, char *errorMessage)
         return EXIT_FAILURE;
     }
 
+    // Copy the metafits filename string to the obs struct.
+    obs->metafits_filename = (char *)malloc(sizeof(char) * (strlen(args->metafits_filename) + 1));
+    if (obs->metafits_filename == NULL) {
+        // This function currently only returns EXIT_FAILURE in one spot, so we
+        // can assume that if this function ever fails, it's because malloc
+        // failed.
+        return EXIT_FAILURE;
+    }
+
+    strcpy(obs->metafits_filename, args->metafits_filename);
+
     // Open the metafits file
-    obs->metafits_filename = args->metafits_filename;
     if (open_fits(&(obs->metafits_ptr), obs->metafits_filename, errorMessage) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
 
     // Get the OBSID
-    if (get_fits_int_value(obs->metafits_ptr, "GPSTIME", &(obs->obsid), errorMessage) != EXIT_SUCCESS) {
+    if (get_fits_long_value(obs->metafits_ptr, "GPSTIME", &(obs->obsid), errorMessage) != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
 
@@ -129,28 +165,28 @@ int process_args(mwalibArgs_s *args, mwaObsContext_s *obs, char *errorMessage)
     num_inputs /= 2;
     obs->num_baselines = num_inputs / 2 * (num_inputs - 1);
 
-    // Open the gpubox files.
+    // Copy the gpubox filename strings to the obs struct, and open the files,
+    // saving the file pointers.
     obs->gpubox_filename_count = args->gpubox_filename_count;
-    // Allocate the obs struct's gpubox_filenames and gpubox_ptrs members.
     obs->gpubox_filenames = (char **)malloc(sizeof(char *) * obs->gpubox_filename_count);
-    obs->gpubox_ptrs = (fitsfile **)malloc(sizeof(fitsfile *) * obs->gpubox_filename_count);
     if (obs->gpubox_filenames == NULL) {
         snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN, "malloc failed for obs->gpubox_filenames");
         return EXIT_FAILURE;
     }
+    obs->gpubox_ptrs = (fitsfile **)malloc(sizeof(fitsfile *) * obs->gpubox_filename_count);
     if (obs->gpubox_ptrs == NULL) {
         snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN, "malloc failed for obs->gpubox_ptrs");
         return EXIT_FAILURE;
     }
 
     for (int i = 0; i < obs->gpubox_filename_count; i++) {
-        // Copy the gpubox filename from the args struct to the obs struct.
-        obs->gpubox_filenames[i] = (char *)malloc(sizeof(char) * MWALIB_MAX_GPUBOX_FILENAME_LEN);
+        obs->gpubox_filenames[i] = (char *)malloc(sizeof(char) * (strlen(args->gpubox_filenames[i]) + 1));
         if (obs->gpubox_filenames[i] == NULL) {
-            snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN, "malloc failed for obs->gpubox_filenames[i], i = %d", i);
+            snprintf(errorMessage, MWALIB_ERROR_MESSAGE_LEN, "malloc failed for obs->gpubox_filenames[%d]", i);
             return EXIT_FAILURE;
         }
-        obs->gpubox_filenames[i] = args->gpubox_filenames[i];
+
+        strcpy(obs->gpubox_filenames[i], args->gpubox_filenames[i]);
 
         if (open_fits(&obs->gpubox_ptrs[i], obs->gpubox_filenames[i], errorMessage) != EXIT_SUCCESS) {
             return EXIT_FAILURE;
@@ -183,6 +219,7 @@ int process_args(mwalibArgs_s *args, mwaObsContext_s *obs, char *errorMessage)
 
     // Check that the number of coarse-band channels is also the same as the
     // number of files in a gpubox file batch.
+    // TODO: Relax this constraint. Use a warning string for this purpose?
     if (obs->gpubox_filename_count / obs->gpubox_batch_count != obs->num_coarse_channels) {
         snprintf(
             errorMessage, MWALIB_ERROR_MESSAGE_LEN,

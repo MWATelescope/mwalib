@@ -12,6 +12,37 @@
 #include "gpubox.h"
 
 /**
+ * @brief Deallocate the memory pointed within a mwaObsContext_s.
+ * @param[in] obs Pointer to the mwaObsContext_s structure to be deallocated.
+ * @returns EXIT_SUCCESS on success, EXIT_FAILURE on failure.
+ */
+int free_mwaObsContext(mwaObsContext_s *obs)
+{
+    free(obs->coarse_channels);
+    free(obs->metafits_filename);
+    free(obs->metafits_ptr);
+
+    for (int i = 0; i < obs->gpubox_filename_count; i++) {
+        free(obs->gpubox_filenames[i]);
+        free(obs->gpubox_ptrs[i]);
+    }
+    free(obs->gpubox_filenames);
+    free(obs->gpubox_ptrs);
+
+    for (int i = 0; i < obs->gpubox_batch_count; i++) {
+        // As we have already freed obs->gpubox_filenames and obs->gpubox_ptrs, we
+        // don't need to free each element of obs->gpubox_filename_batches[i] and
+        // obs->gpubox_ptr_batches[i]
+        free(obs->gpubox_filename_batches[i]);
+        free(obs->gpubox_ptr_batches[i]);
+    }
+    free(obs->gpubox_filename_batches);
+    free(obs->gpubox_ptr_batches);
+
+    return EXIT_SUCCESS;
+}
+
+/**
  * @brief Given a partially-populated mwaObsContext_s, determine the number of
  * fine channels in the observation.
  * @param[in] obs Pointer to the mwaObsContext_s structure to be populated. Must

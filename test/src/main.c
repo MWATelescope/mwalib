@@ -13,6 +13,7 @@
 
 #include "../../lib/src/args.h"
 #include "../../lib/src/global.h"
+#include "../../lib/src/gpubox.h"
 
 /**
  *
@@ -135,7 +136,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("Observation ID: %d\n", obs.obsid);
+    printf("Observation ID: %ld\n", obs.obsid);
     printf("Start time (UNIX milliseconds): %lld\n", obs.start_time_milliseconds);
     printf("End time   (UNIX milliseconds): %lld\n", obs.end_time_milliseconds);
     printf("Number of coarse-band channels: %d\n", obs.num_coarse_channels);
@@ -144,6 +145,10 @@ int main(int argc, char *argv[])
         printf("%d,", obs.coarse_channels[i]);
     }
     printf("%d\n", obs.coarse_channels[obs.num_coarse_channels - 1]);
+
+    // Clean up.
+    free_args(&args);
+    free_mwaObsContext(&obs);
 
     printf("Success!\n");
     return EXIT_SUCCESS;

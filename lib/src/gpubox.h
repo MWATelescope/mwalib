@@ -10,7 +10,7 @@ static const int PFB_MAP[64] = {0,  16, 32, 48, 1,  17, 33, 49, 2,  18, 34, 50, 
                                 12, 28, 44, 60, 13, 29, 45, 61, 14, 30, 46, 62, 15, 31, 47, 63};
 
 typedef struct mwaObsContext {
-    int obsid;
+    long obsid;
 
     long long start_time_milliseconds;
     long long end_time_milliseconds;
@@ -43,6 +43,8 @@ typedef struct mwaObsContext {
     char ****gpubox_filename_batches;
     fitsfile ****gpubox_ptr_batches;
 } mwaObsContext_s;
+
+int free_mwaObsContext(mwaObsContext_s *obs);
 
 int determine_gpubox_fine_channels(mwaObsContext_s *obs, char *errorMessage);
 int determine_gpubox_batches(mwaObsContext_s *obs, char *errorMessage);
