@@ -306,3 +306,67 @@ int determine_obs_times(mwaObsContext_s *obs, char *errorMessage)
 
     return EXIT_SUCCESS;
 }
+
+/**
+ *  @brief Given a memory limit (in gigabytes) and a mwalibObs struct,
+ *  determine how many "scans" can be extracted from the gpubox files at a
+ *  time. Here, "scan" refers to data containing visibilities from all baselines
+ *  but only a single channel (aka fine channel).
+ *  @param[in] Populated mwaObsContext_s struct.
+ *  @param[in] The memory limit in gigabytes as an int.
+ *  @param[inout] The number of scans that can be extracted from gpubox files
+ *  within the memory limit.
+ *  @param[inout] Pointer to an errorMessage.
+ *  @returns EXIT_SUCCESS on success, or EXIT_FAILURE if there was an error.
+ */
+int determine_num_scans(mwaObsContext_s *obs, int memoryLimit, int *num_scans, char *errorMessage)
+{
+    // Get the number of fine-band channels from the metafits file. Use a long
+    // type, just in case we have a lot.
+    long num_chans;
+    if (get_fits_long_value(obs->metafits_ptr, "NCHANS", &num_chans, errorMessage) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+
+    // Get the number of antennas (aka MWA tile) from the metafits file. This
+    // can be found from the "number of inputs"; there are two inputs for each
+    // antenna.
+    int num_ants;
+    if (get_fits_int_value(obs->metafits_ptr, "NINPUTS", &num_ants, errorMessage) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    num_ants /= 2;
+
+    // There are num_chans fine channels in each coarse band
+    // (obs->gpubox_filename_count), and (num_ants+1)*num_ants/2 baselines, and
+    // 4 polarisations. The product of all of this is the number of bytes needed
+    // for a single scan.
+    long long scan_size = num_chans * obs->gpubox_filename_count * (num_ants + 1) * num_ants / 2 * 4;
+
+    // All that's left is to work out how many scans fit into the memory limit.
+    *num_scans = memoryLimit * 1024 * 1024 * 1024 / scan_size;
+
+    // If this value is less than 1 (i.e. 0), then not enough memory was
+    // specified. cotter handles this by emitting a loud warning, and setting
+    // the num_scans back to 1; we do the same here.
+    if (num_scans == 0) {
+        num_scans++;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+/**
+ *  @brief With the supplied and populated mwalibObs struct, read a number of
+ *  scans from the gpubox files.
+
+ *  @param[in] Populated mwaObsContext_s struct.
+ *  @param[in] The memory limit in gigabytes as an int.
+ *  @param[inout] The number of scans that can be extracted from gpubox files
+ *  within the memory limit.
+ *  @param[inout] Pointer to an errorMessage.
+ *  @returns EXIT_SUCCESS on success, or EXIT_FAILURE if there was an error.
+ */
+/* int read_scans_from_gpubox_files(mwaObsContext_s *obs, int first_scan, int last_scan) */
+/* { */
+/* } */

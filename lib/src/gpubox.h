@@ -23,6 +23,9 @@ typedef struct mwaObsContext {
     int num_fine_channels;
     int num_coarse_channels;
     int *coarse_channels;
+    // fine_channel_resolution and coarse_channel_bandwidth are in units of Hz.
+    long fine_channel_resolution;
+    long coarse_channel_bandwidth;
 
     char *metafits_filename;
     fitsfile *metafits_ptr;
@@ -44,8 +47,20 @@ typedef struct mwaObsContext {
     fitsfile ****gpubox_ptr_batches;
 } mwaObsContext_s;
 
+typedef struct mwaScan {
+    char *metafits_filename;
+    fitsfile *metafits_ptr;
+
+    char *gpubox_filenames[MWALIB_MAX_GPUBOX_FILENAMES];
+    int gpubox_filename_count;
+
+    long obs_id;
+    int *coarse_channel_numbers[MWALIB_MAX_COARSE_CHANNELS];
+} mwaScan_s;
+
 int free_mwaObsContext(mwaObsContext_s *obs);
 
 int determine_gpubox_fine_channels(mwaObsContext_s *obs, char *errorMessage);
 int determine_gpubox_batches(mwaObsContext_s *obs, char *errorMessage);
 int determine_obs_times(mwaObsContext_s *obs, char *errorMessage);
+int determine_num_scans(mwaObsContext_s *obs, int memoryLimit, int *num_scans, char *errorMessage);

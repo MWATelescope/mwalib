@@ -139,6 +139,8 @@ int main(int argc, char *argv[])
     printf("Observation ID: %ld\n", obs.obsid);
     printf("Start time (UNIX milliseconds): %lld\n", obs.start_time_milliseconds);
     printf("End time   (UNIX milliseconds): %lld\n", obs.end_time_milliseconds);
+    printf("Fine-channel resolution [Hz]:  %ld\n", obs.fine_channel_resolution);
+    printf("Coarse-channel bandwidth [Hz]: %ld\n", obs.coarse_channel_bandwidth);
     printf("Number of coarse-band channels: %d\n", obs.num_coarse_channels);
     printf("Coarse channels: ");
     for (int i = 0; i < obs.num_coarse_channels - 1; i++) {

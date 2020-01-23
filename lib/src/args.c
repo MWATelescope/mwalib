@@ -6,6 +6,7 @@
  * passed in from client program
  *
  */
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -233,11 +234,35 @@ int process_args(mwalibArgs_s *args, mwaObsContext_s *obs, char *errorMessage)
         return EXIT_FAILURE;
     }
 
+    // Fine-channel resolution.
+    double resolution = 0;
+    if (get_fits_double_value(obs->metafits_ptr, "FINECHAN", &resolution, errorMessage) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    // The FINECHAN value in the metafits is in units of kHz - make it Hz.
+    obs->fine_channel_resolution = round(resolution * 1000);
+
+    // Coarse-channel bandwidth.
+    if (get_fits_double_value(obs->metafits_ptr, "BANDWDTH", &resolution, errorMessage) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    // The BANDWDTH value in the metafits is in units of MHz - make it Hz.
+    obs->coarse_channel_bandwidth = round(resolution * 1e6);
+
     // Populate the start and end times of the observation.
     if (determine_obs_times(obs, errorMessage) != EXIT_SUCCESS) {
         sprintf(errorMessage + strlen(errorMessage), " (determine_obs_times)");
         return EXIT_FAILURE;
     }
+
+    if (move_to_fits_hdu(obs->metafits_ptr, 2, errorMessage) != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    /* char *antenna = (char *)malloc(sizeof(char) * 1024); */
+    /* if (get_fits_string_value(obs->metafits_ptr, "Antenna", antenna, errorMessage) != EXIT_SUCCESS) { */
+    /*     return EXIT_FAILURE; */
+    /* } */
+    /* printf("antenna: %s\n", antenna); */
 
     return EXIT_SUCCESS;
 }
