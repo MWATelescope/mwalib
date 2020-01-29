@@ -91,17 +91,10 @@ impl mwalibObsContext {
         // fitsio library for rust does not (appear) to handle CONTINUE keywords
         // at present, but the underlying fitsio-sys does, so we have to do FFI
         // directly.
-        let coarse_channels = unsafe {
-            // Open the metafits file.
-            let (status, fptr) = open_fits_ffi(&metafits.to_string());
-            if status != 0 {
-                return Err(ErrorKind::Custom(
-                    "mwalibObsContext::new: open_fits_ffi failed".to_string(),
-                ));
-            }
-
+        let coarse_channels = {
             // Read the long string.
-            let (status, coarse_channels_string) = get_fits_long_string(fptr, "CHANNELS");
+            let (status, coarse_channels_string) =
+                unsafe { get_fits_long_string(metafits_fptr.as_raw(), "CHANNELS") };
             if status != 0 {
                 return Err(ErrorKind::Custom(
                     "mwalibObsContext::new: get_fits_long_string failed".to_string(),
