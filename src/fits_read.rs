@@ -39,12 +39,12 @@ pub unsafe fn get_fits_long_string(fptr: *mut fitsfile, keyword: &str) -> (i32, 
     // For reasons I cannot fathom, ffgkls expects `value` to be a malloc'd
     // char** in C, but will only use a single char* inside it, and that doesn't
     // need to be allocated. Anyway, Vec<*mut c_char> works for me in rust.
-    let mut value: Vec<*mut c_char> = vec![ptr::null_mut()];
+    let mut value: [*mut c_char; 1] = [ptr::null_mut()];
     let mut status = 0;
     ffgkls(
         fptr,
         keyword_ffi.as_ptr(),
-        value.as_mut_ptr() as *mut *mut c_char,
+        value.as_mut_ptr(),
         ptr::null_mut(),
         &mut status,
     );

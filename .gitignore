@@ -1,3 +1,5 @@
 target
 Cargo.lock
-test-via-c
+/examples/sum-all-hdus
+/examples/mwalib-print-obs-context
+/examples/mwalib-sum-all-hdus
