@@ -2,24 +2,31 @@
 MWA library to read raw visibilities and metadata into a common structure
 
 ## Usage via C
-See `test.c` and `build.sh` for an example.
+In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.c`, and
+`mwalib-sum-all-hdus.c` for examples of usage.
 
 ## Usage via Python
-TODO. Will provide instructions adapted from
-http://jakegoulding.com/rust-ffi-omnibus/objects/
+In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.c`, and
+`mwalib-sum-all-hdus.c` for examples of usage.
 
 ## Usage in Rust
-See `mwalib-test.rs` for an example.
+See `mwalib-print-obs-context.rs` and `mwalib-print-obs-context.rs` for
+examples. Also run `cargo doc --open` to see the rendered documentation.
 
-- Populate a `mwalibObsContext` struct
+## Usage approach
+- Populate a `mwalibContext` struct
 
     This struct contains only information on the metafits file and gpubox files
-    associated with an observation. Use the `mwalibObsContext_new` function (see
-    test.c for an example) to populate the struct. This function does a bunch of
-    tests while populating the `mwalibObsContext` struct, to ensure that
-    everything passed in looks OK. The struct unpacks information on the
-    observation, which will be used to actually extract raw data from the gpubox
-    files.
+    associated with an observation. During creation, a number of checks are
+    performed on the MWA data to ensure consistency. Once created, the
+    observation is primed for reading data.
+
+- Read raw data
+
+    The `read` function associated with `mwalibContext` takes in a number of
+    scans to read. The raw MWA data is then read into a triple vector,
+    structured by scan, gpubox number and the data from that gpubox number (a
+    large number of 32-bit floats).
 
 ## Concepts
 - gpubox "batches"
@@ -29,19 +36,32 @@ See `mwalib-test.rs` for an example.
     belongs to "batch 0", whereas `1065880128_20131015134930_gpubox01_01.fits`
     belongs to "batch 1".
 
-    `mwaObsContext` contains:
-    - A count of how many batches are present (e.g. The above filenames would
-      have this number set to 2)
-    - An array `gpubox_filename_batches` and an array
-      `gpubox_ptr_batches`. These arrays just hold pointers to the data
-      elsewhere in the same struct (specifically `gpubox_filenames` and
-      `gpubox_ptrs`) to minimise the footprint of the struct, and avoid
-      something crazy like two file pointers to the same
-      file. `gpubox_filename_batches` and `gpubox_ptr_batches` are structured
-      like e.g. `gpubox_filename_batches[batch][0] = pointer to first filename`
+- "scans"
 
-    Old-style gpubox filenames are also handled
-    (e.g. `1059244752_20130730183854_gpubox01.fits`).
+    A scan is the raw data from all gpubox files for a single time
+    integration. `mwalib` allows multiple scans to be read in at once.
+
+## Installation
+It is possible that a dynamic-shared and/or static objects can be provided on
+GitHub in the future, but for now, `mwalib` should be compiled from source.
+
+- Install rust
+
+    `https://www.rust-lang.org/tools/install`
+
+- Compile the source
+
+    `cargo build --release`
+
+- Use the dynamic-shared and/or static objects in the `target/release` directory
+
+    e.g. on linux, `libmwalib.a` or `libmwalib.so`
+
+    These have silly names because of how C historically links libraries. It's
+    overall clearer to link "mwalib" than "mwa", so it is left like this.
+
+    For an example of using `mwalib` with C or python, look in the `examples`
+    directory.
 
 ## Consistency checks
 `mwalib` checks input files for the presence of:
@@ -53,8 +73,6 @@ See `mwalib-test.rs` for an example.
 - "GPSTIME", "NINPUTS", "CHANNELS", "NCHANS" within the metafits file,
 
 - "TIME", "MILLITIM", "NAXIS2" within the gpubox files.
-
-When `mwalibObsContext` is being constructed, the following are also checked:
 
 - Consistent number of gpubox files in each batch
 
@@ -69,12 +87,11 @@ When `mwalibObsContext` is being constructed, the following are also checked:
 
 ## Example test output
 ```
-mwalibObsContext (                                                                                                                                                                                                   
-    obsid:               1065880128,                                                                                                                                                                                 
-    obs UNIX start time: 1381844910 s,                                                                                                                                                                               
-    obs UNIX end time:   1381845018.5 s,                                                                                                                                                                             
+mwalibContext (
+    obsid:               1065880128,
+    obs UNIX start time: 1381844910 s,
+    obs UNIX end time:   1381845018.5 s,
 
-    num integrations: 0,
     num baselines:    8128,
     num pols:         4,
 
@@ -82,6 +99,9 @@ mwalibObsContext (
     coarse channels: [131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154],
     fine channel resolution:  40 kHz,
     coarse channel bandwidth: 30.72 MHz,
+
+    gpubox HDU size:       8.0625 MiB,
+    Memory usage per scan: 193.5 MiB,
 
     metafits filename: /home/chj/WORKING_DIR/MWA/1065880128/1065880128.metafits,
     gpubox batches: [

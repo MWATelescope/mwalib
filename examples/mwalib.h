@@ -13,6 +13,18 @@
 typedef struct mwalibContext mwalibContext;
 
 /**
+ * Free a previously-allocated float*** (designed for use after
+ * `mwalibContext_read`).
+ *
+ * Python can't free memory itself, so this is useful for Python (and perhaps
+ * other languages).
+ */
+void free_float_buffer(float ***float_buffer_ptr,
+                       const int *num_scans,
+                       const int *num_gpubox_files,
+                       const long long *gpubox_hdu_size);
+
+/**
  * Display an `mwalibContext` struct.
  */
 void mwalibContext_display(const mwalibContext *ptr);

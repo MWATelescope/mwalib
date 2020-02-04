@@ -69,7 +69,7 @@ fn sum_mwalib(metafits: String, files: Vec<String>) -> Result<(), anyhow::Error>
     let mut sum: f64 = 0.0;
     let mut data = vec![vec![]];
     while !data.is_empty() {
-        data = context.read(1)?;
+        data = context.read(3)?;
         for scan in &data {
             for gpubox in scan {
                 for value in gpubox {

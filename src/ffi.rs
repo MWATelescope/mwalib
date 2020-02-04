@@ -150,3 +150,29 @@ pub unsafe extern "C" fn mwalibContext_read(
 
     data_buffer_ptr
 }
+
+/// Free a previously-allocated float*** (designed for use after
+/// `mwalibContext_read`).
+///
+/// Python can't free memory itself, so this is useful for Python (and perhaps
+/// other languages).
+#[no_mangle]
+pub unsafe extern "C" fn free_float_buffer(
+    float_buffer_ptr: *mut *mut *mut c_float,
+    num_scans: *const c_int,
+    num_gpubox_files: *const c_int,
+    gpubox_hdu_size: *const c_longlong,
+) {
+    if float_buffer_ptr.is_null() {
+        eprintln!("free_float_buffer: Warning: null pointer passed in");
+        return;
+    }
+
+    let scans = Vec::from_raw_parts(float_buffer_ptr, *num_scans as usize, *num_scans as usize);
+    for g in scans {
+        let gpubox = Vec::from_raw_parts(g, *num_gpubox_files as usize, *num_gpubox_files as usize);
+        for d in gpubox {
+            let _ = Vec::from_raw_parts(d, *gpubox_hdu_size as usize, *gpubox_hdu_size as usize);
+        }
+    }
+}

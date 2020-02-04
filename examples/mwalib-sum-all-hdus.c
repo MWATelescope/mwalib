@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
         gpuboxes[i] = argv[i + 2];
     }
 
-    int num_scans = 10;
+    int num_scans = 3;
     mwalibContext *context = mwalibContext_new(argv[1], gpuboxes, argc - 2);
 
     int num_gpubox_files = 0;
