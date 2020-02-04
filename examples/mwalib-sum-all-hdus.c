@@ -21,8 +21,7 @@ int main(int argc, char *argv[]) {
     }
 
     int num_scans = 10;
-    mwalibObsContext *context = mwalibObsContext_new(argv[1], gpuboxes, argc - 2);
-    mwalibBuffer *buffer = mwalibBuffer_new(context, num_scans);
+    mwalibContext *context = mwalibContext_new(argv[1], gpuboxes, argc - 2);
 
     int num_gpubox_files = 0;
     long long gpubox_hdu_size = 0;
@@ -31,7 +30,7 @@ int main(int argc, char *argv[]) {
     double sum = 0;
 
     while (num_scans > 0) {
-        data_buffer = mwalibBuffer_read(context, buffer, &num_scans, &num_gpubox_files, &gpubox_hdu_size);
+        data_buffer = mwalibContext_read(context, &num_scans, &num_gpubox_files, &gpubox_hdu_size);
         if (data_buffer != NULL) {
             for (int scan = 0; scan < num_scans; scan++) {
                 for (int gpubox = 0; gpubox < num_gpubox_files; gpubox++) {
@@ -48,9 +47,7 @@ int main(int argc, char *argv[]) {
 
     printf("Total sum: %f\n", sum);
 
-    mwalibObsContext_free(context);
-    mwalibBuffer_free(buffer);
-
+    mwalibContext_free(context);
     free(gpuboxes);
 
     return EXIT_SUCCESS;

@@ -1,3 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+/*!
+Functions for organising and checking the consistency of gpubox files.
+ */
+
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::string::ToString;
@@ -23,12 +31,12 @@ lazy_static! {
 
 /// Group input gpubox files into a vector of vectors containing their
 /// batches. A "gpubox batch" refers to the number XX in a gpubox filename
-/// (e.g. 1065880128_20131015134930_gpubox01_XX.fits). Fail if the number of
+/// (e.g. `1065880128_20131015134930_gpubox01_XX.fits`). Fail if the number of
 /// files in each batch is not equal.
 ///
 /// Some older files might have a "batchless" format
-/// (e.g. 1065880128_20131015134930_gpubox01.fits); in this case, this function
-/// will just return one sub-vector for one batch.
+/// (e.g. `1065880128_20131015134930_gpubox01.fits`); in this case, this
+/// function will just return one sub-vector for one batch.
 ///
 /// ```
 /// use mwalib::gpubox::determine_gpubox_batches;
@@ -173,6 +181,7 @@ pub fn map_unix_times_to_hdus(
 /// files may not all start and end at the same time, anything "dangling" is
 /// trimmed. e.g.
 ///
+/// ```text
 /// time:     0123456789abcdef
 /// gpubox01: ################
 /// gpubox02:  ###############
@@ -180,6 +189,7 @@ pub fn map_unix_times_to_hdus(
 /// gpubox04:   ##############
 /// gpubox05: ###############
 /// gpubox06: ################
+/// ```
 ///
 /// In this example, we start collecting data from time=2, and end at time=e,
 /// because these are the first and last places that all gpubox files have

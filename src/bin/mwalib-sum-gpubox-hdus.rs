@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 /// Given gpubox files, add the contents of their HDUs and report the sum.
 use anyhow::*;
 use fitsio::FitsFile;
@@ -60,13 +64,12 @@ fn sum_direct(files: Vec<String>, floats: Option<usize>) -> Result<(), anyhow::E
 }
 
 fn sum_mwalib(metafits: String, files: Vec<String>) -> Result<(), anyhow::Error> {
-    let context = mwalibObsContext::new(&metafits, &files)?;
-    let mut buffer = mwalibBuffer::new(&context, 1)?;
+    let mut context = mwalibContext::new(&metafits, &files)?;
 
     let mut sum: f64 = 0.0;
     let mut data = vec![vec![]];
     while !data.is_empty() {
-        data = buffer.read(&context)?;
+        data = context.read(1)?;
         for scan in &data {
             for gpubox in scan {
                 for value in gpubox {

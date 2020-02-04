@@ -18,9 +18,9 @@ int main(int argc, char *argv[]) {
         gpuboxes[i] = argv[i + 2];
     }
 
-    mwalibObsContext *context = mwalibObsContext_new(argv[1], gpuboxes, argc - 2);
-    mwalibObsContext_display(context);
-    mwalibObsContext_free(context);
+    mwalibContext *context = mwalibContext_new(argv[1], gpuboxes, argc - 2);
+    mwalibContext_display(context);
+    mwalibContext_free(context);
 
     free(gpuboxes);
 

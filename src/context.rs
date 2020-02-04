@@ -1,3 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+/*!
+The main interface to MWA data.
+ */
+
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::*;
@@ -8,18 +16,24 @@ use crate::fits_read::*;
 use crate::gpubox::*;
 use crate::*;
 
-/// `mwalib` observation context.
+/// `mwalib` observation context. This is used to transport data out of gpubox
+/// files and display info on the observation.
 ///
 /// The name is not following the rust convention of camel case, to make it look
 /// more like a C library.
 #[allow(non_camel_case_types)]
-pub struct mwalibObsContext {
+pub struct mwalibContext {
     pub obsid: u32,
+    /// The proper start of the observation (the time that is common to all
+    /// provided gpubox files).
     pub start_time_milliseconds: u64,
-    // `end_time_milliseconds` will reflect the start time of the *last* HDU it
-    // is derived from (i.e. `end_time_milliseconds` + integration time is the
-    // actual end time of the observation).
+    /// `end_time_milliseconds` will reflect the start time of the *last* HDU it
+    /// is derived from (i.e. `end_time_milliseconds` + integration time is the
+    /// actual end time of the observation).
     pub end_time_milliseconds: u64,
+
+    /// Track the UNIX time (in milliseconds) that will be read next.
+    pub current_time_milliseconds: u64,
 
     pub num_pols: u32,
     pub num_baselines: u64,
@@ -27,38 +41,53 @@ pub struct mwalibObsContext {
 
     pub num_fine_channels: u64,
     pub coarse_channels: Vec<u64>,
-    // fine_channel_resolution and coarse_channel_bandwidth are in units of Hz.
+    /// fine_channel_resolution and coarse_channel_bandwidth are in units of Hz.
     pub fine_channel_resolution: u64,
     pub coarse_channel_bandwidth: u64,
 
     pub metafits_filename: String,
 
-    // `gpubox_batches` *must* be sorted appropriately. See
-    // `gpubox::determine_gpubox_batches`. The order of the filenames
-    // corresponds directly to other gpubox-related objects
-    // (e.g. `gpubox_hdu_limits`).
+    /// `gpubox_batches` *must* be sorted appropriately. See
+    /// `gpubox::determine_gpubox_batches`. The order of the filenames
+    /// corresponds directly to other gpubox-related objects
+    /// (e.g. `gpubox_hdu_limits`). Structured:
+    /// `gpubox_batches[batch][filename]`.
     pub gpubox_batches: Vec<Vec<String>>,
-    // We assume as little as possible about the data layout in the gpubox
-    // files; here, a `BTreeMap` contains each unique UNIX time from every
-    // gpubox, which is associated with another `BTreeMap`, associating each
-    // gpubox number with a gpubox batch number and HDU index. The gpubox
-    // number, batch number and HDU index are everything needed to find the
-    // correct HDU out of all gpubox files.
+
+    /// Keep gpubox file FITS file pointers open. Structured:
+    /// `gpubox_fptrs[batch][fptr]`, in the same way `gpubox_batches` is laid
+    /// out.
+    pub gpubox_fptrs: Vec<Vec<FitsFile>>,
+
+    /// We assume as little as possible about the data layout in the gpubox
+    /// files; here, a `BTreeMap` contains each unique UNIX time from every
+    /// gpubox, which is associated with another `BTreeMap`, associating each
+    /// gpubox number with a gpubox batch number and HDU index. The gpubox
+    /// number, batch number and HDU index are everything needed to find the
+    /// correct HDU out of all gpubox files.
     pub gpubox_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
 
-    // The number of bytes taken up by a scan in each gpubox file.
+    /// The number of bytes taken up by a scan in each gpubox file.
     pub scan_size: usize,
+
+    /// These variables are provided for convenience, so a caller knows how to
+    /// index the data buffer.
+    pub num_data_scans: usize,
+    /// This is the number of gpubox files *per batch*.
+    pub num_gpubox_files: usize,
+    /// The number of floats in each gpubox HDU.
+    pub gpubox_hdu_size: usize,
 }
 
-impl mwalibObsContext {
+impl mwalibContext {
     /// From a path to a metafits file and paths to gpubox files, create a
-    /// `mwalibObsContext`.
+    /// `mwalibContext`.
     ///
     /// The traits on the input parameters allow flexibility to input types.
     pub fn new<T: AsRef<Path> + AsRef<str> + ToString + fmt::Debug>(
         metafits: &T,
         gpuboxes: &[T],
-    ) -> Result<mwalibObsContext, ErrorKind> {
+    ) -> Result<mwalibContext, ErrorKind> {
         // Do the file stuff upfront. Check that at least one gpubox file is
         // present.
         if gpuboxes.is_empty() {
@@ -72,7 +101,11 @@ impl mwalibObsContext {
         // Open all the files.
         let mut gpubox_fptrs = Vec::with_capacity(gpubox_batches.len());
         let mut gpubox_time_map = BTreeMap::new();
+        // Keep track of the gpubox HDU size and the number of gpubox files.
+        let mut size = 0;
+        let mut num_gpubox_files = 0;
         for (batch_num, batch) in gpubox_batches.iter().enumerate() {
+            num_gpubox_files = batch.len();
             gpubox_fptrs.push(Vec::with_capacity(batch.len()));
             for gpubox_file in batch {
                 let fptr = FitsFile::open(&gpubox_file)
@@ -97,6 +130,19 @@ impl mwalibObsContext {
                         .or_insert(new_time_tree)
                         .entry(gpubox_num)
                         .or_insert((batch_num, hdu_index));
+                }
+
+                // Determine the size of the gpubox HDU image. mwalib will panic
+                // if this size is not consistent for all HDUs in all gpubox
+                // files.
+                let this_size = get_hdu_image_size(&mut fptr)?.iter().product();
+                if size != 0 && size != this_size {
+                    return Err(ErrorKind::Custom(
+                        "mwalibBuffer::read: Error: HDU sizes in gpubox files are not equal"
+                            .to_string(),
+                    ));
+                } else {
+                    size = this_size;
                 }
             }
         }
@@ -138,7 +184,7 @@ impl mwalibObsContext {
                 unsafe { get_fits_long_string(metafits_fptr.as_raw(), "CHANNELS") };
             if status != 0 {
                 return Err(ErrorKind::Custom(
-                    "mwalibObsContext::new: get_fits_long_string failed".to_string(),
+                    "mwalibContext::new: get_fits_long_string failed".to_string(),
                 ));
             }
 
@@ -181,10 +227,11 @@ impl mwalibObsContext {
             (o.start_millisec, o.end_millisec)
         };
 
-        Ok(mwalibObsContext {
+        Ok(mwalibContext {
             obsid,
             start_time_milliseconds,
             end_time_milliseconds,
+            current_time_milliseconds: start_time_milliseconds,
             num_pols,
             num_baselines,
             integration_time_milliseconds,
@@ -194,17 +241,68 @@ impl mwalibObsContext {
             coarse_channel_bandwidth: bandwidth,
             metafits_filename: metafits.to_string(),
             gpubox_batches,
+            gpubox_fptrs,
             gpubox_time_map,
             scan_size: (num_fine_channels * num_baselines * num_pols as u64) as usize,
+            // Set `num_data_scans` to 1 here. The caller will specify how many
+            // scans to read in `mwalibContext::read` function.
+            num_data_scans: 1,
+            num_gpubox_files,
+            gpubox_hdu_size: size,
         })
+    }
+
+    /// The output `buffer` is structured: `buffer[scan][gpubox_index][data]`.
+    pub fn read(&mut self, num_scans: usize) -> Result<Vec<Vec<Vec<f32>>>, ErrorKind> {
+        // Is there enough data left to fit into the total number of scans? If
+        // not, we need to resize `buffer`.
+        let ct = self.current_time_milliseconds as i64;
+        let it = self.integration_time_milliseconds as i64;
+        let et = self.end_time_milliseconds as i64;
+        // The end time is inclusive; need to add the integration time to get
+        // the last scan.
+        let new_num_scans = ((et - ct + it) as f64 / it as f64) as i64;
+
+        if new_num_scans < 0 {
+            return Err(ErrorKind::Custom("mwalibBuffer::read: A negative number for `new_num_scans` was calculated; this should only happen if something has manually changed the timings.".to_string()));
+        };
+
+        // Compare the input requested number of scans against `new_num_scans`
+        // and take the smaller of the two. Keep the result in the struct.
+        self.num_data_scans = num_scans.min(new_num_scans as usize);
+        // Completely reset the internal data buffer.
+        let mut data = vec![vec![vec![]; self.num_gpubox_files]; self.num_data_scans];
+
+        for scan in &mut data {
+            for gpubox_index in 0..self.num_gpubox_files {
+                let (batch_index, hdu_index) =
+                    self.gpubox_time_map[&self.current_time_milliseconds][&gpubox_index];
+                let mut fptr = &mut self.gpubox_fptrs[batch_index][gpubox_index];
+                let hdu = fptr.hdu(hdu_index)?;
+                scan[gpubox_index] = hdu.read_image(&mut fptr)?;
+
+                // We expect *all* HDUs to have the same number of floats. Error
+                // if this is not true.
+                if scan[gpubox_index].len() != self.gpubox_hdu_size {
+                    return Err(ErrorKind::Custom(
+                        "mwalibBuffer::read: Error: HDU sizes in gpubox files are not equal"
+                            .to_string(),
+                    ));
+                }
+            }
+            self.current_time_milliseconds += self.integration_time_milliseconds;
+        }
+
+        Ok(data)
     }
 }
 
-impl fmt::Display for mwalibObsContext {
+impl fmt::Display for mwalibContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let size = (self.gpubox_hdu_size * 4) as f64 / (1024 * 1024) as f64;
         writeln!(
             f,
-            r#"mwalibObsContext (
+            r#"mwalibContext (
     obsid:               {},
     obs UNIX start time: {} s,
     obs UNIX end time:   {} s,
@@ -216,6 +314,9 @@ impl fmt::Display for mwalibObsContext {
     coarse channels: {:?},
     fine channel resolution:  {} kHz,
     coarse channel bandwidth: {} MHz,
+
+    gpubox HDU size:       {} MiB,
+    Memory usage per scan: {} MiB,
 
     metafits filename: {},
     gpubox batches: {:#?},
@@ -229,6 +330,8 @@ impl fmt::Display for mwalibObsContext {
             self.coarse_channels,
             self.fine_channel_resolution as f64 / 1e3,
             self.coarse_channel_bandwidth as f64 / 1e6,
+            size,
+            size * self.num_gpubox_files as f64,
             self.metafits_filename,
             self.gpubox_batches,
         )

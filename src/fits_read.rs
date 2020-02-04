@@ -1,3 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+/*!
+Helper functions for reading FITS files.
+ */
+
 use std::ffi::*;
 use std::ptr;
 use std::str;
@@ -27,6 +35,17 @@ where
     ErrorKind: From<<T as str::FromStr>::Err>,
 {
     Ok(hdu.read_key::<String>(fits_fptr, keyword)?.parse()?)
+}
+
+/// Given a FITS file pointer, get the size of the image on HDU 2.
+// TODO: Write tests.
+pub fn get_hdu_image_size(fptr: &mut FitsFile) -> Result<Vec<usize>, ErrorKind> {
+    match fptr.hdu(1)?.info {
+        HduInfo::ImageInfo { shape, .. } => Ok(shape),
+        _ => Err(ErrorKind::Custom(
+            "mwalibBuffer::read: HDU 2 of the first gpubox_fptr was not an image".to_string(),
+        )),
+    }
 }
 
 /// Via FFI, get a long string from a FITS file.

@@ -4,53 +4,41 @@
 #include <stdlib.h>
 
 /**
- * `mwalib` buffer. Used to transport data out of gpubox files.
+ * `mwalib` observation context. This is used to transport data out of gpubox
+ * files and display info on the observation.
  *
  * The name is not following the rust convention of camel case, to make it look
  * more like a C library.
  */
-typedef struct mwalibBuffer mwalibBuffer;
+typedef struct mwalibContext mwalibContext;
 
 /**
- * `mwalib` observation context.
- *
- * The name is not following the rust convention of camel case, to make it look
- * more like a C library.
+ * Display an `mwalibContext` struct.
  */
-typedef struct mwalibObsContext mwalibObsContext;
+void mwalibContext_display(const mwalibContext *ptr);
 
 /**
- * Free an `mwalibBuffer` struct.
+ * Free a previously-allocated `mwalibContext` struct.
  */
-void mwalibBuffer_free(mwalibBuffer *mwalib_buffer_ptr);
+void mwalibContext_free(mwalibContext *ptr);
 
 /**
- * Create an `mwalibBuffer` struct.
+ * Create an `mwalibContext` struct.
  */
-mwalibBuffer *mwalibBuffer_new(const mwalibObsContext *context_ptr, size_t num_scans);
+mwalibContext *mwalibContext_new(const char *metafits, const char **gpuboxes, size_t gpubox_count);
 
 /**
  * Read MWA data.
+ *
+ * `num_scans` is an input and output variable. The input `num_scans` asks
+ * `mwalib` to read in that many scans, but the output `num_scans` tells the
+ * caller how many scans were actually read. This is done because the number of
+ * scans requested might be more than what is available.
+ *
+ * `num_gpubox_files` and `gpubox_hdu_size` are output variables, allowing the
+ * caller to know how to index the returned data.
  */
-float ***mwalibBuffer_read(const mwalibObsContext *context_ptr,
-                           mwalibBuffer *mwalib_buffer_ptr,
-                           int *num_scans,
-                           int *num_gpubox_files,
-                           long long *gpubox_hdu_size);
-
-/**
- * Display an `mwalibObsContext` struct.
- */
-void mwalibObsContext_display(const mwalibObsContext *ptr);
-
-/**
- * Free a previously-allocated `mwalibObsContext` struct.
- */
-void mwalibObsContext_free(mwalibObsContext *ptr);
-
-/**
- * Create an `mwalibObsContext` struct.
- */
-mwalibObsContext *mwalibObsContext_new(const char *metafits,
-                                       const char **gpuboxes,
-                                       size_t gpubox_count);
+float ***mwalibContext_read(mwalibContext *context_ptr,
+                            int *num_scans,
+                            int *num_gpubox_files,
+                            long long *gpubox_hdu_size);
