@@ -22,11 +22,13 @@ pub struct ObsTimes {
 }
 
 lazy_static! {
-    static ref RE_BATCH: Regex =
+    static ref RE_MWAX: Regex =
+        Regex::new(r"\d{10}_\d{8}(.)?\d{6}_ch(?P<channel>\d{3})_(?P<batch>\d{3}).fits").unwrap();
+    static ref RE_LEGACY_BATCH: Regex =
         Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2})_(?P<batch>\d{2}).fits").unwrap();
-    static ref RE_OLD_FORMAT: Regex =
+    static ref RE_OLD_LEGACY_FORMAT: Regex =
         Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2}).fits").unwrap();
-    static ref RE_BAND: Regex = Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2})").unwrap();
+    static ref RE_BAND: Regex = Regex::new(r"\d{10}_\d{14}_(ch|gpubox)(?P<band>\d+)").unwrap();
 }
 
 /// Group input gpubox files into a vector of vectors containing their
@@ -39,7 +41,7 @@ lazy_static! {
 /// function will just return one sub-vector for one batch.
 ///
 /// ```
-/// use mwalib::gpubox::determine_gpubox_batches;
+/// use mwalib::{*, gpubox::determine_gpubox_batches};
 ///
 /// let files = vec![
 ///     "/home/chj/1065880128_20131015134929_gpubox02_00.fits",
@@ -51,9 +53,10 @@ lazy_static! {
 /// ];
 /// let result = determine_gpubox_batches(&files);
 /// assert!(result.is_ok());
-/// let result = result.unwrap();
+/// let (result, corr_format) = result.unwrap();
 /// // Three batches (02 is the biggest number).
 /// assert_eq!(result.len(), 3);
+/// assert_eq!(corr_format, CorrelatorVersion::Legacy);
 /// assert_eq!(
 ///     result,
 ///     vec![
@@ -74,23 +77,31 @@ lazy_static! {
 /// ```
 pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
     gpubox_filenames: &[T],
-) -> Result<Vec<Vec<String>>, ErrorKind> {
-    let mut old_format: Option<bool> = None;
+) -> Result<(Vec<Vec<String>>, CorrelatorVersion), ErrorKind> {
+    if gpubox_filenames.is_empty() {
+        return Err(ErrorKind::Custom(
+            "determine_gpubox_batches: gpubox / mwax fits files missing".to_string(),
+        ));
+    }
+
+    let mut format = None;
     let mut output = vec![vec![]];
+
     for g in gpubox_filenames {
-        match RE_BATCH.captures(g.as_ref()) {
+        match RE_MWAX.captures(g.as_ref()) {
             Some(caps) => {
-                if old_format == None {
-                    old_format = Some(false);
-                }
                 // Check if we've already matched any files as being the old
                 // format. If so, then we've got a mix, and we should exit
                 // early.
-                else if old_format == Some(true) {
-                    return Err(ErrorKind::Custom(format!(
-                        "There are a mixture of gpubox filename types in {:?}",
-                        gpubox_filenames
-                    )));
+                match format {
+                    None => format = Some(CorrelatorVersion::V2),
+                    Some(CorrelatorVersion::V2) => (),
+                    _ => {
+                        return Err(ErrorKind::Custom(format!(
+                            "There are a mixture of gpubox filename types in {:?}",
+                            gpubox_filenames
+                        )))
+                    }
                 }
 
                 let batch: usize = caps["batch"].parse()?;
@@ -100,26 +111,52 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
                 }
                 output[batch].push(g.to_string());
             }
-            // Try to match the old format.
-            None => match RE_OLD_FORMAT.captures(g.as_ref()) {
-                Some(_) => {
-                    if old_format == None {
-                        old_format = Some(true);
-                    } else if old_format == Some(false) {
-                        return Err(ErrorKind::Custom(format!(
-                            "There are a mixture of gpubox filename types in {:?}",
-                            gpubox_filenames
-                        )));
+
+            // Try to match the legacy format.
+            None => match RE_LEGACY_BATCH.captures(g.as_ref()) {
+                Some(caps) => {
+                    match format {
+                        None => format = Some(CorrelatorVersion::Legacy),
+                        Some(CorrelatorVersion::Legacy) => (),
+                        _ => {
+                            return Err(ErrorKind::Custom(format!(
+                                "There are a mixture of gpubox filename types in {:?}",
+                                gpubox_filenames
+                            )))
+                        }
                     }
 
-                    output[0].push(g.to_string());
+                    let batch: usize = caps["batch"].parse()?;
+                    while output.len() < batch + 1 {
+                        output.push(vec![]);
+                    }
+                    output[batch].push(g.to_string());
                 }
-                None => {
-                    return Err(ErrorKind::Custom(format!(
-                        "Could not identify the gpubox filename structure for {:?}",
-                        g
-                    )))
-                }
+
+                // Try to match the old legacy format.
+                None => match RE_OLD_LEGACY_FORMAT.captures(g.as_ref()) {
+                    Some(_) => {
+                        match format {
+                            None => format = Some(CorrelatorVersion::OldLegacy),
+                            Some(CorrelatorVersion::OldLegacy) => (),
+                            _ => {
+                                return Err(ErrorKind::Custom(format!(
+                                    "There are a mixture of gpubox filename types in {:?}",
+                                    gpubox_filenames
+                                )))
+                            }
+                        }
+
+                        // There's only one batch.
+                        output[0].push(g.to_string());
+                    }
+                    None => {
+                        return Err(ErrorKind::Custom(format!(
+                            "Could not identify the gpubox filename structure for {:?}",
+                            g
+                        )))
+                    }
+                },
             },
         }
     }
@@ -141,18 +178,18 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
     // coarse-band channel.
     for v in &mut output {
         v.sort_unstable_by(|a, b| {
-            let a2 = &RE_BAND.captures(a).unwrap()["band"].parse::<u32>().unwrap();
-            let b2 = &RE_BAND.captures(b).unwrap()["band"].parse::<u32>().unwrap();
+            let a2 = &RE_BAND.captures(a).unwrap()["band"].parse::<u8>().unwrap();
+            let b2 = &RE_BAND.captures(b).unwrap()["band"].parse::<u8>().unwrap();
             a2.cmp(b2)
         });
     }
 
-    Ok(output)
+    Ok((output, format.unwrap()))
 }
 
 /// Given a FITS file pointer and HDU, determine the time in units of
 /// milliseconds.
-pub fn determine_hdu_time(gpubox_fptr: &mut FitsFile, hdu: FitsHdu) -> Result<u64, ErrorKind> {
+pub fn determine_hdu_time(gpubox_fptr: &mut FitsFile, hdu: &FitsHdu) -> Result<u64, ErrorKind> {
     let start_time: i64 = hdu.read_key(gpubox_fptr, "TIME")?;
     let start_millitime: i64 = hdu.read_key(gpubox_fptr, "MILLITIM")?;
     Ok((start_time * 1000 + start_millitime) as u64)
@@ -162,14 +199,22 @@ pub fn determine_hdu_time(gpubox_fptr: &mut FitsFile, hdu: FitsHdu) -> Result<u6
 /// are associated with which HDU numbers.
 pub fn map_unix_times_to_hdus(
     gpubox_fptr: &mut FitsFile,
+    correlator_format: &CorrelatorVersion,
 ) -> Result<BTreeMap<u64, usize>, ErrorKind> {
     let mut map = BTreeMap::new();
     let last_hdu_index = gpubox_fptr.iter().count();
+    // The new correlator has a "weights" HDU in each alternating HDU. Skip
+    // those.
+    let step_size = if correlator_format == &CorrelatorVersion::V2 {
+        2
+    } else {
+        1
+    };
     // Ignore the first HDU in all gpubox files; it contains only a little
     // metadata.
-    for hdu_index in 1..last_hdu_index {
+    for hdu_index in (1..last_hdu_index).step_by(step_size) {
         let hdu = gpubox_fptr.hdu(hdu_index)?;
-        let time = determine_hdu_time(gpubox_fptr, hdu)?;
+        let time = determine_hdu_time(gpubox_fptr, &hdu)?;
         map.insert(time, hdu_index);
     }
 
@@ -216,11 +261,10 @@ pub fn determine_obs_times(
     // start and end of the observation.
 
     // Is there a way to iterate only once?
-    let proper_start_millisec = match gpubox_time_map
+    let mut i = gpubox_time_map
         .iter()
-        .find(|(_, submap)| submap.len() == size)
-        .map(|(time, _)| *time)
-    {
+        .filter(|(_, submap)| submap.len() == size);
+    let proper_start_millisec = match i.next().map(|(time, _)| *time) {
         Some(s) => s,
         None => {
             return Err(ErrorKind::Custom(
@@ -228,12 +272,7 @@ pub fn determine_obs_times(
             ))
         }
     };
-    let proper_end_millisec = match gpubox_time_map
-        .iter()
-        .filter(|(_, submap)| submap.len() == size)
-        .last()
-        .map(|(time, _)| *time)
-    {
+    let proper_end_millisec = match i.last().map(|(time, _)| *time) {
         Some(s) => s,
         None => {
             return Err(ErrorKind::Custom(
@@ -265,8 +304,9 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let (result, corr_format) = result.unwrap();
         assert_eq!(result.len(), 3);
+        assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(
             result,
             vec![
@@ -286,8 +326,9 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let (result, corr_format) = result.unwrap();
         assert_eq!(result.len(), 3);
+        assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(
             result,
             vec![
@@ -310,8 +351,9 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let (result, corr_format) = result.unwrap();
         assert_eq!(result.len(), 3);
+        assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(
             result,
             vec![
@@ -343,8 +385,9 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let (result, corr_format) = result.unwrap();
         assert_eq!(result.len(), 3);
+        assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(
             result,
             vec![
@@ -419,8 +462,9 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let (result, corr_format) = result.unwrap();
         assert_eq!(result.len(), 1);
+        assert_eq!(corr_format, CorrelatorVersion::OldLegacy);
         assert_eq!(
             result,
             vec![vec![
@@ -428,6 +472,34 @@ mod tests {
                 "1065880128_20131015134930_gpubox15.fits",
                 "1065880128_20131015134930_gpubox20.fits"
             ],]
+        );
+    }
+
+    #[test]
+    fn determine_gpubox_batches_new_format() {
+        let files = vec![
+            "1065880128_20131015134930_ch001_000.fits",
+            "1065880128_20131015134930_ch002_000.fits",
+            "1065880128_20131015135030_ch001_001.fits",
+            "1065880128_20131015135030_ch002_001.fits",
+        ];
+        let result = determine_gpubox_batches(&files);
+        assert!(result.is_ok());
+        let (result, corr_format) = result.unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(corr_format, CorrelatorVersion::V2);
+        assert_eq!(
+            result,
+            vec![
+                vec![
+                    "1065880128_20131015134930_ch001_000.fits",
+                    "1065880128_20131015134930_ch002_000.fits",
+                ],
+                vec![
+                    "1065880128_20131015135030_ch001_001.fits",
+                    "1065880128_20131015135030_ch002_001.fits",
+                ]
+            ],
         );
     }
 
@@ -470,7 +542,7 @@ mod tests {
         hdu.write_key(&mut fptr, "MILLITIM", 0)
             .expect("Couldn't write key 'MILLITIM'");
 
-        let result = determine_hdu_time(&mut fptr, hdu);
+        let result = determine_hdu_time(&mut fptr, &hdu);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1_434_494_061_000);
 
@@ -487,7 +559,7 @@ mod tests {
         hdu.write_key(&mut fptr, "MILLITIM", 500)
             .expect("Couldn't write key 'MILLITIM'");
 
-        let result = determine_hdu_time(&mut fptr, hdu);
+        let result = determine_hdu_time(&mut fptr, &hdu);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1_381_844_923_500);
 
@@ -510,7 +582,7 @@ mod tests {
         hdu.write_key(&mut fptr, "MILLITIM", 500)
             .expect("Couldn't write key 'MILLITIM'");
 
-        let result = determine_hdu_time(&mut fptr, hdu);
+        let result = determine_hdu_time(&mut fptr, &hdu);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), current * 1000 + 500);
 
@@ -541,7 +613,7 @@ mod tests {
             expected.insert(time * 1000 + millitime, i + 1);
         }
 
-        let result = map_unix_times_to_hdus(&mut fptr);
+        let result = map_unix_times_to_hdus(&mut fptr, &CorrelatorVersion::Legacy);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), expected);
 

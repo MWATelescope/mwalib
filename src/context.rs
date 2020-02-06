@@ -16,6 +16,30 @@ use crate::fits_read::*;
 use crate::gpubox::*;
 use crate::*;
 
+#[derive(Debug, PartialEq)]
+pub enum CorrelatorVersion {
+    /// New correlator data (a.k.a. MWAX).
+    V2,
+    /// MWA raw data files with "gpubox" and batch numbers in their names.
+    Legacy,
+    /// gpubox files without any batch numbers.
+    OldLegacy,
+}
+
+impl fmt::Display for CorrelatorVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CorrelatorVersion::V2 => "V2 (MWAX)",
+                CorrelatorVersion::Legacy => "Legacy",
+                CorrelatorVersion::OldLegacy => "Legacy (no file indices)",
+            }
+        )
+    }
+}
+
 /// `mwalib` observation context. This is used to transport data out of gpubox
 /// files and display info on the observation.
 ///
@@ -23,6 +47,8 @@ use crate::*;
 /// more like a C library.
 #[allow(non_camel_case_types)]
 pub struct mwalibContext {
+    pub corr_version: CorrelatorVersion,
+
     pub obsid: u32,
     /// The proper start of the observation (the time that is common to all
     /// provided gpubox files).
@@ -35,15 +61,16 @@ pub struct mwalibContext {
     /// Track the UNIX time (in milliseconds) that will be read next.
     pub current_time_milliseconds: u64,
 
-    pub num_pols: u32,
-    pub num_baselines: u64,
+    pub num_antennas: usize,
+    pub num_baselines: usize,
     pub integration_time_milliseconds: u64,
 
-    pub num_fine_channels: u64,
+    pub num_pols: usize,
+    pub num_fine_channels: usize,
     pub coarse_channels: Vec<u64>,
     /// fine_channel_resolution and coarse_channel_bandwidth are in units of Hz.
-    pub fine_channel_resolution: u64,
-    pub coarse_channel_bandwidth: u64,
+    pub fine_channel_resolution: usize,
+    pub coarse_channel_bandwidth: usize,
 
     pub metafits_filename: String,
 
@@ -92,11 +119,11 @@ impl mwalibContext {
         // present.
         if gpuboxes.is_empty() {
             return Err(ErrorKind::Custom(
-                "gpubox / mwax fits files missing".to_string(),
+                "mwalibContext::new: gpubox / mwax fits files missing".to_string(),
             ));
         }
 
-        let gpubox_batches = determine_gpubox_batches(&gpuboxes)?;
+        let (gpubox_batches, corr_version) = determine_gpubox_batches(&gpuboxes)?;
 
         // Open all the files.
         let mut gpubox_fptrs = Vec::with_capacity(gpubox_batches.len());
@@ -108,9 +135,24 @@ impl mwalibContext {
             num_gpubox_files = batch.len();
             gpubox_fptrs.push(Vec::with_capacity(batch.len()));
             for gpubox_file in batch {
-                let fptr = FitsFile::open(&gpubox_file)
+                let mut fptr = FitsFile::open(&gpubox_file)
                     .with_context(|| format!("Failed to open {:?}", gpubox_file))?;
 
+                let hdu = fptr
+                    .hdu(0)
+                    .with_context(|| format!("Failed to open HDU 1 of {:?}", gpubox_file))?;
+                // New correlator files include a version - check that it is present.
+                if corr_version == CorrelatorVersion::V2 {
+                    let v = get_fits_key::<u8>(&mut fptr, &hdu, "CORR_VER").with_context(|| {
+                        format!("Failed to read key CORR_VER from {:?}", gpubox_file)
+                    })?;
+                    if v != 2 {
+                        return Err(ErrorKind::Custom(
+                            "mwalibContext::new: MWAX gpubox file had a CORR_VER not equal to 2"
+                                .to_string(),
+                        ));
+                    }
+                }
                 // Store the FITS file pointer for later.
                 gpubox_fptrs[batch_num].push(fptr);
             }
@@ -119,7 +161,7 @@ impl mwalibContext {
             // file handle, it's easier to do another loop here than use `fptr`
             // above.
             for (gpubox_num, mut fptr) in gpubox_fptrs[batch_num].iter_mut().enumerate() {
-                let time_map = map_unix_times_to_hdus(&mut fptr)?;
+                let time_map = map_unix_times_to_hdus(&mut fptr, &corr_version)?;
                 for (time, hdu_index) in time_map {
                     // For the current `time`, check if it's in the map. If not,
                     // insert it and a new tree. Then check if `gpubox_num` is
@@ -164,10 +206,12 @@ impl mwalibContext {
 
         // Calculate the number of baselines. There are twice as many inputs as
         // there are antennas; halve that value.
-        let num_inputs = get_fits_key::<u64>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
+        let num_antennas = get_fits_key::<usize>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
             .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?
             / 2;
-        let num_baselines = num_inputs / 2 * (num_inputs - 1);
+        // `num_baselines` is the number of cross-correlations + the number of
+        // auto-correlations.
+        let num_baselines = num_antennas / 2 * (num_antennas + 1);
 
         let integration_time_milliseconds =
             (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "INTTIME")
@@ -200,26 +244,33 @@ impl mwalibContext {
         let resolution = (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "FINECHAN")
             .with_context(|| format!("Failed to read FINECHAN for {:?}", metafits))?
             * 1000.)
-            .round() as u64;
+            .round() as _;
 
         // Coarse-channel bandwidth.
         let bandwidth = (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")
             .with_context(|| format!("Failed to read BANDWDTH for {:?}", metafits))?
             * 1e6)
-            .round() as u64;
+            .round() as _;
 
         // Determine the fine channels. For some reason, this isn't in the
         // metafits. Assume that this is the same for all gpubox files.
-        let num_fine_channels = gpubox_fptrs[0][0]
-            .hdu(1)
-            .with_context(|| format!("Failed to open HDU 2 for {:?}", gpubox_batches[0][0]))?
-            .read_key::<i64>(&mut gpubox_fptrs[0][0], "NAXIS2")
-            .with_context(|| format!("Failed to read NAXIS2 for {:?}", gpubox_batches[0][0]))?
-            as u64;
-        // Go back to the first HDU.
-        gpubox_fptrs[0][0]
-            .hdu(0)
-            .with_context(|| format!("Failed to open HDU 1 for {:?}", gpubox_batches[0][0]))?;
+        let num_fine_channels = {
+            let fptr = &mut gpubox_fptrs[0][0];
+            let hdu = fptr
+                .hdu(1)
+                .with_context(|| format!("Failed to open HDU 2 for {:?}", gpubox_batches[0][0]))?;
+
+            if corr_version == CorrelatorVersion::V2 {
+                get_fits_key::<usize>(&mut gpubox_fptrs[0][0], &hdu, "NAXIS1").with_context(
+                    || format!("Failed to read NAXIS1 for {:?}", gpubox_batches[0][0]),
+                )? / num_pols
+                    / 2
+            } else {
+                get_fits_key(&mut gpubox_fptrs[0][0], &hdu, "NAXIS2").with_context(|| {
+                    format!("Failed to read NAXIS2 for {:?}", gpubox_batches[0][0])
+                })?
+            }
+        };
 
         // Populate the start and end times of the observation.
         let (start_time_milliseconds, end_time_milliseconds) = {
@@ -228,13 +279,15 @@ impl mwalibContext {
         };
 
         Ok(mwalibContext {
+            corr_version,
             obsid,
             start_time_milliseconds,
             end_time_milliseconds,
             current_time_milliseconds: start_time_milliseconds,
-            num_pols,
+            num_antennas,
             num_baselines,
             integration_time_milliseconds,
+            num_pols,
             num_fine_channels,
             coarse_channels,
             fine_channel_resolution: resolution,
@@ -243,7 +296,7 @@ impl mwalibContext {
             gpubox_batches,
             gpubox_fptrs,
             gpubox_time_map,
-            scan_size: (num_fine_channels * num_baselines * num_pols as u64) as usize,
+            scan_size: num_fine_channels * num_baselines * num_pols,
             // Set `num_data_scans` to 1 here. The caller will specify how many
             // scans to read in `mwalibContext::read` function.
             num_data_scans: 1,
@@ -299,19 +352,27 @@ impl mwalibContext {
 
 impl fmt::Display for mwalibContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // `size` is the number of floats (self.gpubox_hdu_size) multiplied by 4
+        // bytes per float, divided by 1024^2 to get MiB.
         let size = (self.gpubox_hdu_size * 4) as f64 / (1024 * 1024) as f64;
         writeln!(
             f,
             r#"mwalibContext (
+    Correlator version:  {},
+
     obsid:               {},
     obs UNIX start time: {} s,
     obs UNIX end time:   {} s,
 
-    num baselines:    {},
-    num pols:         {},
+    num antennas:           {},
+    num baselines:          {},
+    num auto-correlations:  {},
+    num cross-correlations: {},
 
-    num fine channels: {},
+    num pols:               {},
+    num fine channels:      {},
     coarse channels: {:?},
+
     fine channel resolution:  {} kHz,
     coarse channel bandwidth: {} MHz,
 
@@ -321,10 +382,14 @@ impl fmt::Display for mwalibContext {
     metafits filename: {},
     gpubox batches: {:#?},
 )"#,
+            self.corr_version,
             self.obsid,
             self.start_time_milliseconds as f64 / 1e3,
             self.end_time_milliseconds as f64 / 1e3,
+            self.num_antennas,
             self.num_baselines,
+            self.num_antennas,
+            self.num_baselines - self.num_antennas,
             self.num_pols,
             self.num_fine_channels,
             self.coarse_channels,

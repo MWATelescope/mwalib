@@ -41,6 +41,13 @@ examples. Also run `cargo doc --open` to see the rendered documentation.
     A scan is the raw data from all gpubox files for a single time
     integration. `mwalib` allows multiple scans to be read in at once.
 
+- baselines
+
+    A baseline is the distance between any two antennas. However, raw MWA data
+    also contains auto-correlation data, and so the number of "baselines"
+    presented in the data is calculated as `n/2 * (n+1)` (where `n` is the
+    number of antennas).
+
 ## Installation
 It is possible that a dynamic-shared and/or static objects can be provided on
 GitHub in the future, but for now, `mwalib` should be compiled from source.
@@ -88,15 +95,21 @@ GitHub in the future, but for now, `mwalib` should be compiled from source.
 ## Example test output
 ```
 mwalibContext (
+    Correlator version:  Legacy,
+
     obsid:               1065880128,
     obs UNIX start time: 1381844910 s,
     obs UNIX end time:   1381845018.5 s,
 
-    num baselines:    8128,
-    num pols:         4,
+    num antennas:           128,
+    num baselines:          8256,
+    num auto-correlations:  128,
+    num cross-correlations: 8128,
 
-    num fine channels: 32,
+    num pols:               4,
+    num fine channels:      32,
     coarse channels: [131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154],
+
     fine channel resolution:  40 kHz,
     coarse channel bandwidth: 30.72 MHz,
 

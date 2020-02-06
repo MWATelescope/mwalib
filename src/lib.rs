@@ -14,5 +14,5 @@ pub mod misc;
 
 // Re-exports.
 use anyhow::Context;
-pub use context::mwalibContext;
+pub use context::{mwalibContext, CorrelatorVersion};
 pub use error::ErrorKind;
