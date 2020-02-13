@@ -41,7 +41,7 @@ impl fmt::Display for CorrelatorVersion {
 }
 
 #[allow(non_camel_case_types)]
-pub struct mwalibAntenna {
+pub struct mwalibRFInput {
     pub input: u32,
     pub antenna: u32,
     pub tile_id: u32,
@@ -53,7 +53,7 @@ pub struct mwalibAntenna {
     pub height: f64,
 }
 
-impl fmt::Debug for mwalibAntenna {
+impl fmt::Debug for mwalibRFInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.tile_name, self.pol)
     }
@@ -122,7 +122,7 @@ pub struct mwalibContext {
     pub num_antennas: usize,
     
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)    
-    pub antennas: Vec<mwalibAntenna>,
+    pub rf_inputs: Vec<mwalibRFInput>,
     
     pub num_baselines: usize,
     pub integration_time_milliseconds: u64,
@@ -277,7 +277,7 @@ impl mwalibContext {
             .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?;        
 
         // Create a vector of Antenna structs from the metafits
-        let mut antennas:Vec<mwalibAntenna> = Vec::with_capacity(num_inputs);
+        let mut rf_inputs:Vec<mwalibRFInput> = Vec::with_capacity(num_inputs);
 
         for input in 1..num_inputs {        
             // Note fits row numbers start at 1        
@@ -310,8 +310,8 @@ impl mwalibContext {
             let table_height = metafits_tile_table_hdu.read_cell_value(&mut metafits_fptr, "Height", input)
             .with_context(|| format!("Failed to read table for Height from {:?}", metafits))?;
 
-            antennas.push(
-                mwalibAntenna{
+            rf_inputs.push(
+                mwalibRFInput{
                     input: table_input,
                     antenna: table_antenna,
                     tile_id: table_tile_id,
@@ -325,7 +325,7 @@ impl mwalibContext {
         }
 
         // Sort the Antenna vector by the "Antenna" column to get the actual order of tiles
-        antennas.sort_by(|a, b| a.antenna.cmp(&b.antenna));
+        rf_inputs.sort_by(|a, b| a.antenna.cmp(&b.antenna));
         
         let obsid = get_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
             .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;
@@ -448,7 +448,7 @@ impl mwalibContext {
             end_unix_time_milliseconds,
             current_time_milliseconds: start_unix_time_milliseconds,
             num_antennas, 
-            antennas,           
+            rf_inputs,           
             num_baselines,
             integration_time_milliseconds,
             num_antenna_pols,
@@ -532,7 +532,7 @@ impl fmt::Display for mwalibContext {
     obs UNIX end time:        {} s,
 
     num antennas:             {},
-    tiles:                    {:?},
+    rf_inputs:                {:?},
 
     num baselines:            {},
     num auto-correlations:    {},
@@ -563,7 +563,7 @@ impl fmt::Display for mwalibContext {
             self.end_unix_time_milliseconds as f64 / 1e3,
             
             self.num_antennas,
-            self.antennas,
+            self.rf_inputs,
             self.num_baselines,
             self.num_antennas,
             self.num_baselines - self.num_antennas,
