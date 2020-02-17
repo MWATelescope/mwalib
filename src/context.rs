@@ -5,7 +5,6 @@
 /*!
 The main interface to MWA data.
  */
-
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::*;
@@ -14,88 +13,8 @@ use fitsio::*;
 
 use crate::fits_read::*;
 use crate::gpubox::*;
+use crate::metadata::*;
 use crate::*;
-
-#[derive(Debug, PartialEq)]
-pub enum CorrelatorVersion {
-    /// New correlator data (a.k.a. MWAX).
-    V2,
-    /// MWA raw data files with "gpubox" and batch numbers in their names.
-    Legacy,
-    /// gpubox files without any batch numbers.
-    OldLegacy,
-}
-
-impl fmt::Display for CorrelatorVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                CorrelatorVersion::V2 => "V2 (MWAX)",
-                CorrelatorVersion::Legacy => "Legacy",
-                CorrelatorVersion::OldLegacy => "Legacy (no file indices)",
-            }
-        )
-    }
-}
-
-#[allow(non_camel_case_types)]
-pub struct mwalibRFInput {
-    pub input: u32,
-    pub antenna: u32,
-    pub tile_id: u32,
-    pub tile_name: String,
-    pub pol: String,
-    pub electrical_length: f64,
-    pub north: f64,
-    pub east: f64,
-    pub height: f64,
-}
-
-impl fmt::Debug for mwalibRFInput {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}", self.tile_name, self.pol)
-    }
-}
-
-/// This is a struct for our coarse channels
-#[allow(non_camel_case_types)]
-pub struct mwalibCoarseChannel {
-    // Correlator channel is 0 indexed
-    pub correlator_channel_number: u16,
-
-    // Receiver channel is 0-255 in the RRI recivers
-    pub receiver_channel_number: u16,    
-
-    pub channel_width_hz: u32,
-    pub channel_start_hz: u32,
-    pub channel_centre_hz: u32,
-    pub channel_end_hz: u32,    
-}
-
-impl mwalibCoarseChannel {
-    pub fn new(correlator_channel_number: u16, 
-               receiver_channel_number: u16,
-               channel_width_hz: u32, ) -> Result<mwalibCoarseChannel, ErrorKind> {
-        let centre_chan_hz:u32 = (receiver_channel_number as u32) * channel_width_hz;
-
-        Ok(mwalibCoarseChannel {
-            correlator_channel_number, 
-            receiver_channel_number,
-            channel_width_hz,
-            channel_centre_hz: centre_chan_hz,
-            channel_start_hz: centre_chan_hz - (channel_width_hz / 2),
-            channel_end_hz: centre_chan_hz + (channel_width_hz / 2),
-        })
-    }
-}
-
-impl fmt::Debug for mwalibCoarseChannel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "corr={} rec={} @ {:.3} MHz", self.correlator_channel_number, self.receiver_channel_number, self.channel_centre_hz as f32 / 1000000.)
-    }
-}
 
 /// `mwalib` observation context. This is used to transport data out of gpubox
 /// files and display info on the observation.
@@ -120,10 +39,8 @@ pub struct mwalibContext {
 
     /// Total number of antennas (tiles) in the array
     pub num_antennas: usize,
-    
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)    
-    pub rf_inputs: Vec<mwalibRFInput>,
-    
+    pub rf_inputs: Vec<mwalibRFChain>,
     pub num_baselines: usize,
     pub integration_time_milliseconds: u64,
 
@@ -262,7 +179,7 @@ impl mwalibContext {
         }
 
         // Pull out observation details. Save the metafits HDU for faster
-        // accesses.        
+        // accesses.
         let mut metafits_fptr =
             FitsFile::open(&metafits).with_context(|| format!("Failed to open {:?}", metafits))?;
         let metafits_hdu = metafits_fptr
@@ -274,59 +191,88 @@ impl mwalibContext {
             .with_context(|| format!("Failed to open HDU 2 (tiledata table) for {:?}", metafits))?;
 
         let num_inputs = get_fits_key::<usize>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
-            .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?;        
+            .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?;
+
+        // There are twice as many inputs as
+        // there are antennas; halve that value.
+        let num_antennas = num_inputs / 2;
 
         // Create a vector of Antenna structs from the metafits
-        let mut rf_inputs:Vec<mwalibRFInput> = Vec::with_capacity(num_inputs);
+        let mut rf_inputs: Vec<mwalibRFChain> = Vec::with_capacity(num_inputs);
 
-        for input in 1..num_inputs {        
-            // Note fits row numbers start at 1        
-            let table_input = metafits_tile_table_hdu.read_cell_value(&mut metafits_fptr, "Input", input)
-            .with_context(|| format!("Failed to read table for Input from {:?}.", metafits))?;
-                        
-            let table_antenna = metafits_tile_table_hdu.read_cell_value(&mut metafits_fptr, "Antenna", input)
-            .with_context(|| format!("Failed to read table for Antenna from  {:?}", metafits))?;
+        for input in 1..num_inputs {
+            // Note fits row numbers start at 1
 
-            let table_tile_id = metafits_tile_table_hdu.read_cell_value(&mut metafits_fptr, "Tile", input)
-            .with_context(|| format!("Failed to read table for Tile from  {:?}", metafits))?;
+            // The metafits TILEDATA table contains 2 rows for each antenna.
+            let table_input = metafits_tile_table_hdu
+                .read_cell_value(&mut metafits_fptr, "Input", input)
+                .with_context(|| format!("Failed to read table for Input from  {:?}", metafits))?;
 
-            let table_tile_name = metafits_tile_table_hdu.read_cell_value(&mut metafits_fptr, "TileName", input)
-            .with_context(|| format!("Failed to read table for TileName from  {:?}", metafits))?;
+            let table_antenna = metafits_tile_table_hdu
+                .read_cell_value(&mut metafits_fptr, "Antenna", input)
+                .with_context(|| {
+                    format!("Failed to read table for Antenna from  {:?}", metafits)
+                })?;
 
-            let table_pol = metafits_tile_table_hdu.read_cell_value(&mut metafits_fptr, "Pol", input)
-            .with_context(|| format!("Failed to read table for Pol from  {:?}", metafits))?;
+            let table_tile_id = metafits_tile_table_hdu
+                .read_cell_value(&mut metafits_fptr, "Tile", input)
+                .with_context(|| format!("Failed to read table for Tile from  {:?}", metafits))?;
 
+            let table_tile_name = metafits_tile_table_hdu
+                .read_cell_value(&mut metafits_fptr, "TileName", input)
+                .with_context(|| {
+                    format!("Failed to read table for TileName from  {:?}", metafits)
+                })?;
+
+            let table_pol = metafits_tile_table_hdu
+                .read_cell_value(&mut metafits_fptr, "Pol", input)
+                .with_context(|| format!("Failed to read table for Pol from  {:?}", metafits))?;
             // Length is stored as a string (no one knows why) starting with "EL_" the rest is a float so remove the prefix and get the float
-            let table_electrical_length_desc:String = metafits_tile_table_hdu.read_cell_value(&mut metafits_fptr, "Length", input)
-            .with_context(|| format!("Failed to read table for Length from  {:?}", metafits))?;            
-            let table_electrical_length = table_electrical_length_desc.replace("EL_", "").parse().unwrap();
+            let table_electrical_length_desc: String = metafits_tile_table_hdu
+                .read_cell_value(&mut metafits_fptr, "Length", input)
+                .with_context(|| format!("Failed to read table for Length from  {:?}", metafits))?;
+            let table_electrical_length = table_electrical_length_desc
+                .replace("EL_", "")
+                .parse()
+                .unwrap();
 
-            let table_north = metafits_tile_table_hdu.read_cell_value(&mut metafits_fptr, "North", input)
-            .with_context(|| format!("Failed to read table for North from  {:?}", metafits))?;
+            let table_north = metafits_tile_table_hdu
+                .read_cell_value(&mut metafits_fptr, "North", input)
+                .with_context(|| format!("Failed to read table for North from  {:?}", metafits))?;
 
-            let table_east = metafits_tile_table_hdu.read_cell_value(&mut metafits_fptr, "East", input)
-            .with_context(|| format!("Failed to read table for East from  {:?}", metafits))?;
+            let table_east = metafits_tile_table_hdu
+                .read_cell_value(&mut metafits_fptr, "East", input)
+                .with_context(|| format!("Failed to read table for East from  {:?}", metafits))?;
 
-            let table_height = metafits_tile_table_hdu.read_cell_value(&mut metafits_fptr, "Height", input)
-            .with_context(|| format!("Failed to read table for Height from {:?}", metafits))?;
+            let table_height = metafits_tile_table_hdu
+                .read_cell_value(&mut metafits_fptr, "Height", input)
+                .with_context(|| format!("Failed to read table for Height from {:?}", metafits))?;
+
+            let table_vcs_order = metafits_tile_table_hdu
+                .read_cell_value(&mut metafits_fptr, "VCSOrder", input)
+                .with_context(|| {
+                    format!("Failed to read table for VCSOrder from {:?}", metafits)
+                })?;
 
             rf_inputs.push(
-                mwalibRFInput{
-                    input: table_input,
-                    antenna: table_antenna,
-                    tile_id: table_tile_id,
-                    tile_name: table_tile_name,
-                    pol: table_pol,
-                    electrical_length: table_electrical_length,
-                    north: table_north,
-                    east: table_east,
-                    height: table_height,
-            })
+                mwalibRFChain::new(
+                    table_input,
+                    table_antenna,
+                    table_tile_id,
+                    table_tile_name,
+                    table_pol,
+                    table_electrical_length,
+                    table_north,
+                    table_east,
+                    table_height,
+                    table_vcs_order,
+                )
+                .unwrap(),
+            )
         }
 
         // Sort the Antenna vector by the "Antenna" column to get the actual order of tiles
         rf_inputs.sort_by(|a, b| a.antenna.cmp(&b.antenna));
-        
         let obsid = get_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
             .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;
 
@@ -335,24 +281,20 @@ impl mwalibContext {
         let num_antenna_pols = 2;
         let num_visibility_pols = num_antenna_pols * num_antenna_pols;
 
-        // Calculate the number of baselines. There are twice as many inputs as
-        // there are antennas; halve that value.
-        let num_antennas = num_inputs / 2;
-
         // `num_baselines` is the number of cross-correlations + the number of
         // auto-correlations.
         let num_baselines = (num_antennas / 2) * (num_antennas + 1);
 
-        let integration_time_milliseconds:u64 =
+        let integration_time_milliseconds: u64 =
             (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "INTTIME")
                 .with_context(|| format!("Failed to read INTTIME for {:?}", metafits))?
-                * 1000.) as u64;        
+                * 1000.) as u64;
 
         // The coarse-channels string uses the FITS "CONTINUE" keywords. The
         // fitsio library for rust does not (appear) to handle CONTINUE keywords
         // at present, but the underlying fitsio-sys does, so we have to do FFI
         // directly.
-        let coarse_channel_vec:Vec<u16> = {
+        let coarse_channel_vec: Vec<u16> = {
             // Read the long string.
             let (status, coarse_channels_string) =
                 unsafe { get_fits_long_string(metafits_fptr.as_raw(), "CHANNELS") };
@@ -374,33 +316,38 @@ impl mwalibContext {
         let num_coarse_channels = coarse_channel_vec.len();
 
         // observation bandwidth (read from metafits in MHz)
-        let observation_bandwidth_hz = (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")
-            .with_context(|| format!("Failed to read BANDWDTH for {:?}", metafits))?
-            * 1e6)
-            .round() as _;
+        let observation_bandwidth_hz =
+            (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")
+                .with_context(|| format!("Failed to read BANDWDTH for {:?}", metafits))?
+                * 1e6)
+                .round() as _;
 
         // determine coarse channel width
         let coarse_channel_width_hz = observation_bandwidth_hz / (num_coarse_channels as u32);
 
         // Initialise the coarse channel vector of structs
-        let mut coarse_channels:Vec<mwalibCoarseChannel> = Vec::with_capacity(num_coarse_channels);
-        let mut i:usize = 0;
+        let mut coarse_channels: Vec<mwalibCoarseChannel> = Vec::with_capacity(num_coarse_channels);
+        let mut i = 0;
 
-        for rec_channel_number in &coarse_channel_vec {            
+        for rec_channel_number in &coarse_channel_vec {
             let mut corr_channel_number = i;
 
-            if corr_version == CorrelatorVersion::Legacy ||
-               corr_version == CorrelatorVersion::OldLegacy {
-                // Legacy and Old Legacy: if receiver channel number is >127 then the order is reversed                
-                if rec_channel_number > &127 {
-                    corr_channel_number  = (num_coarse_channels -1) - i;
-                }                
-            }                         
+            if corr_version == CorrelatorVersion::Legacy
+                || corr_version == CorrelatorVersion::OldLegacy
+            {
+                // Legacy and Old Legacy: if receiver channel number is >128 then the order is reversed
+                if rec_channel_number > &128 {
+                    corr_channel_number = (num_coarse_channels - 1) - i;
+                }
+            }
 
             coarse_channels.push(
-                mwalibCoarseChannel::new(corr_channel_number as u16, 
-                                         *rec_channel_number,
-                                         coarse_channel_width_hz).unwrap()
+                mwalibCoarseChannel::new(
+                    corr_channel_number as u16,
+                    *rec_channel_number,
+                    coarse_channel_width_hz,
+                )
+                .unwrap(),
             );
 
             i = i + 1;
@@ -414,7 +361,7 @@ impl mwalibContext {
         let resolution = (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "FINECHAN")
             .with_context(|| format!("Failed to read FINECHAN for {:?}", metafits))?
             * 1000.)
-            .round() as _;        
+            .round() as _;
 
         // Determine the fine channels. For some reason, this isn't in the
         // metafits. Assume that this is the same for all gpubox files.
@@ -427,7 +374,8 @@ impl mwalibContext {
             if corr_version == CorrelatorVersion::V2 {
                 get_fits_key::<usize>(&mut gpubox_fptrs[0][0], &hdu, "NAXIS1").with_context(
                     || format!("Failed to read NAXIS1 for {:?}", gpubox_batches[0][0]),
-                )? / num_visibility_pols / 2
+                )? / num_visibility_pols
+                    / 2
             } else {
                 get_fits_key(&mut gpubox_fptrs[0][0], &hdu, "NAXIS2").with_context(|| {
                     format!("Failed to read NAXIS2 for {:?}", gpubox_batches[0][0])
@@ -440,15 +388,14 @@ impl mwalibContext {
             let o = determine_obs_times(&gpubox_time_map)?;
             (o.start_millisec, o.end_millisec)
         };
-
         Ok(mwalibContext {
             corr_version,
             obsid,
             start_unix_time_milliseconds,
             end_unix_time_milliseconds,
             current_time_milliseconds: start_unix_time_milliseconds,
-            num_antennas, 
-            rf_inputs,           
+            num_antennas,
+            rf_inputs,
             num_baselines,
             integration_time_milliseconds,
             num_antenna_pols,
@@ -557,28 +504,22 @@ impl fmt::Display for mwalibContext {
     gpubox batches:           {:#?},
 )"#,
             self.corr_version,
-
             self.obsid,
             self.start_unix_time_milliseconds as f64 / 1e3,
             self.end_unix_time_milliseconds as f64 / 1e3,
-            
             self.num_antennas,
             self.rf_inputs,
             self.num_baselines,
             self.num_antennas,
             self.num_baselines - self.num_antennas,
-            
             self.num_antenna_pols,
             self.num_visibility_pols,
-            
             self.observation_bandwidth_hz as f64 / 1e6,
             self.num_coarse_channels,
-            self.coarse_channels,            
-            
+            self.coarse_channels,
             self.fine_channel_resolution_hz as f64 / 1e3,
-            self.integration_time_milliseconds as f64 / 1e3,           
-            self.num_fine_channels,             
-                        
+            self.integration_time_milliseconds as f64 / 1e3,
+            self.num_fine_channels,
             size,
             size * self.num_gpubox_files as f64,
             self.metafits_filename,

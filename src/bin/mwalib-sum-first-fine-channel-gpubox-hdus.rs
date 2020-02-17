@@ -36,7 +36,7 @@ fn main() -> Result<(), anyhow::Error> {
             for gpubox in scan {
                 for bl in 0..context.num_baselines {
                     for pol in 0..4 {
-                        let index = bl * context.num_fine_channels * context.num_pols * 2 + pol * 2;
+                        let index = bl * context.num_fine_channels * context.num_antenna_pols * 2 + pol * 2;
                         sum += gpubox[index] as f64;
                         sum += gpubox[index + 1] as f64;
                     }

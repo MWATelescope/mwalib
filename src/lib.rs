@@ -10,9 +10,11 @@ pub mod error;
 pub mod ffi;
 pub mod fits_read;
 pub mod gpubox;
+pub mod metadata;
 pub mod misc;
 
 // Re-exports.
 use anyhow::Context;
-pub use context::{mwalibContext, CorrelatorVersion};
+pub use context::mwalibContext;
 pub use error::ErrorKind;
+pub use metadata::CorrelatorVersion;
