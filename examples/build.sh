@@ -12,12 +12,14 @@ gcc -O3 \
     mwalib-print-obs-context.c \
     -o mwalib-print-obs-context \
     -lcfitsio -lm -lpthread -ldl \
-    ../target/release/libmwalib.a
+    -B../target/release/ \
+    -lmwalib
 
 gcc -O3 \
     mwalib-sum-all-hdus.c \
     -o mwalib-sum-all-hdus \
     -lcfitsio -lm -lpthread -ldl \
-    ../target/release/libmwalib.a
+    -B../target/release/ \
+    -lmwalib
 
 echo "Run the compiled binaries with some MWA files to test mwalib."

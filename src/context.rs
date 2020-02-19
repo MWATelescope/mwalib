@@ -11,10 +11,21 @@ use std::path::*;
 
 use fitsio::*;
 
+use crate::coarse_channel::*;
 use crate::fits_read::*;
 use crate::gpubox::*;
-use crate::metadata::*;
+use crate::rfinput::*;
 use crate::*;
+
+#[derive(Debug, PartialEq)]
+pub enum CorrelatorVersion {
+    /// New correlator data (a.k.a. MWAX).
+    V2,
+    /// MWA raw data files with "gpubox" and batch numbers in their names.
+    Legacy,
+    /// gpubox files without any batch numbers.
+    OldLegacy,
+}
 
 /// `mwalib` observation context. This is used to transport data out of gpubox
 /// files and display info on the observation.
@@ -23,6 +34,7 @@ use crate::*;
 /// more like a C library.
 #[allow(non_camel_case_types)]
 pub struct mwalibContext {
+    /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
 
     pub obsid: u32,
@@ -40,7 +52,7 @@ pub struct mwalibContext {
     /// Total number of antennas (tiles) in the array
     pub num_antennas: usize,
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)    
-    pub rf_inputs: Vec<mwalibRFChain>,
+    pub rf_inputs: Vec<mwalibRFInput>,
     pub num_baselines: usize,
     pub integration_time_milliseconds: u64,
 
@@ -197,82 +209,12 @@ impl mwalibContext {
         // there are antennas; halve that value.
         let num_antennas = num_inputs / 2;
 
-        // Create a vector of Antenna structs from the metafits
-        let mut rf_inputs: Vec<mwalibRFChain> = Vec::with_capacity(num_inputs);
-
-        for input in 1..num_inputs {
-            // Note fits row numbers start at 1
-
-            // The metafits TILEDATA table contains 2 rows for each antenna.
-            let table_input = metafits_tile_table_hdu
-                .read_cell_value(&mut metafits_fptr, "Input", input)
-                .with_context(|| format!("Failed to read table for Input from  {:?}", metafits))?;
-
-            let table_antenna = metafits_tile_table_hdu
-                .read_cell_value(&mut metafits_fptr, "Antenna", input)
-                .with_context(|| {
-                    format!("Failed to read table for Antenna from  {:?}", metafits)
-                })?;
-
-            let table_tile_id = metafits_tile_table_hdu
-                .read_cell_value(&mut metafits_fptr, "Tile", input)
-                .with_context(|| format!("Failed to read table for Tile from  {:?}", metafits))?;
-
-            let table_tile_name = metafits_tile_table_hdu
-                .read_cell_value(&mut metafits_fptr, "TileName", input)
-                .with_context(|| {
-                    format!("Failed to read table for TileName from  {:?}", metafits)
-                })?;
-
-            let table_pol = metafits_tile_table_hdu
-                .read_cell_value(&mut metafits_fptr, "Pol", input)
-                .with_context(|| format!("Failed to read table for Pol from  {:?}", metafits))?;
-            // Length is stored as a string (no one knows why) starting with "EL_" the rest is a float so remove the prefix and get the float
-            let table_electrical_length_desc: String = metafits_tile_table_hdu
-                .read_cell_value(&mut metafits_fptr, "Length", input)
-                .with_context(|| format!("Failed to read table for Length from  {:?}", metafits))?;
-            let table_electrical_length = table_electrical_length_desc
-                .replace("EL_", "")
-                .parse()
-                .unwrap();
-
-            let table_north = metafits_tile_table_hdu
-                .read_cell_value(&mut metafits_fptr, "North", input)
-                .with_context(|| format!("Failed to read table for North from  {:?}", metafits))?;
-
-            let table_east = metafits_tile_table_hdu
-                .read_cell_value(&mut metafits_fptr, "East", input)
-                .with_context(|| format!("Failed to read table for East from  {:?}", metafits))?;
-
-            let table_height = metafits_tile_table_hdu
-                .read_cell_value(&mut metafits_fptr, "Height", input)
-                .with_context(|| format!("Failed to read table for Height from {:?}", metafits))?;
-
-            let table_vcs_order = metafits_tile_table_hdu
-                .read_cell_value(&mut metafits_fptr, "VCSOrder", input)
-                .with_context(|| {
-                    format!("Failed to read table for VCSOrder from {:?}", metafits)
-                })?;
-
-            rf_inputs.push(
-                mwalibRFChain::new(
-                    table_input,
-                    table_antenna,
-                    table_tile_id,
-                    table_tile_name,
-                    table_pol,
-                    table_electrical_length,
-                    table_north,
-                    table_east,
-                    table_height,
-                    table_vcs_order,
-                )
-                .unwrap(),
-            )
-        }
-
-        // Sort the Antenna vector by the "Antenna" column to get the actual order of tiles
-        rf_inputs.sort_by(|a, b| a.antenna.cmp(&b.antenna));
+        // Create a vector of rf_input structs from the metafits
+        let rf_inputs: Vec<mwalibRFInput> = mwalibRFInput::populate_rf_input(
+            num_inputs,
+            &mut metafits_fptr,
+            metafits_tile_table_hdu,
+        )?;
         let obsid = get_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
             .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;
 
@@ -289,72 +231,19 @@ impl mwalibContext {
             (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "INTTIME")
                 .with_context(|| format!("Failed to read INTTIME for {:?}", metafits))?
                 * 1000.) as u64;
-
-        // The coarse-channels string uses the FITS "CONTINUE" keywords. The
-        // fitsio library for rust does not (appear) to handle CONTINUE keywords
-        // at present, but the underlying fitsio-sys does, so we have to do FFI
-        // directly.
-        let coarse_channel_vec: Vec<u16> = {
-            // Read the long string.
-            let (status, coarse_channels_string) =
-                unsafe { get_fits_long_string(metafits_fptr.as_raw(), "CHANNELS") };
-            if status != 0 {
-                return Err(ErrorKind::Custom(
-                    "mwalibContext::new: get_fits_long_string failed".to_string(),
-                ));
-            }
-
-            coarse_channels_string
-                .replace(&['\'', '&'][..], "")
-                .split(',')
-                .map(|s| s.parse().unwrap())
-                .collect()
-        };
-
-        // How many coarse channels should there be (from the metafits)
-        // NOTE: this will NOT always be equal to the number of gpubox files we get
-        let num_coarse_channels = coarse_channel_vec.len();
-
         // observation bandwidth (read from metafits in MHz)
         let observation_bandwidth_hz =
             (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")
                 .with_context(|| format!("Failed to read BANDWDTH for {:?}", metafits))?
                 * 1e6)
                 .round() as _;
-
-        // determine coarse channel width
-        let coarse_channel_width_hz = observation_bandwidth_hz / (num_coarse_channels as u32);
-
-        // Initialise the coarse channel vector of structs
-        let mut coarse_channels: Vec<mwalibCoarseChannel> = Vec::with_capacity(num_coarse_channels);
-        let mut i = 0;
-
-        for rec_channel_number in &coarse_channel_vec {
-            let mut corr_channel_number = i;
-
-            if corr_version == CorrelatorVersion::Legacy
-                || corr_version == CorrelatorVersion::OldLegacy
-            {
-                // Legacy and Old Legacy: if receiver channel number is >128 then the order is reversed
-                if rec_channel_number > &128 {
-                    corr_channel_number = (num_coarse_channels - 1) - i;
-                }
-            }
-
-            coarse_channels.push(
-                mwalibCoarseChannel::new(
-                    corr_channel_number as u16,
-                    *rec_channel_number,
-                    coarse_channel_width_hz,
-                )
-                .unwrap(),
-            );
-
-            i = i + 1;
-        }
-
-        // Now sort the coarse channels by receiver channel number
-        coarse_channels.sort_by(|a, b| a.receiver_channel_number.cmp(&b.receiver_channel_number));
+        // Populate coarse channels
+        let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
+            coarse_channel::mwalibCoarseChannel::populate_coarse_channels(
+                &mut metafits_fptr,
+                &corr_version,
+                observation_bandwidth_hz,
+            )?;
 
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.
