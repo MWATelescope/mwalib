@@ -1,4 +1,5 @@
 # mwalib
+![Run Tests](https://github.com/MWATelescope/mwalib/workflows/Run%20Tests/badge.svg)
 MWA library to read raw visibilities and metadata into a common structure
 
 ## Usage via C
@@ -6,8 +7,8 @@ In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.c`, and
 `mwalib-sum-all-hdus.c` for examples of usage.
 
 ## Usage via Python
-In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.c`, and
-`mwalib-sum-all-hdus.c` for examples of usage.
+In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.py`, and
+`mwalib-sum-all-hdus.py` for examples of usage.
 
 ## Usage in Rust
 See `mwalib-print-obs-context.rs` and `mwalib-print-obs-context.rs` for
