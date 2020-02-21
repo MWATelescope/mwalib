@@ -2,9 +2,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// // #[rustfmt_skip]
-// static PFB_MAP: &[u8; 64] = &[
-//     0, 16, 32, 48, 1, 17, 33, 49, 2, 18, 34, 50, 3, 19, 35, 51, 4, 20, 36, 52, 5, 21, 37, 53, 6,
-//     22, 38, 54, 7, 23, 39, 55, 8, 24, 40, 56, 9, 25, 41, 57, 10, 26, 42, 58, 11, 27, 43, 59, 12,
-//     28, 44, 60, 13, 29, 45, 61, 14, 30, 46, 62, 15, 31, 47, 63,
-// ];
+pub fn get_baseline_count(antennas: u16) -> u16 {
+    return antennas * (antennas + 1) / 2;
+}
+
+pub fn get_antennas_from_baseline(baseline: usize, num_antennas: usize) -> (usize, usize) {
+    let mut baseline_index = 0;
+    for ant1 in 0..num_antennas {
+        for ant2 in ant1..num_antennas {
+            if baseline_index == baseline {
+                return (ant1, ant2);
+            } else {
+                baseline_index += 1;
+            }
+        }
+    }
+
+    return (0, 0);
+}

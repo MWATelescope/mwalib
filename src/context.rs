@@ -12,6 +12,7 @@ use std::path::*;
 use fitsio::*;
 
 use crate::coarse_channel::*;
+use crate::convert::*;
 use crate::fits_read::*;
 use crate::gpubox::*;
 use crate::rfinput::*;
@@ -25,6 +26,20 @@ pub enum CorrelatorVersion {
     Legacy,
     /// gpubox files without any batch numbers.
     OldLegacy,
+}
+
+impl fmt::Display for CorrelatorVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CorrelatorVersion::V2 => "V2 (MWAX)",
+                CorrelatorVersion::Legacy => "Legacy",
+                CorrelatorVersion::OldLegacy => "Legacy (no file indices)",
+            }
+        )
+    }
 }
 
 /// `mwalib` observation context. This is used to transport data out of gpubox
@@ -45,6 +60,12 @@ pub struct mwalibContext {
     /// is derived from (i.e. `end_time_milliseconds` + integration time is the
     /// actual end time of the observation).
     pub end_unix_time_milliseconds: u64,
+
+    /// Total duration of observation (based on gpubox files)
+    pub duration_milliseconds: u64,
+
+    /// Number of timesteps in the observation
+    pub num_timesteps: usize,
 
     /// Track the UNIX time (in milliseconds) that will be read next.
     pub current_time_milliseconds: u64,
@@ -105,6 +126,8 @@ pub struct mwalibContext {
     pub num_gpubox_files: usize,
     /// The number of floats in each gpubox HDU.
     pub gpubox_hdu_size: usize,
+    /// A conversion table to optimise reading of legacy MWA HDUs
+    pub legacy_conversion_table: Vec<mwalibLegacyConversionBaseline>,
 }
 
 impl mwalibContext {
@@ -190,6 +213,8 @@ impl mwalibContext {
             }
         }
 
+        let num_timesteps = gpubox_time_map.len();
+
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
         let mut metafits_fptr =
@@ -210,7 +235,7 @@ impl mwalibContext {
         let num_antennas = num_inputs / 2;
 
         // Create a vector of rf_input structs from the metafits
-        let rf_inputs: Vec<mwalibRFInput> = mwalibRFInput::populate_rf_input(
+        let mut rf_inputs: Vec<mwalibRFInput> = mwalibRFInput::populate_rf_input(
             num_inputs,
             &mut metafits_fptr,
             metafits_tile_table_hdu,
@@ -271,18 +296,27 @@ impl mwalibContext {
                 })?
             }
         };
-
         // Populate the start and end times of the observation.
-        let (start_unix_time_milliseconds, end_unix_time_milliseconds) = {
+        let (start_unix_time_milliseconds, end_unix_time_milliseconds, duration_milliseconds) = {
             let o = determine_obs_times(&gpubox_time_map)?;
-            (o.start_millisec, o.end_millisec)
+            (o.start_millisec, o.end_millisec, o.duration_milliseconds)
         };
+
+        // Prepare the conversion array to convert legacy correlator format into mwax format
+        let legacy_conversion_table: Vec<mwalibLegacyConversionBaseline> =
+            convert::generate_conversion_array(&mut rf_inputs);
+
+        // Sort the rf_inputs back into the correct output order
+        rf_inputs.sort_by_key(|k| k.subfile_order);
+
         Ok(mwalibContext {
             corr_version,
             obsid,
             start_unix_time_milliseconds,
             end_unix_time_milliseconds,
+            duration_milliseconds,
             current_time_milliseconds: start_unix_time_milliseconds,
+            num_timesteps,
             num_antennas,
             rf_inputs,
             num_baselines,
@@ -305,11 +339,21 @@ impl mwalibContext {
             num_data_scans: 1,
             num_gpubox_files,
             gpubox_hdu_size: size,
+            legacy_conversion_table,
         })
     }
 
     /// The output `buffer` is structured: `buffer[scan][gpubox_index][data]`.
     pub fn read(&mut self, num_scans: usize) -> Result<Vec<Vec<Vec<f32>>>, ErrorKind> {
+        // Prepare temporary buffer, if we are reading legacy correlator files
+        let mut temp_buffer = if self.corr_version == CorrelatorVersion::OldLegacy
+            || self.corr_version == CorrelatorVersion::Legacy
+        {
+            vec![0.; self.num_fine_channels * self.num_visibility_pols * self.num_baselines * 2]
+        } else {
+            Vec::new()
+        };
+
         // Is there enough data left to fit into the total number of scans? If
         // not, we need to resize `buffer`.
         let ct = self.current_time_milliseconds as i64;
@@ -345,6 +389,19 @@ impl mwalibContext {
                             .to_string(),
                     ));
                 }
+                // If legacy correlator, then convert the HDU into the correct output format
+                if self.corr_version == CorrelatorVersion::OldLegacy
+                    || self.corr_version == CorrelatorVersion::Legacy
+                {
+                    convert::convert_legacy_hdu(
+                        &self.legacy_conversion_table,
+                        &scan[gpubox_index],
+                        &mut temp_buffer,
+                        self.num_fine_channels,
+                    );
+
+                    scan[gpubox_index] = temp_buffer.clone();
+                }
             }
             self.current_time_milliseconds += self.integration_time_milliseconds as u64;
         }
@@ -366,6 +423,8 @@ impl fmt::Display for mwalibContext {
     obsid:                    {},
     obs UNIX start time:      {} s,
     obs UNIX end time:        {} s,
+    obs duration:             {} s,
+    Timesteps:                {},
 
     num antennas:             {},
     rf_inputs:                {:?},
@@ -396,6 +455,8 @@ impl fmt::Display for mwalibContext {
             self.obsid,
             self.start_unix_time_milliseconds as f64 / 1e3,
             self.end_unix_time_milliseconds as f64 / 1e3,
+            self.duration_milliseconds as f64 / 1e3,
+            self.num_timesteps,
             self.num_antennas,
             self.rf_inputs,
             self.num_baselines,

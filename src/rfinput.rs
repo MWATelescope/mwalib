@@ -8,20 +8,6 @@ Structs and helper methods for rf_input metadata
 use crate::*;
 use std::fmt;
 
-impl fmt::Display for CorrelatorVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                CorrelatorVersion::V2 => "V2 (MWAX)",
-                CorrelatorVersion::Legacy => "Legacy",
-                CorrelatorVersion::OldLegacy => "Legacy (no file indices)",
-            }
-        )
-    }
-}
-
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
 #[allow(non_camel_case_types)]
 pub struct mwalibRFInput {
@@ -86,33 +72,57 @@ impl mwalibRFInput {
         metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
     ) -> Result<Vec<mwalibRFInput>, ErrorKind> {
         let mut rf_inputs: Vec<mwalibRFInput> = Vec::with_capacity(num_inputs);
-        for input in 1..num_inputs {
+        for input in 0..num_inputs {
             // Note fits row numbers start at 1
 
             // The metafits TILEDATA table contains 2 rows for each antenna.
             let table_input = metafits_tile_table_hdu
                 .read_cell_value(metafits_fptr, "Input", input)
-                .with_context(|| format!("Failed to read table for Input from metafits."))?;
+                .with_context(|| {
+                    format!(
+                        "Failed to read table row {} for Input from metafits.",
+                        input
+                    )
+                })?;
 
             let table_antenna = metafits_tile_table_hdu
                 .read_cell_value(metafits_fptr, "Antenna", input)
-                .with_context(|| format!("Failed to read table for Antenna from metafits."))?;
+                .with_context(|| {
+                    format!(
+                        "Failed to read table row {} for Antenna from metafits.",
+                        input
+                    )
+                })?;
 
             let table_tile_id = metafits_tile_table_hdu
                 .read_cell_value(metafits_fptr, "Tile", input)
-                .with_context(|| format!("Failed to read table for Tile from metafits."))?;
+                .with_context(|| {
+                    format!("Failed to read table row {} for Tile from metafits.", input)
+                })?;
 
             let table_tile_name = metafits_tile_table_hdu
                 .read_cell_value(metafits_fptr, "TileName", input)
-                .with_context(|| format!("Failed to read table for TileName from metafits."))?;
+                .with_context(|| {
+                    format!(
+                        "Failed to read table row {} for TileName from metafits.",
+                        input
+                    )
+                })?;
 
             let table_pol = metafits_tile_table_hdu
                 .read_cell_value(metafits_fptr, "Pol", input)
-                .with_context(|| format!("Failed to read table for Pol from metafits."))?;
+                .with_context(|| {
+                    format!("Failed to read table row {} for Pol from metafits.", input)
+                })?;
             // Length is stored as a string (no one knows why) starting with "EL_" the rest is a float so remove the prefix and get the float
             let table_electrical_length_desc: String = metafits_tile_table_hdu
                 .read_cell_value(metafits_fptr, "Length", input)
-                .with_context(|| format!("Failed to read table for Length from metafits."))?;
+                .with_context(|| {
+                    format!(
+                        "Failed to read table row {} for Length from metafits.",
+                        input
+                    )
+                })?;
             let table_electrical_length = table_electrical_length_desc
                 .replace("EL_", "")
                 .parse()
@@ -120,15 +130,27 @@ impl mwalibRFInput {
 
             let table_north = metafits_tile_table_hdu
                 .read_cell_value(metafits_fptr, "North", input)
-                .with_context(|| format!("Failed to read table for North from metafits."))?;
+                .with_context(|| {
+                    format!(
+                        "Failed to read table row {} for North from metafits.",
+                        input
+                    )
+                })?;
 
             let table_east = metafits_tile_table_hdu
                 .read_cell_value(metafits_fptr, "East", input)
-                .with_context(|| format!("Failed to read table for East from metafits."))?;
+                .with_context(|| {
+                    format!("Failed to read table row {} for East from metafits.", input)
+                })?;
 
             let table_height = metafits_tile_table_hdu
                 .read_cell_value(metafits_fptr, "Height", input)
-                .with_context(|| format!("Failed to read table for Height from metafits"))?;
+                .with_context(|| {
+                    format!(
+                        "Failed to read table row {} for Height from metafits",
+                        input
+                    )
+                })?;
             // VCS_ORDER is the order that comes out of PFB and into the correlator (for legacy observations)
             // It can be calculated, so we do that, rather than make the user get a newer metafits (only metafits after mid 2018
             // have this column pre populated).
@@ -156,16 +178,12 @@ impl mwalibRFInput {
                 .unwrap(),
             )
         }
-
-        // Sort the Antenna vector by the "subfile" column to get the actual order of tiles we want in the output
-        rf_inputs.sort_by(|a, b| a.subfile_order.cmp(&b.subfile_order));
-
         return Ok(rf_inputs);
     }
 }
 
 impl fmt::Debug for mwalibRFInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{} ({})", self.tile_name, self.pol, self.vcs_order)
+        write!(f, "{}{}", self.tile_name, self.pol)
     }
 }

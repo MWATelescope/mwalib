@@ -123,7 +123,7 @@ impl mwalibCoarseChannel {
                 .unwrap(),
             );
 
-            i = i + 1;
+            i += 1;
         }
 
         // Now sort the coarse channels by receiver channel number

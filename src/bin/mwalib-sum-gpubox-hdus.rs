@@ -28,6 +28,7 @@ struct Opt {
 }
 
 fn sum_direct(files: Vec<String>, floats: Option<usize>) -> Result<(), anyhow::Error> {
+    println!("Summing directly from HDUs...");
     let mut sum: f64 = 0.0;
     let mut first_x = "".to_string();
     for gpubox in files {
@@ -59,20 +60,39 @@ fn sum_direct(files: Vec<String>, floats: Option<usize>) -> Result<(), anyhow::E
     Ok(())
 }
 
-fn sum_mwalib(metafits: String, files: Vec<String>) -> Result<(), anyhow::Error> {
+fn sum_mwalib(
+    metafits: String,
+    files: Vec<String>,
+    floats: Option<usize>,
+) -> Result<(), anyhow::Error> {
+    println!("Summing via mwalib...");
     let mut context = mwalibContext::new(&metafits, &files)?;
     context.num_data_scans = 3;
 
+    println!("Correlator version: {}", context.corr_version);
+
     let mut sum: f64 = 0.0;
+    let mut scan_index: usize = 0;
+    let mut first_x = "".to_string();
+
     while context.num_data_scans != 0 {
-        sum += context
-            .read(context.num_data_scans)?
-            .into_iter()
-            .fold(0.0, |acc, mut scan| {
-                acc + scan.drain(..).fold(0.0, |acc, mut gpubox| {
-                    acc + gpubox.drain(..).fold(0.0, |acc, value| acc + value as f64)
-                })
-            });
+        for chan in context.read(context.num_data_scans)?.into_iter() {
+            for scan in chan.into_iter() {
+                println!("Scan {}", scan_index);
+                sum += scan.iter().fold(0.0, |acc, value| acc + (*value as f64));
+
+                if scan_index == 0 {
+                    if let Some(f) = floats {
+                        first_x = format!("{:?}", scan.iter().take(f).collect::<Vec<&f32>>());
+                    }
+                }
+                scan_index += 1;
+            }
+        }
+    }
+
+    if let Some(f) = floats {
+        println!("First {} floats: {}", f, first_x);
     }
 
     println!("Total sum: {}", sum);
@@ -86,7 +106,7 @@ fn main() -> Result<(), anyhow::Error> {
     } else {
         // Ensure we have a metafits file.
         if let Some(m) = opts.metafits {
-            sum_mwalib(m, opts.files)?;
+            sum_mwalib(m, opts.files, opts.floats)?;
         } else {
             bail!("A metafits file is required when using mwalib.")
         }

@@ -19,7 +19,10 @@ struct Opt {
 
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
-    let context = mwalibContext::new(&opts.metafits, &opts.files)?;
+    let mut context = mwalibContext::new(&opts.metafits, &opts.files)?;
+
+    context.rf_inputs.sort_by_key(|k| k.subfile_order);
+
     println!("{}", context);
 
     Ok(())

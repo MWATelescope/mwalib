@@ -19,6 +19,7 @@ use crate::*;
 pub struct ObsTimes {
     pub start_millisec: u64,
     pub end_millisec: u64,
+    pub duration_milliseconds: u64,
 }
 
 lazy_static! {
@@ -284,6 +285,7 @@ pub fn determine_obs_times(
     Ok(ObsTimes {
         start_millisec: proper_start_millisec,
         end_millisec: proper_end_millisec,
+        duration_milliseconds: (proper_end_millisec - proper_start_millisec) + 1,
     })
 }
 

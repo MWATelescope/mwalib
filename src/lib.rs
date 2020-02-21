@@ -7,6 +7,7 @@ extern crate lazy_static;
 
 pub mod coarse_channel;
 pub mod context;
+pub mod convert;
 pub mod error;
 pub mod ffi;
 pub mod fits_read;
