@@ -15,6 +15,13 @@ struct Opt {
     #[structopt(short, long)]
     baseline: usize,
 
+    /// Fine channel to start with
+    #[structopt(long)]
+    fine_chan1: usize,
+    /// Fine channel to end with
+    #[structopt(long)]
+    fine_chan2: usize,
+
     /// Path to the metafits file.
     #[structopt(short, long)]
     metafits: String,
@@ -29,10 +36,11 @@ fn dump_data(
     files: Vec<String>,
     timestep: usize,
     baseline: usize,
+    fine_channel_range: (usize, usize),
 ) -> Result<(), anyhow::Error> {
     println!("Dumping data via mwalib...");
     let mut context = mwalibContext::new(&metafits, &files)?;
-    context.num_data_scans = 1;
+    context.num_data_scans = context.num_timesteps;
     println!("Correlator version: {}", context.corr_version);
 
     let floats_per_finechan = context.num_visibility_pols * 2;
@@ -44,8 +52,8 @@ fn dump_data(
 
     let baseline_index = baseline * floats_per_baseline;
 
-    let ch1 = 0;
-    let ch2 = 127;
+    let ch1 = fine_channel_range.0;
+    let ch2 = fine_channel_range.1;
 
     let ch_start_index = baseline_index + (ch1 * floats_per_finechan);
     let ch_end_index = baseline_index + (ch2 * floats_per_finechan) + floats_per_finechan;
@@ -55,36 +63,54 @@ fn dump_data(
         timestep, ch1, ch2, ant1_name, ant2_name
     );
 
-    let mut current_timestep = 0;
-    while context.num_data_scans != 0 {
-        let slice = &context.read(context.num_data_scans)?[0][0][ch_start_index..ch_end_index];
+    let data = &context.read(context.num_data_scans)?;
 
-        if current_timestep == timestep {
-            for v in (0..slice.len()).step_by(floats_per_finechan) {
+    // 53, 2, lots
+    println!("{} {} {}", data.len(), data[0].len(), data[0][0].len());
+
+    for (t, time) in data.iter().enumerate() {
+        if t == timestep {
+            println!("timestep: {}", t);
+            for (c, channel) in time.iter().enumerate() {
                 println!(
-                    "ch{:3} {:>10.2},{:>10.2} | {:>10.2},{:>10.2} | {:>10.2},{:>10.2} | {:>10.2},{:>10.2}",
-                    ch1 + (v / floats_per_finechan),
-                    slice[v],
-                    slice[v + 1],
-                    slice[v + 2],
-                    slice[v + 3],
-                    slice[v + 4],
-                    slice[v + 5],
-                    slice[v + 6],
-                    slice[v + 7]
+                    "Coarse channel: {:.3} MHz",
+                    (context.coarse_channels[c].channel_centre_hz as f32 / 1_000_000.)
                 );
+                let mut fine_channel_counter = 0;
+                for v in (0..channel.len()).step_by(floats_per_finechan) {
+                    if v >= ch_start_index && v < ch_end_index {
+                        println!(
+                        "ch{:3} {:>10.2},{:>10.2} | {:>10.2},{:>10.2} | {:>10.2},{:>10.2} | {:>10.2},{:>10.2}",
+                        ch1 + fine_channel_counter,
+                        channel[v],
+                        channel[v + 1],
+                        channel[v + 2],
+                        channel[v + 3],
+                        channel[v + 4],
+                        channel[v + 5],
+                        channel[v + 6],
+                        channel[v + 7]
+                        );
+
+                        fine_channel_counter += 1;
+                    }
+                }
             }
-            break;
-        } else {
-            current_timestep += 1;
         }
     }
+
     Ok(())
 }
 
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
 
-    dump_data(opts.metafits, opts.files, opts.timestep, opts.baseline)?;
+    dump_data(
+        opts.metafits,
+        opts.files,
+        opts.timestep,
+        opts.baseline,
+        (opts.fine_chan1, opts.fine_chan2),
+    )?;
     Ok(())
 }
