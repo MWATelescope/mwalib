@@ -21,6 +21,7 @@ use libc::{c_char, c_float, c_int, c_longlong, size_t};
 
 use crate::*;
 
+/// # Safety
 /// Free a rust-allocated CString.
 ///
 /// mwalib uses error strings to detail the caller with anything that went
@@ -34,6 +35,8 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) {
     CString::from_raw(rust_cstring);
 }
 
+/// # Safety
+/// TODO: What does the caller need to know?
 /// Create an `mwalibContext` struct.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibContext_new(
@@ -58,6 +61,8 @@ pub unsafe extern "C" fn mwalibContext_new(
     Box::into_raw(Box::new(context))
 }
 
+/// # Safety
+/// TODO: What does the caller need to know?
 /// Free a previously-allocated `mwalibContext` struct.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibContext_free(ptr: *mut mwalibContext) {
@@ -68,6 +73,8 @@ pub unsafe extern "C" fn mwalibContext_free(ptr: *mut mwalibContext) {
     Box::from_raw(ptr);
 }
 
+/// # Safety
+/// TODO: What does the caller need to know?
 /// Display an `mwalibContext` struct.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibContext_display(ptr: *const mwalibContext) {
@@ -79,6 +86,7 @@ pub unsafe extern "C" fn mwalibContext_display(ptr: *const mwalibContext) {
     println!("{}", context);
 }
 
+/// # Safety
 /// Read MWA data.
 ///
 /// `num_scans` is an input and output variable. The input `num_scans` asks
@@ -151,6 +159,7 @@ pub unsafe extern "C" fn mwalibContext_read(
     data_buffer_ptr
 }
 
+/// # Safety
 /// Free a previously-allocated float*** (designed for use after
 /// `mwalibContext_read`).
 ///

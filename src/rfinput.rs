@@ -178,7 +178,7 @@ impl mwalibRFInput {
                 .unwrap(),
             )
         }
-        return Ok(rf_inputs);
+        Ok(rf_inputs)
     }
 }
 

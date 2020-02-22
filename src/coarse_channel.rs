@@ -61,7 +61,7 @@ impl mwalibCoarseChannel {
             ));
         }
 
-        return Ok(coarse_channels_string);
+        Ok(coarse_channels_string)
     }
 
     pub fn populate_coarse_channels(
@@ -94,9 +94,8 @@ impl mwalibCoarseChannel {
 
         // Initialise the coarse channel vector of structs
         let mut coarse_channels: Vec<mwalibCoarseChannel> = Vec::with_capacity(num_coarse_channels);
-        let mut i = 0;
         let mut first_chan_index_over_128: usize = 0;
-        for rec_channel_number in coarse_channel_vec {
+        for (i, rec_channel_number) in coarse_channel_vec.into_iter().enumerate() {
             let mut correlator_channel_number = i;
 
             if *corr_version == CorrelatorVersion::Legacy
@@ -122,8 +121,6 @@ impl mwalibCoarseChannel {
                 )
                 .unwrap(),
             );
-
-            i += 1;
         }
 
         // Now sort the coarse channels by receiver channel number
@@ -132,11 +129,11 @@ impl mwalibCoarseChannel {
                 .cmp(&b.correlator_channel_number)
         });
 
-        return Ok((
+        Ok((
             coarse_channels,
             num_coarse_channels,
             coarse_channel_width_hz,
-        ));
+        ))
     }
 }
 
@@ -147,7 +144,7 @@ impl fmt::Debug for mwalibCoarseChannel {
             "corr={} rec={} @ {:.3} MHz",
             self.correlator_channel_number,
             self.receiver_channel_number,
-            self.channel_centre_hz as f32 / 1000000.
+            self.channel_centre_hz as f32 / 1_000_000.
         )
     }
 }

@@ -14,6 +14,7 @@ pub mod fits_read;
 pub mod gpubox;
 pub mod misc;
 pub mod rfinput;
+pub mod test_helpers;
 
 // Re-exports.
 use anyhow::Context;

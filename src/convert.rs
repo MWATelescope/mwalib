@@ -11,7 +11,7 @@ use std::fmt;
 /// It is inlined so the compiler will effectively make this like a C macro rather than a function call.
 #[inline(always)]
 fn fine_pfb_reorder(x: usize) -> usize {
-    return ((x) & 0xc0) | (((x) & 0x03) << 4) | (((x) & 0x3c) >> 2);
+    ((x) & 0xc0) | (((x) & 0x03) << 4) | (((x) & 0x3c) >> 2)
 }
 
 /// Structure for storing where in the input visibilities to get the specified baseline
@@ -219,7 +219,7 @@ pub fn generate_conversion_array(
     assert_eq!(baseline, baseline_count as usize);
     assert_eq!(conversion_table.len(), baseline_count as usize);
 
-    return conversion_table;
+    conversion_table
 }
 
 /// Using the precalculated conversion table, reorder the visibilities into our preferred output order
@@ -227,7 +227,7 @@ pub fn generate_conversion_array(
 pub fn convert_legacy_hdu(
     conversion_table: &Vec<mwalibLegacyConversionBaseline>,
     input_buffer: &[f32],
-    temp_buffer: &mut Vec<f32>,
+    temp_buffer: &mut [f32],
     num_fine_channels: usize,
 ) {
     assert_eq!(input_buffer.len(), temp_buffer.len());
@@ -239,8 +239,6 @@ pub fn convert_legacy_hdu(
 
     // Striding for output array
     let floats_per_baseline = floats_per_baseline_fine_channel * num_fine_channels;
-
-    let mut dumped: bool = false;
 
     // Read from the input buffer and write into the temp buffer
     for fine_chan_index in 0..num_fine_channels {

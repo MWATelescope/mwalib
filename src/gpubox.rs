@@ -292,8 +292,8 @@ pub fn determine_obs_times(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers::*;
     use fitsio::images::{ImageDescription, ImageType};
-    use std::env;
     use std::fs::remove_file;
     use std::time::SystemTime;
 
@@ -515,27 +515,11 @@ mod tests {
         assert!(result.is_err());
     }
 
-    fn helper_make_fits_file(filename: String) -> (String, FitsFile, FitsHdu) {
-        // FitsFile::create() expects the filename passed in to not
-        // exist. Delete it if it exists.
-        let mut file = env::temp_dir();
-        file.push(filename);
-        if file.exists() {
-            remove_file(&file).unwrap();
-        }
-        let mut fptr = FitsFile::create(&file)
-            .open()
-            .expect("Couldn't open tempfile");
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-
-        (file.to_str().unwrap().to_string(), fptr, hdu)
-    }
-
     #[test]
     fn determine_hdu_time_test1() {
         // Create a (temporary) FITS file with some keys to test our functions.
         let (file, mut fptr, hdu) =
-            helper_make_fits_file("determine_hdu_time_test1.fits".to_string());
+            helper_make_fits_file(&String::from("determine_hdu_time_test1.fits"));
 
         // Write the TIME and MILLITIM keys. Key types must be i64 to get any
         // sort of sanity.
@@ -554,7 +538,7 @@ mod tests {
     #[test]
     fn determine_hdu_time_test2() {
         let (file, mut fptr, hdu) =
-            helper_make_fits_file("determine_hdu_time_test2.fits".to_string());
+            helper_make_fits_file(&String::from("determine_hdu_time_test2.fits"));
 
         hdu.write_key(&mut fptr, "TIME", 1_381_844_923)
             .expect("Couldn't write key 'TIME'");
@@ -577,7 +561,7 @@ mod tests {
         };
 
         let (file, mut fptr, hdu) =
-            helper_make_fits_file("determine_hdu_time_test3.fits".to_string());
+            helper_make_fits_file(&String::from("determine_hdu_time_test3.fits"));
 
         hdu.write_key(&mut fptr, "TIME", current)
             .expect("Couldn't write key 'TIME'");
@@ -594,7 +578,7 @@ mod tests {
     #[test]
     fn map_unix_times_to_hdus_test() {
         let (file, mut fptr, _) =
-            helper_make_fits_file("map_unix_times_to_hdus_test.fits".to_string());
+            helper_make_fits_file(&String::from("map_unix_times_to_hdus_test.fits"));
 
         let times: Vec<(u64, u64)> =
             vec![(1_381_844_923, 500), (1_381_844_924, 0), (1_381_844_950, 0)];

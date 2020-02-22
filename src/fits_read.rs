@@ -48,6 +48,7 @@ pub fn get_hdu_image_size(fptr: &mut FitsFile) -> Result<Vec<usize>, ErrorKind> 
     }
 }
 
+/// # Safety
 /// Via FFI, get a long string from a FITS file.
 ///
 /// This function exists because the rust library `fitsio` does not support
@@ -76,25 +77,14 @@ pub unsafe fn get_fits_long_string(fptr: *mut fitsfile, keyword: &str) -> (i32, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers::*;
     use fitsio_sys::ffpkls;
-    use std::env;
     use std::fs::remove_file;
 
     #[test]
     fn test_get_fits_key() {
         // Create a (temporary) FITS file with some keys to test our functions.
-
-        // FitsFile::create() expects the filename passed in to not
-        // exist. Delete it if it exists.
-        let mut file = env::temp_dir();
-        file.push("test_fits_read_key.fits");
-        if file.exists() {
-            remove_file(&file).unwrap();
-        }
-        let mut fptr = FitsFile::create(&file)
-            .open()
-            .expect("Couldn't open tempfile");
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+        let (file, mut fptr, hdu) = helper_make_fits_file(&String::from("test_fits_read_key.fits"));
 
         // Failure to get a key that doesn't exist.
         assert!(get_fits_key::<u8>(&mut fptr, &hdu, "foo").is_err());
@@ -133,19 +123,13 @@ mod tests {
         assert!(bar_i8.is_ok());
         assert_eq!(bar_i8.unwrap(), -5);
 
-        remove_file(&file).unwrap();
+        remove_file(file).unwrap();
     }
 
     #[test]
     fn test_get_fits_long_string() {
-        let mut file = env::temp_dir();
-        file.push("test_get_fits_long_string.fits");
-        if file.exists() {
-            remove_file(&file).unwrap();
-        }
-        let mut fptr = FitsFile::create(&file)
-            .open()
-            .expect("Couldn't open tempfile");
+        let (file, mut fptr, _) =
+            helper_make_fits_file(&String::from("test_get_fits_long_string.fits"));
 
         let complete_string = "131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154";
         let first_string = "131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147&";
@@ -184,6 +168,7 @@ mod tests {
         assert!(fitsio_str.is_ok());
         assert_eq!(fitsio_str.unwrap(), first_string);
 
-        remove_file(&file).unwrap();
+        // Delete file
+        remove_file(file).unwrap();
     }
 }
