@@ -126,7 +126,7 @@ mod tests {
         remove_file(file).unwrap();
     }
 
-    #[test]
+    /* #[test]
     fn test_get_fits_long_string() {
         let (file, mut fptr, _) =
             helper_make_fits_file(&String::from("test_get_fits_long_string.fits"));
@@ -170,5 +170,5 @@ mod tests {
 
         // Delete file
         remove_file(file).unwrap();
-    }
+    }*/
 }
