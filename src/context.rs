@@ -11,6 +11,7 @@ use std::path::*;
 
 use fitsio::*;
 
+use crate::antenna::*;
 use crate::coarse_channel::*;
 use crate::convert::*;
 use crate::fits_read::*;
@@ -74,6 +75,8 @@ pub struct mwalibContext {
     pub num_antennas: usize,
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)    
     pub rf_inputs: Vec<mwalibRFInput>,
+    /// We also have just the antennas (for convenience)
+    pub antennas: Vec<mwalibAntenna>,
     pub num_baselines: usize,
     pub integration_time_milliseconds: u64,
 
@@ -240,6 +243,13 @@ impl mwalibContext {
             &mut metafits_fptr,
             metafits_tile_table_hdu,
         )?;
+
+        // Sort the rf_inputs back into the correct output order
+        rf_inputs.sort_by_key(|k| k.subfile_order);
+
+        // Now populate the antennas (note they need to be sorted by subfile_order)
+        let antennas: Vec<mwalibAntenna> = mwalibAntenna::populate_antennas(&rf_inputs)?;
+
         let obsid = get_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
             .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;
 
@@ -303,8 +313,15 @@ impl mwalibContext {
         };
 
         // Prepare the conversion array to convert legacy correlator format into mwax format
-        let legacy_conversion_table: Vec<mwalibLegacyConversionBaseline> =
-            convert::generate_conversion_array(&mut rf_inputs);
+        // or just leave it empty if we're in any other format
+        let legacy_conversion_table: Vec<mwalibLegacyConversionBaseline> = if corr_version
+            == CorrelatorVersion::OldLegacy
+            || corr_version == CorrelatorVersion::Legacy
+        {
+            convert::generate_conversion_array(&mut rf_inputs)
+        } else {
+            Vec::new()
+        };
 
         // Sort the rf_inputs back into the correct output order
         rf_inputs.sort_by_key(|k| k.subfile_order);
@@ -319,6 +336,7 @@ impl mwalibContext {
             num_timesteps,
             num_antennas,
             rf_inputs,
+            antennas,
             num_baselines,
             integration_time_milliseconds,
             num_antenna_pols,
@@ -427,6 +445,7 @@ impl fmt::Display for mwalibContext {
     Timesteps:                {},
 
     num antennas:             {},
+    antennas:                 {:?},
     rf_inputs:                {:?},
 
     num baselines:            {},
@@ -458,6 +477,7 @@ impl fmt::Display for mwalibContext {
             self.duration_milliseconds as f64 / 1e3,
             self.num_timesteps,
             self.num_antennas,
+            self.antennas,
             self.rf_inputs,
             self.num_baselines,
             self.num_antennas,

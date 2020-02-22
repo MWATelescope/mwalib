@@ -5,6 +5,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+pub mod antenna;
 pub mod coarse_channel;
 pub mod context;
 pub mod convert;

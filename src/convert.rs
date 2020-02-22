@@ -17,17 +17,17 @@ fn fine_pfb_reorder(x: usize) -> usize {
 /// Structure for storing where in the input visibilities to get the specified baseline
 #[allow(non_camel_case_types)]
 pub struct mwalibLegacyConversionBaseline {
-    pub baseline: usize,
-    pub ant1: usize,
-    pub ant2: usize,
-    pub xx_index: usize,
-    pub xx_conjugate: bool,
-    pub xy_index: usize,
-    pub xy_conjugate: bool,
-    pub yx_index: usize,
-    pub yx_conjugate: bool,
-    pub yy_index: usize,
-    pub yy_conjugate: bool,
+    pub baseline: usize,    // baseline index
+    pub ant1: usize,        // antenna1 index
+    pub ant2: usize,        // antenna2 index
+    pub xx_index: usize,    // index of where complex xx is in the input buffer
+    pub xx_conjugate: bool, // if true, we need to conjugate this visibility
+    pub xy_index: usize,    // index of where complex xx is in the input buffer
+    pub xy_conjugate: bool, // if true, we need to conjugate this visibility
+    pub yx_index: usize,    // index of where complex xx is in the input buffer
+    pub yx_conjugate: bool, // if true, we need to conjugate this visibility
+    pub yy_index: usize,    // index of where complex xx is in the input buffer
+    pub yy_conjugate: bool, // if true, we need to conjugate this visibility
 }
 
 impl mwalibLegacyConversionBaseline {
@@ -222,15 +222,15 @@ pub fn generate_conversion_array(
     conversion_table
 }
 
-/// Using the precalculated conversion table, reorder the visibilities into our preferred output order
+/// Using the precalculated conversion table, reorder the legacy visibilities into our preferred output order
 /// [time][baseline][freq][pol] in a standard triangle of 0,0 .. 0,N 1,1..1,N baseline order.
 pub fn convert_legacy_hdu(
     conversion_table: &Vec<mwalibLegacyConversionBaseline>,
     input_buffer: &[f32],
-    temp_buffer: &mut [f32],
+    output_buffer: &mut [f32],
     num_fine_channels: usize,
 ) {
-    assert_eq!(input_buffer.len(), temp_buffer.len());
+    assert_eq!(input_buffer.len(), output_buffer.len());
 
     let num_baselines = conversion_table.len();
 
@@ -260,56 +260,44 @@ pub fn convert_legacy_hdu(
             let destination_index = (baseline_index * floats_per_baseline)
                 + (fine_chan_index * floats_per_baseline_fine_channel);
             // xx_r
-            temp_buffer[destination_index] = input_buffer[source_index + baseline.xx_index];
-            if baseline.xx_conjugate {
+            output_buffer[destination_index] = input_buffer[source_index + baseline.xx_index];
+            // xx_i
+            output_buffer[destination_index + 1] = if baseline.xx_conjugate {
                 // We have to conjugate the visibility
-                // xx_i
-                temp_buffer[destination_index + 1] =
-                    -input_buffer[source_index + baseline.xx_index + 1];
+                -input_buffer[source_index + baseline.xx_index + 1]
             } else {
-                // xx_i
-                temp_buffer[destination_index + 1] =
-                    input_buffer[source_index + baseline.xx_index + 1];
-            }
+                input_buffer[source_index + baseline.xx_index + 1]
+            };
 
             // xy_r
-            temp_buffer[destination_index + 2] = input_buffer[source_index + baseline.xy_index];
-            if baseline.xy_conjugate {
+            output_buffer[destination_index + 2] = input_buffer[source_index + baseline.xy_index];
+            // xy_i
+            output_buffer[destination_index + 3] = if baseline.xy_conjugate {
                 // We have to conjugate the visibility
-                // xy_i
-                temp_buffer[destination_index + 3] =
-                    -input_buffer[source_index + baseline.xy_index + 1];
+                -input_buffer[source_index + baseline.xy_index + 1]
             } else {
-                // xy_i
-                temp_buffer[destination_index + 3] =
-                    input_buffer[source_index + baseline.xy_index + 1];
-            }
+                input_buffer[source_index + baseline.xy_index + 1]
+            };
 
             // yx_r
-            temp_buffer[destination_index + 4] = input_buffer[source_index + baseline.yx_index];
-            if baseline.yx_conjugate {
+            output_buffer[destination_index + 4] = input_buffer[source_index + baseline.yx_index];
+            // yx_i
+            output_buffer[destination_index + 5] = if baseline.yx_conjugate {
                 // We have to conjugate the visibility
-                // yx_i
-                temp_buffer[destination_index + 5] =
-                    -input_buffer[source_index + baseline.yx_index + 1];
+                -input_buffer[source_index + baseline.yx_index + 1]
             } else {
-                // yx_i
-                temp_buffer[destination_index + 5] =
-                    input_buffer[source_index + baseline.yx_index + 1];
-            }
+                input_buffer[source_index + baseline.yx_index + 1]
+            };
 
             // yy_r
-            temp_buffer[destination_index + 6] = input_buffer[source_index + baseline.yy_index];
-            if baseline.yy_conjugate {
+            output_buffer[destination_index + 6] = input_buffer[source_index + baseline.yy_index];
+            // yy_i
+            output_buffer[destination_index + 7] = if baseline.yy_conjugate {
                 // We have to conjugate the visibility
-                // yy_i
-                temp_buffer[destination_index + 7] =
-                    -input_buffer[source_index + baseline.yy_index + 1];
+                -input_buffer[source_index + baseline.yy_index + 1]
             } else {
-                // yy_i
-                temp_buffer[destination_index + 7] =
-                    input_buffer[source_index + baseline.yy_index + 1];
-            }
+                input_buffer[source_index + baseline.yy_index + 1]
+            };
         }
     }
 }

@@ -15,11 +15,14 @@ pub struct mwalibRFInput {
     pub input: u32,
     /// This is the antenna number.
     /// Nominally this is the field we sort by to get the desired output order of antenna.
-    /// X and Y have the same antenna number.
+    /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
+    /// e.g. 0...N-1
     pub antenna: u32,
-    /// Yet another descriptor for the antenna but includes polarisation
+    /// Numeric part of tile_name for the antenna. Each pol has the same value
+    /// e.g. tile_name "tile011" hsa tile_id of 11
     pub tile_id: u32,
     /// Human readable name of the antenna
+    /// X and Y have the same name
     pub tile_name: String,
     /// Polarisation - X & Y
     pub pol: String,
@@ -38,6 +41,22 @@ pub struct mwalibRFInput {
 }
 
 impl mwalibRFInput {
+    pub fn copy(source: &mwalibRFInput) -> mwalibRFInput {
+        mwalibRFInput::new(
+            source.input,
+            source.antenna,
+            source.tile_id,
+            String::from(&source.tile_name),
+            String::from(&source.pol),
+            source.electrical_length_m,
+            source.north_m,
+            source.east_m,
+            source.height_m,
+            source.vcs_order,
+            source.subfile_order,
+        )
+        .unwrap()
+    }
     pub fn new(
         input: u32,
         antenna: u32,
