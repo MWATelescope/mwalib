@@ -248,7 +248,7 @@ impl mwalibContext {
         rf_inputs.sort_by_key(|k| k.subfile_order);
 
         // Now populate the antennas (note they need to be sorted by subfile_order)
-        let antennas: Vec<mwalibAntenna> = mwalibAntenna::populate_antennas(&rf_inputs)?;
+        let antennas: Vec<mwalibAntenna> = mwalibAntenna::populate_antennas(&rf_inputs);
 
         let obsid = get_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
             .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;

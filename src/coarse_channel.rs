@@ -36,17 +36,17 @@ impl mwalibCoarseChannel {
         correlator_channel_number: u16,
         receiver_channel_number: u16,
         channel_width_hz: u32,
-    ) -> Result<mwalibCoarseChannel, ErrorKind> {
+    ) -> mwalibCoarseChannel {
         let centre_chan_hz: u32 = (receiver_channel_number as u32) * channel_width_hz;
 
-        Ok(mwalibCoarseChannel {
+        mwalibCoarseChannel {
             correlator_channel_number,
             receiver_channel_number,
             channel_width_hz,
             channel_centre_hz: centre_chan_hz,
             channel_start_hz: centre_chan_hz - (channel_width_hz / 2),
             channel_end_hz: centre_chan_hz + (channel_width_hz / 2),
-        })
+        }
     }
 
     fn get_metafits_coarse_channel_string(
@@ -119,7 +119,6 @@ impl mwalibCoarseChannel {
                     rec_channel_number,
                     coarse_channel_width_hz,
                 )
-                .unwrap(),
             );
         }
 

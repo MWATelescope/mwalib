@@ -10,6 +10,7 @@ use std::fmt;
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
 #[allow(non_camel_case_types)]
+#[derive(Clone)]
 pub struct mwalibRFInput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
@@ -41,22 +42,6 @@ pub struct mwalibRFInput {
 }
 
 impl mwalibRFInput {
-    pub fn copy(source: &mwalibRFInput) -> mwalibRFInput {
-        mwalibRFInput::new(
-            source.input,
-            source.antenna,
-            source.tile_id,
-            String::from(&source.tile_name),
-            String::from(&source.pol),
-            source.electrical_length_m,
-            source.north_m,
-            source.east_m,
-            source.height_m,
-            source.vcs_order,
-            source.subfile_order,
-        )
-        .unwrap()
-    }
     pub fn new(
         input: u32,
         antenna: u32,
@@ -69,8 +54,8 @@ impl mwalibRFInput {
         height_m: f64,
         vcs_order: u32,
         subfile_order: u32,
-    ) -> Result<mwalibRFInput, ErrorKind> {
-        Ok(mwalibRFInput {
+    ) -> mwalibRFInput {
+        mwalibRFInput {
             input,
             antenna,
             tile_id,
@@ -82,7 +67,7 @@ impl mwalibRFInput {
             height_m,
             vcs_order,
             subfile_order,
-        })
+        }
     }
 
     pub fn populate_rf_input(
@@ -194,7 +179,6 @@ impl mwalibRFInput {
                     vcs_order,
                     subfile_order,
                 )
-                .unwrap(),
             )
         }
         Ok(rf_inputs)

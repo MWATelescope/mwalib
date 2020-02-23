@@ -6,7 +6,6 @@
 Structs and helper methods for antenna metadata
 */
 use crate::rfinput::*;
-use crate::*;
 use std::fmt;
 
 // Structure for storing MWA antennas (tiles without polarisation) information from the metafits file
@@ -30,26 +29,24 @@ pub struct mwalibAntenna {
 }
 
 impl mwalibAntenna {
-    pub fn new(x_pol: &mwalibRFInput, y_pol: &mwalibRFInput) -> Result<mwalibAntenna, ErrorKind> {
-        Ok(mwalibAntenna {
+    pub fn new(x_pol: &mwalibRFInput, y_pol: &mwalibRFInput) -> mwalibAntenna {
+        mwalibAntenna {
             antenna: x_pol.antenna,
             tile_id: x_pol.tile_id,
             tile_name: x_pol.tile_name.to_string(),
-            x_pol: mwalibRFInput::copy(x_pol),
-            y_pol: mwalibRFInput::copy(y_pol),
-        })
+            x_pol: x_pol.clone(),
+            y_pol: y_pol.clone(),
+        }
     }
 
-    pub fn populate_antennas(
-        rf_inputs: &Vec<mwalibRFInput>,
-    ) -> Result<Vec<mwalibAntenna>, ErrorKind> {
+    pub fn populate_antennas(rf_inputs: &Vec<mwalibRFInput>) -> Vec<mwalibAntenna> {
         let mut antennas: Vec<mwalibAntenna> = Vec::with_capacity(rf_inputs.len() / 2);
         for index in (0..rf_inputs.len()).step_by(2) {
             let new_antenna: mwalibAntenna =
-                mwalibAntenna::new(&rf_inputs[index], &rf_inputs[index + 1]).unwrap();
+                mwalibAntenna::new(&rf_inputs[index], &rf_inputs[index + 1]);
             antennas.push(new_antenna);
         }
-        Ok(antennas)
+        antennas
     }
 }
 
