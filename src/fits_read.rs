@@ -77,14 +77,23 @@ pub unsafe fn get_fits_long_string(fptr: *mut fitsfile, keyword: &str) -> (i32, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::*;
     use fitsio_sys::ffpkls;
     use std::fs::remove_file;
 
     #[test]
     fn test_get_fits_key() {
         // Create a (temporary) FITS file with some keys to test our functions.
-        let (file, mut fptr, hdu) = helper_make_fits_file(&String::from("test_fits_read_key.fits"));
+        // FitsFile::create() expects the filename passed in to not
+        // exist. Delete it if it exists.
+        let filename = "test_fits_read_key.fits";
+
+        if std::path::Path::new(filename).exists() {
+            remove_file(filename).unwrap();
+        }
+        let mut fptr = FitsFile::create(filename)
+            .open()
+            .expect("Couldn't open tempfile");
+        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
 
         // Failure to get a key that doesn't exist.
         assert!(get_fits_key::<u8>(&mut fptr, &hdu, "foo").is_err());
@@ -123,13 +132,22 @@ mod tests {
         assert!(bar_i8.is_ok());
         assert_eq!(bar_i8.unwrap(), -5);
 
-        remove_file(file).unwrap();
+        remove_file(filename).unwrap();
     }
 
     #[test]
     fn test_get_fits_long_string() {
-        let (file, mut fptr, _) =
-            helper_make_fits_file(&String::from("test_get_fits_long_string.fits"));
+        // Create a (temporary) FITS file with some keys to test our functions.
+        // FitsFile::create() expects the filename passed in to not
+        // exist. Delete it if it exists.
+        let filename = "test_get_fits_long_string.fits";
+
+        if std::path::Path::new(filename).exists() {
+            remove_file(filename).unwrap();
+        }
+        let mut fptr = FitsFile::create(filename)
+            .open()
+            .expect("Couldn't open tempfile");
 
         let complete_string = "131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154";
         let first_string = "131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147&";
@@ -169,6 +187,6 @@ mod tests {
         assert_eq!(fitsio_str.unwrap(), first_string);
 
         // Delete file
-        remove_file(file).unwrap();
+        remove_file(filename).unwrap();
     }
 }

@@ -292,7 +292,6 @@ pub fn determine_obs_times(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::*;
     use fitsio::images::{ImageDescription, ImageType};
     use std::fs::remove_file;
     use std::time::SystemTime;
@@ -518,8 +517,17 @@ mod tests {
     #[test]
     fn determine_hdu_time_test1() {
         // Create a (temporary) FITS file with some keys to test our functions.
-        let (file, mut fptr, hdu) =
-            helper_make_fits_file(&String::from("determine_hdu_time_test1.fits"));
+        // FitsFile::create() expects the filename passed in to not
+        // exist. Delete it if it exists.
+        let filename = "determine_hdu_time_test1.fits";
+
+        if std::path::Path::new(filename).exists() {
+            remove_file(filename).unwrap();
+        }
+        let mut fptr = FitsFile::create(filename)
+            .open()
+            .expect("Couldn't open tempfile");
+        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
 
         // Write the TIME and MILLITIM keys. Key types must be i64 to get any
         // sort of sanity.
@@ -532,13 +540,23 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1_434_494_061_000);
 
-        remove_file(&file).expect("Couldn't remove file");
+        remove_file(&filename).expect("Couldn't remove file");
     }
 
     #[test]
     fn determine_hdu_time_test2() {
-        let (file, mut fptr, hdu) =
-            helper_make_fits_file(&String::from("determine_hdu_time_test2.fits"));
+        // Create a (temporary) FITS file with some keys to test our functions.
+        // FitsFile::create() expects the filename passed in to not
+        // exist. Delete it if it exists.
+        let filename = "determine_hdu_time_test2.fits";
+
+        if std::path::Path::new(filename).exists() {
+            remove_file(filename).unwrap();
+        }
+        let mut fptr = FitsFile::create(filename)
+            .open()
+            .expect("Couldn't open tempfile");
+        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
 
         hdu.write_key(&mut fptr, "TIME", 1_381_844_923)
             .expect("Couldn't write key 'TIME'");
@@ -549,7 +567,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1_381_844_923_500);
 
-        remove_file(&file).unwrap();
+        remove_file(&filename).unwrap();
     }
 
     #[test]
@@ -560,8 +578,18 @@ mod tests {
             Ok(n) => n.as_secs(),
         };
 
-        let (file, mut fptr, hdu) =
-            helper_make_fits_file(&String::from("determine_hdu_time_test3.fits"));
+        // Create a (temporary) FITS file with some keys to test our functions.
+        // FitsFile::create() expects the filename passed in to not
+        // exist. Delete it if it exists.
+        let filename = "determine_hdu_time_test3.fits";
+
+        if std::path::Path::new(filename).exists() {
+            remove_file(filename).unwrap();
+        }
+        let mut fptr = FitsFile::create(filename)
+            .open()
+            .expect("Couldn't open tempfile");
+        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
 
         hdu.write_key(&mut fptr, "TIME", current)
             .expect("Couldn't write key 'TIME'");
@@ -572,13 +600,22 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), current * 1000 + 500);
 
-        remove_file(&file).unwrap();
+        remove_file(&filename).unwrap();
     }
 
     #[test]
     fn map_unix_times_to_hdus_test() {
-        let (file, mut fptr, _) =
-            helper_make_fits_file(&String::from("map_unix_times_to_hdus_test.fits"));
+        // Create a (temporary) FITS file with some keys to test our functions.
+        // FitsFile::create() expects the filename passed in to not
+        // exist. Delete it if it exists.
+        let filename = "map_unix_times_to_hdus_test.fits";
+
+        if std::path::Path::new(filename).exists() {
+            remove_file(filename).unwrap();
+        }
+        let mut fptr = FitsFile::create(filename)
+            .open()
+            .expect("Couldn't open tempfile");
 
         let times: Vec<(u64, u64)> =
             vec![(1_381_844_923, 500), (1_381_844_924, 0), (1_381_844_950, 0)];
@@ -603,7 +640,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), expected);
 
-        remove_file(&file).unwrap();
+        remove_file(&filename).unwrap();
     }
 
     #[test]
