@@ -292,12 +292,12 @@ pub fn determine_obs_times(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::misc::*;
     use fitsio::images::{ImageDescription, ImageType};
-    use std::fs::remove_file;
     use std::time::SystemTime;
 
     #[test]
-    fn determine_gpubox_batches_proper_format() {
+    fn test_determine_gpubox_batches_proper_format() {
         let files = vec![
             "1065880128_20131015134930_gpubox20_01.fits",
             "1065880128_20131015134930_gpubox01_00.fits",
@@ -319,7 +319,7 @@ mod tests {
     }
 
     #[test]
-    fn determine_gpubox_batches_proper_format2() {
+    fn test_determine_gpubox_batches_proper_format2() {
         let files = vec![
             "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
             "/home/gs/1065880128_20131015134930_gpubox20_01.fits",
@@ -341,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    fn determine_gpubox_batches_proper_format3() {
+    fn test_determine_gpubox_batches_proper_format3() {
         let files = vec![
             "/home/chj/1065880128_20131015134930_gpubox02_00.fits",
             "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
@@ -375,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    fn determine_gpubox_batches_proper_format4() {
+    fn test_determine_gpubox_batches_proper_format4() {
         let files = vec![
             "/home/chj/1065880128_20131015134929_gpubox02_00.fits",
             "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
@@ -409,28 +409,28 @@ mod tests {
     }
 
     #[test]
-    fn determine_gpubox_batches_invalid_filename() {
+    fn test_determine_gpubox_batches_invalid_filename() {
         let files = vec!["1065880128_20131015134930_gpubox0100.fits"];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_err());
     }
 
     #[test]
-    fn determine_gpubox_batches_invalid_filename2() {
+    fn test_determine_gpubox_batches_invalid_filename2() {
         let files = vec!["1065880128x_20131015134930_gpubox01_00.fits"];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_err());
     }
 
     #[test]
-    fn determine_gpubox_batches_invalid_filename3() {
+    fn test_determine_gpubox_batches_invalid_filename3() {
         let files = vec!["1065880128_920131015134930_gpubox01_00.fits"];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_err());
     }
 
     #[test]
-    fn determine_gpubox_batches_invalid_count() {
+    fn test_determine_gpubox_batches_invalid_count() {
         // There are no gpubox files for batch "01".
         let files = vec![
             "1065880128_20131015134930_gpubox01_00.fits",
@@ -441,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    fn determine_gpubox_batches_invalid_count2() {
+    fn test_determine_gpubox_batches_invalid_count2() {
         // There are not enough gpubox files for batch "02".
         let files = vec![
             "1065880128_20131015134930_gpubox01_00.fits",
@@ -455,7 +455,7 @@ mod tests {
     }
 
     #[test]
-    fn determine_gpubox_batches_old_format() {
+    fn test_determine_gpubox_batches_old_format() {
         let files = vec![
             "1065880128_20131015134930_gpubox01.fits",
             "1065880128_20131015134930_gpubox20.fits",
@@ -477,7 +477,7 @@ mod tests {
     }
 
     #[test]
-    fn determine_gpubox_batches_new_format() {
+    fn test_determine_gpubox_batches_new_format() {
         let files = vec![
             "1065880128_20131015134930_ch001_000.fits",
             "1065880128_20131015134930_ch002_000.fits",
@@ -505,7 +505,7 @@ mod tests {
     }
 
     #[test]
-    fn determine_gpubox_batches_mix() {
+    fn test_determine_gpubox_batches_mix() {
         let files = vec![
             "1065880128_20131015134930_gpubox01.fits",
             "1065880128_20131015134930_gpubox15_01.fits",
@@ -515,136 +515,95 @@ mod tests {
     }
 
     #[test]
-    fn determine_hdu_time_test1() {
-        // Create a (temporary) FITS file with some keys to test our functions.
-        // FitsFile::create() expects the filename passed in to not
-        // exist. Delete it if it exists.
-        let filename = "determine_hdu_time_test1.fits";
+    fn test_determine_hdu_time_test1() {
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        with_new_temp_fits_file("determine_hdu_time_test1.fits", |fptr| {
+            let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
 
-        if std::path::Path::new(filename).exists() {
-            remove_file(filename).unwrap();
-        }
-        let mut fptr = FitsFile::create(filename)
-            .open()
-            .expect("Couldn't open tempfile");
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+            // Write the TIME and MILLITIM keys. Key types must be i64 to get any
+            // sort of sanity.
+            hdu.write_key(fptr, "TIME", 1_434_494_061)
+                .expect("Couldn't write key 'TIME'");
+            hdu.write_key(fptr, "MILLITIM", 0)
+                .expect("Couldn't write key 'MILLITIM'");
 
-        // Write the TIME and MILLITIM keys. Key types must be i64 to get any
-        // sort of sanity.
-        hdu.write_key(&mut fptr, "TIME", 1_434_494_061)
-            .expect("Couldn't write key 'TIME'");
-        hdu.write_key(&mut fptr, "MILLITIM", 0)
-            .expect("Couldn't write key 'MILLITIM'");
-
-        let result = determine_hdu_time(&mut fptr, &hdu);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 1_434_494_061_000);
-
-        remove_file(&filename).expect("Couldn't remove file");
+            let result = determine_hdu_time(fptr, &hdu);
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), 1_434_494_061_000);
+        });
     }
 
     #[test]
-    fn determine_hdu_time_test2() {
-        // Create a (temporary) FITS file with some keys to test our functions.
-        // FitsFile::create() expects the filename passed in to not
-        // exist. Delete it if it exists.
-        let filename = "determine_hdu_time_test2.fits";
+    fn test_determine_hdu_time_test2() {
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        with_new_temp_fits_file("determine_hdu_time_test2.fits", |fptr| {
+            let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
 
-        if std::path::Path::new(filename).exists() {
-            remove_file(filename).unwrap();
-        }
-        let mut fptr = FitsFile::create(filename)
-            .open()
-            .expect("Couldn't open tempfile");
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+            hdu.write_key(fptr, "TIME", 1_381_844_923)
+                .expect("Couldn't write key 'TIME'");
+            hdu.write_key(fptr, "MILLITIM", 500)
+                .expect("Couldn't write key 'MILLITIM'");
 
-        hdu.write_key(&mut fptr, "TIME", 1_381_844_923)
-            .expect("Couldn't write key 'TIME'");
-        hdu.write_key(&mut fptr, "MILLITIM", 500)
-            .expect("Couldn't write key 'MILLITIM'");
-
-        let result = determine_hdu_time(&mut fptr, &hdu);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 1_381_844_923_500);
-
-        remove_file(&filename).unwrap();
+            let result = determine_hdu_time(fptr, &hdu);
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), 1_381_844_923_500);
+        });
     }
 
     #[test]
-    fn determine_hdu_time_test3() {
+    fn test_determine_hdu_time_test3() {
         // Use the current UNIX time.
         let current = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
             Err(e) => panic!("Something is wrong with time on your system: {}", e),
             Ok(n) => n.as_secs(),
         };
 
-        // Create a (temporary) FITS file with some keys to test our functions.
-        // FitsFile::create() expects the filename passed in to not
-        // exist. Delete it if it exists.
-        let filename = "determine_hdu_time_test3.fits";
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        with_new_temp_fits_file("determine_hdu_time_test3.fits", |fptr| {
+            let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
 
-        if std::path::Path::new(filename).exists() {
-            remove_file(filename).unwrap();
-        }
-        let mut fptr = FitsFile::create(filename)
-            .open()
-            .expect("Couldn't open tempfile");
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-
-        hdu.write_key(&mut fptr, "TIME", current)
-            .expect("Couldn't write key 'TIME'");
-        hdu.write_key(&mut fptr, "MILLITIM", 500)
-            .expect("Couldn't write key 'MILLITIM'");
-
-        let result = determine_hdu_time(&mut fptr, &hdu);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), current * 1000 + 500);
-
-        remove_file(&filename).unwrap();
-    }
-
-    #[test]
-    fn map_unix_times_to_hdus_test() {
-        // Create a (temporary) FITS file with some keys to test our functions.
-        // FitsFile::create() expects the filename passed in to not
-        // exist. Delete it if it exists.
-        let filename = "map_unix_times_to_hdus_test.fits";
-
-        if std::path::Path::new(filename).exists() {
-            remove_file(filename).unwrap();
-        }
-        let mut fptr = FitsFile::create(filename)
-            .open()
-            .expect("Couldn't open tempfile");
-
-        let times: Vec<(u64, u64)> =
-            vec![(1_381_844_923, 500), (1_381_844_924, 0), (1_381_844_950, 0)];
-        let mut expected = BTreeMap::new();
-        let image_description = ImageDescription {
-            data_type: ImageType::Float,
-            dimensions: &[100, 100],
-        };
-        for (i, (time, millitime)) in times.iter().enumerate() {
-            let hdu = fptr
-                .create_image("EXTNAME".to_string(), &image_description)
-                .expect("Couldn't create image");
-            hdu.write_key(&mut fptr, "TIME", *time)
+            hdu.write_key(fptr, "TIME", current)
                 .expect("Couldn't write key 'TIME'");
-            hdu.write_key(&mut fptr, "MILLITIM", *millitime)
+            hdu.write_key(fptr, "MILLITIM", 500)
                 .expect("Couldn't write key 'MILLITIM'");
 
-            expected.insert(time * 1000 + millitime, i + 1);
-        }
-
-        let result = map_unix_times_to_hdus(&mut fptr, &CorrelatorVersion::Legacy);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), expected);
-
-        remove_file(&filename).unwrap();
+            let result = determine_hdu_time(fptr, &hdu);
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), current * 1000 + 500);
+        });
     }
 
     #[test]
-    fn determine_obs_times_test() {
+    fn test_map_unix_times_to_hdus_test() {
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        with_new_temp_fits_file("map_unix_times_to_hdus_test.fits", |fptr| {
+            let times: Vec<(u64, u64)> =
+                vec![(1_381_844_923, 500), (1_381_844_924, 0), (1_381_844_950, 0)];
+            let mut expected = BTreeMap::new();
+            let image_description = ImageDescription {
+                data_type: ImageType::Float,
+                dimensions: &[100, 100],
+            };
+            for (i, (time, millitime)) in times.iter().enumerate() {
+                let hdu = fptr
+                    .create_image("EXTNAME".to_string(), &image_description)
+                    .expect("Couldn't create image");
+                hdu.write_key(fptr, "TIME", *time)
+                    .expect("Couldn't write key 'TIME'");
+                hdu.write_key(fptr, "MILLITIM", *millitime)
+                    .expect("Couldn't write key 'MILLITIM'");
+
+                expected.insert(time * 1000 + millitime, i + 1);
+            }
+
+            let result = map_unix_times_to_hdus(fptr, &CorrelatorVersion::Legacy);
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), expected);
+        });
+    }
+
+    #[test]
+    fn test_determine_obs_times_test() {
         // Create two files, with mostly overlapping times, but also a little
         // dangling at the start and end.
         let common_times: Vec<u64> = vec![

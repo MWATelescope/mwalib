@@ -1,6 +1,39 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+extern crate tempdir;
+use fitsio::FitsFile;
+
+/// Function to allow access to a temporary file. Temp directory and File is dropped once out of scope
+/// This is derived from fitsio crate
+pub fn with_temp_file<F>(filename: &str, callback: F)
+where
+    F: for<'a> Fn(&'a str),
+{
+    let tdir = tempdir::TempDir::new("fitsio-").unwrap();
+    let tdir_path = tdir.path();
+    let filename = tdir_path.join(filename);
+
+    let filename_str = filename.to_str().expect("cannot create string filename");
+    callback(filename_str);
+}
+
+pub fn with_new_temp_fits_file<F>(filename: &str, callback: F)
+where
+    F: for<'a> Fn(&'a mut FitsFile),
+{
+    let tdir = tempdir::TempDir::new("fitsio-").unwrap();
+    let tdir_path = tdir.path();
+    let filename = tdir_path.join(filename);
+
+    let filename_str = filename.to_str().expect("cannot create string filename");
+
+    let mut fptr = FitsFile::create(filename_str)
+        .open()
+        .expect("Couldn't open tempfile");
+
+    callback(&mut fptr);
+}
 
 /// Given the number of antennas, calculate the number of baselines (cross+autos)
 pub fn get_baseline_count(antennas: usize) -> usize {
