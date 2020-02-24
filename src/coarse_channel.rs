@@ -126,6 +126,7 @@ impl mwalibCoarseChannel {
         let mut coarse_channels: Vec<mwalibCoarseChannel> = Vec::new();
         let mut first_chan_index_over_128: usize = 0;
         for (i, rec_channel_number) in coarse_channel_vec.iter().enumerate() {
+            // Correlator channel number is 1 indexed. e.g. 1..N
             let mut correlator_channel_number = i;
 
             if *corr_version == CorrelatorVersion::Legacy
@@ -199,5 +200,45 @@ mod tests {
             8,
             mwalibCoarseChannel::get_metafits_coarse_channel_array("0,1,2,3,127,128,129,255").len()
         );
+    }
+
+    #[test]
+    fn test_process_coarse_channels() {
+        // Create the BTree Structure for an simple test which has 2 coarse channels
+        let mut gpubox_time_map: BTreeMap<u64, std::collections::BTreeMap<usize, (usize, usize)>> =
+            BTreeMap::new();
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(0)
+            .or_insert((0, 1));
+
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(1)
+            .or_insert((0, 1));
+
+        // Metafits coarse channel array
+        let mut metafits_channel_array: Vec<usize> = Vec::new();
+        metafits_channel_array.push(109);
+        metafits_channel_array.push(110);
+        metafits_channel_array.push(111);
+
+        // Process coarse channels
+        let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
+            mwalibCoarseChannel::process_coarse_channels(
+                &CorrelatorVersion::Legacy,
+                3_840_000,
+                &metafits_channel_array,
+                &gpubox_time_map,
+            );
+        assert_eq!(coarse_channel_array.len(), 2);
+        assert_eq!(coarse_channel_count, 2);
+        assert_eq!(coarse_channel_width_hz, 1_280_000);
+        assert_eq!(coarse_channel_array[0].correlator_channel_number, 0);
+        assert_eq!(coarse_channel_array[0].receiver_channel_number, 109);
+        assert_eq!(coarse_channel_array[1].correlator_channel_number, 1);
+        assert_eq!(coarse_channel_array[1].receiver_channel_number, 110);
     }
 }
