@@ -125,7 +125,7 @@ impl mwalibCoarseChannel {
         // Initialise the coarse channel vector of structs
         let mut coarse_channels: Vec<mwalibCoarseChannel> = Vec::new();
         let mut first_chan_index_over_128: usize = 0;
-        for (i, rec_channel_number) in coarse_channel_vec.into_iter().enumerate() {
+        for (i, rec_channel_number) in coarse_channel_vec.iter().enumerate() {
             let mut correlator_channel_number = i;
 
             if *corr_version == CorrelatorVersion::Legacy
@@ -186,5 +186,18 @@ impl fmt::Debug for mwalibCoarseChannel {
             self.receiver_channel_number,
             self.channel_centre_hz as f32 / 1_000_000.
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_metafits_coarse_channel_array() {
+        assert_eq!(
+            8,
+            mwalibCoarseChannel::get_metafits_coarse_channel_array("0,1,2,3,127,128,129,255").len()
+        );
     }
 }

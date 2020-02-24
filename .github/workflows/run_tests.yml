@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v2
     
     - uses: actions-rs/toolchain@v1
       with:
@@ -20,7 +20,7 @@ jobs:
           wget "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-3.47.tar.gz" -O cfitsio.tar.gz;
           tar -xvf cfitsio.tar.gz;
           cd cfitsio-3.47
-          ./configure --prefix=/usr/local;
+          ./configure --prefix=/usr/local --enable-reentrant;
           make clean && make;
           sudo make install;
           sudo ldconfig;
@@ -29,4 +29,4 @@ jobs:
       run: cargo build --verbose
       
     - name: Run tests
-      run: cargo test --verbose
+      run: export RUST_BACKTRACE=1; cargo test --verbose --lib
