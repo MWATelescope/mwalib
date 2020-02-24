@@ -72,12 +72,13 @@ fn sum_mwalib(
     println!("Correlator version: {}", context.corr_version);
 
     let mut sum: f64 = 0.0;
+    let mut count: u64 = 0;
     let mut scan_index: usize = 0;
     let mut first_x = "".to_string();
 
     while context.num_data_scans != 0 {
         for chan in context.read(context.num_data_scans)?.into_iter() {
-            for scan in chan.into_iter() {
+            for scan in chan.iter() {
                 println!("Scan {}", scan_index);
                 sum += scan.iter().fold(0.0, |acc, value| acc + (*value as f64));
 
@@ -88,6 +89,10 @@ fn sum_mwalib(
                 }
                 scan_index += 1;
             }
+
+            for scan in chan.iter() {
+                count += scan.iter().fold(0, |acc, _| acc + 1);
+            }
         }
     }
 
@@ -95,7 +100,7 @@ fn sum_mwalib(
         println!("First {} floats: {}", f, first_x);
     }
 
-    println!("Total sum: {}", sum);
+    println!("Total sum: {}; Count: {}", sum, count);
     Ok(())
 }
 

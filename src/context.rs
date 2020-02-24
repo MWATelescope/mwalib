@@ -17,6 +17,7 @@ use crate::convert::*;
 use crate::fits_read::*;
 use crate::gpubox::*;
 use crate::rfinput::*;
+use crate::timestep::*;
 use crate::*;
 
 #[derive(Debug, PartialEq)]
@@ -77,6 +78,8 @@ pub struct mwalibContext {
     pub rf_inputs: Vec<mwalibRFInput>,
     /// We also have just the antennas (for convenience)
     pub antennas: Vec<mwalibAntenna>,
+    /// This is an array of all timesteps we have data for
+    pub timesteps: Vec<mwalibTimeStep>,
     pub num_baselines: usize,
     pub integration_time_milliseconds: u64,
 
@@ -93,7 +96,7 @@ pub struct mwalibContext {
     pub coarse_channels: Vec<mwalibCoarseChannel>,
 
     /// fine_channel_resolution, coarse_channel_width and observation_bandwidth are in units of Hz.
-    pub fine_channel_resolution_hz: u32,
+    pub fine_channel_width_hz: u32,
     pub coarse_channel_width_hz: u32,
     pub observation_bandwidth_hz: u32,
 
@@ -151,6 +154,18 @@ impl mwalibContext {
         }
 
         let (gpubox_batches, corr_version) = determine_gpubox_batches(&gpuboxes)?;
+
+        // Pull out observation details. Save the metafits HDU for faster
+        // accesses.
+        let mut metafits_fptr =
+            FitsFile::open(&metafits).with_context(|| format!("Failed to open {:?}", metafits))?;
+        let metafits_hdu = metafits_fptr
+            .hdu(0)
+            .with_context(|| format!("Failed to open HDU 1 (primary hdu) for {:?}", metafits))?;
+
+        let metafits_tile_table_hdu = metafits_fptr
+            .hdu(1)
+            .with_context(|| format!("Failed to open HDU 2 (tiledata table) for {:?}", metafits))?;
 
         // Open all the files.
         let mut gpubox_fptrs = Vec::with_capacity(gpubox_batches.len());
@@ -215,21 +230,9 @@ impl mwalibContext {
                 }
             }
         }
-
-        let num_timesteps = gpubox_time_map.len();
-
-        // Pull out observation details. Save the metafits HDU for faster
-        // accesses.
-        let mut metafits_fptr =
-            FitsFile::open(&metafits).with_context(|| format!("Failed to open {:?}", metafits))?;
-        let metafits_hdu = metafits_fptr
-            .hdu(0)
-            .with_context(|| format!("Failed to open HDU 1 (primary hdu) for {:?}", metafits))?;
-
-        let metafits_tile_table_hdu = metafits_fptr
-            .hdu(1)
-            .with_context(|| format!("Failed to open HDU 2 (tiledata table) for {:?}", metafits))?;
-
+        // Populate our array of timesteps
+        // Create a vector of rf_input structs from the metafits
+        let (timesteps, num_timesteps) = mwalibTimeStep::populate_timesteps(&gpubox_time_map)?;
         let num_inputs = get_fits_key::<usize>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
             .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?;
 
@@ -267,7 +270,7 @@ impl mwalibContext {
                 .with_context(|| format!("Failed to read INTTIME for {:?}", metafits))?
                 * 1000.) as u64;
         // observation bandwidth (read from metafits in MHz)
-        let observation_bandwidth_hz =
+        let metafits_observation_bandwidth_hz =
             (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")
                 .with_context(|| format!("Failed to read BANDWDTH for {:?}", metafits))?
                 * 1e6)
@@ -277,15 +280,18 @@ impl mwalibContext {
             coarse_channel::mwalibCoarseChannel::populate_coarse_channels(
                 &mut metafits_fptr,
                 &corr_version,
-                observation_bandwidth_hz,
+                metafits_observation_bandwidth_hz,
+                &gpubox_time_map,
             )?;
+        let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
 
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.
-        let resolution = (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "FINECHAN")
-            .with_context(|| format!("Failed to read FINECHAN for {:?}", metafits))?
-            * 1000.)
-            .round() as _;
+        let fine_channel_width_hz =
+            (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "FINECHAN")
+                .with_context(|| format!("Failed to read FINECHAN for {:?}", metafits))?
+                * 1000.)
+                .round() as _;
 
         // Determine the fine channels. For some reason, this isn't in the
         // metafits. Assume that this is the same for all gpubox files.
@@ -337,6 +343,7 @@ impl mwalibContext {
             num_antennas,
             rf_inputs,
             antennas,
+            timesteps,
             num_baselines,
             integration_time_milliseconds,
             num_antenna_pols,
@@ -345,7 +352,7 @@ impl mwalibContext {
             num_coarse_channels,
             coarse_channel_width_hz,
             coarse_channels,
-            fine_channel_resolution_hz: resolution,
+            fine_channel_width_hz,
             observation_bandwidth_hz,
             metafits_filename: metafits.to_string(),
             gpubox_batches,
@@ -442,7 +449,8 @@ impl fmt::Display for mwalibContext {
     obs UNIX start time:      {} s,
     obs UNIX end time:        {} s,
     obs duration:             {} s,
-    Timesteps:                {},
+    num timesteps:            {},
+    timesteps:                {:?},
 
     num antennas:             {},
     antennas:                 {:?},
@@ -476,6 +484,7 @@ impl fmt::Display for mwalibContext {
             self.end_unix_time_milliseconds as f64 / 1e3,
             self.duration_milliseconds as f64 / 1e3,
             self.num_timesteps,
+            self.timesteps,
             self.num_antennas,
             self.antennas,
             self.rf_inputs,
@@ -487,7 +496,7 @@ impl fmt::Display for mwalibContext {
             self.observation_bandwidth_hz as f64 / 1e6,
             self.num_coarse_channels,
             self.coarse_channels,
-            self.fine_channel_resolution_hz as f64 / 1e3,
+            self.fine_channel_width_hz as f64 / 1e3,
             self.integration_time_milliseconds as f64 / 1e3,
             self.num_fine_channels,
             size,

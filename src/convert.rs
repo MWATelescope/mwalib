@@ -230,12 +230,15 @@ pub fn convert_legacy_hdu(
     output_buffer: &mut [f32],
     num_fine_channels: usize,
 ) {
-    assert_eq!(input_buffer.len(), output_buffer.len());
+    // Note: hardcoded values are safe here because they are only for the case where we are using the
+    // legacy correlator which ALWAYS has 128 tiles
+    let num_baselines = get_baseline_count(128);
 
-    let num_baselines = conversion_table.len();
+    assert_eq!(conversion_table.len(), num_baselines);
 
     // Striding for input array
     let floats_per_baseline_fine_channel = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
+    let floats_per_fine_channel = num_baselines * floats_per_baseline_fine_channel; // All floats for all baselines and 1 fine channel
 
     // Striding for output array
     let floats_per_baseline = floats_per_baseline_fine_channel * num_fine_channels;
@@ -253,7 +256,7 @@ pub fn convert_legacy_hdu(
             // We need to work out where to start indexing the source data
             // Go "down" the fine channels as if they are rows
             // Go "across" the baselines as if they are columns
-            let source_index = fine_chan_index * num_baselines * floats_per_baseline_fine_channel;
+            let source_index = fine_chan_index * floats_per_fine_channel;
             // We need to work out where to start indexing the destination data
             // Go "down" the baselines as if they are rows
             // Go "across" the fine channels as if they are columns
