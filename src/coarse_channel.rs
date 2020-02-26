@@ -12,6 +12,7 @@ use std::fmt;
 
 /// This is a struct for our coarse channels
 #[allow(non_camel_case_types)]
+#[derive(Clone)]
 pub struct mwalibCoarseChannel {
     // Correlator channel is 0 indexed
     pub correlator_channel_number: usize,
@@ -203,8 +204,63 @@ mod tests {
     }
 
     #[test]
-    fn test_process_coarse_channels() {
+    /// Tests coarse channel processing for a Legacy observation where we don't have all the coarse channels
+    /// What we expect from metafits is 4 coarse channels but we only get the middle 2
+    /// Metafits has: 109,110,111,112
+    /// User supplied gpuboxes 2 and 3 (which when 0 indexed is 1 and 2)
+    /// So:
+    /// 109 ==  missing
+    /// 110 == gpubox02 == correlator index 1
+    /// 111 == gpubox03 == correlator index 2
+    /// 112 == missing
+    fn test_process_coarse_channels_legacy_middle_two_gpuboxes() {
         // Create the BTree Structure for an simple test which has 2 coarse channels
+        let mut gpubox_time_map: BTreeMap<u64, std::collections::BTreeMap<usize, (usize, usize)>> =
+            BTreeMap::new();
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(1)
+            .or_insert((0, 1));
+
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(2)
+            .or_insert((0, 1));
+
+        // Metafits coarse channel array
+        let mut metafits_channel_array: Vec<usize> = Vec::new();
+        metafits_channel_array.push(109);
+        metafits_channel_array.push(110);
+        metafits_channel_array.push(111);
+        metafits_channel_array.push(112);
+
+        // Process coarse channels
+        let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
+            mwalibCoarseChannel::process_coarse_channels(
+                &CorrelatorVersion::Legacy,
+                1_280_000 * 4,
+                &metafits_channel_array,
+                &gpubox_time_map,
+            );
+        assert_eq!(coarse_channel_array.len(), 2);
+        assert_eq!(coarse_channel_count, 2);
+        assert_eq!(coarse_channel_width_hz, 1_280_000);
+        assert_eq!(coarse_channel_array[0].correlator_channel_number, 1);
+        assert_eq!(coarse_channel_array[0].receiver_channel_number, 110);
+        assert_eq!(coarse_channel_array[1].correlator_channel_number, 2);
+        assert_eq!(coarse_channel_array[1].receiver_channel_number, 111);
+    }
+
+    #[test]
+    /// Tests coarse channel processing when we have a legacy observation
+    /// and the coarse channels span the 128 mark, thereby reversing
+    /// Input from Legacy metafits:
+    /// receiver channels: 126,127,128,129,130
+    /// this would map to correlator indexes: 0,1,2,4,3
+    fn test_process_coarse_channels_legacy_channel_reversal() {
+        // Create the BTree Structure for an simple test which has 5 coarse channels
         let mut gpubox_time_map: BTreeMap<u64, std::collections::BTreeMap<usize, (usize, usize)>> =
             BTreeMap::new();
         gpubox_time_map
@@ -219,17 +275,93 @@ mod tests {
             .entry(1)
             .or_insert((0, 1));
 
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(2)
+            .or_insert((0, 1));
+
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(3)
+            .or_insert((0, 1));
+
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(4)
+            .or_insert((0, 1));
+
         // Metafits coarse channel array
         let mut metafits_channel_array: Vec<usize> = Vec::new();
-        metafits_channel_array.push(109);
-        metafits_channel_array.push(110);
-        metafits_channel_array.push(111);
+        metafits_channel_array.push(126);
+        metafits_channel_array.push(127);
+        metafits_channel_array.push(128);
+        metafits_channel_array.push(129);
+        metafits_channel_array.push(130);
 
         // Process coarse channels
         let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
             mwalibCoarseChannel::process_coarse_channels(
                 &CorrelatorVersion::Legacy,
-                3_840_000,
+                1_280_000 * 5,
+                &metafits_channel_array,
+                &gpubox_time_map,
+            );
+        assert_eq!(coarse_channel_array.len(), 5);
+        assert_eq!(coarse_channel_count, 5);
+        assert_eq!(coarse_channel_width_hz, 1_280_000);
+        assert_eq!(coarse_channel_array[0].correlator_channel_number, 0);
+        assert_eq!(coarse_channel_array[0].receiver_channel_number, 126);
+        assert_eq!(coarse_channel_array[1].correlator_channel_number, 1);
+        assert_eq!(coarse_channel_array[1].receiver_channel_number, 127);
+        assert_eq!(coarse_channel_array[2].correlator_channel_number, 2);
+        assert_eq!(coarse_channel_array[2].receiver_channel_number, 128);
+        assert_eq!(coarse_channel_array[3].correlator_channel_number, 4);
+        assert_eq!(coarse_channel_array[3].receiver_channel_number, 129);
+        assert_eq!(coarse_channel_array[4].correlator_channel_number, 3);
+        assert_eq!(coarse_channel_array[4].receiver_channel_number, 130);
+    }
+
+    #[test]
+    /// Tests coarse channel processing for a Legacy observation where we don't have all the coarse channels
+    /// What we expect from metafits is 4 coarse channels but we only get the first and last
+    /// Metafits has: 109,110,111,112
+    /// User supplied gpuboxes 1 and 4 (which when 0 indexed is 0 and 3)
+    /// So:
+    /// 109 == gpubox01 == correlator index 0
+    /// 110 == missing
+    /// 111 == missing
+    /// 112 == gpubox04 == correlator index 3
+    fn test_process_coarse_channels_legacy_first_and_last() {
+        // Create the BTree Structure for an simple test which has 2 coarse channels
+        let mut gpubox_time_map: BTreeMap<u64, std::collections::BTreeMap<usize, (usize, usize)>> =
+            BTreeMap::new();
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(0)
+            .or_insert((0, 1));
+
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(3)
+            .or_insert((0, 1));
+
+        // Metafits coarse channel array
+        let mut metafits_channel_array: Vec<usize> = Vec::new();
+        metafits_channel_array.push(109);
+        metafits_channel_array.push(110);
+        metafits_channel_array.push(111);
+        metafits_channel_array.push(112);
+
+        // Process coarse channels
+        let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
+            mwalibCoarseChannel::process_coarse_channels(
+                &CorrelatorVersion::Legacy,
+                1_280_000 * 4,
                 &metafits_channel_array,
                 &gpubox_time_map,
             );
@@ -238,7 +370,78 @@ mod tests {
         assert_eq!(coarse_channel_width_hz, 1_280_000);
         assert_eq!(coarse_channel_array[0].correlator_channel_number, 0);
         assert_eq!(coarse_channel_array[0].receiver_channel_number, 109);
+        assert_eq!(coarse_channel_array[1].correlator_channel_number, 3);
+        assert_eq!(coarse_channel_array[1].receiver_channel_number, 112);
+    }
+
+    #[test]
+    /// Tests coarse channel processing when we have a MWAX observation
+    /// and the coarse channels span the 128 mark. In this case we DO NOT reverse coarse channels post 128
+    /// Input from MWAX metafits:
+    /// receiver channels: 126,127,128,129,130
+    /// this would map to correlator indexes: 0,1,2,3,4
+    fn test_process_coarse_channels_mwax_no_reverse() {
+        // Create the BTree Structure for an simple test which has 5 coarse channels
+        let mut gpubox_time_map: BTreeMap<u64, std::collections::BTreeMap<usize, (usize, usize)>> =
+            BTreeMap::new();
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(0)
+            .or_insert((0, 1));
+
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(1)
+            .or_insert((0, 1));
+
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(2)
+            .or_insert((0, 1));
+
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(3)
+            .or_insert((0, 1));
+
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert(BTreeMap::new())
+            .entry(4)
+            .or_insert((0, 1));
+
+        // Metafits coarse channel array
+        let mut metafits_channel_array: Vec<usize> = Vec::new();
+        metafits_channel_array.push(126);
+        metafits_channel_array.push(127);
+        metafits_channel_array.push(128);
+        metafits_channel_array.push(129);
+        metafits_channel_array.push(130);
+
+        // Process coarse channels
+        let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
+            mwalibCoarseChannel::process_coarse_channels(
+                &CorrelatorVersion::V2,
+                1_280_000 * 5,
+                &metafits_channel_array,
+                &gpubox_time_map,
+            );
+        assert_eq!(coarse_channel_array.len(), 5);
+        assert_eq!(coarse_channel_count, 5);
+        assert_eq!(coarse_channel_width_hz, 1_280_000);
+        assert_eq!(coarse_channel_array[0].correlator_channel_number, 0);
+        assert_eq!(coarse_channel_array[0].receiver_channel_number, 126);
         assert_eq!(coarse_channel_array[1].correlator_channel_number, 1);
-        assert_eq!(coarse_channel_array[1].receiver_channel_number, 110);
+        assert_eq!(coarse_channel_array[1].receiver_channel_number, 127);
+        assert_eq!(coarse_channel_array[2].correlator_channel_number, 2);
+        assert_eq!(coarse_channel_array[2].receiver_channel_number, 128);
+        assert_eq!(coarse_channel_array[3].correlator_channel_number, 3);
+        assert_eq!(coarse_channel_array[3].receiver_channel_number, 129);
+        assert_eq!(coarse_channel_array[4].correlator_channel_number, 4);
+        assert_eq!(coarse_channel_array[4].receiver_channel_number, 130);
     }
 }

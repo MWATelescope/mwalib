@@ -11,6 +11,7 @@ use std::fmt;
 
 /// This is a struct for our coarse channels
 #[allow(non_camel_case_types)]
+#[derive(Clone)]
 pub struct mwalibTimeStep {
     // UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,

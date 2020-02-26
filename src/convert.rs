@@ -10,8 +10,8 @@ use std::fmt;
 ///	then 'or' the middle 4 bits after shifting them right 2 positions
 /// It is inlined so the compiler will effectively make this like a C macro rather than a function call.
 #[inline(always)]
-fn fine_pfb_reorder(x: usize) -> usize {
-    ((x) & 0xc0) | (((x) & 0x03) << 4) | (((x) & 0x3c) >> 2)
+fn fine_pfb_reorder(input: usize) -> usize {
+    ((input) & 0xc0) | (((input) & 0x03) << 4) | (((input) & 0x3c) >> 2)
 }
 
 /// Structure for storing where in the input visibilities to get the specified baseline
@@ -76,26 +76,14 @@ impl fmt::Debug for mwalibLegacyConversionBaseline {
     }
 }
 
-pub fn generate_conversion_array(
-    rf_inputs: &mut Vec<mwalibRFInput>,
-) -> Vec<mwalibLegacyConversionBaseline> {
+fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
     let mut row1st: usize;
     let mut row2nd: usize;
     let mut col_a: usize;
     let mut col_b: usize; // temp space for the rf_inputs that form the row and column of the 2x2 correlation matrix
+                          // Pull subfile order out into seperate vector, ensuring it is sorted by input/metafits order
+    assert_eq!(mwax_order.len(), 256);
 
-    // Sort the rf_inputs by "Input / metafits" order
-    rf_inputs.sort_by(|a, b| a.input.cmp(&b.input));
-
-    // Ensure we have a 256 element array of rf_inputs
-    assert_eq!(rf_inputs.len(), 256);
-
-    // Pull subfile order out into seperate vector, ensuring it is sorted by input/metafits order
-    let mut mwax_order: Vec<usize> = vec![0; 256];
-
-    for index in 0..256 {
-        mwax_order[index] = rf_inputs[index].subfile_order as usize;
-    }
     // Create an array of 65536 ints.  Really a 2d array of 256 x 256 ints
     // set them all to -1 to say 'contains nothing useful'
     let mut full_matrix: Vec<i32> = vec![-1; 65536];
@@ -113,6 +101,15 @@ pub fn generate_conversion_array(
             // Right now, we need to know which two inputs appear as the rows in our 2x2 correlation square.  Let's look them up now.
             row1st = mwax_order[fine_pfb_reorder(row_order)];
             row2nd = mwax_order[fine_pfb_reorder(row_order + 1)];
+
+            assert!(
+                ((row1st << 8) | col_a) > 65535,
+                "row1st=={} <<8 =={} col a=={} correct {}",
+                row1st,
+                row1st << 8,
+                col_a,
+                (256 as i32) << 8
+            );
 
             full_matrix[((row1st << 8) | col_a)] = source_legacy_ndx; // Top left complex number in the 2x2 correlation square
             source_legacy_ndx += 1;
@@ -144,6 +141,27 @@ pub fn generate_conversion_array(
             // print!("{},", full_matrix[row_order << 8 | col_order]);
         }
     }
+
+    full_matrix
+}
+
+pub fn generate_conversion_array(
+    rf_inputs: &mut Vec<mwalibRFInput>,
+) -> Vec<mwalibLegacyConversionBaseline> {
+    // Sort the rf_inputs by "Input / metafits" order
+    rf_inputs.sort_by(|a, b| a.input.cmp(&b.input));
+
+    // Ensure we have a 256 element array of rf_inputs
+    assert_eq!(rf_inputs.len(), 256);
+
+    // Create a vector which contains all the mwax_orders, sorted by "input" from the metafits
+    let mut mwax_order: Vec<usize> = vec![0; 256];
+    for index in 0..256 {
+        mwax_order[index] = rf_inputs[index].subfile_order as usize;
+    }
+
+    // Generate the full matrix
+    let full_matrix: Vec<i32> = generate_full_matrix(mwax_order);
     // Now step through the 256 x 256 square, but in the order of the wanted triangular output!
     // Each step, we need to pick up the source position index that we stored in the 256 x 256 square.
     let (mut xx, mut xy, mut yx, mut yy): (i32, i32, i32, i32); // Indexes to the polarisations for this pair of tiles
@@ -301,6 +319,224 @@ pub fn convert_legacy_hdu(
             } else {
                 input_buffer[source_index + baseline.yy_index + 1]
             };
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    extern crate csv;
+    extern crate float_cmp;
+    extern crate serde;
+    use std::fs::File;
+    use std::io::Write;
+
+    #[test]
+    fn test_fine_pfb_reorder() {
+        assert_eq!(0, fine_pfb_reorder(0));
+        assert_eq!(16, fine_pfb_reorder(1));
+        assert_eq!(32, fine_pfb_reorder(2));
+        assert_eq!(48, fine_pfb_reorder(3));
+        assert_eq!(1, fine_pfb_reorder(4));
+        assert_eq!(12, fine_pfb_reorder(48));
+        assert_eq!(28, fine_pfb_reorder(49));
+        assert_eq!(44, fine_pfb_reorder(50));
+        assert_eq!(60, fine_pfb_reorder(51));
+        assert_eq!(207, fine_pfb_reorder(252));
+        assert_eq!(223, fine_pfb_reorder(253));
+        assert_eq!(239, fine_pfb_reorder(254));
+        assert_eq!(255, fine_pfb_reorder(255));
+    }
+
+    #[test]
+    fn test_full_matrix() {
+        // Use this as the input of mwax_orders, sorted by input (from metafits)
+        // This was derived from an example metafits: test_files/1101503312.metafits
+        // by sorting by "Input" and then using get_mwax_order(antenna, pol)
+        let mwax_order: Vec<usize> = vec![
+            151, 150, 149, 148, 147, 146, 145, 144, 159, 158, 157, 156, 155, 154, 153, 152, 231,
+            230, 229, 228, 227, 226, 225, 224, 239, 238, 237, 236, 235, 234, 233, 232, 247, 246,
+            245, 244, 243, 242, 241, 240, 255, 254, 253, 252, 251, 250, 249, 248, 103, 102, 101,
+            100, 99, 98, 97, 96, 111, 110, 109, 108, 107, 106, 105, 104, 23, 22, 21, 20, 19, 18,
+            17, 16, 31, 30, 29, 28, 27, 26, 25, 24, 7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10,
+            9, 8, 135, 134, 133, 132, 131, 130, 129, 128, 143, 142, 141, 140, 139, 138, 137, 136,
+            119, 118, 117, 116, 115, 114, 113, 112, 127, 126, 125, 124, 123, 122, 121, 120, 183,
+            182, 181, 180, 179, 178, 177, 176, 191, 190, 189, 188, 187, 186, 185, 184, 167, 166,
+            165, 164, 163, 162, 161, 160, 175, 174, 173, 172, 171, 170, 169, 168, 215, 214, 213,
+            212, 211, 210, 209, 208, 223, 222, 221, 220, 219, 218, 217, 216, 199, 198, 197, 196,
+            195, 194, 193, 192, 207, 206, 205, 204, 203, 202, 201, 200, 39, 38, 37, 36, 35, 34, 33,
+            32, 47, 46, 45, 44, 43, 42, 41, 40, 55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59,
+            58, 57, 56, 87, 86, 85, 84, 83, 82, 81, 80, 95, 94, 93, 92, 91, 90, 89, 88, 71, 70, 69,
+            68, 67, 66, 65, 64, 79, 78, 77, 76, 75, 74, 73, 72,
+        ];
+
+        // Normally this is generated using the metafits, but we hardcode it above
+        assert_eq!(mwax_order.len(), 256);
+
+        // Generate the full_matrix
+        let generated_full_matrix: Vec<i32> = generate_full_matrix(mwax_order);
+
+        assert_eq!(generated_full_matrix.len(), (256 * 256));
+
+        let mut csv_full_matrix: Vec<i32> = vec![0; 256 * 256];
+
+        assert_eq!(csv_full_matrix.len(), (256 * 256));
+
+        // Check the generated full matrix against one crafted by "hand", in csv format in test_files/1101503312_full_matrix.csv
+        //
+        // First read the csv file
+        //
+        // Build the CSV reader and iterate over each record.
+        // The csv file contains 256 rows each containing 256 columns of signed integers
+        let mut reader = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_path("test_files/1101503312_full_matrix.csv")
+            .expect("Failed reading csv file");
+        for (row_index, result) in reader.deserialize().enumerate() {
+            // An error may occur, so abort the program in an unfriendly way.
+            let record: Vec<i32> = result.expect("Error reading csv");
+
+            assert_eq!(record.len(), 256);
+            assert!(row_index < 256, "row_index is out of bounds {}", row_index);
+
+            // Now loop though all the columns in this row
+            for (i, v) in record.iter().enumerate() {
+                assert!(i < 256);
+                let dest_index = (row_index * 256) + i;
+
+                assert!(
+                    dest_index < (256 * 256),
+                    "dest_index is out of bounds {}",
+                    dest_index
+                );
+
+                csv_full_matrix[dest_index] = *v;
+            }
+        }
+
+        // Loop through every row and column and check if the generated matrix == csv matrix!
+        for row in 0..256 {
+            for col in 0..256 {
+                let index = (row * 256) + col;
+                assert_eq!(
+                    csv_full_matrix[index], generated_full_matrix[index],
+                    "on row {}, col {}",
+                    row, col
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_conversion_of_legacy_hdu() {
+        // Open an output file for writing
+        let dump_filename =
+            String::from("test_files/1101503312_gpubox01_pyuvdata_1st_timestep.csv");
+        let mut dump_file = File::create(dump_filename).expect("Could not open file for writing");
+
+        // Open a context and load in a test metafits and gpubox file
+        let metafits: String = String::from("test_files/1101503312.metafits");
+        let gpuboxfiles: Vec<String> = vec![String::from(
+            "test_files/1101503312_20141201210818_gpubox01_00.fits",
+        )];
+        let mut context = mwalibContext::new(&metafits, &gpuboxfiles).expect("Error");
+
+        // Read and convert first HDU
+        let mwalib_hdu: Vec<f32> = context.read_one_timestep_coarse_channel_bfp(0, 0).unwrap();
+
+        // Check it
+        // Vector is in:
+        // [baseline][fine_channel][pol][r/i] order
+        //
+        assert_eq!(
+            mwalib_hdu.len(),
+            8256 * 128 * 8,
+            "mwalib HDU vector length is wrong"
+        );
+
+        //
+        // Next read the csv file
+        //
+        // Build the CSV reader and iterate over each record.
+        // The csv file contains 1056768 (8256 baselines * 128 fine channels) rows
+        // each containing each containing 8 floats:
+        // XX real, XX imag, XY real, XY imag, YX real, YX imag, YY real, YY imag
+        //
+        let mut reader = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_path("test_files/1101503312_gpubox01_pyuvdata_1st_timestep.csv")
+            .expect("Failed reading csv file");
+
+        let mut baseline = 0;
+        let mut fine_chan = 0;
+        let mut mwalib_sum_of_baseline: f64 = 0.;
+        let mut pyuvdata_sum_of_baseline: f64 = 0.;
+        let mut ant1: usize = 0;
+        let mut ant2: usize = 0;
+
+        for (row_index, result) in reader.deserialize().enumerate() {
+            // An error may occur, so abort the program in an unfriendly way.
+            let record: Vec<f32> = result.expect("Error reading csv");
+
+            assert_eq!(record.len(), 1_056_768);
+            assert!(
+                row_index < 1_056_768,
+                "row_index is out of bounds {}",
+                row_index
+            );
+
+            // Determine where we should be in the mwalib array
+            let mwalib_bl_index = baseline * (128 * 8);
+            let mwalib_ch_index = fine_chan * 8;
+            // Now loop though all the columns in this row
+            for (i, v) in record.iter().enumerate() {
+                assert!(i < 8);
+                let mwalib_dest_index = mwalib_bl_index + mwalib_ch_index + i;
+
+                mwalib_sum_of_baseline += mwalib_hdu[mwalib_dest_index] as f64;
+                pyuvdata_sum_of_baseline += *v as f64;
+            }
+
+            if fine_chan < 127 {
+                fine_chan += 1;
+            } else {
+                // We are at the end of a baseline
+                fine_chan = 0;
+                baseline += 1;
+                if ant2 < 127 {
+                    ant2 += 1;
+                } else {
+                    ant1 += 1;
+                    ant2 = 0;
+                }
+
+                // Get value from mwa_lib
+                let good: u8 = if float_cmp::approx_eq!(
+                    f64,
+                    mwalib_sum_of_baseline,
+                    pyuvdata_sum_of_baseline,
+                    float_cmp::F64Margin::default()
+                ) {
+                    // match
+                    1
+                } else {
+                    // no match
+                    0
+                };
+
+                // Write to file
+                write!(
+                    &mut dump_file,
+                    "{} {}v{} {} {} v {}",
+                    baseline, ant1, ant2, good, mwalib_sum_of_baseline, pyuvdata_sum_of_baseline
+                )
+                .expect("Error writing to file");
+
+                // Reset our sums
+                mwalib_sum_of_baseline = 0.;
+                pyuvdata_sum_of_baseline = 0.;
+            }
         }
     }
 }

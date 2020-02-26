@@ -8,10 +8,6 @@ use mwalib::*;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "mwalib-sum-gpubox-hdus", author)]
 struct Opt {
-    /// Print the first x floats from HDU 1 of each gpubox file.
-    #[structopt(short, long)]
-    floats: Option<usize>,
-
     /// Don't use mwalib - just iterate over the HDUs and add them. The result
     /// might be different because the start/end times of the observation may
     /// not be consistent.
@@ -25,12 +21,19 @@ struct Opt {
     /// Paths to the gpubox files.
     #[structopt(name = "GPUBOX FILE")]
     files: Vec<String>,
+
+    /// Name of antenna1
+    #[structopt(long)]
+    ant1_name: String,
+
+    /// Name of antenna2
+    #[structopt(long)]
+    ant2_name: String,
 }
 
-fn sum_direct(files: Vec<String>, floats: Option<usize>) -> Result<(), anyhow::Error> {
+fn sum_direct(files: Vec<String>) -> Result<(), anyhow::Error> {
     println!("Summing directly from HDUs...");
     let mut sum: f64 = 0.0;
-    let mut first_x = "".to_string();
     for gpubox in files {
         println!("Reading {}", gpubox);
         let mut hdu_index = 1;
@@ -38,21 +41,11 @@ fn sum_direct(files: Vec<String>, floats: Option<usize>) -> Result<(), anyhow::E
         let mut fptr = FitsFile::open(&gpubox)?;
         while let Ok(hdu) = fptr.hdu(hdu_index) {
             let buffer: Vec<f32> = hdu.read_image(&mut fptr)?;
-            if hdu_index == 1 {
-                if let Some(f) = floats {
-                    first_x = format!("{:?}", buffer.iter().take(f).collect::<Vec<&f32>>());
-                }
-            }
-
             s += buffer.iter().map(|v| *v as f64).sum::<f64>();
             hdu_index += 1;
         }
 
         println!("Sum: {}", s);
-        if let Some(f) = floats {
-            println!("First {} floats: {}", f, first_x);
-        }
-        println!();
         sum += s;
     }
 
@@ -63,55 +56,68 @@ fn sum_direct(files: Vec<String>, floats: Option<usize>) -> Result<(), anyhow::E
 fn sum_mwalib(
     metafits: String,
     files: Vec<String>,
-    floats: Option<usize>,
+    ant1_name: String,
+    ant2_name: String,
 ) -> Result<(), anyhow::Error> {
     println!("Summing via mwalib...");
     let mut context = mwalibContext::new(&metafits, &files)?;
-    context.num_data_scans = 3;
-
     println!("Correlator version: {}", context.corr_version);
+
+    let selected_baseline = misc::get_baseline_from_antenna_names(
+        ant1_name.clone(),
+        ant2_name.clone(),
+        &context.antennas,
+    )
+    .unwrap();
 
     let mut sum: f64 = 0.0;
     let mut count: u64 = 0;
-    let mut scan_index: usize = 0;
-    let mut first_x = "".to_string();
+    for t in 0..context.num_timesteps {
+        for c in 0..context.num_coarse_channels {
+            print!("t {}, c {}...", t, c);
+            let data = context.read_one_timestep_coarse_channel_bfp(t, c)?;
 
-    while context.num_data_scans != 0 {
-        for chan in context.read(context.num_data_scans)?.into_iter() {
-            for scan in chan.iter() {
-                println!("Scan {}", scan_index);
-                sum += scan.iter().fold(0.0, |acc, value| acc + (*value as f64));
+            for b in 0..context.num_baselines {
+                let baseline_index =
+                    b * (context.num_fine_channels * context.num_visibility_pols * 2);
 
-                if scan_index == 0 {
-                    if let Some(f) = floats {
-                        first_x = format!("{:?}", scan.iter().take(f).collect::<Vec<&f32>>());
+                if b == selected_baseline {
+                    let mut this_sum: f64 = 0.;
+                    let mut this_count: u64 = 0;
+
+                    for f in 0..context.num_fine_channels {
+                        let fine_chan_index = f * (context.num_visibility_pols * 2);
+
+                        for v in 0..8 {
+                            this_sum += data[baseline_index + fine_chan_index + v] as f64;
+                        }
+                        this_count += 8;
                     }
-                }
-                scan_index += 1;
-            }
 
-            for scan in chan.iter() {
-                count += scan.iter().fold(0, |acc, _| acc + 1);
+                    println!("Sum: {}; Count: {}", this_sum, this_count);
+                    sum += this_sum;
+                    count += this_count;
+                }
             }
         }
     }
 
-    if let Some(f) = floats {
-        println!("First {} floats: {}", f, first_x);
-    }
+    println!(
+        "{} v {} (baseline: {}) Sum: {}; Count: {}",
+        ant1_name, ant2_name, selected_baseline, sum, count
+    );
 
-    println!("Total sum: {}; Count: {}", sum, count);
     Ok(())
 }
 
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
     if opts.direct {
-        sum_direct(opts.files, opts.floats)?;
+        sum_direct(opts.files)?;
     } else {
         // Ensure we have a metafits file.
         if let Some(m) = opts.metafits {
-            sum_mwalib(m, opts.files, opts.floats)?;
+            sum_mwalib(m, opts.files, opts.ant1_name, opts.ant2_name)?;
         } else {
             bail!("A metafits file is required when using mwalib.")
         }

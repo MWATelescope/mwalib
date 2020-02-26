@@ -10,6 +10,7 @@ use std::fmt;
 
 // Structure for storing MWA antennas (tiles without polarisation) information from the metafits file
 #[allow(non_camel_case_types)]
+#[derive(Clone)]
 pub struct mwalibAntenna {
     /// This is the antenna number.
     /// Nominally this is the field we sort by to get the desired output order of antenna.

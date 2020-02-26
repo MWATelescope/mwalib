@@ -433,6 +433,42 @@ impl mwalibContext {
 
         Ok(data)
     }
+
+    /// Read a single timestep for a single coarse channel
+    /// The output visibilities are in order:
+    /// [baseline][frequency][pol][r][i]
+    pub fn read_one_timestep_coarse_channel_bfp(
+        &mut self,
+        timestep_index: usize,
+        coarse_channel_index: usize,
+    ) -> Result<Vec<f32>, ErrorKind> {
+        // Prepare temporary buffer, if we are reading legacy correlator files
+        let output_buffer: Vec<f32>;
+        let mut temp_buffer =
+            vec![0.; self.num_fine_channels * self.num_visibility_pols * self.num_baselines * 2];
+
+        // Select the data we want and put it into the output buffer
+        let (batch_index, hdu_index) = self.gpubox_time_map
+            [&self.timesteps[timestep_index].unix_time_ms][&coarse_channel_index];
+        let mut fptr = &mut self.gpubox_fptrs[batch_index][coarse_channel_index];
+        let hdu = fptr.hdu(hdu_index)?;
+        output_buffer = hdu.read_image(&mut fptr)?;
+        // If legacy correlator, then convert the HDU into the correct output format
+        if self.corr_version == CorrelatorVersion::OldLegacy
+            || self.corr_version == CorrelatorVersion::Legacy
+        {
+            convert::convert_legacy_hdu(
+                &self.legacy_conversion_table,
+                &output_buffer,
+                &mut temp_buffer,
+                self.num_fine_channels,
+            );
+
+            Ok(temp_buffer)
+        } else {
+            Ok(output_buffer)
+        }
+    }
 }
 
 impl fmt::Display for mwalibContext {

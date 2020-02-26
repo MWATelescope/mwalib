@@ -8,6 +8,19 @@ Structs and helper methods for rf_input metadata
 use crate::*;
 use std::fmt;
 
+// VCS_ORDER is the order that comes out of PFB and into the correlator (for legacy observations)
+// It can be calculated, so we do that, rather than make the user get a newer metafits (only metafits after mid 2018
+// have this column pre populated).
+fn get_vcs_order(input: u32) -> u32 {
+    (input & 0xC0) | ((input & 0x30) >> 4) | ((input & 0x0F) << 2)
+}
+
+// mwax_order (aka subfile_order) is the order we want the antennas in, after conversion.
+// For Correlator v2, the data is already in this order.
+fn get_mwax_order(antenna: u32, pol: String) -> u32 {
+    (antenna << 1) + (if pol == "Y" { 1 } else { 0 }) as u32
+}
+
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
@@ -113,7 +126,7 @@ impl mwalibRFInput {
                     )
                 })?;
 
-            let table_pol = metafits_tile_table_hdu
+            let table_pol: String = metafits_tile_table_hdu
                 .read_cell_value(metafits_fptr, "Pol", input)
                 .with_context(|| {
                     format!("Failed to read table row {} for Pol from metafits.", input)
@@ -155,31 +168,23 @@ impl mwalibRFInput {
                         input
                     )
                 })?;
-            // VCS_ORDER is the order that comes out of PFB and into the correlator (for legacy observations)
-            // It can be calculated, so we do that, rather than make the user get a newer metafits (only metafits after mid 2018
-            // have this column pre populated).
-            let vcs_order =
-                (table_input & 0xC0) | ((table_input & 0x30) >> 4) | ((table_input & 0x0F) << 2);
 
-            // Subfile_order is the order we want the antennas in, after conversion. For Correlator v2, the data is already in this order.
-            let subfile_order =
-                (table_antenna << 1) + (if table_pol == "Y" { 1 } else { 0 }) as u32;
+            let vcs_order = get_vcs_order(table_input);
+            let subfile_order = get_mwax_order(table_input, table_pol.to_string());
 
-            rf_inputs.push(
-                mwalibRFInput::new(
-                    table_input,
-                    table_antenna,
-                    table_tile_id,
-                    table_tile_name,
-                    table_pol,
-                    table_electrical_length,
-                    table_north,
-                    table_east,
-                    table_height,
-                    vcs_order,
-                    subfile_order,
-                )
-            )
+            rf_inputs.push(mwalibRFInput::new(
+                table_input,
+                table_antenna,
+                table_tile_id,
+                table_tile_name,
+                table_pol,
+                table_electrical_length,
+                table_north,
+                table_east,
+                table_height,
+                vcs_order,
+                subfile_order,
+            ))
         }
         Ok(rf_inputs)
     }
@@ -188,5 +193,34 @@ impl mwalibRFInput {
 impl fmt::Debug for mwalibRFInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.tile_name, self.pol)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_vcs_order() {
+        assert_eq!(0, get_vcs_order(0));
+        assert_eq!(4, get_vcs_order(1));
+        assert_eq!(32, get_vcs_order(8));
+        assert_eq!(127, get_vcs_order(127));
+        assert_eq!(128, get_vcs_order(128));
+        assert_eq!(194, get_vcs_order(224));
+        assert_eq!(251, get_vcs_order(254));
+        assert_eq!(255, get_vcs_order(255));
+    }
+
+    #[test]
+    fn test_get_mwax_order() {
+        assert_eq!(0, get_mwax_order(0, String::from("X")));
+        assert_eq!(1, get_mwax_order(0, String::from("Y")));
+        assert_eq!(32, get_mwax_order(16, String::from("X")));
+        assert_eq!(33, get_mwax_order(16, String::from("Y")));
+        assert_eq!(120, get_mwax_order(60, String::from("X")));
+        assert_eq!(121, get_mwax_order(60, String::from("Y")));
+        assert_eq!(254, get_mwax_order(127, String::from("X")));
+        assert_eq!(255, get_mwax_order(127, String::from("Y")));
     }
 }
