@@ -102,15 +102,6 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
             row1st = mwax_order[fine_pfb_reorder(row_order)];
             row2nd = mwax_order[fine_pfb_reorder(row_order + 1)];
 
-            assert!(
-                ((row1st << 8) | col_a) > 65535,
-                "row1st=={} <<8 =={} col a=={} correct {}",
-                row1st,
-                row1st << 8,
-                col_a,
-                (256 as i32) << 8
-            );
-
             full_matrix[((row1st << 8) | col_a)] = source_legacy_ndx; // Top left complex number in the 2x2 correlation square
             source_legacy_ndx += 1;
             full_matrix[((row1st << 8) | col_b)] = source_legacy_ndx; // Top right
@@ -331,6 +322,7 @@ mod tests {
     extern crate serde;
     use std::fs::File;
     use std::io::Write;
+    use std::error;
 
     #[test]
     fn test_fine_pfb_reorder() {
@@ -350,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    fn test_full_matrix() {
+    fn test_full_matrix() -> Result<(), Box<dyn error::Error>> {
         // Use this as the input of mwax_orders, sorted by input (from metafits)
         // This was derived from an example metafits: test_files/1101503312.metafits
         // by sorting by "Input" and then using get_mwax_order(antenna, pol)
@@ -391,11 +383,10 @@ mod tests {
         // The csv file contains 256 rows each containing 256 columns of signed integers
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
-            .from_path("test_files/1101503312_full_matrix.csv")
-            .expect("Failed reading csv file");
+            .from_path("test_files/1101503312_full_matrix.csv")?;
         for (row_index, result) in reader.deserialize().enumerate() {
             // An error may occur, so abort the program in an unfriendly way.
-            let record: Vec<i32> = result.expect("Error reading csv");
+            let record: Vec<i32> = result?;
 
             assert_eq!(record.len(), 256);
             assert!(row_index < 256, "row_index is out of bounds {}", row_index);
@@ -426,24 +417,26 @@ mod tests {
                 );
             }
         }
+
+        Ok(())
     }
 
     #[test]
-    fn test_conversion_of_legacy_hdu() {
+    fn test_conversion_of_legacy_hdu() -> Result<(), Box<dyn error::Error>> {
         // Open an output file for writing
         let dump_filename =
-            String::from("test_files/1101503312_gpubox01_pyuvdata_1st_timestep.csv");
-        let mut dump_file = File::create(dump_filename).expect("Could not open file for writing");
+            String::from("test_files/1101503312_gpubox01_mwalib_1st_timestep.csv");
+        let mut dump_file = File::create(dump_filename)?;
 
         // Open a context and load in a test metafits and gpubox file
         let metafits: String = String::from("test_files/1101503312.metafits");
         let gpuboxfiles: Vec<String> = vec![String::from(
             "test_files/1101503312_20141201210818_gpubox01_00.fits",
         )];
-        let mut context = mwalibContext::new(&metafits, &gpuboxfiles).expect("Error");
+        let mut context = mwalibContext::new(&metafits, &gpuboxfiles)?;
 
         // Read and convert first HDU
-        let mwalib_hdu: Vec<f32> = context.read_one_timestep_coarse_channel_bfp(0, 0).unwrap();
+        let mwalib_hdu: Vec<f32> = context.read_one_timestep_coarse_channel_bfp(0, 0)?;
 
         // Check it
         // Vector is in:
@@ -465,8 +458,7 @@ mod tests {
         //
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
-            .from_path("test_files/1101503312_gpubox01_pyuvdata_1st_timestep.csv")
-            .expect("Failed reading csv file");
+            .from_path("test_files/1101503312_gpubox01_pyuvdata_1st_timestep.csv")?;
 
         let mut baseline = 0;
         let mut fine_chan = 0;
@@ -477,7 +469,7 @@ mod tests {
 
         for (row_index, result) in reader.deserialize().enumerate() {
             // An error may occur, so abort the program in an unfriendly way.
-            let record: Vec<f32> = result.expect("Error reading csv");
+            let record: Vec<f32> = result?;
 
             assert_eq!(record.len(), 1_056_768);
             assert!(
@@ -530,13 +522,14 @@ mod tests {
                     &mut dump_file,
                     "{} {}v{} {} {} v {}",
                     baseline, ant1, ant2, good, mwalib_sum_of_baseline, pyuvdata_sum_of_baseline
-                )
-                .expect("Error writing to file");
+                )?;
 
                 // Reset our sums
                 mwalib_sum_of_baseline = 0.;
                 pyuvdata_sum_of_baseline = 0.;
             }
         }
+
+        Ok(())
     }
 }

@@ -18,7 +18,8 @@ fn get_vcs_order(input: u32) -> u32 {
 // mwax_order (aka subfile_order) is the order we want the antennas in, after conversion.
 // For Correlator v2, the data is already in this order.
 fn get_mwax_order(antenna: u32, pol: String) -> u32 {
-    (antenna << 1) + (if pol == "Y" { 1 } else { 0 }) as u32
+    assert!(antenna < 128);
+    (antenna * 2) + (if pol == "Y" { 1 } else { 0 })
 }
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
@@ -170,7 +171,7 @@ impl mwalibRFInput {
                 })?;
 
             let vcs_order = get_vcs_order(table_input);
-            let subfile_order = get_mwax_order(table_input, table_pol.to_string());
+            let subfile_order = get_mwax_order(table_antenna, table_pol.to_string());
 
             rf_inputs.push(mwalibRFInput::new(
                 table_input,
