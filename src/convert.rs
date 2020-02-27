@@ -10,6 +10,11 @@ use std::fmt;
 ///	then 'or' the middle 4 bits after shifting them right 2 positions
 /// It is inlined so the compiler will effectively make this like a C macro rather than a function call.
 #[inline(always)]
+fn fine_pfb_reorder_brian_crazy_idea(input: usize) -> usize {
+    (((input) & 0xc0) | (((input) & 0x03) << 4) | (((input) & 0x3c) >> 2)) ^ 0x10
+}
+
+#[inline(always)]
 fn fine_pfb_reorder(input: usize) -> usize {
     ((input) & 0xc0) | (((input) & 0x03) << 4) | (((input) & 0x3c) >> 2)
 }
@@ -160,8 +165,12 @@ pub fn generate_conversion_array(
 
     // Create an output vector so we can lookup where to get data from the legacy HDU, given a baseline/ant1/ant2
     let baseline_count = get_baseline_count(128);
+
+    assert_eq!(baseline_count, 8256);
+
     let mut conversion_table: Vec<mwalibLegacyConversionBaseline> =
         Vec::with_capacity(baseline_count as usize);
+
     // Our row tile and column tile.  Now 2 pols each so only 128 in legacy obs
     for row_tile in 0..128 {
         for col_tile in row_tile..128 {
@@ -320,25 +329,32 @@ mod tests {
     extern crate csv;
     extern crate float_cmp;
     extern crate serde;
+    use std::error;
     use std::fs::File;
     use std::io::Write;
-    use std::error;
 
     #[test]
     fn test_fine_pfb_reorder() {
-        assert_eq!(0, fine_pfb_reorder(0));
-        assert_eq!(16, fine_pfb_reorder(1));
-        assert_eq!(32, fine_pfb_reorder(2));
-        assert_eq!(48, fine_pfb_reorder(3));
-        assert_eq!(1, fine_pfb_reorder(4));
-        assert_eq!(12, fine_pfb_reorder(48));
-        assert_eq!(28, fine_pfb_reorder(49));
-        assert_eq!(44, fine_pfb_reorder(50));
-        assert_eq!(60, fine_pfb_reorder(51));
-        assert_eq!(207, fine_pfb_reorder(252));
-        assert_eq!(223, fine_pfb_reorder(253));
-        assert_eq!(239, fine_pfb_reorder(254));
-        assert_eq!(255, fine_pfb_reorder(255));
+        // This hardcoded vector comes from cotter/pyuvdata/build_lfiles and represents the input to
+        // output mapping for a single pfb. To cater for all 4 PFB's we need to loop through it 4 times
+        let single_pfb_output_to_input: Vec<usize> = vec![
+            0, 16, 32, 48, 1, 17, 33, 49, 2, 18, 34, 50, 3, 19, 35, 51, 4, 20, 36, 52, 5, 21, 37,
+            53, 6, 22, 38, 54, 7, 23, 39, 55, 8, 24, 40, 56, 9, 25, 41, 57, 10, 26, 42, 58, 11, 27,
+            43, 59, 12, 28, 44, 60, 13, 29, 45, 61, 14, 30, 46, 62, 15, 31, 47, 63,
+        ];
+
+        for pfb in 0..4 {
+            for (i, pfb_output) in single_pfb_output_to_input.iter().enumerate() {
+                let hardcoded = pfb_output + (64 * pfb);
+                let calculated = fine_pfb_reorder(i + (64 * pfb));
+
+                assert_eq!(
+                    hardcoded, calculated,
+                    "fine_pfb_reorder({}) did not equal expected hardcoded value {}",
+                    hardcoded, calculated
+                );
+            }
+        }
     }
 
     #[test]
@@ -424,8 +440,7 @@ mod tests {
     #[test]
     fn test_conversion_of_legacy_hdu() -> Result<(), Box<dyn error::Error>> {
         // Open an output file for writing
-        let dump_filename =
-            String::from("test_files/1101503312_gpubox01_mwalib_1st_timestep.csv");
+        let dump_filename = String::from("test_files/1101503312_gpubox01_mwalib_1st_timestep.csv");
         let mut dump_file = File::create(dump_filename)?;
 
         // Open a context and load in a test metafits and gpubox file
@@ -468,10 +483,23 @@ mod tests {
         let mut ant2: usize = 0;
 
         for (row_index, result) in reader.deserialize().enumerate() {
+            // Verify the baseline matches the antenna numbers
+            match misc::get_antennas_from_baseline(baseline, 128) {
+                Some(b) => {
+                    assert_eq!(ant1, b.0);
+                    assert_eq!(ant2, b.1);
+                }
+                None => panic!("baseline {} is not valid!", baseline),
+            }
+
+            // Print some leading commas so we get pretty triangular output
+            /*if ant1 == ant2 && fine_chan == 0 {
+                write!(&mut dump_file, "{} ", ant2)?;
+                write!(&mut dump_file, "{:,>w$}", " ", w = ant1)?;
+            }*/
+
             // An error may occur, so abort the program in an unfriendly way.
             let record: Vec<f32> = result?;
-
-            assert_eq!(record.len(), 1_056_768);
             assert!(
                 row_index < 1_056_768,
                 "row_index is out of bounds {}",
@@ -486,23 +514,14 @@ mod tests {
                 assert!(i < 8);
                 let mwalib_dest_index = mwalib_bl_index + mwalib_ch_index + i;
 
-                mwalib_sum_of_baseline += mwalib_hdu[mwalib_dest_index] as f64;
-                pyuvdata_sum_of_baseline += *v as f64;
+                mwalib_sum_of_baseline += (mwalib_hdu[mwalib_dest_index] as f64).abs();
+                pyuvdata_sum_of_baseline += (*v as f64).abs();
             }
 
             if fine_chan < 127 {
                 fine_chan += 1;
             } else {
                 // We are at the end of a baseline
-                fine_chan = 0;
-                baseline += 1;
-                if ant2 < 127 {
-                    ant2 += 1;
-                } else {
-                    ant1 += 1;
-                    ant2 = 0;
-                }
-
                 // Get value from mwa_lib
                 let good: u8 = if float_cmp::approx_eq!(
                     f64,
@@ -518,15 +537,28 @@ mod tests {
                 };
 
                 // Write to file
-                write!(
+                writeln!(
                     &mut dump_file,
                     "{} {}v{} {} {} v {}",
                     baseline, ant1, ant2, good, mwalib_sum_of_baseline, pyuvdata_sum_of_baseline
                 )?;
+                //write!(&mut dump_file, "{},", good)?;
 
                 // Reset our sums
                 mwalib_sum_of_baseline = 0.;
                 pyuvdata_sum_of_baseline = 0.;
+
+                // Reset counters
+                fine_chan = 0;
+                baseline += 1;
+                if ant2 < 127 {
+                    ant2 += 1;
+                } else {
+                    ant1 += 1;
+                    ant2 = ant1;
+
+                    writeln!(&mut dump_file)?;
+                }
             }
         }
 

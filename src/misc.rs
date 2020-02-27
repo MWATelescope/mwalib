@@ -55,18 +55,18 @@ pub fn get_baseline_count(antennas: usize) -> usize {
 /// ...
 /// N-1,N-1
 pub fn get_antennas_from_baseline(baseline: usize, num_antennas: usize) -> Option<(usize, usize)> {
-    let mut baseline_index = 0;
-    for ant1 in 0..num_antennas {
-        for ant2 in ant1..num_antennas {
-            if baseline_index == baseline {
-                return Some((ant1, ant2));
-            }
-            baseline_index += 1;
-        }
-    }
+    let ant1 = (-0.5
+        * ((4 * num_antennas * num_antennas + 4 * num_antennas - 8 * baseline + 1) as f32).sqrt()
+        + num_antennas as f32
+        + 1. / 2.) as usize;
 
-    // Baseline was not found at all
-    None
+    let ant2 = baseline - (ant1 * num_antennas - (ant1 * ant1 + ant1) / 2);
+
+    if ant1 > num_antennas - 1 || ant2 > num_antennas - 1 {
+        None
+    } else {
+        Some((ant1, ant2))
+    }
 }
 
 /// Given two antenna indicies, return the baseline index.
@@ -125,6 +125,7 @@ mod tests {
 
     #[test]
     fn test_get_baseline_count() {
+        assert_eq!(3, get_baseline_count(2));
         assert_eq!(8256, get_baseline_count(128));
     }
 
