@@ -276,9 +276,8 @@ pub fn determine_obs_times(
     let proper_end_millisec = match i.last().map(|(time, _)| *time) {
         Some(s) => s,
         None => {
-            return Err(ErrorKind::Custom(
-                "determine_obs_times: proper_end_millisec was not set".to_string(),
-            ))
+            // Looks like we only have 1 hdu, so start == end
+            proper_start_millisec
         }
     };
 
@@ -479,10 +478,10 @@ mod tests {
     #[test]
     fn test_determine_gpubox_batches_new_format() {
         let files = vec![
-            "1065880128_20131015134930_ch001_000.fits",
-            "1065880128_20131015134930_ch002_000.fits",
-            "1065880128_20131015135030_ch001_001.fits",
-            "1065880128_20131015135030_ch002_001.fits",
+            "1065880128_20131015134930_ch101_000.fits",
+            "1065880128_20131015134930_ch102_000.fits",
+            "1065880128_20131015135030_ch101_001.fits",
+            "1065880128_20131015135030_ch102_001.fits",
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
@@ -493,12 +492,12 @@ mod tests {
             result,
             vec![
                 vec![
-                    "1065880128_20131015134930_ch001_000.fits",
-                    "1065880128_20131015134930_ch002_000.fits",
+                    "1065880128_20131015134930_ch101_000.fits",
+                    "1065880128_20131015134930_ch102_000.fits",
                 ],
                 vec![
-                    "1065880128_20131015135030_ch001_001.fits",
-                    "1065880128_20131015135030_ch002_001.fits",
+                    "1065880128_20131015135030_ch101_001.fits",
+                    "1065880128_20131015135030_ch102_001.fits",
                 ]
             ],
         );

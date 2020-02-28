@@ -219,13 +219,13 @@ mod tests {
             BTreeMap::new();
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(1)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(2)
             .or_insert((0, 1));
 
@@ -265,31 +265,31 @@ mod tests {
             BTreeMap::new();
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(0)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(1)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(2)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(3)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(4)
             .or_insert((0, 1));
 
@@ -340,13 +340,13 @@ mod tests {
             BTreeMap::new();
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(0)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(3)
             .or_insert((0, 1));
 
@@ -386,31 +386,31 @@ mod tests {
             BTreeMap::new();
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(0)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(1)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(2)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(3)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
-            .or_insert(BTreeMap::new())
+            .or_insert_with(BTreeMap::new)
             .entry(4)
             .or_insert((0, 1));
 

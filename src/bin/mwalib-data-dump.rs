@@ -85,10 +85,10 @@ fn dump_data(
         ant1_name,
         ant2_name
     );
-    for (t, time) in timestep_array.iter().enumerate() {
+    for (t, _) in timestep_array.iter().enumerate() {
         if t == timestep {
             println!("timestep: {}", t);
-            for (c, channel) in coarse_channel_array.iter().enumerate() {
+            for (c, _) in coarse_channel_array.iter().enumerate() {
                 if c == coarse_channel {
                     println!("Reading timestep {}, coarse channel {}...", t, c);
                     let data =

@@ -10,11 +10,6 @@ use std::fmt;
 ///	then 'or' the middle 4 bits after shifting them right 2 positions
 /// It is inlined so the compiler will effectively make this like a C macro rather than a function call.
 #[inline(always)]
-fn fine_pfb_reorder_brian_crazy_idea(input: usize) -> usize {
-    (((input) & 0xc0) | (((input) & 0x03) << 4) | (((input) & 0x3c) >> 2)) ^ 0x10
-}
-
-#[inline(always)]
 fn fine_pfb_reorder(input: usize) -> usize {
     ((input) & 0xc0) | (((input) & 0x03) << 4) | (((input) & 0x3c) >> 2)
 }
@@ -109,15 +104,13 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
 
             full_matrix[((row1st << 8) | col_a)] = source_legacy_ndx; // Top left complex number in the 2x2 correlation square
             source_legacy_ndx += 1;
-            full_matrix[((row1st << 8) | col_b)] = source_legacy_ndx; // Top right
-            source_legacy_ndx += 1;
-
+            // Unless it's one of the 128 redundant outputs from the old correlator
             if col_order != row_order {
-                // Unless it's one of the 128 redundant outputs from the old correlator
-                full_matrix[((row2nd << 8) | col_a)] = source_legacy_ndx; // Here is the Bottom Left.  NB the source index *isn't* incremented during the 'if'
+                full_matrix[((row2nd << 8) | col_a)] = source_legacy_ndx; // Bottom left
             }
-
-            source_legacy_ndx += 1; // because we need to increment the source location even if we're ignoring it.
+            source_legacy_ndx += 1; // NB the source index *isn't* incremented during the 'if'
+            full_matrix[((row1st << 8) | col_b)] = source_legacy_ndx; // Here is the Top right.
+            source_legacy_ndx += 1;
 
             full_matrix[((row2nd << 8) | col_b)] = source_legacy_ndx; // Bottom Right complex number in the 2x2.
             source_legacy_ndx += 1;
@@ -330,8 +323,6 @@ mod tests {
     extern crate float_cmp;
     extern crate serde;
     use std::error;
-    use std::fs::File;
-    use std::io::Write;
 
     #[test]
     fn test_fine_pfb_reorder() {
@@ -399,7 +390,7 @@ mod tests {
         // The csv file contains 256 rows each containing 256 columns of signed integers
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
-            .from_path("test_files/1101503312_full_matrix.csv")?;
+            .from_path("test_files/1101503312_1_timestep/1101503312_full_matrix.csv")?;
         for (row_index, result) in reader.deserialize().enumerate() {
             // An error may occur, so abort the program in an unfriendly way.
             let record: Vec<i32> = result?;
@@ -439,14 +430,10 @@ mod tests {
 
     #[test]
     fn test_conversion_of_legacy_hdu() -> Result<(), Box<dyn error::Error>> {
-        // Open an output file for writing
-        let dump_filename = String::from("test_files/1101503312_gpubox01_mwalib_1st_timestep.csv");
-        let mut dump_file = File::create(dump_filename)?;
-
         // Open a context and load in a test metafits and gpubox file
-        let metafits: String = String::from("test_files/1101503312.metafits");
+        let metafits: String = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
         let gpuboxfiles: Vec<String> = vec![String::from(
-            "test_files/1101503312_20141201210818_gpubox01_00.fits",
+            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
         )];
         let mut context = mwalibContext::new(&metafits, &gpuboxfiles)?;
 
@@ -473,7 +460,7 @@ mod tests {
         //
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
-            .from_path("test_files/1101503312_gpubox01_pyuvdata_1st_timestep.csv")?;
+            .from_path("test_files/1101503312_1_timestep/1101503312_gpubox01_pyuvdata_1st_timestep.csv")?;
 
         let mut baseline = 0;
         let mut fine_chan = 0;
@@ -491,14 +478,6 @@ mod tests {
                 }
                 None => panic!("baseline {} is not valid!", baseline),
             }
-
-            // Print some leading commas so we get pretty triangular output
-            /*if ant1 == ant2 && fine_chan == 0 {
-                write!(&mut dump_file, "{} ", ant2)?;
-                write!(&mut dump_file, "{:,>w$}", " ", w = ant1)?;
-            }*/
-
-            // An error may occur, so abort the program in an unfriendly way.
             let record: Vec<f32> = result?;
             assert!(
                 row_index < 1_056_768,
@@ -514,8 +493,40 @@ mod tests {
                 assert!(i < 8);
                 let mwalib_dest_index = mwalib_bl_index + mwalib_ch_index + i;
 
-                mwalib_sum_of_baseline += (mwalib_hdu[mwalib_dest_index] as f64).abs();
-                pyuvdata_sum_of_baseline += (*v as f64).abs();
+                let mwalib_value = mwalib_hdu[mwalib_dest_index] as f64;
+                let pyuvdata_value = *v as f64;
+
+                mwalib_sum_of_baseline += mwalib_value;
+                pyuvdata_sum_of_baseline += pyuvdata_value;
+
+                let pol = match i {
+                    0 => "xx_r",
+                    1 => "xx_i",
+                    2 => "xy_r",
+                    3 => "xy_i",
+                    4 => "yx_r",
+                    5 => "yx_i",
+                    6 => "yy_r",
+                    7 => "yy_i",
+                    _ => "?"
+                };                
+
+                assert!(float_cmp::approx_eq!(
+                        f64,
+                        mwalib_value,
+                        pyuvdata_value,
+                        float_cmp::F64Margin::default()
+                    ),                    
+                    "baseline: {} ant1: {} v ant2: {} fine_chan: {} pol: {} mwalib_value: {} != pyuvdata_value: {} difference: {}",
+                    baseline,
+                    ant1,
+                    ant2,
+                    fine_chan,
+                    pol,
+                    mwalib_value,
+                    pyuvdata_value,
+                    mwalib_value - pyuvdata_value
+                );
             }
 
             if fine_chan < 127 {
@@ -536,13 +547,17 @@ mod tests {
                     0
                 };
 
-                // Write to file
-                writeln!(
-                    &mut dump_file,
-                    "{} {}v{} {} {} v {}",
-                    baseline, ant1, ant2, good, mwalib_sum_of_baseline, pyuvdata_sum_of_baseline
-                )?;
-                //write!(&mut dump_file, "{},", good)?;
+                assert_eq!(
+                    good,
+                    1,
+                    "baseline: {} ant1: {} v ant2: {} mwalib_sum: {} != pyuvdata_sum: {} difference: {}",
+                    baseline,
+                    ant1,
+                    ant2,
+                    mwalib_sum_of_baseline,
+                    pyuvdata_sum_of_baseline,
+                    mwalib_sum_of_baseline - pyuvdata_sum_of_baseline
+                );
 
                 // Reset our sums
                 mwalib_sum_of_baseline = 0.;
@@ -556,8 +571,6 @@ mod tests {
                 } else {
                     ant1 += 1;
                     ant2 = ant1;
-
-                    writeln!(&mut dump_file)?;
                 }
             }
         }
