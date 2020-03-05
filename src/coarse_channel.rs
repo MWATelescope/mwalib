@@ -14,11 +14,16 @@ use std::fmt;
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
 pub struct mwalibCoarseChannel {
-    // Correlator channel is 0 indexed
+    // Correlator channel is 0 indexed (0..N-1)
     pub correlator_channel_number: usize,
 
     // Receiver channel is 0-255 in the RRI recivers
     pub receiver_channel_number: usize,
+
+    // gpubox channel number
+    // Legacy e.g. obsid_datetime_gpuboxXX_00
+    // v2     e.g. obsid_datetime_gpuboxXXX_00
+    pub gpubox_number: usize,
 
     // Width of a coarse channel in Hz
     pub channel_width_hz: u32,
@@ -37,6 +42,7 @@ impl mwalibCoarseChannel {
     pub fn new(
         correlator_channel_number: usize,
         receiver_channel_number: usize,
+        gpubox_number: usize,
         channel_width_hz: u32,
     ) -> mwalibCoarseChannel {
         let centre_chan_hz: u32 = (receiver_channel_number as u32) * channel_width_hz;
@@ -44,6 +50,7 @@ impl mwalibCoarseChannel {
         mwalibCoarseChannel {
             correlator_channel_number,
             receiver_channel_number,
+            gpubox_number,
             channel_width_hz,
             channel_centre_hz: centre_chan_hz,
             channel_start_hz: centre_chan_hz - (channel_width_hz / 2),
@@ -127,7 +134,7 @@ impl mwalibCoarseChannel {
         let mut coarse_channels: Vec<mwalibCoarseChannel> = Vec::new();
         let mut first_chan_index_over_128: usize = 0;
         for (i, rec_channel_number) in coarse_channel_vec.iter().enumerate() {
-            // Correlator channel number is 1 indexed. e.g. 1..N
+            // Final Correlator channel number is 0 indexed. e.g. 0..N-1
             let mut correlator_channel_number = i;
 
             if *corr_version == CorrelatorVersion::Legacy
@@ -143,25 +150,46 @@ impl mwalibCoarseChannel {
                     correlator_channel_number =
                         (num_coarse_channels - 1) - (i - first_chan_index_over_128);
                 }
-            }
 
-            // Before we commit to adding this coarse channel, lets ensure that the client supplied the
-            // gpubox file needed for it
-            // Get the first node (which is the first timestep)
-            // Then see if a coarse channel exists based on gpubox number
-            if gpubox_time_map
-                .iter()
-                .next() // this gets us the first item
-                .unwrap()
-                .1 // get the second item from tuple (u64, BTreeMap)
-                .contains_key(&correlator_channel_number)
-            // see if we have the correlator channel number
-            {
-                coarse_channels.push(mwalibCoarseChannel::new(
-                    correlator_channel_number,
-                    *rec_channel_number,
-                    coarse_channel_width_hz,
-                ));
+                // Before we commit to adding this coarse channel, lets ensure that the client supplied the
+                // gpubox file needed for it
+                // Get the first node (which is the first timestep)
+                // Then see if a coarse channel exists based on gpubox number
+                // We add one since gpubox numbers are 1..N, while we will be recording
+                // 0..N-1
+                let gpubox_channel_number = correlator_channel_number + 1;
+
+                if gpubox_time_map
+                    .iter()
+                    .next() // this gets us the first item
+                    .unwrap()
+                    .1 // get the second item from tuple (u64, BTreeMap)
+                    .contains_key(&gpubox_channel_number)
+                // see if we have the correlator channel number
+                {
+                    coarse_channels.push(mwalibCoarseChannel::new(
+                        correlator_channel_number,
+                        *rec_channel_number,
+                        gpubox_channel_number,
+                        coarse_channel_width_hz,
+                    ));
+                }
+            } else {
+                if gpubox_time_map
+                    .iter()
+                    .next() // this gets us the first item
+                    .unwrap()
+                    .1 // get the second item from tuple (u64, BTreeMap)
+                    .contains_key(&rec_channel_number)
+                // see if we have the correlator channel number
+                {
+                    coarse_channels.push(mwalibCoarseChannel::new(
+                        correlator_channel_number,
+                        *rec_channel_number,
+                        *rec_channel_number,
+                        coarse_channel_width_hz,
+                    ));
+                }
             }
         }
 
@@ -183,7 +211,8 @@ impl fmt::Debug for mwalibCoarseChannel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "corr={} rec={} @ {:.3} MHz",
+            "gpu={} corr={} rec={} @ {:.3} MHz",
+            self.gpubox_number,
             self.correlator_channel_number,
             self.receiver_channel_number,
             self.channel_centre_hz as f32 / 1_000_000.
@@ -220,13 +249,13 @@ mod tests {
         gpubox_time_map
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
-            .entry(1)
+            .entry(2)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
-            .entry(2)
+            .entry(3)
             .or_insert((0, 1));
 
         // Metafits coarse channel array
@@ -249,8 +278,10 @@ mod tests {
         assert_eq!(coarse_channel_width_hz, 1_280_000);
         assert_eq!(coarse_channel_array[0].correlator_channel_number, 1);
         assert_eq!(coarse_channel_array[0].receiver_channel_number, 110);
+        assert_eq!(coarse_channel_array[0].gpubox_number, 2);
         assert_eq!(coarse_channel_array[1].correlator_channel_number, 2);
         assert_eq!(coarse_channel_array[1].receiver_channel_number, 111);
+        assert_eq!(coarse_channel_array[1].gpubox_number, 3);
     }
 
     #[test]
@@ -263,12 +294,6 @@ mod tests {
         // Create the BTree Structure for an simple test which has 5 coarse channels
         let mut gpubox_time_map: BTreeMap<u64, std::collections::BTreeMap<usize, (usize, usize)>> =
             BTreeMap::new();
-        gpubox_time_map
-            .entry(1_381_844_923_000)
-            .or_insert_with(BTreeMap::new)
-            .entry(0)
-            .or_insert((0, 1));
-
         gpubox_time_map
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
@@ -291,6 +316,12 @@ mod tests {
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
             .entry(4)
+            .or_insert((0, 1));
+
+        gpubox_time_map
+            .entry(1_381_844_923_000)
+            .or_insert_with(BTreeMap::new)
+            .entry(5)
             .or_insert((0, 1));
 
         // Metafits coarse channel array
@@ -314,14 +345,19 @@ mod tests {
         assert_eq!(coarse_channel_width_hz, 1_280_000);
         assert_eq!(coarse_channel_array[0].correlator_channel_number, 0);
         assert_eq!(coarse_channel_array[0].receiver_channel_number, 126);
+        assert_eq!(coarse_channel_array[0].gpubox_number, 1);
         assert_eq!(coarse_channel_array[1].correlator_channel_number, 1);
         assert_eq!(coarse_channel_array[1].receiver_channel_number, 127);
+        assert_eq!(coarse_channel_array[1].gpubox_number, 2);
         assert_eq!(coarse_channel_array[2].correlator_channel_number, 2);
         assert_eq!(coarse_channel_array[2].receiver_channel_number, 128);
+        assert_eq!(coarse_channel_array[2].gpubox_number, 3);
         assert_eq!(coarse_channel_array[3].correlator_channel_number, 4);
         assert_eq!(coarse_channel_array[3].receiver_channel_number, 129);
+        assert_eq!(coarse_channel_array[3].gpubox_number, 5);
         assert_eq!(coarse_channel_array[4].correlator_channel_number, 3);
         assert_eq!(coarse_channel_array[4].receiver_channel_number, 130);
+        assert_eq!(coarse_channel_array[4].gpubox_number, 4);
     }
 
     #[test]
@@ -341,13 +377,13 @@ mod tests {
         gpubox_time_map
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
-            .entry(0)
+            .entry(1)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
-            .entry(3)
+            .entry(4)
             .or_insert((0, 1));
 
         // Metafits coarse channel array
@@ -370,8 +406,10 @@ mod tests {
         assert_eq!(coarse_channel_width_hz, 1_280_000);
         assert_eq!(coarse_channel_array[0].correlator_channel_number, 0);
         assert_eq!(coarse_channel_array[0].receiver_channel_number, 109);
+        assert_eq!(coarse_channel_array[0].gpubox_number, 1);
         assert_eq!(coarse_channel_array[1].correlator_channel_number, 3);
         assert_eq!(coarse_channel_array[1].receiver_channel_number, 112);
+        assert_eq!(coarse_channel_array[1].gpubox_number, 4);
     }
 
     #[test]
@@ -387,31 +425,31 @@ mod tests {
         gpubox_time_map
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
-            .entry(0)
+            .entry(126)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
-            .entry(1)
+            .entry(127)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
-            .entry(2)
+            .entry(128)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
-            .entry(3)
+            .entry(129)
             .or_insert((0, 1));
 
         gpubox_time_map
             .entry(1_381_844_923_000)
             .or_insert_with(BTreeMap::new)
-            .entry(4)
+            .entry(130)
             .or_insert((0, 1));
 
         // Metafits coarse channel array
@@ -435,13 +473,18 @@ mod tests {
         assert_eq!(coarse_channel_width_hz, 1_280_000);
         assert_eq!(coarse_channel_array[0].correlator_channel_number, 0);
         assert_eq!(coarse_channel_array[0].receiver_channel_number, 126);
+        assert_eq!(coarse_channel_array[0].gpubox_number, 126);
         assert_eq!(coarse_channel_array[1].correlator_channel_number, 1);
         assert_eq!(coarse_channel_array[1].receiver_channel_number, 127);
+        assert_eq!(coarse_channel_array[1].gpubox_number, 127);
         assert_eq!(coarse_channel_array[2].correlator_channel_number, 2);
         assert_eq!(coarse_channel_array[2].receiver_channel_number, 128);
+        assert_eq!(coarse_channel_array[2].gpubox_number, 128);
         assert_eq!(coarse_channel_array[3].correlator_channel_number, 3);
         assert_eq!(coarse_channel_array[3].receiver_channel_number, 129);
+        assert_eq!(coarse_channel_array[3].gpubox_number, 129);
         assert_eq!(coarse_channel_array[4].correlator_channel_number, 4);
         assert_eq!(coarse_channel_array[4].receiver_channel_number, 130);
+        assert_eq!(coarse_channel_array[4].gpubox_number, 130);
     }
 }

@@ -107,12 +107,7 @@ pub struct mwalibContext {
     /// corresponds directly to other gpubox-related objects
     /// (e.g. `gpubox_hdu_limits`). Structured:
     /// `gpubox_batches[batch][filename]`.
-    pub gpubox_batches: Vec<Vec<String>>,
-
-    /// Keep gpubox file FITS file pointers open. Structured:
-    /// `gpubox_fptrs[batch][fptr]`, in the same way `gpubox_batches` is laid
-    /// out.
-    pub gpubox_fptrs: Vec<Vec<FitsFile>>,
+    pub gpubox_batches: Vec<GPUBoxBatch>,
 
     /// We assume as little as possible about the data layout in the gpubox
     /// files; here, a `BTreeMap` contains each unique UNIX time from every
@@ -153,8 +148,6 @@ impl mwalibContext {
             ));
         }
 
-        let (gpubox_batches, corr_version) = determine_gpubox_batches(&gpuboxes)?;
-
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
         let mut metafits_fptr =
@@ -167,69 +160,12 @@ impl mwalibContext {
             .hdu(1)
             .with_context(|| format!("Failed to open HDU 2 (tiledata table) for {:?}", metafits))?;
 
-        // Open all the files.
-        let mut gpubox_fptrs = Vec::with_capacity(gpubox_batches.len());
-        let mut gpubox_time_map = BTreeMap::new();
-        // Keep track of the gpubox HDU size and the number of gpubox files.
-        let mut size = 0;
-        let mut num_gpubox_files = 0;
-        for (batch_num, batch) in gpubox_batches.iter().enumerate() {
-            num_gpubox_files = batch.len();
-            gpubox_fptrs.push(Vec::with_capacity(batch.len()));
-            for gpubox_file in batch {
-                let mut fptr = FitsFile::open(&gpubox_file)
-                    .with_context(|| format!("Failed to open {:?}", gpubox_file))?;
+        let (mut gpubox_batches, corr_version, num_gpubox_files) =
+            determine_gpubox_batches(&gpuboxes)?;
 
-                let hdu = fptr
-                    .hdu(0)
-                    .with_context(|| format!("Failed to open HDU 1 of {:?}", gpubox_file))?;
-                // New correlator files include a version - check that it is present.
-                if corr_version == CorrelatorVersion::V2 {
-                    let v = get_fits_key::<u8>(&mut fptr, &hdu, "CORR_VER").with_context(|| {
-                        format!("Failed to read key CORR_VER from {:?}", gpubox_file)
-                    })?;
-                    if v != 2 {
-                        return Err(ErrorKind::Custom(
-                            "mwalibContext::new: MWAX gpubox file had a CORR_VER not equal to 2"
-                                .to_string(),
-                        ));
-                    }
-                }
-                // Store the FITS file pointer for later.
-                gpubox_fptrs[batch_num].push(fptr);
-            }
+        let (gpubox_time_map, hdu_size) =
+            gpubox::create_time_map(&mut gpubox_batches, &corr_version)?;
 
-            // Because of the way `fitsio` uses the mutable reference to the
-            // file handle, it's easier to do another loop here than use `fptr`
-            // above.
-            for (gpubox_num, mut fptr) in gpubox_fptrs[batch_num].iter_mut().enumerate() {
-                let time_map = map_unix_times_to_hdus(&mut fptr, &corr_version)?;
-                for (time, hdu_index) in time_map {
-                    // For the current `time`, check if it's in the map. If not,
-                    // insert it and a new tree. Then check if `gpubox_num` is
-                    // in the sub-map for this `time`, etc.
-                    let new_time_tree = BTreeMap::new();
-                    gpubox_time_map
-                        .entry(time)
-                        .or_insert(new_time_tree)
-                        .entry(gpubox_num)
-                        .or_insert((batch_num, hdu_index));
-                }
-
-                // Determine the size of the gpubox HDU image. mwalib will panic
-                // if this size is not consistent for all HDUs in all gpubox
-                // files.
-                let this_size = get_hdu_image_size(&mut fptr)?.iter().product();
-                if size != 0 && size != this_size {
-                    return Err(ErrorKind::Custom(
-                        "mwalibBuffer::read: Error: HDU sizes in gpubox files are not equal"
-                            .to_string(),
-                    ));
-                } else {
-                    size = this_size;
-                }
-            }
-        }
         // Populate our array of timesteps
         // Create a vector of rf_input structs from the metafits
         let (timesteps, num_timesteps) = mwalibTimeStep::populate_timesteps(&gpubox_time_map)?;
@@ -293,25 +229,9 @@ impl mwalibContext {
                 * 1000.)
                 .round() as _;
 
-        // Determine the fine channels. For some reason, this isn't in the
-        // metafits. Assume that this is the same for all gpubox files.
-        let num_fine_channels = {
-            let fptr = &mut gpubox_fptrs[0][0];
-            let hdu = fptr
-                .hdu(1)
-                .with_context(|| format!("Failed to open HDU 2 for {:?}", gpubox_batches[0][0]))?;
+        // Determine the number of fine channels per coarse channel.
+        let num_fine_channels = (coarse_channel_width_hz / fine_channel_width_hz) as usize;
 
-            if corr_version == CorrelatorVersion::V2 {
-                get_fits_key::<usize>(&mut gpubox_fptrs[0][0], &hdu, "NAXIS1").with_context(
-                    || format!("Failed to read NAXIS1 for {:?}", gpubox_batches[0][0]),
-                )? / num_visibility_pols
-                    / 2
-            } else {
-                get_fits_key(&mut gpubox_fptrs[0][0], &hdu, "NAXIS2").with_context(|| {
-                    format!("Failed to read NAXIS2 for {:?}", gpubox_batches[0][0])
-                })?
-            }
-        };
         // Populate the start and end times of the observation.
         let (start_unix_time_milliseconds, end_unix_time_milliseconds, duration_milliseconds) = {
             let o = determine_obs_times(&gpubox_time_map)?;
@@ -356,14 +276,13 @@ impl mwalibContext {
             observation_bandwidth_hz,
             metafits_filename: metafits.to_string(),
             gpubox_batches,
-            gpubox_fptrs,
             gpubox_time_map,
             scan_size: num_fine_channels * num_baselines * num_visibility_pols,
             // Set `num_data_scans` to 1 here. The caller will specify how many
             // scans to read in `mwalibContext::read` function.
             num_data_scans: 1,
             num_gpubox_files,
-            gpubox_hdu_size: size,
+            gpubox_hdu_size: hdu_size,
             legacy_conversion_table,
         })
     }
@@ -402,7 +321,10 @@ impl mwalibContext {
             for gpubox_index in 0..self.num_gpubox_files {
                 let (batch_index, hdu_index) =
                     self.gpubox_time_map[&self.current_time_milliseconds][&gpubox_index];
-                let mut fptr = &mut self.gpubox_fptrs[batch_index][gpubox_index];
+                let mut fptr = self.gpubox_batches[batch_index].gpubox_files[gpubox_index]
+                    .fptr
+                    .as_mut()
+                    .unwrap();
                 let hdu = fptr.hdu(hdu_index)?;
                 scan[gpubox_index] = hdu.read_image(&mut fptr)?;
 
@@ -447,10 +369,23 @@ impl mwalibContext {
         let mut temp_buffer =
             vec![0.; self.num_fine_channels * self.num_visibility_pols * self.num_baselines * 2];
 
-        // Select the data we want and put it into the output buffer
-        let (batch_index, hdu_index) = self.gpubox_time_map
-            [&self.timesteps[timestep_index].unix_time_ms][&coarse_channel_index];
-        let mut fptr = &mut self.gpubox_fptrs[batch_index][coarse_channel_index];
+        // Lookup the coarse channel we need
+        let coarse_channel = self.coarse_channels[coarse_channel_index].gpubox_number;
+        let (batch_index, hdu_index) =
+            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
+
+        println!(
+            "chan:{}/{} batch:{}/{}",
+            coarse_channel,
+            self.gpubox_batches[0].gpubox_files.len(),
+            batch_index,
+            self.gpubox_batches.len()
+        );
+
+        let mut fptr = self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index]
+            .fptr
+            .as_mut()
+            .unwrap();
         let hdu = fptr.hdu(hdu_index)?;
         output_buffer = hdu.read_image(&mut fptr)?;
         // If legacy correlator, then convert the HDU into the correct output format

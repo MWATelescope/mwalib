@@ -244,7 +244,7 @@ pub fn convert_legacy_hdu(
     // Note: hardcoded values are safe here because they are only for the case where we are using the
     // legacy correlator which ALWAYS has 128 tiles
     let num_baselines = get_baseline_count(128);
-
+    assert_eq!(num_fine_channels, 128);
     assert_eq!(conversion_table.len(), num_baselines);
 
     // Striding for input array
