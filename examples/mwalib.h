@@ -13,33 +13,38 @@
 typedef struct mwalibContext mwalibContext;
 
 /**
- * Free a previously-allocated float*** (designed for use after
- * `mwalibContext_read`).
+ * # Safety
+ * Free a previously-allocated float* (designed for use after
+ * `mwalibContext_read_one_timestep_coarse_channel_bfp`).
  *
  * Python can't free memory itself, so this is useful for Python (and perhaps
  * other languages).
  */
-void free_float_buffer(float ***float_buffer_ptr,
-                       const int *num_scans,
-                       const int *num_gpubox_files,
-                       const long long *gpubox_hdu_size);
+void free_float_buffer(float *float_buffer_ptr, const long long *gpubox_hdu_size);
 
 /**
+ * # Safety
+ * TODO: What does the caller need to know?
  * Display an `mwalibContext` struct.
  */
 void mwalibContext_display(const mwalibContext *ptr);
 
 /**
+ * # Safety
+ * TODO: What does the caller need to know?
  * Free a previously-allocated `mwalibContext` struct.
  */
 void mwalibContext_free(mwalibContext *ptr);
 
 /**
+ * # Safety
+ * TODO: What does the caller need to know?
  * Create an `mwalibContext` struct.
  */
 mwalibContext *mwalibContext_new(const char *metafits, const char **gpuboxes, size_t gpubox_count);
 
 /**
+ * # Safety
  * Read MWA data.
  *
  * `num_scans` is an input and output variable. The input `num_scans` asks
@@ -50,7 +55,6 @@ mwalibContext *mwalibContext_new(const char *metafits, const char **gpuboxes, si
  * `num_gpubox_files` and `gpubox_hdu_size` are output variables, allowing the
  * caller to know how to index the returned data.
  */
-float ***mwalibContext_read(mwalibContext *context_ptr,
-                            int *num_scans,
-                            int *num_gpubox_files,
-                            long long *gpubox_hdu_size);
+float *mwalibContext_read_one_timestep_coarse_channel_bfp(mwalibContext *context_ptr,
+                                                          int *timestep_index,
+                                                          int *coarse_channel_index);

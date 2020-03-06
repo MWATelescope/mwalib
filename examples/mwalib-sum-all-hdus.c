@@ -6,40 +6,46 @@
 #include "fitsio.h"
 #include "mwalib.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     // Assume that the first file provided is the metafits file, and all others
     // are gpubox files. Therefore, we need at least two files provided to main,
     // such that there's at least one gpubox file.
-    if (argc < 3) {
+    if (argc < 3)
+    {
         printf("At least two files are needed.\n");
         return EXIT_FAILURE;
     }
 
     const char **gpuboxes = malloc(sizeof(char *) * (argc - 2));
-    for (int i = 0; i < argc - 2; i++) {
+    for (int i = 0; i < argc - 2; i++)
+    {
         gpuboxes[i] = argv[i + 2];
     }
 
-    int num_scans = 3;
     mwalibContext *context = mwalibContext_new(argv[1], gpuboxes, argc - 2);
 
-    int num_gpubox_files = 0;
-    long long gpubox_hdu_size = 0;
-    float ***data_buffer = NULL;
+    float *data_buffer = NULL;
+
+    int num_timesteps = 53;
+    int num_coarse_channels = 1;
+    int num_vis_pols = 4;
+    int num_fine_channels = 128;
+    long num_floats = num_fine_channels * num_fine_channels * num_vis_pols * 2;
 
     double sum = 0;
 
-    while (num_scans > 0) {
-        data_buffer = mwalibContext_read(context, &num_scans, &num_gpubox_files, &gpubox_hdu_size);
-        if (data_buffer != NULL) {
-            for (int scan = 0; scan < num_scans; scan++) {
-                for (int gpubox = 0; gpubox < num_gpubox_files; gpubox++) {
-                    for (long long i = 0; i < gpubox_hdu_size; i++) {
-                        sum += data_buffer[scan][gpubox][i];
-                    }
-                    free(data_buffer[scan][gpubox]);
+    for (int timestep_index = 0; timestep_index < num_timesteps; timestep_index++)
+    {
+        for (int coarse_channel_index = 0; coarse_channel_index < num_coarse_channels; coarse_channel_index++)
+        {
+            data_buffer = mwalibContext_read_one_timestep_coarse_channel_bfp(context, &timestep_index, &coarse_channel_index);
+            if (data_buffer != NULL)
+            {
+                for (long i = 0; i < num_floats; i++)
+                {
+                    sum += data_buffer[i];
                 }
-                free(data_buffer[scan]);
             }
             free(data_buffer);
         }

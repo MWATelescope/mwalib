@@ -97,12 +97,11 @@ pub unsafe extern "C" fn mwalibContext_display(ptr: *const mwalibContext) {
 /// `num_gpubox_files` and `gpubox_hdu_size` are output variables, allowing the
 /// caller to know how to index the returned data.
 #[no_mangle]
-pub unsafe extern "C" fn mwalibContext_read(
+pub unsafe extern "C" fn mwalibContext_read_one_timestep_coarse_channel_bfp(
     context_ptr: *mut mwalibContext,
-    num_scans: *mut c_int,
-    num_gpubox_files: *mut c_int,
-    gpubox_hdu_size: *mut c_longlong,
-) -> *mut *mut *mut c_float {
+    timestep_index: *mut c_int,
+    coarse_channel_index: *mut c_int,
+) -> *mut c_float {
     // Load the previously-initialised context and buffer structs. Exit if
     // either of these are null.
     let context = if context_ptr.is_null() {
@@ -113,75 +112,47 @@ pub unsafe extern "C" fn mwalibContext_read(
     };
 
     // Read data in.
-    let data = match context.read(*num_scans as usize) {
+    let mut data = match context.read_one_timestep_coarse_channel_bfp(
+        *timestep_index as usize,
+        *coarse_channel_index as usize,
+    ) {
         Ok(data) => data,
         Err(e) => {
             eprintln!("{}", e);
             exit(1)
         }
     };
-
-    // Overwrite the input/output pointers to variables, so the caller knows how
-    // to index the data.
-    ptr::write(num_scans, *Box::new(context.num_data_scans as i32));
-    ptr::write(num_gpubox_files, *Box::new(context.num_gpubox_files as i32));
-    ptr::write(gpubox_hdu_size, *Box::new(context.gpubox_hdu_size as i64));
-
-    // If the data buffer is empty, then just return a null pointer. The caller
-    // should see that `num_scans` is 0, and therefore there is no data.
+    // If the data buffer is empty, then just return a null pointer.
     if data.is_empty() {
         return ptr::null_mut();
     }
 
-    // Convert the vectors of `data` to C-compatible arrays.
-    let mut scan_ptrs = Vec::with_capacity(context.num_data_scans);
-    for scan in data {
-        let mut gpubox_ptrs = Vec::with_capacity(context.num_gpubox_files);
-        for mut gpubox in scan {
-            // Ensure the vector -> array conversion doesn't have elements we
-            // don't care about.
-            gpubox.shrink_to_fit();
-            // Get the pointers to the vector, and push into the upper layer. We
-            // need to tell rust to forget about this vector, so it doesn't get
-            // automatically deallocated. Deallocation should be handled by the
-            // caller.
-
-            // TODO: When Vec::into_raw_parts is stable, use that instead.
-            gpubox_ptrs.push(gpubox.as_mut_ptr());
-            std::mem::forget(gpubox);
-        }
-        scan_ptrs.push(gpubox_ptrs.as_mut_ptr());
-        std::mem::forget(gpubox_ptrs);
-    }
-    let data_buffer_ptr = scan_ptrs.as_mut_ptr();
-    std::mem::forget(scan_ptrs);
+    // Convert the vector of `data` to C-compatible array.
+    let data_buffer_ptr = data.as_mut_ptr();
+    std::mem::forget(data);
 
     data_buffer_ptr
 }
 
 /// # Safety
-/// Free a previously-allocated float*** (designed for use after
-/// `mwalibContext_read`).
+/// Free a previously-allocated float* (designed for use after
+/// `mwalibContext_read_one_timestep_coarse_channel_bfp`).
 ///
 /// Python can't free memory itself, so this is useful for Python (and perhaps
 /// other languages).
 #[no_mangle]
 pub unsafe extern "C" fn free_float_buffer(
-    float_buffer_ptr: *mut *mut *mut c_float,
-    num_scans: *const c_int,
-    num_gpubox_files: *const c_int,
+    float_buffer_ptr: *mut c_float,
     gpubox_hdu_size: *const c_longlong,
 ) {
     if float_buffer_ptr.is_null() {
-        eprintln!("free_float_buffer: Warning: null pointer passed in");
+        eprintln!("free_float_buffer: Warning: null pointer passed in!");
         return;
     }
 
-    let scans = Vec::from_raw_parts(float_buffer_ptr, *num_scans as usize, *num_scans as usize);
-    for g in scans {
-        let gpubox = Vec::from_raw_parts(g, *num_gpubox_files as usize, *num_gpubox_files as usize);
-        for d in gpubox {
-            let _ = Vec::from_raw_parts(d, *gpubox_hdu_size as usize, *gpubox_hdu_size as usize);
-        }
-    }
+    let _ = Vec::from_raw_parts(
+        float_buffer_ptr,
+        *gpubox_hdu_size as usize,
+        *gpubox_hdu_size as usize,
+    );
 }

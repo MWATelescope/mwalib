@@ -114,7 +114,7 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
             "determine_gpubox_batches: gpubox / mwax fits files missing".to_string(),
         ));
     }
-    let mut num_gpubox_files = gpubox_filenames.len();
+    let num_gpubox_files = gpubox_filenames.len();
     let mut format = None;
     let mut out_gpubox_batches: Vec<GPUBoxBatch> = vec![];
 
@@ -311,10 +311,7 @@ pub fn create_time_map(
     let mut gpubox_time_map = BTreeMap::new();
     // Keep track of the gpubox HDU size and the number of gpubox files.
     let mut size = 0;
-    let mut num_gpubox_files = 0;
     for (batch_num, batch) in gpubox_batches.iter_mut().enumerate() {
-        num_gpubox_files = batch.gpubox_files.len();
-        //gpubox_fptrs.push(Vec::with_capacity(batch.gpubox_files.len()));
         for gpubox_file in &mut batch.gpubox_files {
             let mut fptr = FitsFile::open(&gpubox_file.filename)
                 .with_context(|| format!("Failed to open {:?}", gpubox_file))?;

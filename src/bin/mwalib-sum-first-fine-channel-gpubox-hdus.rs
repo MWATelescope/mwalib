@@ -27,19 +27,27 @@ fn main() -> Result<(), anyhow::Error> {
     if context.corr_version != CorrelatorVersion::V2 {
         bail!("Input data is not MWAX data; exiting.");
     }
-
-    context.num_data_scans = 3;
+    let floats_per_fine_channel = context.num_visibility_pols * 2;
 
     let mut sum: f64 = 0.0;
-    while context.num_data_scans != 0 {
-        for scan in context.read(context.num_data_scans)?.into_iter() {
-            for gpubox in scan {
-                for bl in 0..context.num_baselines {
-                    for pol in 0..4 {
-                        let index = bl * context.num_fine_channels * context.num_antenna_pols * 2 + pol * 2;
-                        sum += gpubox[index] as f64;
-                        sum += gpubox[index + 1] as f64;
-                    }
+    for timestep_index in 0..context.num_timesteps {
+        for coarse_channel_index in 0..context.num_coarse_channels {
+            let data = context
+                .read_one_timestep_coarse_channel_bfp(timestep_index, coarse_channel_index)?;
+            for baseline in 0..context.num_baselines {
+                // We want the first fine chan for each baseline
+                let start_index =
+                    baseline * (context.num_fine_channels_per_coarse * floats_per_fine_channel);
+                let end_index = start_index + floats_per_fine_channel;
+
+                assert_eq!(end_index - start_index, 8);
+
+                if timestep_index == 0 {
+                    println!("{} {}-{}", baseline, start_index, end_index);
+                }
+
+                for index in start_index..end_index {
+                    sum += data[index] as f64;
                 }
             }
         }

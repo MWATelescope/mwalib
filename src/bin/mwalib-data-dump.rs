@@ -58,7 +58,7 @@ fn dump_data(
     println!("Correlator version: {}", context.corr_version);
 
     let floats_per_finechan = context.num_visibility_pols * 2;
-    let floats_per_baseline = context.num_fine_channels * floats_per_finechan;
+    let floats_per_baseline = context.num_fine_channels_per_coarse * floats_per_finechan;
 
     let (ant1, ant2) = misc::get_antennas_from_baseline(baseline, context.num_antennas).unwrap();
     let ant1_name: String = context.antennas[ant1].tile_name.to_string();

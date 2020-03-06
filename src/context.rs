@@ -54,6 +54,10 @@ pub struct mwalibContext {
     /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
 
+    /// "the velocity factor of electic fields in RG-6 like coax"    
+    pub coax_v_factor: f64,
+
+    /// Observation id
     pub obsid: u32,
     /// The proper start of the observation (the time that is common to all
     /// provided gpubox files).
@@ -68,9 +72,6 @@ pub struct mwalibContext {
 
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
-
-    /// Track the UNIX time (in milliseconds) that will be read next.
-    pub current_time_milliseconds: u64,
 
     /// Total number of antennas (tiles) in the array
     pub num_antennas: usize,
@@ -90,7 +91,7 @@ pub struct mwalibContext {
     pub num_visibility_pols: usize,
 
     /// Number of fine channels in each coarse channel
-    pub num_fine_channels: usize,
+    pub num_fine_channels_per_coarse: usize,
 
     pub num_coarse_channels: usize,
     pub coarse_channels: Vec<mwalibCoarseChannel>,
@@ -120,9 +121,6 @@ pub struct mwalibContext {
     /// The number of bytes taken up by a scan in each gpubox file.
     pub scan_size: usize,
 
-    /// These variables are provided for convenience, so a caller knows how to
-    /// index the data buffer.
-    pub num_data_scans: usize,
     /// This is the number of gpubox files *per batch*.
     pub num_gpubox_files: usize,
     /// The number of floats in each gpubox HDU.
@@ -147,6 +145,10 @@ impl mwalibContext {
                 "mwalibContext::new: gpubox / mwax fits files missing".to_string(),
             ));
         }
+
+        // from MWA_Tools/CONV2UVFITS/convutils.h
+        // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
+        let coax_v_factor: f64 = 1.204;
 
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
@@ -177,10 +179,11 @@ impl mwalibContext {
         let num_antennas = num_inputs / 2;
 
         // Create a vector of rf_input structs from the metafits
-        let mut rf_inputs: Vec<mwalibRFInput> = mwalibRFInput::populate_rf_input(
+        let mut rf_inputs: Vec<mwalibRFInput> = mwalibRFInput::populate_rf_inputs(
             num_inputs,
             &mut metafits_fptr,
             metafits_tile_table_hdu,
+            coax_v_factor,
         )?;
 
         // Sort the rf_inputs back into the correct output order
@@ -230,7 +233,8 @@ impl mwalibContext {
                 .round() as _;
 
         // Determine the number of fine channels per coarse channel.
-        let num_fine_channels = (coarse_channel_width_hz / fine_channel_width_hz) as usize;
+        let num_fine_channels_per_coarse =
+            (coarse_channel_width_hz / fine_channel_width_hz) as usize;
 
         // Populate the start and end times of the observation.
         let (start_unix_time_milliseconds, end_unix_time_milliseconds, duration_milliseconds) = {
@@ -255,10 +259,10 @@ impl mwalibContext {
         Ok(mwalibContext {
             corr_version,
             obsid,
+            coax_v_factor,
             start_unix_time_milliseconds,
             end_unix_time_milliseconds,
             duration_milliseconds,
-            current_time_milliseconds: start_unix_time_milliseconds,
             num_timesteps,
             num_antennas,
             rf_inputs,
@@ -268,7 +272,7 @@ impl mwalibContext {
             integration_time_milliseconds,
             num_antenna_pols,
             num_visibility_pols,
-            num_fine_channels,
+            num_fine_channels_per_coarse,
             num_coarse_channels,
             coarse_channel_width_hz,
             coarse_channels,
@@ -277,83 +281,11 @@ impl mwalibContext {
             metafits_filename: metafits.to_string(),
             gpubox_batches,
             gpubox_time_map,
-            scan_size: num_fine_channels * num_baselines * num_visibility_pols,
-            // Set `num_data_scans` to 1 here. The caller will specify how many
-            // scans to read in `mwalibContext::read` function.
-            num_data_scans: 1,
+            scan_size: num_fine_channels_per_coarse * num_baselines * num_visibility_pols,
             num_gpubox_files,
             gpubox_hdu_size: hdu_size,
             legacy_conversion_table,
         })
-    }
-
-    /// The output `buffer` is structured: `buffer[scan][gpubox_index][data]`.
-    pub fn read(&mut self, num_scans: usize) -> Result<Vec<Vec<Vec<f32>>>, ErrorKind> {
-        // Prepare temporary buffer, if we are reading legacy correlator files
-        let mut temp_buffer = if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
-        {
-            vec![0.; self.num_fine_channels * self.num_visibility_pols * self.num_baselines * 2]
-        } else {
-            Vec::new()
-        };
-
-        // Is there enough data left to fit into the total number of scans? If
-        // not, we need to resize `buffer`.
-        let ct = self.current_time_milliseconds as i64;
-        let it = self.integration_time_milliseconds as i64;
-        let et = self.end_unix_time_milliseconds as i64;
-        // The end time is inclusive; need to add the integration time to get
-        // the last scan.
-        let new_num_scans = ((et - ct + it) as f64 / it as f64) as i64;
-
-        if new_num_scans < 0 {
-            return Err(ErrorKind::Custom("mwalibBuffer::read: A negative number for `new_num_scans` was calculated; this should only happen if something has manually changed the timings.".to_string()));
-        };
-
-        // Compare the input requested number of scans against `new_num_scans`
-        // and take the smaller of the two. Keep the result in the struct.
-        self.num_data_scans = num_scans.min(new_num_scans as usize);
-        // Completely reset the internal data buffer.
-        let mut data = vec![vec![vec![]; self.num_gpubox_files]; self.num_data_scans];
-
-        for scan in &mut data {
-            for gpubox_index in 0..self.num_gpubox_files {
-                let (batch_index, hdu_index) =
-                    self.gpubox_time_map[&self.current_time_milliseconds][&gpubox_index];
-                let mut fptr = self.gpubox_batches[batch_index].gpubox_files[gpubox_index]
-                    .fptr
-                    .as_mut()
-                    .unwrap();
-                let hdu = fptr.hdu(hdu_index)?;
-                scan[gpubox_index] = hdu.read_image(&mut fptr)?;
-
-                // We expect *all* HDUs to have the same number of floats. Error
-                // if this is not true.
-                if scan[gpubox_index].len() != self.gpubox_hdu_size {
-                    return Err(ErrorKind::Custom(
-                        "mwalibBuffer::read: Error: HDU sizes in gpubox files are not equal"
-                            .to_string(),
-                    ));
-                }
-                // If legacy correlator, then convert the HDU into the correct output format
-                if self.corr_version == CorrelatorVersion::OldLegacy
-                    || self.corr_version == CorrelatorVersion::Legacy
-                {
-                    convert::convert_legacy_hdu(
-                        &self.legacy_conversion_table,
-                        &scan[gpubox_index],
-                        &mut temp_buffer,
-                        self.num_fine_channels,
-                    );
-
-                    scan[gpubox_index] = temp_buffer.clone();
-                }
-            }
-            self.current_time_milliseconds += self.integration_time_milliseconds as u64;
-        }
-
-        Ok(data)
     }
 
     /// Read a single timestep for a single coarse channel
@@ -366,21 +298,18 @@ impl mwalibContext {
     ) -> Result<Vec<f32>, ErrorKind> {
         // Prepare temporary buffer, if we are reading legacy correlator files
         let output_buffer: Vec<f32>;
-        let mut temp_buffer =
-            vec![0.; self.num_fine_channels * self.num_visibility_pols * self.num_baselines * 2];
+        let mut temp_buffer = vec![
+            0.;
+            self.num_fine_channels_per_coarse
+                * self.num_visibility_pols
+                * self.num_baselines
+                * 2
+        ];
 
         // Lookup the coarse channel we need
         let coarse_channel = self.coarse_channels[coarse_channel_index].gpubox_number;
         let (batch_index, hdu_index) =
             self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
-
-        println!(
-            "chan:{}/{} batch:{}/{}",
-            coarse_channel,
-            self.gpubox_batches[0].gpubox_files.len(),
-            batch_index,
-            self.gpubox_batches.len()
-        );
 
         let mut fptr = self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index]
             .fptr
@@ -396,7 +325,7 @@ impl mwalibContext {
                 &self.legacy_conversion_table,
                 &output_buffer,
                 &mut temp_buffer,
-                self.num_fine_channels,
+                self.num_fine_channels_per_coarse,
             );
 
             Ok(temp_buffer)
@@ -469,7 +398,7 @@ impl fmt::Display for mwalibContext {
             self.coarse_channels,
             self.fine_channel_width_hz as f64 / 1e3,
             self.integration_time_milliseconds as f64 / 1e3,
-            self.num_fine_channels,
+            self.num_fine_channels_per_coarse,
             size,
             size * self.num_gpubox_files as f64,
             self.metafits_filename,
