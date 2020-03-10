@@ -274,13 +274,13 @@ pub fn determine_hdu_time(gpubox_fptr: &mut FitsFile, hdu: &FitsHdu) -> Result<u
 /// are associated with which HDU numbers.
 pub fn map_unix_times_to_hdus(
     gpubox_fptr: &mut FitsFile,
-    correlator_format: &CorrelatorVersion,
+    correlator_format: CorrelatorVersion,
 ) -> Result<BTreeMap<u64, usize>, ErrorKind> {
     let mut map = BTreeMap::new();
     let last_hdu_index = gpubox_fptr.iter().count();
     // The new correlator has a "weights" HDU in each alternating HDU. Skip
     // those.
-    let step_size = if correlator_format == &CorrelatorVersion::V2 {
+    let step_size = if correlator_format == CorrelatorVersion::V2 {
         2
     } else {
         1
@@ -298,7 +298,7 @@ pub fn map_unix_times_to_hdus(
 
 pub fn create_time_map(
     gpubox_batches: &mut Vec<GPUBoxBatch>,
-    correlator_version: &CorrelatorVersion,
+    correlator_version: CorrelatorVersion,
 ) -> Result<
     (
         BTreeMap<u64, std::collections::BTreeMap<usize, (usize, usize)>>,
@@ -320,7 +320,7 @@ pub fn create_time_map(
                 .hdu(0)
                 .with_context(|| format!("Failed to open HDU 1 of {:?}", gpubox_file))?;
             // New correlator files include a version - check that it is present.
-            if *correlator_version == CorrelatorVersion::V2 {
+            if correlator_version == CorrelatorVersion::V2 {
                 let v = get_fits_key::<u8>(&mut fptr, &hdu, "CORR_VER").with_context(|| {
                     format!("Failed to read key CORR_VER from {:?}", gpubox_file)
                 })?;
@@ -338,7 +338,7 @@ pub fn create_time_map(
         // Because of the way `fitsio` uses the mutable reference to the
         // file handle, it's easier to do another loop here than use `fptr`
         // above.
-        for (gpubox_file_index, gpubox_file) in batch.gpubox_files.iter_mut().enumerate() {
+        for gpubox_file in batch.gpubox_files.iter_mut() {
             // Determine gpubox number. This is from 0..N
             // and will map to the receiver channel numbers in the metafits*
             // (* except for legacy and old legacy if rec channel is > 128 in which case it is reversed), but at this point
@@ -349,7 +349,7 @@ pub fn create_time_map(
             let channel_identifier: usize = gpubox_file.channel_identifier;
 
             let time_map =
-                map_unix_times_to_hdus((gpubox_file.fptr.as_mut()).unwrap(), &correlator_version)?;
+                map_unix_times_to_hdus((gpubox_file.fptr.as_mut()).unwrap(), correlator_version)?;
             for (time, hdu_index) in time_map {
                 // For the current `time`, check if it's in the map. If not,
                 // insert it and a new tree. Then check if `gpubox_num` is
@@ -838,7 +838,7 @@ mod tests {
                 expected.insert(time * 1000 + millitime, i + 1);
             }
 
-            let result = map_unix_times_to_hdus(fptr, &CorrelatorVersion::Legacy);
+            let result = map_unix_times_to_hdus(fptr, CorrelatorVersion::Legacy);
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), expected);
         });

@@ -86,7 +86,7 @@ impl mwalibCoarseChannel {
 
     pub fn populate_coarse_channels(
         metafits_fptr: &mut fitsio::FitsFile,
-        corr_version: &context::CorrelatorVersion,
+        corr_version: context::CorrelatorVersion,
         observation_bandwidth_hz: u32,
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
     ) -> Result<(Vec<mwalibCoarseChannel>, usize, u32), ErrorKind> {
@@ -118,7 +118,7 @@ impl mwalibCoarseChannel {
     }
 
     fn process_coarse_channels(
-        corr_version: &context::CorrelatorVersion,
+        corr_version: context::CorrelatorVersion,
         observation_bandwidth_hz: u32,
         coarse_channel_vec: &Vec<usize>,
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
@@ -137,8 +137,8 @@ impl mwalibCoarseChannel {
             // Final Correlator channel number is 0 indexed. e.g. 0..N-1
             let mut correlator_channel_number = i;
 
-            if *corr_version == CorrelatorVersion::Legacy
-                || *corr_version == CorrelatorVersion::OldLegacy
+            if corr_version == CorrelatorVersion::Legacy
+                || corr_version == CorrelatorVersion::OldLegacy
             {
                 // Legacy and Old Legacy: if receiver channel number is >128 then the order is reversed
                 if *rec_channel_number > 128 {
@@ -174,22 +174,20 @@ impl mwalibCoarseChannel {
                         coarse_channel_width_hz,
                     ));
                 }
-            } else {
-                if gpubox_time_map
-                    .iter()
-                    .next() // this gets us the first item
-                    .unwrap()
-                    .1 // get the second item from tuple (u64, BTreeMap)
-                    .contains_key(&rec_channel_number)
-                // see if we have the correlator channel number
-                {
-                    coarse_channels.push(mwalibCoarseChannel::new(
-                        correlator_channel_number,
-                        *rec_channel_number,
-                        *rec_channel_number,
-                        coarse_channel_width_hz,
-                    ));
-                }
+            } else if gpubox_time_map
+                .iter()
+                .next() // this gets us the first item
+                .unwrap()
+                .1 // get the second item from tuple (u64, BTreeMap)
+                .contains_key(&rec_channel_number)
+            // see if we have the correlator channel number
+            {
+                coarse_channels.push(mwalibCoarseChannel::new(
+                    correlator_channel_number,
+                    *rec_channel_number,
+                    *rec_channel_number,
+                    coarse_channel_width_hz,
+                ));
             }
         }
 
@@ -268,7 +266,7 @@ mod tests {
         // Process coarse channels
         let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
             mwalibCoarseChannel::process_coarse_channels(
-                &CorrelatorVersion::Legacy,
+                CorrelatorVersion::Legacy,
                 1_280_000 * 4,
                 &metafits_channel_array,
                 &gpubox_time_map,
@@ -335,7 +333,7 @@ mod tests {
         // Process coarse channels
         let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
             mwalibCoarseChannel::process_coarse_channels(
-                &CorrelatorVersion::Legacy,
+                CorrelatorVersion::Legacy,
                 1_280_000 * 5,
                 &metafits_channel_array,
                 &gpubox_time_map,
@@ -396,7 +394,7 @@ mod tests {
         // Process coarse channels
         let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
             mwalibCoarseChannel::process_coarse_channels(
-                &CorrelatorVersion::Legacy,
+                CorrelatorVersion::Legacy,
                 1_280_000 * 4,
                 &metafits_channel_array,
                 &gpubox_time_map,
@@ -463,7 +461,7 @@ mod tests {
         // Process coarse channels
         let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
             mwalibCoarseChannel::process_coarse_channels(
-                &CorrelatorVersion::V2,
+                CorrelatorVersion::V2,
                 1_280_000 * 5,
                 &metafits_channel_array,
                 &gpubox_time_map,

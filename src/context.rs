@@ -20,7 +20,8 @@ use crate::rfinput::*;
 use crate::timestep::*;
 use crate::*;
 
-#[derive(Debug, PartialEq)]
+#[repr(C)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CorrelatorVersion {
     /// New correlator data (a.k.a. MWAX).
     V2,
@@ -51,14 +52,12 @@ impl fmt::Display for CorrelatorVersion {
 /// more like a C library.
 #[allow(non_camel_case_types)]
 pub struct mwalibContext {
-    /// Version of the correlator format
-    pub corr_version: CorrelatorVersion,
-
-    /// "the velocity factor of electic fields in RG-6 like coax"    
-    pub coax_v_factor: f64,
-
     /// Observation id
     pub obsid: u32,
+    /// Version of the correlator format
+    pub corr_version: CorrelatorVersion,
+    /// "the velocity factor of electic fields in RG-6 like coax"    
+    pub coax_v_factor: f64,
     /// The proper start of the observation (the time that is common to all
     /// provided gpubox files).
     pub start_unix_time_milliseconds: u64,
@@ -118,13 +117,13 @@ pub struct mwalibContext {
     /// correct HDU out of all gpubox files.
     pub gpubox_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
 
-    /// The number of bytes taken up by a scan in each gpubox file.
-    pub scan_size: usize,
+    /// The number of bytes taken up by a scan/timestep in each gpubox file.
+    pub timestep_coarse_channel_bytes: usize,
 
     /// This is the number of gpubox files *per batch*.
     pub num_gpubox_files: usize,
     /// The number of floats in each gpubox HDU.
-    pub gpubox_hdu_size: usize,
+    pub timestep_coarse_channel_floats: usize,
     /// A conversion table to optimise reading of legacy MWA HDUs
     pub legacy_conversion_table: Vec<mwalibLegacyConversionBaseline>,
 }
@@ -166,7 +165,7 @@ impl mwalibContext {
             determine_gpubox_batches(&gpuboxes)?;
 
         let (gpubox_time_map, hdu_size) =
-            gpubox::create_time_map(&mut gpubox_batches, &corr_version)?;
+            gpubox::create_time_map(&mut gpubox_batches, corr_version)?;
 
         // Populate our array of timesteps
         // Create a vector of rf_input structs from the metafits
@@ -218,7 +217,7 @@ impl mwalibContext {
         let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
             coarse_channel::mwalibCoarseChannel::populate_coarse_channels(
                 &mut metafits_fptr,
-                &corr_version,
+                corr_version,
                 metafits_observation_bandwidth_hz,
                 &gpubox_time_map,
             )?;
@@ -281,9 +280,9 @@ impl mwalibContext {
             metafits_filename: metafits.to_string(),
             gpubox_batches,
             gpubox_time_map,
-            scan_size: num_fine_channels_per_coarse * num_baselines * num_visibility_pols,
+            timestep_coarse_channel_bytes: hdu_size * 4,
             num_gpubox_files,
-            gpubox_hdu_size: hdu_size,
+            timestep_coarse_channel_floats: hdu_size,
             legacy_conversion_table,
         })
     }
@@ -339,7 +338,7 @@ impl fmt::Display for mwalibContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // `size` is the number of floats (self.gpubox_hdu_size) multiplied by 4
         // bytes per float, divided by 1024^2 to get MiB.
-        let size = (self.gpubox_hdu_size * 4) as f64 / (1024 * 1024) as f64;
+        let size = (self.timestep_coarse_channel_floats * 4) as f64 / (1024 * 1024) as f64;
         writeln!(
             f,
             r#"mwalibContext (

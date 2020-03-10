@@ -12,14 +12,14 @@ gcc -O3 \
     mwalib-print-obs-context.c \
     -o mwalib-print-obs-context \
     -lcfitsio -lm -lpthread -ldl \
-    -B../target/release/ \
+    -L../target/release/ \
     -lmwalib
 
 gcc -O3 \
     mwalib-sum-all-hdus.c \
     -o mwalib-sum-all-hdus \
     -lcfitsio -lm -lpthread -ldl \
-    -B../target/release/ \
+    -L../target/release/ \
     -lmwalib
 
-echo "Run the compiled binaries with some MWA files to test mwalib."
+echo "Run the compiled binaries with some MWA files to test mwalib. NOTE: you may need to add the ../target/release path to your LD_LIBRARY env variable for the executables to work."

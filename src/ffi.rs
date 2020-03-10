@@ -17,9 +17,141 @@ use std::process::exit;
 use std::ptr;
 use std::slice;
 
-use libc::{c_char, c_float, c_int, c_longlong, size_t};
+use libc::{c_char, c_double, c_float, c_int, c_longlong, c_uint, c_ulong, size_t};
 
 use crate::*;
+
+#[repr(C)]
+pub struct mwalibMetadata {
+    ///
+    /// This is just a C struct to allow the caller to consume all of the metadata
+    ///
+    /// See definition of context::mwalibContext for full description of each attribute
+    ///
+    ///
+    pub obsid: c_uint,
+    pub corr_version: CorrelatorVersion,
+    pub coax_v_factor: c_double,
+    pub start_unix_time_milliseconds: c_ulong,
+    pub end_unix_time_milliseconds: c_ulong,
+    pub duration_milliseconds: c_ulong,
+    pub num_timesteps: size_t,
+    pub num_antennas: size_t,
+    //pub rf_inputs: Vec<mwalibRFInput>,
+    //pub antennas: Vec<mwalibAntenna>,
+    pub num_baselines: size_t,
+    pub integration_time_milliseconds: c_ulong,
+    pub num_antenna_pols: size_t,
+    pub num_visibility_pols: size_t,
+    pub num_fine_channels_per_coarse: size_t,
+    pub num_coarse_channels: size_t,
+    //pub coarse_channels: Vec<mwalibCoarseChannel>,
+    pub fine_channel_width_hz: c_uint,
+    pub coarse_channel_width_hz: c_uint,
+    pub observation_bandwidth_hz: c_uint,
+    pub timestep_coarse_channel_bytes: size_t,
+    pub num_gpubox_files: size_t,
+    pub timestep_coarse_channel_floats: size_t,
+}
+
+/// This returns a struct containing the mwalibContext metadata
+/// # Safety
+/// TODO
+#[no_mangle]
+pub unsafe extern "C" fn mwalibMetadata_get(ptr: *mut mwalibContext) -> *mut mwalibMetadata {
+    if ptr.is_null() {
+        eprintln!("mwalibMetadata_get: Warning: null pointer passed in");
+        exit(1);
+    }
+    let context = &*ptr;
+
+    let out_context = mwalibMetadata {
+        obsid: context.obsid,
+        corr_version: context.corr_version,
+        coax_v_factor: context.coax_v_factor,
+        start_unix_time_milliseconds: context.start_unix_time_milliseconds,
+        end_unix_time_milliseconds: context.end_unix_time_milliseconds,
+        duration_milliseconds: context.duration_milliseconds,
+        num_timesteps: context.num_timesteps,
+        num_antennas: context.num_antennas,
+        num_baselines: context.num_baselines,
+        integration_time_milliseconds: context.integration_time_milliseconds,
+        num_antenna_pols: context.num_antenna_pols,
+        num_visibility_pols: context.num_visibility_pols,
+        num_fine_channels_per_coarse: context.num_fine_channels_per_coarse,
+        num_coarse_channels: context.num_coarse_channels,
+        fine_channel_width_hz: context.fine_channel_width_hz,
+        coarse_channel_width_hz: context.coarse_channel_width_hz,
+        observation_bandwidth_hz: context.observation_bandwidth_hz,
+        timestep_coarse_channel_bytes: context.timestep_coarse_channel_bytes,
+        num_gpubox_files: context.num_gpubox_files,
+        timestep_coarse_channel_floats: context.timestep_coarse_channel_floats,
+    };
+
+    Box::into_raw(Box::new(out_context))
+}
+
+/// # Safety
+/// TODO: What does the caller need to know?
+/// Free a previously-allocated `mwalibContext` struct.
+#[no_mangle]
+pub unsafe extern "C" fn mwalibMetadata_free(ptr: *mut mwalibMetadata) {
+    if ptr.is_null() {
+        eprintln!("mwalibMetadata_free: Warning: null pointer passed in");
+        return;
+    }
+    Box::from_raw(ptr);
+}
+
+#[repr(C)]
+pub struct mwalibTimeStep {
+    // UNIX time (in milliseconds to avoid floating point inaccuracy)
+    pub unix_time_ms: c_ulong,
+}
+
+/// This returns a struct containing the requested timestep
+/// Or NULL if there was an error
+/// # Safety
+/// TODO
+#[no_mangle]
+pub unsafe extern "C" fn mwalibTimeStep_get(
+    ptr: *mut mwalibContext,
+    timestep_index: size_t,
+) -> *mut mwalibTimeStep {
+    if ptr.is_null() {
+        eprintln!("mwalibTimeStep_get: Warning: null pointer passed in");
+        exit(1);
+    }
+    let context = &*ptr;
+
+    if timestep_index < context.num_timesteps {
+        let out_timestep = mwalibTimeStep {
+            unix_time_ms: context.timesteps[timestep_index].unix_time_ms,
+        };
+
+        Box::into_raw(Box::new(out_timestep))
+    } else {
+        eprintln!(
+            "mwalibTimeStep_get: timestep index must be between 0 {} and {} ({}).",
+            context.timesteps[0].unix_time_ms,
+            context.num_timesteps - 1,
+            context.timesteps[context.num_timesteps - 1].unix_time_ms
+        );
+        ptr::null_mut()
+    }
+}
+
+/// # Safety
+/// TODO: What does the caller need to know?
+/// Free a previously-allocated `mwalibTimeStep` struct.
+#[no_mangle]
+pub unsafe extern "C" fn mwalibTimeStep_free(ptr: *mut mwalibTimeStep) {
+    if ptr.is_null() {
+        eprintln!("mwalibTimeStep_free: Warning: null pointer passed in");
+        return;
+    }
+    Box::from_raw(ptr);
+}
 
 /// # Safety
 /// Free a rust-allocated CString.
@@ -27,6 +159,7 @@ use crate::*;
 /// mwalib uses error strings to detail the caller with anything that went
 /// wrong. Non-rust languages cannot deallocate these strings; so, call this
 /// function with the pointer to do that.
+#[no_mangle]
 pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) {
     // Don't do anything if the pointer is null.
     if rust_cstring.is_null() {
@@ -37,7 +170,7 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) {
 
 /// # Safety
 /// TODO: What does the caller need to know?
-/// Create an `mwalibContext` struct.
+/// Create and return a pointer to an `mwalibContext` struct or NULL if error occurs
 #[no_mangle]
 pub unsafe extern "C" fn mwalibContext_new(
     metafits: *const c_char,
@@ -55,7 +188,7 @@ pub unsafe extern "C" fn mwalibContext_new(
         Ok(c) => c,
         Err(e) => {
             eprintln!("{}", e);
-            exit(1)
+            return ptr::null_mut();
         }
     };
     Box::into_raw(Box::new(context))
@@ -89,13 +222,8 @@ pub unsafe extern "C" fn mwalibContext_display(ptr: *const mwalibContext) {
 /// # Safety
 /// Read MWA data.
 ///
-/// `num_scans` is an input and output variable. The input `num_scans` asks
-/// `mwalib` to read in that many scans, but the output `num_scans` tells the
-/// caller how many scans were actually read. This is done because the number of
-/// scans requested might be more than what is available.
-///
-/// `num_gpubox_files` and `gpubox_hdu_size` are output variables, allowing the
-/// caller to know how to index the returned data.
+/// This method takes as input a timestep_index and a coarse_channel_index to return one
+/// HDU of data in [baseline][freq][pol][r][i] format
 #[no_mangle]
 pub unsafe extern "C" fn mwalibContext_read_one_timestep_coarse_channel_bfp(
     context_ptr: *mut mwalibContext,
@@ -105,8 +233,8 @@ pub unsafe extern "C" fn mwalibContext_read_one_timestep_coarse_channel_bfp(
     // Load the previously-initialised context and buffer structs. Exit if
     // either of these are null.
     let context = if context_ptr.is_null() {
-        eprintln!("mwalibBuffer_read: Error: null pointer for \"context_ptr\" passed in");
-        exit(1);
+        eprintln!("mwalibContext_read_one_timestep_coarse_channel_bfp: Error: null pointer for \"context_ptr\" passed in");
+        return ptr::null_mut();
     } else {
         &mut *context_ptr
     };
@@ -119,7 +247,7 @@ pub unsafe extern "C" fn mwalibContext_read_one_timestep_coarse_channel_bfp(
         Ok(data) => data,
         Err(e) => {
             eprintln!("{}", e);
-            exit(1)
+            return ptr::null_mut();
         }
     };
     // If the data buffer is empty, then just return a null pointer.
