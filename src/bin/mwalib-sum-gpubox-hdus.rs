@@ -46,7 +46,7 @@ fn sum_direct(files: Vec<String>) -> Result<(), anyhow::Error> {
 }
 
 fn sum_mwalib(metafits: String, files: Vec<String>) -> Result<(), anyhow::Error> {
-    println!("Summing via mwalib using read_one_timestep_coarse_channel_bfp()...");
+    println!("Summing via mwalib using read_by_baseline()...");
     let mut context = mwalibContext::new(&metafits, &files)?;
     println!("Correlator version: {}", context.corr_version);
 
@@ -55,7 +55,7 @@ fn sum_mwalib(metafits: String, files: Vec<String>) -> Result<(), anyhow::Error>
 
     for t in 0..context.num_timesteps {
         for c in 0..context.num_coarse_channels {
-            let data = context.read_one_timestep_coarse_channel_bfp(t, c)?;
+            let data = context.read_by_baseline(t, c)?;
 
             for b in 0..context.num_baselines {
                 let baseline_index =

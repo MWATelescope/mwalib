@@ -91,8 +91,7 @@ fn dump_data(
             for (c, _) in coarse_channel_array.iter().enumerate() {
                 if c == coarse_channel {
                     println!("Reading timestep {}, coarse channel {}...", t, c);
-                    let data =
-                        context.read_one_timestep_coarse_channel_bfp(timestep, coarse_channel)?;
+                    let data = context.read_by_baseline(timestep, coarse_channel)?;
                     let mut fine_channel_counter = 0;
                     for v in (0..data.len()).step_by(floats_per_finechan) {
                         if v >= ch_start_index && v < ch_end_index {

@@ -65,41 +65,41 @@ pub struct mwalibContext {
     /// is derived from (i.e. `end_time_milliseconds` + integration time is the
     /// actual end time of the observation).
     pub end_unix_time_milliseconds: u64,
-
     /// Total duration of observation (based on gpubox files)
     pub duration_milliseconds: u64,
-
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
-
-    /// Total number of antennas (tiles) in the array
-    pub num_antennas: usize,
-    /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)    
-    pub rf_inputs: Vec<mwalibRFInput>,
-    /// We also have just the antennas (for convenience)
-    pub antennas: Vec<mwalibAntenna>,
     /// This is an array of all timesteps we have data for
     pub timesteps: Vec<mwalibTimeStep>,
+    /// Total number of antennas (tiles) in the array
+    pub num_antennas: usize,
+    /// We also have just the antennas
+    pub antennas: Vec<mwalibAntenna>,
+    /// Number of baselines stored. This is autos plus cross correlations
     pub num_baselines: usize,
-    pub integration_time_milliseconds: u64,
-
+    /// Total number of rf_inputs (tiles * 2 pols X&Y)
+    pub num_rf_inputs: usize,
+    /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)    
+    pub rf_inputs: Vec<mwalibRFInput>,
     /// Number of antenna pols. e.g. X and Y
     pub num_antenna_pols: usize,
-
     /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
     pub num_visibility_pols: usize,
-
+    /// Number of coarse channels after we've validated the input gpubox files
+    pub num_coarse_channels: usize,
+    /// Vector of coarse channel structs
+    pub coarse_channels: Vec<mwalibCoarseChannel>,
+    /// Correlator mode dump time
+    pub integration_time_milliseconds: u64,
+    /// Correlator fine_channel_resolution
+    pub fine_channel_width_hz: u32,
+    /// Total bandwidth of observation (of the coarse channels we have)
+    pub observation_bandwidth_hz: u32,
+    /// Bandwidth of each coarse channel
+    pub coarse_channel_width_hz: u32,
     /// Number of fine channels in each coarse channel
     pub num_fine_channels_per_coarse: usize,
-
-    pub num_coarse_channels: usize,
-    pub coarse_channels: Vec<mwalibCoarseChannel>,
-
-    /// fine_channel_resolution, coarse_channel_width and observation_bandwidth are in units of Hz.
-    pub fine_channel_width_hz: u32,
-    pub coarse_channel_width_hz: u32,
-    pub observation_bandwidth_hz: u32,
-
+    /// Filename of the metafits we were given
     pub metafits_filename: String,
 
     /// `gpubox_batches` *must* be sorted appropriately. See
@@ -170,16 +170,16 @@ impl mwalibContext {
         // Populate our array of timesteps
         // Create a vector of rf_input structs from the metafits
         let (timesteps, num_timesteps) = mwalibTimeStep::populate_timesteps(&gpubox_time_map)?;
-        let num_inputs = get_fits_key::<usize>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
+        let num_rf_inputs = get_fits_key::<usize>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
             .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?;
 
         // There are twice as many inputs as
         // there are antennas; halve that value.
-        let num_antennas = num_inputs / 2;
+        let num_antennas = num_rf_inputs / 2;
 
         // Create a vector of rf_input structs from the metafits
         let mut rf_inputs: Vec<mwalibRFInput> = mwalibRFInput::populate_rf_inputs(
-            num_inputs,
+            num_rf_inputs,
             &mut metafits_fptr,
             metafits_tile_table_hdu,
             coax_v_factor,
@@ -263,18 +263,19 @@ impl mwalibContext {
             end_unix_time_milliseconds,
             duration_milliseconds,
             num_timesteps,
-            num_antennas,
-            rf_inputs,
-            antennas,
             timesteps,
+            num_antennas,
+            antennas,
             num_baselines,
+            num_rf_inputs,
+            rf_inputs,
             integration_time_milliseconds,
             num_antenna_pols,
             num_visibility_pols,
             num_fine_channels_per_coarse,
             num_coarse_channels,
-            coarse_channel_width_hz,
             coarse_channels,
+            coarse_channel_width_hz,
             fine_channel_width_hz,
             observation_bandwidth_hz,
             metafits_filename: metafits.to_string(),
@@ -290,20 +291,28 @@ impl mwalibContext {
     /// Read a single timestep for a single coarse channel
     /// The output visibilities are in order:
     /// [baseline][frequency][pol][r][i]
-    pub fn read_one_timestep_coarse_channel_bfp(
+    pub fn read_by_baseline(
         &mut self,
         timestep_index: usize,
         coarse_channel_index: usize,
     ) -> Result<Vec<f32>, ErrorKind> {
-        // Prepare temporary buffer, if we are reading legacy correlator files
+        // Output buffer for read in data
         let output_buffer: Vec<f32>;
-        let mut temp_buffer = vec![
-            0.;
-            self.num_fine_channels_per_coarse
-                * self.num_visibility_pols
-                * self.num_baselines
-                * 2
-        ];
+
+        // Prepare temporary buffer, if we are reading legacy correlator files
+        let mut temp_buffer = if self.corr_version == CorrelatorVersion::OldLegacy
+            || self.corr_version == CorrelatorVersion::Legacy
+        {
+            vec![
+                0.;
+                self.num_fine_channels_per_coarse
+                    * self.num_visibility_pols
+                    * self.num_baselines
+                    * 2
+            ]
+        } else {
+            Vec::new()
+        };
 
         // Lookup the coarse channel we need
         let coarse_channel = self.coarse_channels[coarse_channel_index].gpubox_number;

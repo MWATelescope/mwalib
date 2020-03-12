@@ -1,3 +1,6 @@
+/*!
+Structs and helper methods for coverting Legacy MWA data into a sensible ordering/format.
+*/
 use crate::misc::*;
 use crate::rfinput::*;
 use crate::*;
@@ -438,7 +441,7 @@ mod tests {
         let mut context = mwalibContext::new(&metafits, &gpuboxfiles)?;
 
         // Read and convert first HDU
-        let mwalib_hdu: Vec<f32> = context.read_one_timestep_coarse_channel_bfp(0, 0)?;
+        let mwalib_hdu: Vec<f32> = context.read_by_baseline(0, 0)?;
 
         // Check it
         // Vector is in:
@@ -447,7 +450,7 @@ mod tests {
         assert_eq!(
             mwalib_hdu.len(),
             8256 * 128 * 8,
-            "mwalib HDU vector length is wrong"
+            "mwalib HDU vector length is wrong {}. Should be {}",mwalib_hdu.len(), 8256 * 128 * 8 
         );
 
         //

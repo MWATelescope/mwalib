@@ -32,8 +32,7 @@ fn main() -> Result<(), anyhow::Error> {
     let mut sum: f64 = 0.0;
     for timestep_index in 0..context.num_timesteps {
         for coarse_channel_index in 0..context.num_coarse_channels {
-            let data = context
-                .read_one_timestep_coarse_channel_bfp(timestep_index, coarse_channel_index)?;
+            let data = context.read_by_baseline(timestep_index, coarse_channel_index)?;
             for baseline in 0..context.num_baselines {
                 // We want the first fine chan for each baseline
                 let start_index =

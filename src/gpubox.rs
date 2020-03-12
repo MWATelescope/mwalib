@@ -4,7 +4,7 @@
 
 /*!
 Functions for organising and checking the consistency of gpubox files.
- */
+*/
 use crate::fits_read::*;
 use fitsio::{hdu::FitsHdu, FitsFile};
 use regex::Regex;
