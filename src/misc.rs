@@ -1,6 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 /*!
 General helper/utility methods
 */
@@ -8,8 +9,18 @@ extern crate tempdir;
 use crate::antenna;
 use fitsio::FitsFile;
 
-/// Function to allow access to a temporary file. Temp directory and File is dropped once out of scope
-/// This is derived from fitsio crate
+/// Function to allow access to a temporary file. Temp directory and File is dropped once out of scope.
+/// This is derived from fitsio crate.
+///
+/// # Arguments
+///
+/// * `filename` - string filename to use when creating a temp file
+///
+///
+/// # Returns
+///
+/// * A temporary file which will be deleted (along with the temp directory created) once out of scope
+///
 pub fn with_temp_file<F>(filename: &str, callback: F)
 where
     F: for<'a> Fn(&'a str),
@@ -22,6 +33,18 @@ where
     callback(filename_str);
 }
 
+/// Function to allow access to a temporary FITS file. Temp directory and File is dropped once out of scope.
+/// This is derived from fitsio crate.
+///
+/// # Arguments
+///
+/// * `filename` - string filename to use when creating a temp FITS file
+///
+///
+/// # Returns
+///
+/// * A temporary FITS file which will be deleted (along with the temp directory created) once out of scope
+///
 pub fn with_new_temp_fits_file<F>(filename: &str, callback: F)
 where
     F: for<'a> Fn(&'a mut FitsFile),
@@ -40,6 +63,16 @@ where
 }
 
 /// Given the number of antennas, calculate the number of baselines (cross+autos)
+///
+/// # Arguments
+///
+/// * `antennas` - number of antennas in the array
+///
+///
+/// # Returns
+///
+/// * total number of baselines (including autos)
+///
 pub fn get_baseline_count(antennas: usize) -> usize {
     antennas * (antennas + 1) / 2
 }
@@ -57,6 +90,18 @@ pub fn get_baseline_count(antennas: usize) -> usize {
 /// 2,2
 /// ...
 /// N-1,N-1
+///
+/// # Arguments
+///
+/// * `baseline` - index of baseline.
+///
+/// * `num_antennas` - total number of antennas in the array.
+///
+///
+/// # Returns
+///
+/// * An Option containing antenna1 index and antenna2 index if baseline exists, or None if doesn't exist.
+///
 pub fn get_antennas_from_baseline(baseline: usize, num_antennas: usize) -> Option<(usize, usize)> {
     let ant1 = (-0.5
         * ((4 * num_antennas * num_antennas + 4 * num_antennas - 8 * baseline + 1) as f32).sqrt()
@@ -73,6 +118,20 @@ pub fn get_antennas_from_baseline(baseline: usize, num_antennas: usize) -> Optio
 }
 
 /// Given two antenna indicies, return the baseline index.
+///
+/// # Arguments
+///
+/// * `antenna1` - index of antenna1
+///
+/// * `antenna2` - index of antenna2
+///
+/// * `num_antennas` - total number of antennas in the array.
+///
+///
+/// # Returns
+///
+/// * An Option containing a baseline index if baseline exists, or None if doesn't exist.
+///
 pub fn get_baseline_from_antennas(
     antenna1: usize,
     antenna2: usize,
@@ -92,21 +151,35 @@ pub fn get_baseline_from_antennas(
     None
 }
 
-/// Given two antenna indicies, return the baseline index.
+/// Given two antenna names, return the baseline index.
+///
+/// # Arguments
+///
+/// * `antenna1` - Tile name of antenna1
+///
+/// * `antenna2` - Tile name of antenna2
+///
+/// * `num_antennas` - total number of antennas in the array.
+///
+///
+/// # Returns
+///
+/// * An Option containing a baseline index if baseline exists, or None if doesn't exist.
+///
 pub fn get_baseline_from_antenna_names(
-    antenna1: String,
-    antenna2: String,
+    antenna1_tile_name: String,
+    antenna2_tile_name: String,
     antennas: &Vec<antenna::mwalibAntenna>,
 ) -> Option<usize> {
     let mut baseline_index = 0;
 
     let antenna1_index = antennas
         .iter()
-        .position(|a| a.tile_name == antenna1)
+        .position(|a| a.tile_name == antenna1_tile_name)
         .unwrap();
     let antenna2_index = antennas
         .iter()
-        .position(|a| a.tile_name == antenna2)
+        .position(|a| a.tile_name == antenna2_tile_name)
         .unwrap();
 
     for ant1 in 0..antennas.len() {

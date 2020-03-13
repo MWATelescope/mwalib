@@ -20,26 +20,40 @@ use crate::rfinput::*;
 use crate::timestep::*;
 use crate::*;
 
+/// Enum for all of the known variants of file format based on Correlator version
+///
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CorrelatorVersion {
-    /// New correlator data (a.k.a. MWAX).
+    /// MWAX correlator (v2.0)
     V2,
-    /// MWA raw data files with "gpubox" and batch numbers in their names.
+    /// MWA correlator (v1.0), having data files with "gpubox" and batch numbers in their names.
     Legacy,
-    /// gpubox files without any batch numbers.
+    /// MWA correlator (v1.0), having data files without any batch numbers.
     OldLegacy,
 }
 
+/// Implements fmt::Display for CorrelatorVersion struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
 impl fmt::Display for CorrelatorVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                CorrelatorVersion::V2 => "V2 (MWAX)",
-                CorrelatorVersion::Legacy => "Legacy",
-                CorrelatorVersion::OldLegacy => "Legacy (no file indices)",
+                CorrelatorVersion::V2 => "v2 MWAX",
+                CorrelatorVersion::Legacy => "v1 Legacy",
+                CorrelatorVersion::OldLegacy => "v1 Legacy (no file indices)",
             }
         )
     }
@@ -118,21 +132,32 @@ pub struct mwalibContext {
     pub gpubox_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
 
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
-    pub timestep_coarse_channel_bytes: usize,
-
+    pub num_timestep_coarse_channel_bytes: usize,
+    /// The number of floats in each gpubox HDU.
+    pub num_timestep_coarse_channel_floats: usize,
     /// This is the number of gpubox files *per batch*.
     pub num_gpubox_files: usize,
-    /// The number of floats in each gpubox HDU.
-    pub timestep_coarse_channel_floats: usize,
     /// A conversion table to optimise reading of legacy MWA HDUs
     pub legacy_conversion_table: Vec<mwalibLegacyConversionBaseline>,
 }
 
 impl mwalibContext {
-    /// From a path to a metafits file and paths to gpubox files, create a
-    /// `mwalibContext`.
+    /// From a path to a metafits file and paths to gpubox files, create an `mwalibContext`.
     ///
     /// The traits on the input parameters allow flexibility to input types.
+    ///
+    /// # Arguments
+    ///
+    /// * `metafits` - filename of metafits file as a path or string.
+    ///
+    /// * `gpuboxes` - slice of filenames of gpubox files as paths or strings.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a populated mwalibContext object if Ok.
+    ///
+    ///
     pub fn new<T: AsRef<Path> + AsRef<str> + ToString + fmt::Debug>(
         metafits: &T,
         gpuboxes: &[T],
@@ -281,9 +306,9 @@ impl mwalibContext {
             metafits_filename: metafits.to_string(),
             gpubox_batches,
             gpubox_time_map,
-            timestep_coarse_channel_bytes: hdu_size * 4,
+            num_timestep_coarse_channel_bytes: hdu_size * 4,
             num_gpubox_files,
-            timestep_coarse_channel_floats: hdu_size,
+            num_timestep_coarse_channel_floats: hdu_size,
             legacy_conversion_table,
         })
     }
@@ -291,6 +316,21 @@ impl mwalibContext {
     /// Read a single timestep for a single coarse channel
     /// The output visibilities are in order:
     /// [baseline][frequency][pol][r][i]
+    ///
+    /// # Arguments
+    ///
+    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+    ///                      to the element within mwalibContext.timesteps.
+    ///
+    /// * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
+    ///                      to the element within mwalibContext.coarse_channels.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * A Result containing vector of 32 bit floats containing the data in [baseline][frequency][pol][r][i] order, if Ok.
+    ///
+    ///
     pub fn read_by_baseline(
         &mut self,
         timestep_index: usize,
@@ -343,11 +383,23 @@ impl mwalibContext {
     }
 }
 
+/// Implements fmt::Display for mwalibContext struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
 impl fmt::Display for mwalibContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // `size` is the number of floats (self.gpubox_hdu_size) multiplied by 4
         // bytes per float, divided by 1024^2 to get MiB.
-        let size = (self.timestep_coarse_channel_floats * 4) as f64 / (1024 * 1024) as f64;
+        let size = (self.num_timestep_coarse_channel_floats * 4) as f64 / (1024 * 1024) as f64;
         writeln!(
             f,
             r#"mwalibContext (

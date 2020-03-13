@@ -51,6 +51,18 @@ impl mwalibAntenna {
     }
 }
 
+/// Implements fmt::Debug for mwalibAntenna struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
 impl fmt::Debug for mwalibAntenna {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.tile_name)

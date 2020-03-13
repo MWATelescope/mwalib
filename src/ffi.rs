@@ -17,7 +17,7 @@ use std::ptr;
 use std::slice;
 
 use crate::*;
-use libc::{c_char, c_float, c_int, c_longlong, size_t};
+use libc::{c_char, c_float, c_longlong, size_t};
 
 /// Generic helper function for all FFI modules to take an already allocated C string
 /// and update it with an error message. This is used to pass error messages back to C from Rust.
@@ -30,10 +30,16 @@ use libc::{c_char, c_float, c_int, c_longlong, size_t};
 ///
 /// * `error_buffer_len` - Length of char* buffer allocated by caller in C.
 ///
+///
+/// # Returns
+///
+/// * Nothing
+///
+///
 /// # Safety
 /// It is up to the caller to:
-/// - Allocate error_buffer_len bytes as a char* on the heap
-/// - Free error_buffer_ptr once finished with the buffer
+/// - Allocate error_buffer_len bytes as a `char*` on the heap
+/// - Free `error_buffer_ptr` once finished with the buffer
 ///
 fn set_error_message(in_message: &str, error_buffer_ptr: *mut u8, error_buffer_len: size_t) {
     // Don't do anything if the pointer is null.
@@ -75,7 +81,12 @@ fn set_error_message(in_message: &str, error_buffer_ptr: *mut u8, error_buffer_l
 ///
 /// # Arguments
 ///
-/// * `rust_cstring` - pointer to a char* of a Rust string
+/// * `rust_cstring` - pointer to a `char*` of a Rust string
+///
+///
+/// # Returns
+///
+/// * Nothing
 ///
 /// # Safety
 /// * rust_cstring must not have already been freed and must point to a Rust string.
@@ -88,7 +99,7 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) {
     CString::from_raw(rust_cstring);
 }
 
-/// Create and return a pointer to an `mwalibContext` struct or NULL if error occurs
+/// Create and return a pointer to an `mwalibContext` struct
 ///
 /// # Arguments
 ///
@@ -102,10 +113,15 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) {
 ///
 /// * `error_message_length` - length of error_message char* buffer.
 ///
-/// # Safety
-/// * error_message *must* point to an already allocated char* buffer for any error messages.
-/// * Caller *must* call the appropriate _free function to release the rust memory.
 ///
+/// # Returns
+///
+/// * A Rust-owned populated `mwalibContext` struct or NULL if there was an error (check error_message)
+///
+///
+/// # Safety
+/// * error_message *must* point to an already allocated `char*` buffer for any error messages.
+/// * Caller *must* call the appropriate _free function to release the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibContext_get(
     metafits: *const c_char,
@@ -137,6 +153,12 @@ pub unsafe extern "C" fn mwalibContext_get(
 ///
 /// * `context_ptr` - pointer to an already populated mwalibContext object
 ///
+///
+/// # Returns
+///
+/// * Nothing
+///
+///
 /// # Safety
 /// * This must be called once caller is finished with the mwalibContext object
 /// * context_ptr must point to a populated mwalibContext object from the mwalibContext_new function.
@@ -160,9 +182,11 @@ pub unsafe extern "C" fn mwalibContext_free(context_ptr: *mut mwalibContext) {
 ///
 /// * `error_message_length` - length of error_message char* buffer.
 ///
+///
 /// # Returns
 ///
 /// * 0 on success, 1 on failure
+///
 ///
 /// # Safety
 /// * error_message *must* point to an already allocated char* buffer for any error messages.
@@ -186,7 +210,7 @@ pub unsafe extern "C" fn mwalibContext_display(
     0
 }
 
-/// Read MWA data.
+/// Read a single timestep / coarse channel of MWA data.
 ///
 /// This method takes as input a timestep_index and a coarse_channel_index to return one
 /// HDU of data in [baseline][freq][pol][r][i] format
@@ -201,9 +225,18 @@ pub unsafe extern "C" fn mwalibContext_display(
 /// * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
 ///                            to mwalibCoarseChannel.get(context, N) where N is coarse_channel_index.
 ///
+/// * `buffer_ptr` - pointer to caller-owned and allocated buffer to write data into.
+///
+/// * `buffer_len` - length of `buffer_ptr`.
+///
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
 /// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * 0 on success, 1 on failure
 ///
 ///
 /// # Safety
@@ -213,11 +246,13 @@ pub unsafe extern "C" fn mwalibContext_display(
 #[no_mangle]
 pub unsafe extern "C" fn mwalibContext_read_by_baseline(
     context_ptr: *mut mwalibContext,
-    timestep_index: *mut c_int,
-    coarse_channel_index: *mut c_int,
+    timestep_index: usize,
+    coarse_channel_index: usize,
+    buffer_ptr: *mut c_float,
+    buffer_len: size_t,
     error_message: *mut u8,
     error_message_length: size_t,
-) -> *mut c_float {
+) -> i32 {
     // Load the previously-initialised context and buffer structs. Exit if
     // either of these are null.
     let context = if context_ptr.is_null() {
@@ -226,30 +261,41 @@ pub unsafe extern "C" fn mwalibContext_read_by_baseline(
             error_message,
             error_message_length,
         );
-        return ptr::null_mut();
+        return 1;
     } else {
         &mut *context_ptr
     };
 
-    // Read data in.
-    let mut data =
-        match context.read_by_baseline(*timestep_index as usize, *coarse_channel_index as usize) {
-            Ok(data) => data,
-            Err(e) => {
-                set_error_message(&format!("{}", e), error_message, error_message_length);
-                return ptr::null_mut();
-            }
-        };
-    // If the data buffer is empty, then just return a null pointer.
-    if data.is_empty() {
-        return ptr::null_mut();
+    // Don't do anything if the buffer pointer is null.
+    if buffer_ptr.is_null() {
+        return 1;
     }
 
-    // Convert the vector of `data` to C-compatible array.
-    let data_buffer_ptr = data.as_mut_ptr();
-    std::mem::forget(data);
+    let output_slice = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
 
-    data_buffer_ptr
+    // Read data in.
+    let data = match context.read_by_baseline(timestep_index, coarse_channel_index) {
+        Ok(data) => data,
+        Err(e) => {
+            set_error_message(&format!("{}", e), error_message, error_message_length);
+            return 1;
+        }
+    };
+
+    // If the data buffer is empty, then just return a null pointer.
+    if data.is_empty() {
+        set_error_message(
+            "mwalibContext_read_by_baseline() ERROR: no data was returned.",
+            error_message,
+            error_message_length,
+        );
+        return 1;
+    }
+
+    // Populate the buffer which was provided to us by caller
+    output_slice[..data.len()].copy_from_slice(data.as_slice());
+    // Return Success
+    0
 }
 
 /// Free a previously-allocated float* created by mwalibContext_read_by_baseline.
@@ -262,6 +308,11 @@ pub unsafe extern "C" fn mwalibContext_read_by_baseline(
 /// * `float_buffer_ptr` - pointer to an already populated float buffer object.
 ///
 /// * `float_buffer_len` - length of float buffer.
+///
+///
+/// # Returns
+///
+/// * Nothing
 ///
 ///
 /// # Safety
@@ -285,7 +336,7 @@ pub unsafe extern "C" fn mwalibContext_free_read_buffer(
 }
 
 ///
-/// This is just a C struct to allow the caller to consume all of the metadata
+/// This a C struct to allow the caller to consume all of the metadata
 ///
 #[repr(C)]
 pub struct mwalibMetadata {
@@ -308,8 +359,8 @@ pub struct mwalibMetadata {
     pub observation_bandwidth_hz: u32,
     pub coarse_channel_width_hz: u32,
     pub num_fine_channels_per_coarse: usize,
-    pub timestep_coarse_channel_bytes: usize,
-    pub timestep_coarse_channel_floats: usize,
+    pub num_timestep_coarse_channel_bytes: usize,
+    pub num_timestep_coarse_channel_floats: usize,
     pub num_gpubox_files: usize,
 }
 
@@ -322,6 +373,11 @@ pub struct mwalibMetadata {
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
 /// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * A Rust-owned populated mwalibMetadata struct or NULL if there was an error (check error_message)
 ///
 ///
 /// # Safety
@@ -363,8 +419,8 @@ pub unsafe extern "C" fn mwalibMetadata_get(
         observation_bandwidth_hz: context.observation_bandwidth_hz,
         coarse_channel_width_hz: context.coarse_channel_width_hz,
         num_fine_channels_per_coarse: context.num_fine_channels_per_coarse,
-        timestep_coarse_channel_bytes: context.timestep_coarse_channel_bytes,
-        timestep_coarse_channel_floats: context.timestep_coarse_channel_floats,
+        num_timestep_coarse_channel_bytes: context.num_timestep_coarse_channel_bytes,
+        num_timestep_coarse_channel_floats: context.num_timestep_coarse_channel_floats,
         num_gpubox_files: context.num_gpubox_files,
     };
 
@@ -376,6 +432,11 @@ pub unsafe extern "C" fn mwalibMetadata_get(
 /// # Arguments
 ///
 /// * `metadata_ptr` - pointer to an already populated mwalibMetadata object
+///
+///
+/// # Returns
+///
+/// * Nothing
 ///
 ///
 /// # Safety
@@ -420,6 +481,11 @@ pub struct mwalibRFInput {
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
 /// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * A Rust-owned populated mwalibRFInput struct or NULL if there was an error (check error_message)
 ///
 ///
 /// # Safety
@@ -488,6 +554,11 @@ pub unsafe extern "C" fn mwalibRFInput_get(
 /// * `rf_input_ptr` - pointer to an already populated mwalibRFInput object
 ///
 ///
+/// # Returns
+///
+/// * Nothing
+///
+///
 /// # Safety
 /// * This must be called once caller is finished with the mwalibRFInput object
 /// * rf_input_ptr must point to a populated mwalibRFInput object from the mwalibRFInput_new function.
@@ -518,7 +589,7 @@ pub struct mwalibCoarseChannel {
     pub channel_end_hz: u32,
 }
 
-/// This returns a struct containing the requested coarse channel or NULL if there was an error
+/// This returns a struct containing the requested coarse channel
 ///
 /// # Arguments
 ///
@@ -529,6 +600,12 @@ pub struct mwalibCoarseChannel {
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
 /// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * A Rust-owned populated mwalibCoarseChannel struct or NULL if there was an error (check error_message)
+///
 ///
 /// # Safety
 /// * error_message *must* point to an already allocated char* buffer for any error messages.
@@ -585,6 +662,11 @@ pub unsafe extern "C" fn mwalibCoarseChannel_get(
 /// * `coarse_channel_ptr` - pointer to an already populated mwalibCoarseChannel object
 ///
 ///
+/// # Returns
+///
+/// * Nothing
+///
+///
 /// # Safety
 /// * This must be called once caller is finished with the mwalibCoarseChannel object
 /// * coarse_channel_ptr must point to a populated mwalibCoarseChannel object from the mwalibCoarseChannel_new function.
@@ -606,7 +688,7 @@ pub struct mwalibAntenna {
     pub tile_name: *mut libc::c_char,
 }
 
-/// This returns a struct containing the requested antenna or NULL if there was an error
+/// This returns a struct containing the requested antenna
 ///
 /// # Arguments
 ///
@@ -617,6 +699,11 @@ pub struct mwalibAntenna {
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
 /// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * A Rust-owned populated mwalibAntenna struct or NULL if there was an error (check error_message)
 ///
 ///
 /// # Safety
@@ -672,6 +759,11 @@ pub unsafe extern "C" fn mwalibAntenna_get(
 /// * `antenna_ptr` - pointer to an already populated mwalibAntenna object
 ///
 ///
+/// # Returns
+///
+/// * Nothing
+///
+///
 /// # Safety
 /// * This must be called once caller is finished with the mwalibAntenna object
 /// * antenna_ptr must point to a populated mwalibAntenna object from the mwalibAntenna_new function.
@@ -698,7 +790,7 @@ pub struct mwalibTimeStep {
     pub unix_time_ms: u64,
 }
 
-/// This returns a struct containing the requested timestep or NULL if there was an error
+/// This returns a struct containing the requested timestep
 ///
 /// # Arguments
 ///
@@ -709,6 +801,12 @@ pub struct mwalibTimeStep {
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
 /// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * A Rust-owned populated mwalibTimeStep struct or NULL if there was an error (check error_message)
+///
 ///
 /// # Safety
 /// * error_message *must* point to an already allocated char* buffer for any error messages.
@@ -757,6 +855,11 @@ pub unsafe extern "C" fn mwalibTimeStep_get(
 /// # Arguments
 ///
 /// * `timestep_ptr` - pointer to an already populated mwalibTimeStep object
+///
+///
+/// # Returns
+///
+/// * Nothing
 ///
 ///
 /// # Safety

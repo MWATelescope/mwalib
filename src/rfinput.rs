@@ -279,6 +279,18 @@ impl mwalibRFInput {
     }
 }
 
+/// Implements fmt::Debug for mwalibRFInput struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
 impl fmt::Debug for mwalibRFInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.tile_name, self.pol)

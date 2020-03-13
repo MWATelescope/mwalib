@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
     printf("num_fine_channels_per_coarse:   %ld\n", metadata->num_fine_channels_per_coarse);
     printf("fine_channel_width_hz:          %d\n", metadata->fine_channel_width_hz);
     printf("num_gpubox_files:               %ld\n", metadata->num_gpubox_files);
-    printf("timestep_coarse_channel_floats: %ld\n", metadata->timestep_coarse_channel_floats);
-    printf("timestep_coarse_channel_bytes:  %ld\n", metadata->timestep_coarse_channel_bytes);
+    printf("timestep_coarse_channel_floats: %ld\n", metadata->num_timestep_coarse_channel_floats);
+    printf("timestep_coarse_channel_bytes:  %ld\n", metadata->num_timestep_coarse_channel_bytes);
 
     // Example of using timestep struct
     mwalibTimeStep *ts0 = mwalibTimeStep_get(NULL, 0, error_message, ERROR_MESSAGE_LEN); // Should return first timestep

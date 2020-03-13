@@ -1,5 +1,12 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 /*!
 Structs and helper methods for coverting Legacy MWA data into a sensible ordering/format.
+
+Major contributor: Brian Crosse (Curtin Institute for Radio Astronomy)
+
 */
 use crate::misc::*;
 use crate::rfinput::*;
@@ -12,12 +19,21 @@ use std::fmt;
 ///	then 'or' the bottom 2 bit after shifting them left 4 positions,
 ///	then 'or' the middle 4 bits after shifting them right 2 positions
 /// It is inlined so the compiler will effectively make this like a C macro rather than a function call.
+///
+/// # Arguments
+///
+/// * `input` - Fine PFB input index.
+///
+///
+/// # Returns
+///
+/// * The correctly reordered rf_input index.
 #[inline(always)]
 fn fine_pfb_reorder(input: usize) -> usize {
     ((input) & 0xc0) | (((input) & 0x03) << 4) | (((input) & 0x3c) >> 2)
 }
 
-/// Structure for storing where in the input visibilities to get the specified baseline
+/// Structure for storing where in the input visibilities to get the specified baseline when converting
 #[allow(non_camel_case_types)]
 pub struct mwalibLegacyConversionBaseline {
     pub baseline: usize,    // baseline index
@@ -34,6 +50,19 @@ pub struct mwalibLegacyConversionBaseline {
 }
 
 impl mwalibLegacyConversionBaseline {
+    /// Create a new populated mwalibLegacyConversionBaseline which represents the conversion table
+    /// to work out where in the input data we should pull data from, for the given baseline/ant1/ant2.
+    /// 
+    ///
+    /// # Arguments
+    ///
+    /// See `mwalibLegacyConversionBaseline` struct.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * Returns a Result containing a populated mwalibLegacyConversionBaseline if Ok.
+    /// 
     pub fn new(
         baseline: usize,
         ant1: usize,
@@ -63,6 +92,18 @@ impl mwalibLegacyConversionBaseline {
     }
 }
 
+/// Implements fmt::Debug for mwalibTimeStep struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
 impl fmt::Debug for mwalibLegacyConversionBaseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -79,6 +120,21 @@ impl fmt::Debug for mwalibLegacyConversionBaseline {
     }
 }
 
+/// Generates a full matrix mapping pfb inputs to MWAX format. Used to generate conversion table 
+/// which is vector of `mwalibLegacyConversionBaseline` structs.
+/// 
+///
+/// # Arguments
+///
+/// * `mwax_order` - A vector containing the MWAX order of rf_inputs.
+///
+///
+/// # Returns
+///
+/// * A Vector with one element per rf_input vs rf_input (256x256). Positive numbers represent the index of the
+/// input HDU to get data from, negative numbers mean to take the complex conjugate of the data at the index of
+/// the input HDU.
+/// 
 fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
     let mut row1st: usize;
     let mut row2nd: usize;
@@ -137,6 +193,18 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
     full_matrix
 }
 
+/// This takes the rf_inputs from the metafis and generates the conversion array for use when we convert legacy HDUs.
+/// 
+/// # Arguments
+///
+/// * `rf_inputs` - A vector containing all of the `mwalibRFInput`s from the metafits.
+///
+///
+/// # Returns
+///
+/// * A Vector of `mwalibLegacyConversionBaseline`s which tell us, for a specific output baseline, where in the input HDU
+/// to get data from (and whether it needs to be conjugated). 
+/// 
 pub fn generate_conversion_array(
     rf_inputs: &mut Vec<mwalibRFInput>,
 ) -> Vec<mwalibLegacyConversionBaseline> {
@@ -144,6 +212,8 @@ pub fn generate_conversion_array(
     rf_inputs.sort_by(|a, b| a.input.cmp(&b.input));
 
     // Ensure we have a 256 element array of rf_inputs
+    // This is an OK assumption since we only use this for Legacy and OldLegacy MWA data which always must have 128 tiles
+    // which is 256 rf inputs.
     assert_eq!(rf_inputs.len(), 256);
 
     // Create a vector which contains all the mwax_orders, sorted by "input" from the metafits
@@ -160,9 +230,7 @@ pub fn generate_conversion_array(
     let mut baseline: usize = 0;
 
     // Create an output vector so we can lookup where to get data from the legacy HDU, given a baseline/ant1/ant2
-    let baseline_count = get_baseline_count(128);
-
-    assert_eq!(baseline_count, 8256);
+    let baseline_count = get_baseline_count(128);    
 
     let mut conversion_table: Vec<mwalibLegacyConversionBaseline> =
         Vec::with_capacity(baseline_count as usize);
@@ -238,6 +306,24 @@ pub fn generate_conversion_array(
 
 /// Using the precalculated conversion table, reorder the legacy visibilities into our preferred output order
 /// [time][baseline][freq][pol] in a standard triangle of 0,0 .. 0,N 1,1..1,N baseline order.
+/// # Arguments
+///
+/// * `conversion_table` - A vector containing all of the `mwalibLegacyConversionBaseline`s we have pre-calculated.
+///
+/// * `input_buffer` - Float vector read from legacy MWA HDUs.
+/// 
+/// * `output_buffer` - Float vector to write converted data into.
+/// 
+/// * `num_fine_channels` - Number of file channles in this observation.
+/// 
+///
+/// # Returns
+///
+/// * Nothing
+/// 
+/// # TODO
+/// Better error handling by returning a Result with associated Errors. Right now it just panics.
+///
 pub fn convert_legacy_hdu(
     conversion_table: &Vec<mwalibLegacyConversionBaseline>,
     input_buffer: &[f32],

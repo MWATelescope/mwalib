@@ -82,8 +82,8 @@ typedef struct {
   uint32_t observation_bandwidth_hz;
   uint32_t coarse_channel_width_hz;
   uintptr_t num_fine_channels_per_coarse;
-  uintptr_t timestep_coarse_channel_bytes;
-  uintptr_t timestep_coarse_channel_floats;
+  uintptr_t num_timestep_coarse_channel_bytes;
+  uintptr_t num_timestep_coarse_channel_floats;
   uintptr_t num_gpubox_files;
 } mwalibMetadata;
 
@@ -298,6 +298,10 @@ mwalibContext *mwalibContext_get(const char *metafits,
  * * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
  *                            to mwalibCoarseChannel.get(context, N) where N is coarse_channel_index.
  *
+ * * `` -
+ *
+ * * `` -
+ *
  * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
  *
  * * `error_message_length` - length of error_message char* buffer.
@@ -308,11 +312,13 @@ mwalibContext *mwalibContext_get(const char *metafits,
  * * context_ptr must point to a populated object from the mwalibContext_new function.
  * * Caller *must* call mwalibContext_free_read_buffer function to release the rust memory.
  */
-float *mwalibContext_read_by_baseline(mwalibContext *context_ptr,
-                                      int *timestep_index,
-                                      int *coarse_channel_index,
-                                      uint8_t *error_message,
-                                      size_t error_message_length);
+int32_t mwalibContext_read_by_baseline(mwalibContext *context_ptr,
+                                       uintptr_t timestep_index,
+                                       uintptr_t coarse_channel_index,
+                                       float *buffer_ptr,
+                                       size_t buffer_len,
+                                       uint8_t *error_message,
+                                       size_t error_message_length);
 
 /**
  * Free a previously-allocated `mwalibContext` struct.

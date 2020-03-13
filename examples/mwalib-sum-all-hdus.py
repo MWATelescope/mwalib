@@ -11,6 +11,7 @@
 import sys
 import argparse
 import ctypes as ct
+import array
 import numpy as np
 import numpy.ctypeslib as npct
 
@@ -61,15 +62,12 @@ mwalib.mwalibContext_get.restype = ct.POINTER(MwalibContextS)
 mwalib.mwalibContext_free.argtypes = (ct.POINTER(MwalibContextS),)
 
 mwalib.mwalibContext_read_by_baseline.argtypes = \
-    (ct.POINTER(MwalibContextS),
-     ct.POINTER(ct.c_int),       # input timestep_index
-     ct.POINTER(ct.c_int))       # input coarse_channel_index
-mwalib.mwalibContext_read_by_baseline.restype = ct.POINTER(
-    ct.c_float)
-
-mwalib.mwalibContext_free_read_buffer.argtypes = (
-    ct.POINTER(ct.c_float),)
-
+    (ct.POINTER(MwalibContextS), # context
+     ct.c_size_t,                # input timestep_index
+     ct.c_size_t,                # input coarse_channel_index
+     ct.POINTER(ct.c_float),     # buffer_ptr
+     ct.c_size_t)                # buffer_len
+mwalib.mwalibContext_read_by_baseline.restype = ct.c_int32
 
 mwalib.mwalibMetadata_get.argtypes = \
     (ct.POINTER(MwalibContextS),  # context_ptr
@@ -108,6 +106,7 @@ class MWAlibContext:
             exit(-1)
 
         self.num_timesteps = self.metadata.num_timesteps
+        self.num_floats = self.metadata.timestep_coarse_channel_floats
 
     def __enter__(self):
         return self
@@ -118,13 +117,16 @@ class MWAlibContext:
     def read_by_baseline(self, timestep_index, coarse_channel_index):
         error_message = " ".encode("utf-8") * ERROR_MESSAGE_LEN
 
-        data = mwalib.mwalibContext_read_by_baseline(self.context, timestep_index, coarse_channel_index,
-                                                     error_message, ERROR_MESSAGE_LEN)
+        float_buffer_type = ct.c_float * self.num_floats
+        buffer = float_buffer_type()
 
-        if not data:
+        if mwalib.mwalibContext_read_by_baseline(self.context, ct.c_size_t(timestep_index),
+                                                 ct.c_size_t(coarse_channel_index),
+                                                 buffer, self.num_floats,
+                                                 error_message, ERROR_MESSAGE_LEN) != 0:
             raise Exception(f"Error reading data: {error_message.decode('utf-8').rstrip()}")
         else:
-            return data
+            return npct.as_array(buffer, shape=(num_floats,))
 
 
 if __name__ == "__main__":
@@ -151,8 +153,8 @@ if __name__ == "__main__":
 
             for coarse_channel_index in range(0, num_coarse_channels):
                 try:
-                    data = context.read_by_baseline(ct.c_int(timestep_index),
-                                                    ct.c_int(coarse_channel_index))
+                    data = context.read_by_baseline(timestep_index,
+                                                    coarse_channel_index)
                 except Exception as e:
                     print(f"Error: {e}")
                     exit(-1)
@@ -168,13 +170,9 @@ if __name__ == "__main__":
 
                 # But, in this example, we're only interested in adding all the data
                 # into a single number.
-                this_sum = np.sum(npct.as_array(data, shape=(num_floats,)),
+                this_sum = np.sum(data,
                                   dtype=np.float64)
 
                 sum += this_sum
-
-                # Free the memory via rust (python can't do it).
-                mwalib.mwalibContext_free_read_buffer(data,
-                                                      ct.byref(ct.c_longlong(num_floats * 4)))
 
     print("Total sum: {}".format(sum))

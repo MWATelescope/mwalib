@@ -205,6 +205,18 @@ impl mwalibCoarseChannel {
     }
 }
 
+/// Implements fmt::Debug for mwalibCoarseChannel struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
 impl fmt::Debug for mwalibCoarseChannel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

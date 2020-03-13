@@ -36,6 +36,18 @@ impl mwalibTimeStep {
     }
 }
 
+/// Implements fmt::Debug for mwalibTimeStep struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
 impl fmt::Debug for mwalibTimeStep {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "unix={:.3}", self.unix_time_ms as f64 / 1000.,)

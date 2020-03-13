@@ -25,6 +25,20 @@ use crate::error::ErrorKind;
 /// gives the wrong result (consistent with cfitsio in C), forcing the use of
 /// i64 for even these kinds of values. Thus, this function is nice because is
 /// lets rust parse the string it extracts.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `hdu` - A reference to the HDU you want to find `keyword` in the header of.
+///
+/// * `keyword` - String containing the keyword to read.
+///
+///
+/// # Returns
+///
+/// *  A Result containing the value read, if Ok.
+///
 pub fn get_fits_key<T>(
     fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
@@ -38,9 +52,19 @@ where
 }
 
 /// Given a FITS file pointer, get the size of the image on HDU 2.
-// TODO: Write tests.
-pub fn get_hdu_image_size(fptr: &mut FitsFile) -> Result<Vec<usize>, ErrorKind> {
-    match fptr.hdu(1)?.info {
+/// TODO: Write tests.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+///
+/// # Returns
+///
+/// *  A Result containing a vector of the size of each dimension, if Ok.
+///
+pub fn get_hdu_image_size(fits_fptr: &mut FitsFile) -> Result<Vec<usize>, ErrorKind> {
+    match fits_fptr.hdu(1)?.info {
         HduInfo::ImageInfo { shape, .. } => Ok(shape),
         _ => Err(ErrorKind::Custom(
             "mwalibBuffer::read: HDU 2 of the first gpubox_fptr was not an image".to_string(),
@@ -53,6 +77,20 @@ pub fn get_hdu_image_size(fptr: &mut FitsFile) -> Result<Vec<usize>, ErrorKind> 
 ///
 /// This function exists because the rust library `fitsio` does not support
 /// reading in long strings (i.e. those that have CONTINUE statements).
+///
+/// TODO better error handling?
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `keyword` - String containing the keyword to read.
+///
+///
+/// # Returns
+///
+/// *  A FITS status code and the long string
+///
 pub unsafe fn get_fits_long_string(fptr: *mut fitsfile, keyword: &str) -> (i32, String) {
     let keyword_ffi =
         CString::new(keyword).expect("get_fits_long_string: CString::new() failed for keyword");
