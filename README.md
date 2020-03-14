@@ -75,6 +75,11 @@ GitHub in the future, but for now, `mwalib` should be compiled from source.
     For an example of using `mwalib` with C or python, look in the `examples`
     directory.
 
+- (Optional) If you are modifying the ffi functions, you'll need to regenerate mwalib.h
+
+    `cargo install cbindgen`
+        
+
 ## Consistency checks
 `mwalib` checks input files for the presence of:
 
