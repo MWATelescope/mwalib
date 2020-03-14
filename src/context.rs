@@ -262,8 +262,8 @@ impl mwalibContext {
 
         // Populate the start and end times of the observation.
         let (start_unix_time_milliseconds, end_unix_time_milliseconds, duration_milliseconds) = {
-            let o = determine_obs_times(&gpubox_time_map)?;
-            (o.start_millisec, o.end_millisec, o.duration_milliseconds)
+            let o = determine_obs_times(&gpubox_time_map, integration_time_milliseconds)?;
+            (o.start_millisec, o.end_millisec, o.duration_millisec)
         };
 
         // Prepare the conversion array to convert legacy correlator format into mwax format

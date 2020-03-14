@@ -3,17 +3,21 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+/**
+ * Enum for all of the known variants of file format based on Correlator version
+ *
+ */
 typedef enum {
   /**
-   * New correlator data (a.k.a. MWAX).
+   * MWAX correlator (v2.0)
    */
   V2,
   /**
-   * MWA raw data files with "gpubox" and batch numbers in their names.
+   * MWA correlator (v1.0), having data files with "gpubox" and batch numbers in their names.
    */
   Legacy,
   /**
-   * gpubox files without any batch numbers.
+   * MWA correlator (v1.0), having data files without any batch numbers.
    */
   OldLegacy,
 } CorrelatorVersion;
@@ -57,7 +61,7 @@ typedef struct {
 
 /**
  *
- * This is just a C struct to allow the caller to consume all of the metadata
+ * This a C struct to allow the caller to consume all of the metadata
  *
  */
 typedef struct {
@@ -128,6 +132,11 @@ typedef struct {
  * * `antenna_ptr` - pointer to an already populated mwalibAntenna object
  *
  *
+ * # Returns
+ *
+ * * Nothing
+ *
+ *
  * # Safety
  * * This must be called once caller is finished with the mwalibAntenna object
  * * antenna_ptr must point to a populated mwalibAntenna object from the mwalibAntenna_new function.
@@ -136,7 +145,7 @@ typedef struct {
 void mwalibAntenna_free(mwalibAntenna *antenna_ptr);
 
 /**
- * This returns a struct containing the requested antenna or NULL if there was an error
+ * This returns a struct containing the requested antenna
  *
  * # Arguments
  *
@@ -147,6 +156,11 @@ void mwalibAntenna_free(mwalibAntenna *antenna_ptr);
  * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
  *
  * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * A Rust-owned populated mwalibAntenna struct or NULL if there was an error (check error_message)
  *
  *
  * # Safety
@@ -167,6 +181,11 @@ mwalibAntenna *mwalibAntenna_get(mwalibContext *context_ptr,
  * * `coarse_channel_ptr` - pointer to an already populated mwalibCoarseChannel object
  *
  *
+ * # Returns
+ *
+ * * Nothing
+ *
+ *
  * # Safety
  * * This must be called once caller is finished with the mwalibCoarseChannel object
  * * coarse_channel_ptr must point to a populated mwalibCoarseChannel object from the mwalibCoarseChannel_new function.
@@ -175,7 +194,7 @@ mwalibAntenna *mwalibAntenna_get(mwalibContext *context_ptr,
 void mwalibCoarseChannel_free(mwalibCoarseChannel *coarse_channel_ptr);
 
 /**
- * This returns a struct containing the requested coarse channel or NULL if there was an error
+ * This returns a struct containing the requested coarse channel
  *
  * # Arguments
  *
@@ -186,6 +205,12 @@ void mwalibCoarseChannel_free(mwalibCoarseChannel *coarse_channel_ptr);
  * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
  *
  * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * A Rust-owned populated mwalibCoarseChannel struct or NULL if there was an error (check error_message)
+ *
  *
  * # Safety
  * * error_message *must* point to an already allocated char* buffer for any error messages.
@@ -209,9 +234,11 @@ mwalibCoarseChannel *mwalibCoarseChannel_get(mwalibContext *context_ptr,
  *
  * * `error_message_length` - length of error_message char* buffer.
  *
+ *
  * # Returns
  *
  * * 0 on success, 1 on failure
+ *
  *
  * # Safety
  * * error_message *must* point to an already allocated char* buffer for any error messages.
@@ -227,6 +254,12 @@ int32_t mwalibContext_display(const mwalibContext *context_ptr,
  * # Arguments
  *
  * * `context_ptr` - pointer to an already populated mwalibContext object
+ *
+ *
+ * # Returns
+ *
+ * * Nothing
+ *
  *
  * # Safety
  * * This must be called once caller is finished with the mwalibContext object
@@ -248,6 +281,11 @@ void mwalibContext_free(mwalibContext *context_ptr);
  * * `float_buffer_len` - length of float buffer.
  *
  *
+ * # Returns
+ *
+ * * Nothing
+ *
+ *
  * # Safety
  * * This must be called once caller is finished with the float buffer object
  * * float_buffer_ptr must point to a populated float buffer from the mwalibContext_read_by_baseline function.
@@ -257,7 +295,7 @@ void mwalibContext_free_read_buffer(float *float_buffer_ptr,
                                     const long long *float_buffer_len);
 
 /**
- * Create and return a pointer to an `mwalibContext` struct or NULL if error occurs
+ * Create and return a pointer to an `mwalibContext` struct
  *
  * # Arguments
  *
@@ -271,10 +309,15 @@ void mwalibContext_free_read_buffer(float *float_buffer_ptr,
  *
  * * `error_message_length` - length of error_message char* buffer.
  *
- * # Safety
- * * error_message *must* point to an already allocated char* buffer for any error messages.
- * * Caller *must* call the appropriate _free function to release the rust memory.
  *
+ * # Returns
+ *
+ * * A Rust-owned populated `mwalibContext` struct or NULL if there was an error (check error_message)
+ *
+ *
+ * # Safety
+ * * error_message *must* point to an already allocated `char*` buffer for any error messages.
+ * * Caller *must* call the appropriate _free function to release the rust memory.
  */
 mwalibContext *mwalibContext_get(const char *metafits,
                                  const char **gpuboxes,
@@ -283,7 +326,7 @@ mwalibContext *mwalibContext_get(const char *metafits,
                                  size_t error_message_length);
 
 /**
- * Read MWA data.
+ * Read a single timestep / coarse channel of MWA data.
  *
  * This method takes as input a timestep_index and a coarse_channel_index to return one
  * HDU of data in [baseline][freq][pol][r][i] format
@@ -298,13 +341,18 @@ mwalibContext *mwalibContext_get(const char *metafits,
  * * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
  *                            to mwalibCoarseChannel.get(context, N) where N is coarse_channel_index.
  *
- * * `` -
+ * * `buffer_ptr` - pointer to caller-owned and allocated buffer to write data into.
  *
- * * `` -
+ * * `buffer_len` - length of `buffer_ptr`.
  *
  * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
  *
  * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, 1 on failure
  *
  *
  * # Safety
@@ -328,6 +376,11 @@ int32_t mwalibContext_read_by_baseline(mwalibContext *context_ptr,
  * * `metadata_ptr` - pointer to an already populated mwalibMetadata object
  *
  *
+ * # Returns
+ *
+ * * Nothing
+ *
+ *
  * # Safety
  * * This must be called once caller is finished with the mwalibMetadata object
  * * metadata_ptr must point to a populated mwalibMetadata object from the mwalibMetadata_new function.
@@ -347,6 +400,11 @@ void mwalibMetadata_free(mwalibMetadata *metadata_ptr);
  * * `error_message_length` - length of error_message char* buffer.
  *
  *
+ * # Returns
+ *
+ * * A Rust-owned populated mwalibMetadata struct or NULL if there was an error (check error_message)
+ *
+ *
  * # Safety
  * * error_message *must* point to an already allocated char* buffer for any error messages.
  * * context_ptr must point to a populated mwalibContext object from the mwalibContext_new function.
@@ -362,6 +420,11 @@ mwalibMetadata *mwalibMetadata_get(mwalibContext *context_ptr,
  * # Arguments
  *
  * * `rf_input_ptr` - pointer to an already populated mwalibRFInput object
+ *
+ *
+ * # Returns
+ *
+ * * Nothing
  *
  *
  * # Safety
@@ -386,6 +449,11 @@ void mwalibRFInput_free(mwalibRFInput *rf_input_ptr);
  * * `error_message_length` - length of error_message char* buffer.
  *
  *
+ * # Returns
+ *
+ * * A Rust-owned populated mwalibRFInput struct or NULL if there was an error (check error_message)
+ *
+ *
  * # Safety
  * * error_message *must* point to an already allocated char* buffer for any error messages.
  * * context_ptr must point to a populated mwalibContext object from the mwalibContext_new function.
@@ -404,6 +472,11 @@ mwalibRFInput *mwalibRFInput_get(mwalibContext *context_ptr,
  * * `timestep_ptr` - pointer to an already populated mwalibTimeStep object
  *
  *
+ * # Returns
+ *
+ * * Nothing
+ *
+ *
  * # Safety
  * * This must be called once caller is finished with the mwalibTimeStep object
  * * timestep_ptr must point to a populated mwalibTimeStep object from the mwalibTimeStep_new function.
@@ -412,7 +485,7 @@ mwalibRFInput *mwalibRFInput_get(mwalibContext *context_ptr,
 void mwalibTimeStep_free(mwalibTimeStep *timestep_ptr);
 
 /**
- * This returns a struct containing the requested timestep or NULL if there was an error
+ * This returns a struct containing the requested timestep
  *
  * # Arguments
  *
@@ -423,6 +496,12 @@ void mwalibTimeStep_free(mwalibTimeStep *timestep_ptr);
  * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
  *
  * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * A Rust-owned populated mwalibTimeStep struct or NULL if there was an error (check error_message)
+ *
  *
  * # Safety
  * * error_message *must* point to an already allocated char* buffer for any error messages.
@@ -443,7 +522,12 @@ mwalibTimeStep *mwalibTimeStep_get(mwalibContext *context_ptr,
  *
  * # Arguments
  *
- * * `rust_cstring` - pointer to a char* of a Rust string
+ * * `rust_cstring` - pointer to a `char*` of a Rust string
+ *
+ *
+ * # Returns
+ *
+ * * Nothing
  *
  * # Safety
  * * rust_cstring must not have already been freed and must point to a Rust string.

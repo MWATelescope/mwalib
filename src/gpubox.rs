@@ -19,7 +19,7 @@ use crate::*;
 pub struct ObsTimes {
     pub start_millisec: u64,
     pub end_millisec: u64,
-    pub duration_milliseconds: u64,
+    pub duration_millisec: u64,
 }
 
 /// This represents one group of gpubox files with the same "batch" identitifer.
@@ -106,6 +106,21 @@ lazy_static! {
 /// Some older files might have a "batchless" format
 /// (e.g. `1065880128_20131015134930_gpubox01.fits`); in this case, this
 /// function will just return one sub-vector for one batch.
+/// From a path to a metafits file and paths to gpubox files, create an `mwalibContext`.
+///
+///
+/// # Arguments
+///
+/// * `gpubox_filenames` - A vector or slice of strings or references to strings containing
+///                        all of the gpubox filenames provided by the client.
+///
+///
+/// # Returns
+///
+/// * A Result containing a vector of GPUBoxBatch structs as well as the Correlator version
+///   and the number of GPUBoxes supplied.
+///
+///
 pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
     gpubox_filenames: &[T],
 ) -> Result<(Vec<GPUBoxBatch>, CorrelatorVersion, usize), ErrorKind> {
@@ -264,23 +279,52 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
 
 /// Given a FITS file pointer and HDU, determine the time in units of
 /// milliseconds.
-pub fn determine_hdu_time(gpubox_fptr: &mut FitsFile, hdu: &FitsHdu) -> Result<u64, ErrorKind> {
-    let start_time: i64 = hdu.read_key(gpubox_fptr, "TIME")?;
-    let start_millitime: i64 = hdu.read_key(gpubox_fptr, "MILLITIM")?;
-    Ok((start_time * 1000 + start_millitime) as u64)
+///
+///
+/// # Arguments
+///
+/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
+/// 
+/// * `metafits_hdu_fptr` - A reference to the primary HDU in the metafits file 
+///                         where we read keyword/value pairs.
+///
+///
+/// # Returns
+///
+/// * A Result containing the full start unix time (in milliseconds) or an error.
+///
+///
+pub fn determine_hdu_time(gpubox_fptr: &mut FitsFile, metafits_hdu_fptr: &FitsHdu) -> Result<u64, ErrorKind> {
+    let start_unix_time: i64 = metafits_hdu_fptr.read_key(gpubox_fptr, "TIME")?;
+    let start_unix_millitime: i64 = metafits_hdu_fptr.read_key(gpubox_fptr, "MILLITIM")?;
+    Ok((start_unix_time * 1000 + start_unix_millitime) as u64)
 }
 
 /// Iterate over each HDU of the given gpubox file, tracking which UNIX times
 /// are associated with which HDU numbers.
+///
+///
+/// # Arguments
+///
+/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
+/// 
+/// * `correlator_version` - enum telling us which correlator version the observation was created by.
+///
+///
+/// # Returns
+///
+/// * A BTree representing time and hdu index this gpubox file.
+///
+///
 pub fn map_unix_times_to_hdus(
     gpubox_fptr: &mut FitsFile,
-    correlator_format: CorrelatorVersion,
+    correlator_version: CorrelatorVersion,
 ) -> Result<BTreeMap<u64, usize>, ErrorKind> {
     let mut map = BTreeMap::new();
     let last_hdu_index = gpubox_fptr.iter().count();
     // The new correlator has a "weights" HDU in each alternating HDU. Skip
     // those.
-    let step_size = if correlator_format == CorrelatorVersion::V2 {
+    let step_size = if correlator_version == CorrelatorVersion::V2 {
         2
     } else {
         1
@@ -296,6 +340,22 @@ pub fn map_unix_times_to_hdus(
     Ok(map)
 }
 
+/// Returns a BTree structure consisting of:
+/// BTree of timesteps. Each timestep is a BTree for a course channel. 
+/// Each coarse channel then contains the batch number and hdu index.
+///
+/// # Arguments
+///
+/// * `gpubox_batches` - vector of structs describing each gpubox "batch"
+/// 
+/// * `correlator_version` - enum telling us which correlator version the observation was created by.
+///
+///
+/// # Returns
+///
+/// * A Result containing the GPUBox Time Map or an error.
+///
+///
 pub fn create_time_map(
     gpubox_batches: &mut Vec<GPUBoxBatch>,
     correlator_version: CorrelatorVersion,
@@ -403,8 +463,22 @@ pub fn create_time_map(
 ///
 /// See tests of this function or `obs_context.rs` for examples of constructing
 /// the input to this function.
+///
+///
+/// # Arguments
+///
+/// * `gpubox_time_map` - BTree structure containing the map of what gpubox files and timesteps we were supplied by the client.
+///
+/// * `integration_time_ms` - Correlator dump time (so we know the gap between timesteps)
+///
+/// # Returns
+///
+/// * A struct containing the start and end times based on what we actually got, so all coarse channels match.
+///
+///
 pub fn determine_obs_times(
     gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
+    integration_time_ms: u64,
 ) -> Result<ObsTimes, ErrorKind> {
     // Find the maximum number of gpubox files, and assume that this is the
     // total number of input gpubox files.
@@ -437,14 +511,14 @@ pub fn determine_obs_times(
         Some(s) => s,
         None => {
             // Looks like we only have 1 hdu, so start == end
-            proper_start_millisec
+            proper_start_millisec + integration_time_ms
         }
     };
 
     Ok(ObsTimes {
         start_millisec: proper_start_millisec,
         end_millisec: proper_end_millisec,
-        duration_milliseconds: (proper_end_millisec - proper_start_millisec) + 1,
+        duration_millisec: proper_end_millisec - proper_start_millisec
     })
 }
 
@@ -855,6 +929,7 @@ mod tests {
             1_381_844_925_000,
             1_381_844_925_500,
         ];
+        let integration_time_ms = 500;
 
         let mut input = BTreeMap::new();
         let mut new_time_tree = BTreeMap::new();
@@ -877,7 +952,7 @@ mod tests {
         let expected_start = common_times.first().unwrap();
         let expected_end = common_times.last().unwrap();
 
-        let result = determine_obs_times(&input);
+        let result = determine_obs_times(&input, integration_time_ms);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(&result.start_millisec, expected_start);

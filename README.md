@@ -1,6 +1,10 @@
 # mwalib
 ![Run Tests](https://github.com/MWATelescope/mwalib/workflows/Run%20Tests/badge.svg)
-MWA library to read raw visibilities and metadata into a common structure
+MWA library to read raw visibilities and metadata into a common structure. 
+mwalib supports the existing "legacy" MWA correlator, as well as the in-development
+"MWAX" correlator. This library strives to provide a single interface to work will 
+all incarnations of MWA correlator formats and abstract away the nitty gritty details
+about reading MWA data.
 
 ## Usage via C
 In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.c`, and
@@ -24,10 +28,10 @@ examples. Also run `cargo doc --open` to see the rendered documentation.
 
 - Read raw data
 
-    The `read` function associated with `mwalibContext` takes in a number of
-    scans to read. The raw MWA data is then read into a triple vector,
-    structured by scan, gpubox number and the data from that gpubox number (a
-    large number of 32-bit floats).
+    The `read_by_baseline` function associated with `mwalibContext` takes in a
+    timestep index (see: context.timesteps vector) and a coarse channel index
+    (see: context.coarse_channels vector) and will return a vector of 32bit
+    floats. The data is organised as [baseline][fine_channel][polarisation][r][i].
 
 ## Concepts
 - gpubox "batches"
@@ -40,7 +44,7 @@ examples. Also run `cargo doc --open` to see the rendered documentation.
 - "scans"
 
     A scan is the raw data from all gpubox files for a single time
-    integration. `mwalib` allows multiple scans to be read in at once.
+    integration.
 
 - baselines
 
