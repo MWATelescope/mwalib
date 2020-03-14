@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::Write;
 use structopt::StructOpt;
 
+#[cfg_attr(tarpaulin, skip)]
 #[derive(StructOpt, Debug)]
 #[structopt(name = "mwalib-data-dump", author)]
 struct Opt {
@@ -40,6 +41,7 @@ struct Opt {
     dump_filename: String,
 }
 
+#[cfg_attr(tarpaulin, skip)]
 fn dump_data(
     metafits: String,
     files: Vec<String>,
@@ -133,6 +135,7 @@ fn dump_data(
     Ok(())
 }
 
+#[cfg_attr(tarpaulin, skip)]
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
 

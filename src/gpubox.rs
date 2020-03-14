@@ -39,6 +39,7 @@ impl GPUBoxBatch {
     }
 }
 
+#[cfg_attr(tarpaulin, skip)]
 impl fmt::Debug for GPUBoxBatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -66,6 +67,7 @@ impl GPUBoxFile {
     }
 }
 
+#[cfg_attr(tarpaulin, skip)]
 impl fmt::Debug for GPUBoxFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

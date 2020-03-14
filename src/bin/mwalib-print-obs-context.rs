@@ -5,6 +5,7 @@ use structopt::StructOpt;
 
 use mwalib::*;
 
+#[cfg_attr(tarpaulin, skip)]
 #[derive(StructOpt, Debug)]
 #[structopt(name = "mwalib-print-obs-context", author)]
 struct Opt {
@@ -17,6 +18,7 @@ struct Opt {
     files: Vec<String>,
 }
 
+#[cfg_attr(tarpaulin, skip)]
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
     let mut context = mwalibContext::new(&opts.metafits, &opts.files)?;

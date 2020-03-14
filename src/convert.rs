@@ -28,7 +28,6 @@ use std::fmt;
 /// # Returns
 ///
 /// * The correctly reordered rf_input index.
-#[inline(always)]
 fn fine_pfb_reorder(input: usize) -> usize {
     ((input) & 0xc0) | (((input) & 0x03) << 4) | (((input) & 0x3c) >> 2)
 }
@@ -105,6 +104,7 @@ impl mwalibLegacyConversionBaseline {
 /// * `fmt::Result` - Result of this method
 ///
 ///
+#[cfg_attr(tarpaulin, skip)]
 impl fmt::Debug for mwalibLegacyConversionBaseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
