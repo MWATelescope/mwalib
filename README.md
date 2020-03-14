@@ -1,11 +1,10 @@
 # mwalib
-![Run Tests](https://github.com/MWATelescope/mwalib/workflows/Run%20Tests/badge.svg)
+![Run Tests](https://github.com/MWATelescope/mwalib/workflows/Run%20Tests/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/MWATelescope/mwalib/badge.svg?branch=master)](https://coveralls.io/github/MWATelescope/mwalib?branch=master)
 MWA library to read raw visibilities and metadata into a common structure. 
 mwalib supports the existing "legacy" MWA correlator, as well as the in-development
 "MWAX" correlator. This library strives to provide a single interface to work will 
 all incarnations of MWA correlator formats and abstract away the nitty gritty details
 about reading MWA data.
-[![Coverage Status](https://coveralls.io/repos/github/MWATelescope/mwalib/badge.svg?branch=master)](https://coveralls.io/github/MWATelescope/mwalib?branch=master)
 
 ## Usage via C
 In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.c`, and
