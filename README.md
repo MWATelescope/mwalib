@@ -5,6 +5,7 @@ mwalib supports the existing "legacy" MWA correlator, as well as the in-developm
 "MWAX" correlator. This library strives to provide a single interface to work will 
 all incarnations of MWA correlator formats and abstract away the nitty gritty details
 about reading MWA data.
+[![Coverage Status](https://coveralls.io/repos/github/MWATelescope/mwalib/badge.svg?branch=master)](https://coveralls.io/github/MWATelescope/mwalib?branch=master)
 
 ## Usage via C
 In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.c`, and
@@ -78,7 +79,7 @@ GitHub in the future, but for now, `mwalib` should be compiled from source.
 - (Optional) If you are modifying the ffi functions, you'll need to regenerate mwalib.h
 
     `cargo install cbindgen`
-        
+
 
 ## Consistency checks
 `mwalib` checks input files for the presence of:

@@ -4,3 +4,4 @@ Cargo.lock
 /examples/mwalib-print-obs-context
 /examples/mwalib-sum-all-hdus
 .vscode
+/coverage

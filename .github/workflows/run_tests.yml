@@ -36,7 +36,9 @@ jobs:
       run: cargo build --verbose
       
     - name: Run cargo-tarpaulin
-      uses: actions-rs/tarpaulin@v0.1
+      run: cargo-tarpaulin --out=Lcov
+
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
       with:
-          version: '0.11.1'
-          args: '-- --test-threads 1'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
