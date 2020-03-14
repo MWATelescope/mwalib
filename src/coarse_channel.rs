@@ -39,26 +39,53 @@ pub struct mwalibCoarseChannel {
 }
 
 impl mwalibCoarseChannel {
+    /// Creates a new, populated mwalibCoarseChannel struct
+    /// 
+    /// # Arguments
+    ///
+    /// * `correlator_channel_number` - A reference to an already populated mwalibRFInput struct which is the x polarisation of this antenna.
+    /// 
+    /// * `receiver_channel_number` - A reference to an already populated mwalibRFInput struct which is the y polarisation of this antenna.
+    ///
+    /// * `gpubox_number` - For Legacy MWA, this is 01..24. For MWAX this is 001..255. It is the number provided in the filename of the gpubox file.
+    /// 
+    /// * `coarse_channel_width_hz` - The width in Hz of this coarse channel.
+    /// 
+    ///
+    /// # Returns
+    ///
+    /// * An Result containing a populated mwalibCoarseChannel struct or an Error
+    ///
     pub fn new(
         correlator_channel_number: usize,
         receiver_channel_number: usize,
         gpubox_number: usize,
-        channel_width_hz: u32,
+        coarse_channel_width_hz: u32,
     ) -> mwalibCoarseChannel {
-        let centre_chan_hz: u32 = (receiver_channel_number as u32) * channel_width_hz;
+        let centre_chan_hz: u32 = (receiver_channel_number as u32) * coarse_channel_width_hz;
 
         mwalibCoarseChannel {
             correlator_channel_number,
             receiver_channel_number,
             gpubox_number,
-            channel_width_hz,
+            channel_width_hz: coarse_channel_width_hz,
             channel_centre_hz: centre_chan_hz,
-            channel_start_hz: centre_chan_hz - (channel_width_hz / 2),
-            channel_end_hz: centre_chan_hz + (channel_width_hz / 2),
+            channel_start_hz: centre_chan_hz - (coarse_channel_width_hz / 2),
+            channel_end_hz: centre_chan_hz + (coarse_channel_width_hz / 2),
         }
     }
 
-    // Takes a fits pointer to the metafits file and retrieves the long string for CHANNELS
+    /// Takes a fits pointer to the metafits file and retrieves the long string for CHANNELS.
+    /// CHANNELS is nearly always a long string, which requires special handling to read.
+    /// 
+    /// # Arguments
+    ///
+    /// `metafits_fptr` - a reference to a metafits FitsFile object.
+    /// 
+    /// # Returns
+    ///
+    /// * A Result containing the CHANNELS string or an error.
+    ///
     pub fn get_metafits_coarse_channel_string(
         metafits_fptr: &mut fitsio::FitsFile,
     ) -> Result<String, ErrorKind> {
@@ -74,8 +101,19 @@ impl mwalibCoarseChannel {
         Ok(coarse_channels_string)
     }
 
-    // Takes the metafits long string of coarse channels and turns it into a vector
-    // with each element being a reciever channel number
+    /// Takes the metafits long string of coarse channels, parses it and turns it into a vector
+    /// with each element being a reciever channel number. This is the total receiver channels
+    /// used in this observation.
+    /// 
+    /// 
+    /// # Arguments
+    ///
+    /// `metafits_coarse_channels_string` - a reference to the CHANNELS long string read from the metafits file.
+    /// 
+    /// # Returns
+    ///
+    /// * A vector containing all of the receiver channel numbers for this observation.
+    ///
     pub fn get_metafits_coarse_channel_array(metafits_coarse_channels_string: &str) -> Vec<usize> {
         metafits_coarse_channels_string
             .replace(&['\'', '&'][..], "")
@@ -84,6 +122,25 @@ impl mwalibCoarseChannel {
             .collect()
     }
 
+    /// This creates a populated vector mwalibCoarseChannel structs. 
+    /// 
+    /// # Arguments
+    ///
+    /// `metafits_fptr` - a reference to a metafits FitsFile object.
+    /// 
+    /// `corr_version` - enum representing the version of the correlator this observation was created with.
+    /// 
+    /// `observation_bandwidth_hz` - total bandwidth in Hz of the entire observation. If there are 24 x 1.28 MHz channels
+    ///                              this would be 30.72 MHz (30,720,000 Hz)
+    /// 
+    /// `gpubox_time_map` - BTreeMap detailing which timesteps exist and which gpuboxes and channels were provided by the client. 
+    /// 
+    /// # Returns
+    ///
+    /// * A tuple containing: A vector of mwalibCoarseChannel structs (limited to those are supplied by the client and are valid),
+    ///                       The number of coarse channels that are supplied by the client and are valid,
+    ///                       The width in Hz of each coarse channel
+    ///
     pub fn populate_coarse_channels(
         metafits_fptr: &mut fitsio::FitsFile,
         corr_version: context::CorrelatorVersion,
@@ -117,10 +174,32 @@ impl mwalibCoarseChannel {
         ))
     }
 
+    /// Based on gpubox files provided, receiver channels & observation bandwidth from metafits, correlator version populate
+    /// valid, provided coarse channels as a vector of mwalibCoarseChannel structs. 
+    /// 
+    /// # Arguments
+    ///
+    /// 
+    /// `corr_version` - enum representing the version of the correlator this observation was created with.
+    ///
+    /// `observation_bandwidth_hz` - total bandwidth in Hz of the entire observation. If there are 24 x 1.28 MHz channels
+    ///                              this would be 30.72 MHz (30,720,000 Hz)
+    /// 
+    /// `coarse_channel_vec` - Vector of receiver channel numbers read from the metafits CHANNELS string value.
+    /// 
+    /// `gpubox_time_map` - BTreeMap detailing which timesteps exist and which gpuboxes and channels were provided by the client.  
+    ///  
+    /// 
+    /// # Returns
+    ///
+    /// * A tuple containing: A vector of mwalibCoarseChannel structs (limited to those are supplied by the client and are valid),
+    ///                       The number of coarse channels that are supplied by the client and are valid,
+    ///                       The width in Hz of each coarse channel
+    ///
     fn process_coarse_channels(
         corr_version: context::CorrelatorVersion,
         observation_bandwidth_hz: u32,
-        coarse_channel_vec: &Vec<usize>,
+        coarse_channel_vec: &[usize],
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
     ) -> (Vec<mwalibCoarseChannel>, usize, u32) {
         // How many coarse channels should there be (from the metafits)

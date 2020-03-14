@@ -20,6 +20,7 @@ struct Opt {
     files: Vec<String>,
 }
 
+#[allow(clippy::needless_range_loop)]  // Ignoring this, as it is a false positive
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
 

@@ -18,6 +18,17 @@ pub struct mwalibTimeStep {
 }
 
 impl mwalibTimeStep {
+    /// Creates a new, populated mwalibTimeStep struct
+    /// 
+    /// # Arguments
+    ///
+    /// * `unix_time_ms` - The UNIX time for this timestep, in milliseconds
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * An Result containing a populated mwalibTimeStep struct or an Error
+    ///
     pub fn new(unix_time_ms: u64) -> mwalibTimeStep {
         mwalibTimeStep { unix_time_ms }
     }

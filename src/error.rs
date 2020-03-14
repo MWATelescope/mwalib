@@ -49,17 +49,7 @@ impl From<fitsio::errors::Error> for ErrorKind {
     }
 }
 
-impl Error for ErrorKind {
-    fn description(&self) -> &str {
-        match *self {
-            ErrorKind::Custom(ref err) => err,
-            ErrorKind::ParseInt(ref err) => err.description(),
-            ErrorKind::ParseFloat(ref err) => err.description(),
-            ErrorKind::IO(ref err) => err.description(),
-            ErrorKind::Anyhow(ref err) => err.description(),
-            ErrorKind::Fitsio(ref err) => err.description(),
-        }
-    }
+impl Error for ErrorKind {  
 }
 
 impl fmt::Display for ErrorKind {

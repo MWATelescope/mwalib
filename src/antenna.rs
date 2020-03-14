@@ -30,6 +30,19 @@ pub struct mwalibAntenna {
 }
 
 impl mwalibAntenna {
+    /// Creates a new, populated mwalibAntenna struct
+    /// 
+    /// # Arguments
+    ///
+    /// * `x_pol` - A reference to an already populated mwalibRFInput struct which is the x polarisation of this antenna
+    /// 
+    /// * `y_pol` - A reference to an already populated mwalibRFInput struct which is the y polarisation of this antenna
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * An Result containing a populated mwalibAntenna struct or an Error
+    ///
     pub fn new(x_pol: &mwalibRFInput, y_pol: &mwalibRFInput) -> mwalibAntenna {
         mwalibAntenna {
             antenna: x_pol.antenna,
@@ -40,7 +53,17 @@ impl mwalibAntenna {
         }
     }
 
-    pub fn populate_antennas(rf_inputs: &Vec<mwalibRFInput>) -> Vec<mwalibAntenna> {
+    /// Creates a populated vector of mwalibAntenna structs.
+    /// 
+    /// # Arguments
+    ///
+    /// `rf_inputs` - a vector or slice of mwalibRFInputs.
+    /// 
+    /// # Returns
+    ///
+    /// * A vector of populated mwalibAntenna structs.
+    ///
+    pub fn populate_antennas(rf_inputs: &[mwalibRFInput]) -> Vec<mwalibAntenna> {
         let mut antennas: Vec<mwalibAntenna> = Vec::with_capacity(rf_inputs.len() / 2);
         for index in (0..rf_inputs.len()).step_by(2) {
             let new_antenna: mwalibAntenna =

@@ -14,10 +14,10 @@ use crate::*;
 use std::fmt;
 
 /// This "macro" flips the bits in an 8 bit number such that bit order abcdefgh becomes abghcdef
-///	This is the reordering required to undo the order imposed by the fine-PFB hardware.
+/// This is the reordering required to undo the order imposed by the fine-PFB hardware.
 /// Not as confusing as it looks!  Take the left two bits and leave them where they are,
-///	then 'or' the bottom 2 bit after shifting them left 4 positions,
-///	then 'or' the middle 4 bits after shifting them right 2 positions
+/// then 'or' the bottom 2 bit after shifting them left 4 positions,
+/// then 'or' the middle 4 bits after shifting them right 2 positions
 /// It is inlined so the compiler will effectively make this like a C macro rather than a function call.
 ///
 /// # Arguments
@@ -63,6 +63,7 @@ impl mwalibLegacyConversionBaseline {
     ///
     /// * Returns a Result containing a populated mwalibLegacyConversionBaseline if Ok.
     /// 
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         baseline: usize,
         ant1: usize,
@@ -325,7 +326,7 @@ pub fn generate_conversion_array(
 /// Better error handling by returning a Result with associated Errors. Right now it just panics.
 ///
 pub fn convert_legacy_hdu(
-    conversion_table: &Vec<mwalibLegacyConversionBaseline>,
+    conversion_table: &[mwalibLegacyConversionBaseline],
     input_buffer: &[f32],
     output_buffer: &mut [f32],
     num_fine_channels: usize,

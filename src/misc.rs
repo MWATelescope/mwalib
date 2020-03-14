@@ -151,7 +151,7 @@ pub fn get_baseline_from_antennas(
     None
 }
 
-/// Given two antenna names, return the baseline index.
+/// Given two antenna names and the vector of Antenna structs from metafits, return the baseline index.
 ///
 /// # Arguments
 ///
@@ -159,7 +159,7 @@ pub fn get_baseline_from_antennas(
 ///
 /// * `antenna2` - Tile name of antenna2
 ///
-/// * `num_antennas` - total number of antennas in the array.
+/// * `antennas` - A vector of mwalibAntenna structs.
 ///
 ///
 /// # Returns
@@ -169,7 +169,7 @@ pub fn get_baseline_from_antennas(
 pub fn get_baseline_from_antenna_names(
     antenna1_tile_name: String,
     antenna2_tile_name: String,
-    antennas: &Vec<antenna::mwalibAntenna>,
+    antennas: &[antenna::mwalibAntenna],
 ) -> Option<usize> {
     let mut baseline_index = 0;
 

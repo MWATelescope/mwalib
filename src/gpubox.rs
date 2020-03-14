@@ -301,7 +301,7 @@ pub fn create_time_map(
     correlator_version: CorrelatorVersion,
 ) -> Result<
     (
-        BTreeMap<u64, std::collections::BTreeMap<usize, (usize, usize)>>,
+        BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
         usize,
     ),
     ErrorKind,
