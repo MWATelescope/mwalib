@@ -32,6 +32,19 @@ impl mwalibTimeStep {
     pub fn new(unix_time_ms: u64) -> mwalibTimeStep {
         mwalibTimeStep { unix_time_ms }
     }
+
+    /// Creates a new, populated vector of mwalibTimeStep structs
+    /// 
+    /// # Arguments
+    ///
+    /// * `gpubox_time_map` - BTree structure containing the map of what gpubox files and timesteps we were supplied by the client.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * An Result containing a populated vector of mwalibTimeStep structs and 
+    ///   number of timesteps or an Error
+    ///
     pub fn populate_timesteps(
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
     ) -> Result<(Vec<mwalibTimeStep>, usize), ErrorKind> {
@@ -63,5 +76,53 @@ impl mwalibTimeStep {
 impl fmt::Debug for mwalibTimeStep {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "unix={:.3}", self.unix_time_ms as f64 / 1000.,)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_populate_timesteps() {
+        // Create a dummy BTree GPUbox map
+        let mut gpubox_time_map = BTreeMap::new();
+
+        let times: Vec<u64> = vec![
+            1_381_844_923_000,
+            1_381_844_923_500,
+            1_381_844_924_000,
+            1_381_844_924_500,
+            1_381_844_925_000,
+            1_381_844_925_500,
+        ];
+
+        for (i, time) in times.iter().enumerate() {
+            let mut new_time_tree = BTreeMap::new();
+            // gpubox 0.
+            new_time_tree.insert(0, (0, i));
+            // gpubox 1.
+            new_time_tree.insert(1, (0, i + 1));
+            gpubox_time_map.insert(*time, new_time_tree);
+        }
+
+        // Get a vector timesteps
+        let (timesteps, num_timesteps) = mwalibTimeStep::populate_timesteps(&gpubox_time_map).unwrap();
+
+        // Check
+        assert_eq!(timesteps.len(), num_timesteps);
+        assert_eq!(6, num_timesteps);
+        assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
+        assert_eq!(timesteps[5].unix_time_ms, 1_381_844_925_500);
+    }
+
+    #[test]
+    fn test_timestep_new() {
+        // This test is a bit of a waste right now but it will be useful once
+        // julian date and possibly UTC conversions are done in the new() method
+        let timestep = mwalibTimeStep { unix_time_ms: 1_234_567_890_123 };
+        let new_timestep = mwalibTimeStep::new(1_234_567_890_123);
+
+        assert_eq!(timestep.unix_time_ms, new_timestep.unix_time_ms);
     }
 }

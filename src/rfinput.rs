@@ -79,7 +79,7 @@ struct mwalibRFInputMetafitsTableRow {
     /// e.g. 0...N-1
     pub antenna: u32,
     /// Numeric part of tile_name for the antenna. Each pol has the same value
-    /// e.g. tile_name "tile011" hsa tile_id of 11
+    /// e.g. tile_name "tile011" has a tile_id of 11
     pub tile_id: u32,
     /// Human readable name of the antenna
     /// X and Y have the same name

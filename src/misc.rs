@@ -170,7 +170,7 @@ pub fn get_baseline_from_antenna_names(
     antenna1_tile_name: String,
     antenna2_tile_name: String,
     antennas: &[antenna::mwalibAntenna],
-) -> Option<usize> {
+) -> usize {
     let mut baseline_index = 0;
 
     let antenna1_index = antennas
@@ -185,14 +185,14 @@ pub fn get_baseline_from_antenna_names(
     for ant1 in 0..antennas.len() {
         for ant2 in ant1..antennas.len() {
             if ant1 == antenna1_index && ant2 == antenna2_index {
-                return Some(baseline_index);
+                return baseline_index;
             }
             baseline_index += 1;
         }
     }
 
     // Baseline was not found at all
-    None
+    unreachable!("Baseline was not found")
 }
 
 #[cfg(test)]
@@ -212,6 +212,7 @@ mod tests {
         assert_eq!(Some((0, 0)), get_antennas_from_baseline(0, 128));
         assert_eq!(Some((1, 1)), get_antennas_from_baseline(128, 128));
         assert_eq!(Some((127, 127)), get_antennas_from_baseline(8255, 128));
+        assert_eq!(None, get_antennas_from_baseline(8256, 128));
     }
 
     #[test]
@@ -219,6 +220,7 @@ mod tests {
         assert_eq!(Some(0), get_baseline_from_antennas(0, 0, 128));
         assert_eq!(Some(128), get_baseline_from_antennas(1, 1, 128));
         assert_eq!(Some(8255), get_baseline_from_antennas(127, 127, 128));
+        assert_eq!(None, get_baseline_from_antennas(128, 128, 128));
     }
 
     #[test]
@@ -230,7 +232,7 @@ mod tests {
         let dummy_rf_input_x = mwalibRFInput {input: 0, 
             antenna: 0, 
             tile_id: 0, 
-            tile_name: String::from("dummyX"), 
+            tile_name: String::from("dummy1"), 
             pol: String::from("X"), 
             electrical_length_m: 0., 
             north_m: 0., east_m: 0., 
@@ -242,7 +244,7 @@ mod tests {
         let dummy_rf_input_y = mwalibRFInput {input: 1, 
             antenna: 0, 
             tile_id: 1, 
-            tile_name: String::from("dummyY"), 
+            tile_name: String::from("dummy1"), 
             pol: String::from("Y"), 
             electrical_length_m: 0., 
             north_m: 0., east_m: 0., 
@@ -276,11 +278,11 @@ mod tests {
             tile_id: 108, tile_name: String::from("tile108"), x_pol: dummy_rf_input_x, y_pol: dummy_rf_input_y });
 
         // Now do some tests!
-        assert_eq!(Some(0), get_baseline_from_antenna_names(String::from("tile101"), String::from("tile101"), &ants), "Baseline from antenna names test 1 is wrong");
-        assert_eq!(Some(1), get_baseline_from_antenna_names(String::from("tile101"), String::from("tile102"), &ants), "Baseline from antenna names test 2 is wrong");
-        assert_eq!(Some(7), get_baseline_from_antenna_names(String::from("tile101"), String::from("tile108"), &ants), "Baseline from antenna names test 3 is wrong");
-        assert_eq!(Some(8), get_baseline_from_antenna_names(String::from("tile102"), String::from("tile102"), &ants), "Baseline from antenna names test 4 is wrong");
-        assert_eq!(Some(14), get_baseline_from_antenna_names(String::from("tile102"), String::from("tile108"), &ants), "Baseline from antenna names test 5 is wrong");
+        assert_eq!(0, get_baseline_from_antenna_names(String::from("tile101"), String::from("tile101"), &ants), "Baseline from antenna names test 1 is wrong");
+        assert_eq!(1, get_baseline_from_antenna_names(String::from("tile101"), String::from("tile102"), &ants), "Baseline from antenna names test 2 is wrong");
+        assert_eq!(7, get_baseline_from_antenna_names(String::from("tile101"), String::from("tile108"), &ants), "Baseline from antenna names test 3 is wrong");
+        assert_eq!(8, get_baseline_from_antenna_names(String::from("tile102"), String::from("tile102"), &ants), "Baseline from antenna names test 4 is wrong");
+        assert_eq!(14, get_baseline_from_antenna_names(String::from("tile102"), String::from("tile108"), &ants), "Baseline from antenna names test 5 is wrong");
     }
 
     #[test]
@@ -293,7 +295,7 @@ mod tests {
         let dummy_rf_input_x = mwalibRFInput {input: 0, 
             antenna: 0, 
             tile_id: 0, 
-            tile_name: String::from("dummyX"), 
+            tile_name: String::from("dummy1"), 
             pol: String::from("X"), 
             electrical_length_m: 0., 
             north_m: 0., east_m: 0., 
@@ -305,7 +307,7 @@ mod tests {
         let dummy_rf_input_y = mwalibRFInput {input: 1, 
             antenna: 0, 
             tile_id: 1, 
-            tile_name: String::from("dummyY"), 
+            tile_name: String::from("dummy1"), 
             pol: String::from("Y"), 
             electrical_length_m: 0., 
             north_m: 0., east_m: 0., 
@@ -321,7 +323,7 @@ mod tests {
             tile_id: 102, tile_name: String::from("tile102"), x_pol: dummy_rf_input_x, y_pol: dummy_rf_input_y });
 
         // Now do some tests!
-        let _panic_result = get_baseline_from_antenna_names(String::from("tile110"), String::from("tile102"), &ants).unwrap();
+        let _panic_result = get_baseline_from_antenna_names(String::from("tile110"), String::from("tile102"), &ants);
     }
 
     #[test]
@@ -334,7 +336,7 @@ mod tests {
         let dummy_rf_input_x = mwalibRFInput {input: 0, 
             antenna: 0, 
             tile_id: 0, 
-            tile_name: String::from("dummyX"), 
+            tile_name: String::from("dummy2"), 
             pol: String::from("X"), 
             electrical_length_m: 0., 
             north_m: 0., east_m: 0., 
@@ -346,7 +348,7 @@ mod tests {
         let dummy_rf_input_y = mwalibRFInput {input: 1, 
             antenna: 0, 
             tile_id: 1, 
-            tile_name: String::from("dummyY"), 
+            tile_name: String::from("dummy2"), 
             pol: String::from("Y"), 
             electrical_length_m: 0., 
             north_m: 0., east_m: 0., 
@@ -362,6 +364,6 @@ mod tests {
             tile_id: 102, tile_name: String::from("tile102"), x_pol: dummy_rf_input_x, y_pol: dummy_rf_input_y });
 
         // Now do some tests!
-        let _panic_result = get_baseline_from_antenna_names(String::from("tile101"), String::from("tile112"), &ants).unwrap();
+        let _panic_result = get_baseline_from_antenna_names(String::from("tile101"), String::from("tile112"), &ants);
     }
 }

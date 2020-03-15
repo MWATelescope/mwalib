@@ -91,6 +91,7 @@ fn set_error_message(in_message: &str, error_buffer_ptr: *mut u8, error_buffer_l
 /// # Safety
 /// * rust_cstring must not have already been freed and must point to a Rust string.
 #[no_mangle]
+#[cfg_attr(tarpaulin, skip)]
 pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) {
     // Don't do anything if the pointer is null.
     if rust_cstring.is_null() {
@@ -164,6 +165,7 @@ pub unsafe extern "C" fn mwalibContext_get(
 /// * context_ptr must point to a populated mwalibContext object from the mwalibContext_new function.
 /// * context_ptr must not have already been freed.
 #[no_mangle]
+#[cfg_attr(tarpaulin, skip)]
 pub unsafe extern "C" fn mwalibContext_free(context_ptr: *mut mwalibContext) {
     if context_ptr.is_null() {
         return;
@@ -320,6 +322,7 @@ pub unsafe extern "C" fn mwalibContext_read_by_baseline(
 /// * float_buffer_ptr must point to a populated float buffer from the mwalibContext_read_by_baseline function.
 /// * float_buffer_ptr must not have already been freed.
 #[no_mangle]
+#[cfg_attr(tarpaulin, skip)]
 pub unsafe extern "C" fn mwalibContext_free_read_buffer(
     float_buffer_ptr: *mut c_float,
     float_buffer_len: *const c_longlong,
@@ -444,6 +447,7 @@ pub unsafe extern "C" fn mwalibMetadata_get(
 /// * metadata_ptr must point to a populated mwalibMetadata object from the mwalibMetadata_new function.
 /// * metadata_ptr must not have already been freed.
 #[no_mangle]
+#[cfg_attr(tarpaulin, skip)]
 pub unsafe extern "C" fn mwalibMetadata_free(metadata_ptr: *mut mwalibMetadata) {
     if metadata_ptr.is_null() {
         return;
@@ -564,6 +568,7 @@ pub unsafe extern "C" fn mwalibRFInput_get(
 /// * rf_input_ptr must point to a populated mwalibRFInput object from the mwalibRFInput_new function.
 /// * rf_input_ptr must not have already been freed.
 #[no_mangle]
+#[cfg_attr(tarpaulin, skip)]
 pub unsafe extern "C" fn mwalibRFInput_free(rf_input_ptr: *mut mwalibRFInput) {
     if rf_input_ptr.is_null() {
         return;
@@ -672,6 +677,7 @@ pub unsafe extern "C" fn mwalibCoarseChannel_get(
 /// * coarse_channel_ptr must point to a populated mwalibCoarseChannel object from the mwalibCoarseChannel_new function.
 /// * coarse_channel_ptr must not have already been freed.
 #[no_mangle]
+#[cfg_attr(tarpaulin, skip)]
 pub unsafe extern "C" fn mwalibCoarseChannel_free(coarse_channel_ptr: *mut mwalibCoarseChannel) {
     if coarse_channel_ptr.is_null() {
         return;
@@ -769,6 +775,7 @@ pub unsafe extern "C" fn mwalibAntenna_get(
 /// * antenna_ptr must point to a populated mwalibAntenna object from the mwalibAntenna_new function.
 /// * antenna_ptr must not have already been freed.
 #[no_mangle]
+#[cfg_attr(tarpaulin, skip)]
 pub unsafe extern "C" fn mwalibAntenna_free(antenna_ptr: *mut mwalibAntenna) {
     if antenna_ptr.is_null() {
         return;
@@ -867,9 +874,473 @@ pub unsafe extern "C" fn mwalibTimeStep_get(
 /// * timestep_ptr must point to a populated mwalibTimeStep object from the mwalibTimeStep_new function.
 /// * timestep_ptr must not have already been freed.
 #[no_mangle]
+#[cfg_attr(tarpaulin, skip)]
 pub unsafe extern "C" fn mwalibTimeStep_free(timestep_ptr: *mut mwalibTimeStep) {
     if timestep_ptr.is_null() {
         return;
     }
     drop(Box::from_raw(timestep_ptr));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_set_error_message() {
+        let buffer = CString::new("HELLO WORLD").unwrap();
+        let buffer_ptr = buffer.as_ptr() as *mut u8;
+        
+        set_error_message("hello world", buffer_ptr, 12);
+
+        assert_eq!(buffer, CString::new("hello world").unwrap());
+    }
+
+    // Metadata
+    #[test]
+    fn test_mwalibmetadata_get_valid() {
+        // This tests for a valid context and metadata returned
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file = CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits").unwrap();
+        let mut gpubox_files: Vec<* const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as * mut * const c_char;
+        
+        unsafe {
+            let context = mwalibContext_get(metafits_file_ptr,
+                                            gpubox_files_ptr,
+                                            1,
+                                            error_message_ptr,
+                                            60);
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert_eq!(context_ptr.is_some(), true);
+
+            let md = Box::from_raw(mwalibMetadata_get(context, error_message_ptr, error_len));
+
+            // We should get a valid timestep and no error message
+            assert_eq!(md.obsid, 1_101_503_312);
+
+            let expected_error: &str = &"mwalibMetadata_get() ERROR:";
+            assert_ne!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    #[test]
+    fn test_mwalibmetadata_get_null_context() {
+        // This tests for a null context
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+        
+        unsafe {            
+            let md = Box::from_raw(mwalibMetadata_get(std::ptr::null_mut(), error_message_ptr, error_len));
+            let md_ptr = Box::into_raw(md);
+
+            // We should get a null pointer and an error message
+            assert_eq!(md_ptr.is_null(), true);
+            let expected_error: &str = &"mwalibMetadata_get() ERROR:";
+            assert_eq!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    // RF Input
+    #[test]
+    fn test_mwalibrfinput_get_valid() {
+        // This tests for a valid context with a valid timestmwalibRFInputep
+        let rf_index = 2;  // valid  should be Tile012(X)
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file = CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits").unwrap();
+        let mut gpubox_files: Vec<* const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as * mut * const c_char;
+        
+        unsafe {
+            let context = mwalibContext_get(metafits_file_ptr,
+                                            gpubox_files_ptr,
+                                            1,
+                                            error_message_ptr,
+                                            60);
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert_eq!(context_ptr.is_some(), true);
+
+            let rf = Box::from_raw(mwalibRFInput_get(context, rf_index, error_message_ptr, error_len));
+
+            // We should get a valid timestep and no error message
+            assert_eq!(rf.antenna, 1);
+
+            assert_eq!(CString::from_raw(rf.tile_name),  CString::new("Tile012").unwrap());
+
+            assert_eq!(CString::from_raw(rf.pol), CString::new("X").unwrap());
+
+            let expected_error: &str = &"mwalibRFInput_get() ERROR:";
+            assert_ne!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    #[test]
+    fn test_mwalibrfinput_get_invalid() {
+        // This tests for a valid context with an invalid mwalibRFInput (out of bounds)
+        let rf_index = 300;  // invalid
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file = CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits").unwrap();
+        let mut gpubox_files: Vec<* const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as *mut * const c_char;
+        
+        unsafe {
+            let context = mwalibContext_get(metafits_file_ptr,
+                                            gpubox_files_ptr,
+                                            1,
+                                            error_message_ptr,
+                                            60);
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert_eq!(context_ptr.is_some(), true);
+
+            let rf = Box::from_raw(mwalibRFInput_get(context, rf_index, error_message_ptr, error_len));
+            let rf_ptr = Box::into_raw(rf);
+
+            // We should get a null pointer and an error message
+            assert_eq!(rf_ptr.is_null(), true);
+            let expected_error: &str = &"mwalibRFInput_get() ERROR:";
+            assert_eq!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    #[test]
+    fn test_mwalibrfinput_get_null_context() {
+        // This tests for a null context with an valid mwalibRFInput
+        let rf_index = 100;  // valid
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+        
+        unsafe {            
+            let rf = Box::from_raw(mwalibRFInput_get(std::ptr::null_mut(), rf_index, error_message_ptr, error_len));
+            let rf_ptr = Box::into_raw(rf);
+
+            // We should get a null pointer and an error message
+            assert_eq!(rf_ptr.is_null(), true);
+            let expected_error: &str = &"mwalibRFInput_get() ERROR:";
+            assert_eq!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    // Coarse Channel
+    #[test]
+    fn test_mwalibcoarsechannel_get_valid() {
+        // This tests for a valid context with a valid mwalibCoarseChannel
+        let channel_index = 0;  // valid
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file = CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits").unwrap();
+        let mut gpubox_files: Vec<* const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as * mut * const c_char;
+        
+        unsafe {
+            let context = mwalibContext_get(metafits_file_ptr,
+                                            gpubox_files_ptr,
+                                            1,
+                                            error_message_ptr,
+                                            60);
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert_eq!(context_ptr.is_some(), true);
+
+            let ch = Box::from_raw(mwalibCoarseChannel_get(context, channel_index, error_message_ptr, error_len));
+
+            // We should get a valid timestep and no error message
+            assert_eq!(ch.receiver_channel_number, 109);
+
+            let expected_error: &str = &"mwalibCoarseChannel_get() ERROR:";
+            assert_ne!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    #[test]
+    fn test_mwalibcoarsechannel_get_invalid() {
+        // This tests for a valid context with an invalid mwalibCoarseChannel (out of bounds)
+        let chan_index = 100;  // invalid
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file = CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits").unwrap();
+        let mut gpubox_files: Vec<* const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as * mut * const c_char;
+        
+        unsafe {
+            let context = mwalibContext_get(metafits_file_ptr,
+                                            gpubox_files_ptr,
+                                            1,
+                                            error_message_ptr,
+                                            60);
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert_eq!(context_ptr.is_some(), true);
+
+            let ch = Box::from_raw(mwalibCoarseChannel_get(context, chan_index, error_message_ptr, error_len));
+            let ch_ptr = Box::into_raw(ch);
+
+            // We should get a null pointer and an error message
+            assert_eq!(ch_ptr.is_null(), true);
+            let expected_error: &str = &"mwalibCoarseChannel_get() ERROR:";
+            assert_eq!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    #[test]
+    fn test_mwalibcoarsechannel_get_null_context() {
+        // This tests for a null context with a valid mwalibCoarseChannel
+        let timestep_index = 0;  // valid
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+        
+        unsafe {            
+            let ch = Box::from_raw(mwalibCoarseChannel_get(std::ptr::null_mut(), timestep_index, error_message_ptr, error_len));
+            let ch_ptr = Box::into_raw(ch);
+
+            // We should get a null pointer and an error message
+            assert_eq!(ch_ptr.is_null(), true);
+            let expected_error: &str = &"mwalibCoarseChannel_get() ERROR:";
+            assert_eq!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    // Antenna
+    #[test]
+    fn test_mwalibantenna_get_valid() {
+        // This tests for a valid context with a valid mwalibAntenna
+        let ant_index = 2;  // valid- should be Tile013
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file = CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits").unwrap();
+        let mut gpubox_files: Vec<* const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as * mut * const c_char;
+        
+        unsafe {
+            let context = mwalibContext_get(metafits_file_ptr,
+                                            gpubox_files_ptr,
+                                            1,
+                                            error_message_ptr,
+                                            60);
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert_eq!(context_ptr.is_some(), true);
+
+            let ant = Box::from_raw(mwalibAntenna_get(context, ant_index, error_message_ptr, error_len));
+
+            // We should get a valid timestep and no error message
+            assert_eq!(ant.tile_id,  13);
+
+            let expected_error: &str = &"mwalibAntenna_get() ERROR:";
+            assert_ne!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    #[test]
+    fn test_mwalibantenna_get_invalid() {
+        // This tests for a valid context with an invalid mwalibAntenna (out of bounds)
+        let ant_index = 300;  // invalid
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file = CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits").unwrap();
+        let mut gpubox_files: Vec<* const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as * mut * const c_char;
+        
+        unsafe {
+            let context = mwalibContext_get(metafits_file_ptr,
+                                            gpubox_files_ptr,
+                                            1,
+                                            error_message_ptr,
+                                            60);
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert_eq!(context_ptr.is_some(), true);
+
+            let ant = Box::from_raw(mwalibAntenna_get(context, ant_index, error_message_ptr, error_len));
+            let ant_ptr = Box::into_raw(ant);
+
+            // We should get a null pointer and an error message
+            assert_eq!(ant_ptr.is_null(), true);
+            let expected_error: &str = &"mwalibAntenna_get() ERROR:";
+            assert_eq!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    #[test]
+    fn test_mwalibantenna_get_null_context() {
+        // This tests for a null context with an valid mwalibAntenna 
+        let ant_index = 2;  // valid
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+        
+        unsafe {            
+            let ant = Box::from_raw(mwalibAntenna_get(std::ptr::null_mut(), ant_index, error_message_ptr, error_len));
+            let ant_ptr = Box::into_raw(ant);
+
+            // We should get a null pointer and an error message
+            assert_eq!(ant_ptr.is_null(), true);
+            let expected_error: &str = &"mwalibAntenna_get() ERROR:";
+            assert_eq!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    // timestep
+    #[test]
+    fn test_mwalibtimestep_get_valid() {
+        // This tests for a valid context with a valid timestep
+        let timestep_index = 0;  // valid
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file = CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits").unwrap();
+        let mut gpubox_files: Vec<* const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as * mut * const c_char;
+        
+        unsafe {
+            let context = mwalibContext_get(metafits_file_ptr,
+                                            gpubox_files_ptr,
+                                            1,
+                                            error_message_ptr,
+                                            60);
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert_eq!(context_ptr.is_some(), true);
+
+            let ts = Box::from_raw(mwalibTimeStep_get(context, timestep_index, error_message_ptr, error_len));
+
+            // We should get a valid timestep and no error message
+            assert_eq!(ts.unix_time_ms, 1_417_468_096_000);
+
+            let expected_error: &str = &"mwalibTimeStep_get() ERROR:";
+            assert_ne!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    #[test]
+    fn test_mwalibtimestep_get_invalid() {
+        // This tests for a valid context with an invalid timestep (out of bounds)
+        let timestep_index = 100;  // invalid
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file = CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits").unwrap();
+        let mut gpubox_files: Vec<* const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as * mut * const c_char;
+        
+        unsafe {
+            let context = mwalibContext_get(metafits_file_ptr,
+                                            gpubox_files_ptr,
+                                            1,
+                                            error_message_ptr,
+                                            60);
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert_eq!(context_ptr.is_some(), true);
+
+            let ts = Box::from_raw(mwalibTimeStep_get(context, timestep_index, error_message_ptr, error_len));
+            let ts_ptr = Box::into_raw(ts);
+
+            // We should get a null pointer and an error message
+            assert_eq!(ts_ptr.is_null(), true);
+            let expected_error: &str = &"mwalibTimeStep_get() ERROR:";
+            assert_eq!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
+
+    #[test]
+    fn test_mwalibtimestep_get_null_context() {
+        // This tests for a null context with an valid timestep
+        let timestep_index = 0;  // valid
+
+        let error_message = CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+        
+        unsafe {            
+            let ts = Box::from_raw(mwalibTimeStep_get(std::ptr::null_mut(), timestep_index, error_message_ptr, error_len));
+            let ts_ptr = Box::into_raw(ts);
+
+            // We should get a null pointer and an error message
+            assert_eq!(ts_ptr.is_null(), true);
+            let expected_error: &str = &"mwalibTimeStep_get() ERROR:";
+            assert_eq!(error_message.into_string().unwrap()[0..expected_error.len()], *expected_error);
+        }
+    }
 }
