@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 /// Given an observation's data, verify that `mwalib` is functioning correctly
 /// by printing the sum of the visibilities belonging to the first fine channel
 /// from each baseline.
@@ -22,7 +26,7 @@ struct Opt {
 }
 
 #[cfg_attr(tarpaulin, skip)]
-#[allow(clippy::needless_range_loop)]  // Ignoring this, as it is a false positive
+#[allow(clippy::needless_range_loop)] // Ignoring this, as it is a false positive
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
 

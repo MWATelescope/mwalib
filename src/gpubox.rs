@@ -30,11 +30,10 @@ pub struct GPUBoxBatch {
 }
 
 impl GPUBoxBatch {
-    pub fn new(batch_number: usize) -> GPUBoxBatch {
-        let gpubox_files = Vec::new();
-        GPUBoxBatch {
+    pub fn new(batch_number: usize) -> Self {
+        Self {
             batch_number,
-            gpubox_files,
+            gpubox_files: vec![],
         }
     }
 }
@@ -58,8 +57,8 @@ pub struct GPUBoxFile {
 }
 
 impl GPUBoxFile {
-    pub fn new(filename: String, channel_identifier: usize) -> GPUBoxFile {
-        GPUBoxFile {
+    pub fn new(filename: String, channel_identifier: usize) -> Self {
+        Self {
             filename,
             channel_identifier,
             fptr: None,
@@ -286,8 +285,8 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
 /// # Arguments
 ///
 /// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
-/// 
-/// * `metafits_hdu_fptr` - A reference to the primary HDU in the metafits file 
+///
+/// * `metafits_hdu_fptr` - A reference to the primary HDU in the metafits file
 ///                         where we read keyword/value pairs.
 ///
 ///
@@ -296,7 +295,10 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
 /// * A Result containing the full start unix time (in milliseconds) or an error.
 ///
 ///
-pub fn determine_hdu_time(gpubox_fptr: &mut FitsFile, metafits_hdu_fptr: &FitsHdu) -> Result<u64, ErrorKind> {
+pub fn determine_hdu_time(
+    gpubox_fptr: &mut FitsFile,
+    metafits_hdu_fptr: &FitsHdu,
+) -> Result<u64, fitsio::errors::Error> {
     let start_unix_time: i64 = metafits_hdu_fptr.read_key(gpubox_fptr, "TIME")?;
     let start_unix_millitime: i64 = metafits_hdu_fptr.read_key(gpubox_fptr, "MILLITIM")?;
     Ok((start_unix_time * 1000 + start_unix_millitime) as u64)
@@ -309,7 +311,7 @@ pub fn determine_hdu_time(gpubox_fptr: &mut FitsFile, metafits_hdu_fptr: &FitsHd
 /// # Arguments
 ///
 /// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
-/// 
+///
 /// * `correlator_version` - enum telling us which correlator version the observation was created by.
 ///
 ///
@@ -321,7 +323,7 @@ pub fn determine_hdu_time(gpubox_fptr: &mut FitsFile, metafits_hdu_fptr: &FitsHd
 pub fn map_unix_times_to_hdus(
     gpubox_fptr: &mut FitsFile,
     correlator_version: CorrelatorVersion,
-) -> Result<BTreeMap<u64, usize>, ErrorKind> {
+) -> Result<BTreeMap<u64, usize>, fitsio::errors::Error> {
     let mut map = BTreeMap::new();
     let last_hdu_index = gpubox_fptr.iter().count();
     // The new correlator has a "weights" HDU in each alternating HDU. Skip
@@ -343,13 +345,13 @@ pub fn map_unix_times_to_hdus(
 }
 
 /// Returns a BTree structure consisting of:
-/// BTree of timesteps. Each timestep is a BTree for a course channel. 
+/// BTree of timesteps. Each timestep is a BTree for a course channel.
 /// Each coarse channel then contains the batch number and hdu index.
 ///
 /// # Arguments
 ///
 /// * `gpubox_batches` - vector of structs describing each gpubox "batch"
-/// 
+///
 /// * `correlator_version` - enum telling us which correlator version the observation was created by.
 ///
 ///
@@ -361,13 +363,7 @@ pub fn map_unix_times_to_hdus(
 pub fn create_time_map(
     gpubox_batches: &mut Vec<GPUBoxBatch>,
     correlator_version: CorrelatorVersion,
-) -> Result<
-    (
-        BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
-        usize,
-    ),
-    ErrorKind,
-> {
+) -> Result<(BTreeMap<u64, BTreeMap<usize, (usize, usize)>>, usize), ErrorKind> {
     // Open all the files.
     //let mut gpubox_fptrs = Vec::with_capacity(gpubox_batches.len());
     let mut gpubox_time_map = BTreeMap::new();
@@ -520,7 +516,7 @@ pub fn determine_obs_times(
     Ok(ObsTimes {
         start_millisec: proper_start_millisec,
         end_millisec: proper_end_millisec,
-        duration_millisec: proper_end_millisec - proper_start_millisec
+        duration_millisec: proper_end_millisec - proper_start_millisec,
     })
 }
 

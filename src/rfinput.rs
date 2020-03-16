@@ -249,15 +249,12 @@ impl mwalibRFInput {
         metafits_fptr: &mut fitsio::FitsFile,
         metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
         coax_v_factor: f64,
-    ) -> Result<Vec<mwalibRFInput>, ErrorKind> {
-        let mut rf_inputs: Vec<mwalibRFInput> = Vec::with_capacity(num_inputs);
+    ) -> Result<Vec<Self>, ErrorKind> {
+        let mut rf_inputs: Vec<Self> = Vec::with_capacity(num_inputs);
         for input in 0..num_inputs {
             // Note fits row numbers start at 1
-            let metafits_row = mwalibRFInput::read_metafits_values(
-                metafits_fptr,
-                &metafits_tile_table_hdu,
-                input,
-            )?;
+            let metafits_row =
+                Self::read_metafits_values(metafits_fptr, &metafits_tile_table_hdu, input)?;
 
             // The metafits TILEDATA table contains 2 rows for each antenna.
             // Some metafits will have
@@ -270,7 +267,7 @@ impl mwalibRFInput {
             let vcs_order = get_vcs_order(metafits_row.input);
             let subfile_order = get_mwax_order(metafits_row.antenna, metafits_row.pol.to_string());
 
-            rf_inputs.push(mwalibRFInput {
+            rf_inputs.push(Self {
                 input: metafits_row.input,
                 antenna: metafits_row.antenna,
                 tile_id: metafits_row.tile_id,
@@ -313,7 +310,6 @@ mod tests {
     use super::*;
     use fitsio::tables::{ColumnDataType, ColumnDescription};
     use fitsio::*;
-    extern crate float_cmp;
 
     #[test]
     fn test_get_vcs_order() {

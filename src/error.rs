@@ -49,8 +49,7 @@ impl From<fitsio::errors::Error> for ErrorKind {
     }
 }
 
-impl Error for ErrorKind {  
-}
+impl Error for ErrorKind {}
 
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

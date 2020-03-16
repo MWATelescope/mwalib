@@ -10,7 +10,6 @@ Major contributor: Brian Crosse (Curtin Institute for Radio Astronomy)
 */
 use crate::misc::*;
 use crate::rfinput::*;
-use crate::*;
 use std::fmt;
 
 /// This "macro" flips the bits in an 8 bit number such that bit order abcdefgh becomes abghcdef
@@ -51,7 +50,7 @@ pub struct mwalibLegacyConversionBaseline {
 impl mwalibLegacyConversionBaseline {
     /// Create a new populated mwalibLegacyConversionBaseline which represents the conversion table
     /// to work out where in the input data we should pull data from, for the given baseline/ant1/ant2.
-    /// 
+    ///
     ///
     /// # Arguments
     ///
@@ -61,34 +60,29 @@ impl mwalibLegacyConversionBaseline {
     /// # Returns
     ///
     /// * Returns a Result containing a populated mwalibLegacyConversionBaseline if Ok.
-    /// 
-    #[allow(clippy::too_many_arguments)]
+    ///
     pub fn new(
         baseline: usize,
         ant1: usize,
         ant2: usize,
-        xx_index: usize,
-        xx_conjugate: bool,
-        xy_index: usize,
-        xy_conjugate: bool,
-        yx_index: usize,
-        yx_conjugate: bool,
-        yy_index: usize,
-        yy_conjugate: bool,
-    ) -> Result<mwalibLegacyConversionBaseline, ErrorKind> {
-        Ok(mwalibLegacyConversionBaseline {
+        xx: i32,
+        xy: i32,
+        yx: i32,
+        yy: i32,
+    ) -> Self {
+        Self {
             baseline,
             ant1,
             ant2,
-            xx_index,
-            xx_conjugate,
-            xy_index,
-            xy_conjugate,
-            yx_index,
-            yx_conjugate,
-            yy_index,
-            yy_conjugate,
-        })
+            xx_index: xx.abs() as usize,
+            xx_conjugate: xx < 0,
+            xy_index: xy.abs() as usize,
+            xy_conjugate: xy < 0,
+            yx_index: yx.abs() as usize,
+            yx_conjugate: yx < 0,
+            yy_index: yy.abs() as usize,
+            yy_conjugate: yy < 0,
+        }
     }
 }
 
@@ -121,9 +115,9 @@ impl fmt::Debug for mwalibLegacyConversionBaseline {
     }
 }
 
-/// Generates a full matrix mapping pfb inputs to MWAX format. Used to generate conversion table 
+/// Generates a full matrix mapping pfb inputs to MWAX format. Used to generate conversion table
 /// which is vector of `mwalibLegacyConversionBaseline` structs.
-/// 
+///
 ///
 /// # Arguments
 ///
@@ -135,7 +129,7 @@ impl fmt::Debug for mwalibLegacyConversionBaseline {
 /// * A Vector with one element per rf_input vs rf_input (256x256). Positive numbers represent the index of the
 /// input HDU to get data from, negative numbers mean to take the complex conjugate of the data at the index of
 /// the input HDU.
-/// 
+///
 fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
     let mut row1st: usize;
     let mut row2nd: usize;
@@ -195,7 +189,7 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
 }
 
 /// This takes the rf_inputs from the metafis and generates the conversion array for use when we convert legacy HDUs.
-/// 
+///
 /// # Arguments
 ///
 /// * `rf_inputs` - A vector containing all of the `mwalibRFInput`s from the metafits.
@@ -204,8 +198,8 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
 /// # Returns
 ///
 /// * A Vector of `mwalibLegacyConversionBaseline`s which tell us, for a specific output baseline, where in the input HDU
-/// to get data from (and whether it needs to be conjugated). 
-/// 
+/// to get data from (and whether it needs to be conjugated).
+///
 pub fn generate_conversion_array(
     rf_inputs: &mut Vec<mwalibRFInput>,
 ) -> Vec<mwalibLegacyConversionBaseline> {
@@ -231,7 +225,7 @@ pub fn generate_conversion_array(
     let mut baseline: usize = 0;
 
     // Create an output vector so we can lookup where to get data from the legacy HDU, given a baseline/ant1/ant2
-    let baseline_count = get_baseline_count(128);    
+    let baseline_count = get_baseline_count(128);
 
     let mut conversion_table: Vec<mwalibLegacyConversionBaseline> =
         Vec::with_capacity(baseline_count as usize);
@@ -247,46 +241,9 @@ pub fn generate_conversion_array(
             yx = full_matrix[(row_tile * 2 + 1) << 8 | (col_tile * 2)] * 2;
             yy = full_matrix[(row_tile * 2 + 1) << 8 | (col_tile * 2 + 1)] * 2;
 
-            conversion_table.push(
-                mwalibLegacyConversionBaseline::new(
-                    baseline,
-                    row_tile,
-                    col_tile,
-                    {
-                        if xx < 0 {
-                            -xx
-                        } else {
-                            xx
-                        }
-                    } as usize,
-                    xx < 0,
-                    {
-                        if xy < 0 {
-                            -xy
-                        } else {
-                            xy
-                        }
-                    } as usize,
-                    xy < 0,
-                    {
-                        if yx < 0 {
-                            -yx
-                        } else {
-                            yx
-                        }
-                    } as usize,
-                    yx < 0,
-                    {
-                        if yy < 0 {
-                            -yy
-                        } else {
-                            yy
-                        }
-                    } as usize,
-                    yy < 0,
-                )
-                .unwrap(),
-            );
+            conversion_table.push(mwalibLegacyConversionBaseline::new(
+                baseline, row_tile, col_tile, xx, xy, yx, yy,
+            ));
 
             /* Handy debug to print out the output lookup for each baseline/pol
             println!(
@@ -312,16 +269,16 @@ pub fn generate_conversion_array(
 /// * `conversion_table` - A vector containing all of the `mwalibLegacyConversionBaseline`s we have pre-calculated.
 ///
 /// * `input_buffer` - Float vector read from legacy MWA HDUs.
-/// 
+///
 /// * `output_buffer` - Float vector to write converted data into.
-/// 
+///
 /// * `num_fine_channels` - Number of file channles in this observation.
-/// 
+///
 ///
 /// # Returns
 ///
 /// * Nothing
-/// 
+///
 /// # TODO
 /// Better error handling by returning a Result with associated Errors. Right now it just panics.
 ///
@@ -409,10 +366,9 @@ pub fn convert_legacy_hdu(
 #[cfg(test)]
 mod tests {
     use super::*;
-    extern crate csv;
-    extern crate float_cmp;
-    extern crate serde;
-    use std::error;
+    use crate::{misc, mwalibContext};
+    use csv::*;
+    use float_cmp::*;
 
     #[test]
     fn test_fine_pfb_reorder() {
@@ -439,7 +395,7 @@ mod tests {
     }
 
     #[test]
-    fn test_full_matrix() -> Result<(), Box<dyn error::Error>> {
+    fn test_full_matrix() {
         // Use this as the input of mwax_orders, sorted by input (from metafits)
         // This was derived from an example metafits: test_files/1101503312.metafits
         // by sorting by "Input" and then using get_mwax_order(antenna, pol)
@@ -478,12 +434,13 @@ mod tests {
         //
         // Build the CSV reader and iterate over each record.
         // The csv file contains 256 rows each containing 256 columns of signed integers
-        let mut reader = csv::ReaderBuilder::new()
+        let mut reader = ReaderBuilder::new()
             .has_headers(false)
-            .from_path("test_files/1101503312_1_timestep/1101503312_full_matrix.csv")?;
+            .from_path("test_files/1101503312_1_timestep/1101503312_full_matrix.csv")
+            .unwrap();
         for (row_index, result) in reader.deserialize().enumerate() {
             // An error may occur, so abort the program in an unfriendly way.
-            let record: Vec<i32> = result?;
+            let record: Vec<i32> = result.expect("Failed to deserialize CSV");
 
             assert_eq!(record.len(), 256);
             assert!(row_index < 256, "row_index is out of bounds {}", row_index);
@@ -514,21 +471,20 @@ mod tests {
                 );
             }
         }
-
-        Ok(())
     }
 
     #[test]
-    fn test_conversion_of_legacy_hdu() -> Result<(), Box<dyn error::Error>> {
+    fn test_conversion_of_legacy_hdu() {
         // Open a context and load in a test metafits and gpubox file
         let metafits: String = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
         let gpuboxfiles: Vec<String> = vec![String::from(
             "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
         )];
-        let mut context = mwalibContext::new(&metafits, &gpuboxfiles)?;
+        let mut context =
+            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
 
         // Read and convert first HDU
-        let mwalib_hdu: Vec<f32> = context.read_by_baseline(0, 0)?;
+        let mwalib_hdu: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
 
         // Check it
         // Vector is in:
@@ -537,7 +493,9 @@ mod tests {
         assert_eq!(
             mwalib_hdu.len(),
             8256 * 128 * 8,
-            "mwalib HDU vector length is wrong {}. Should be {}",mwalib_hdu.len(), 8256 * 128 * 8 
+            "mwalib HDU vector length is wrong {}. Should be {}",
+            mwalib_hdu.len(),
+            8256 * 128 * 8
         );
 
         //
@@ -548,9 +506,12 @@ mod tests {
         // each containing each containing 8 floats:
         // XX real, XX imag, XY real, XY imag, YX real, YX imag, YY real, YY imag
         //
-        let mut reader = csv::ReaderBuilder::new()
+        let mut reader = ReaderBuilder::new()
             .has_headers(false)
-            .from_path("test_files/1101503312_1_timestep/1101503312_gpubox01_pyuvdata_1st_timestep.csv")?;
+            .from_path(
+                "test_files/1101503312_1_timestep/1101503312_gpubox01_pyuvdata_1st_timestep.csv",
+            )
+            .expect("Failed to read CSV");
 
         let mut baseline = 0;
         let mut fine_chan = 0;
@@ -568,7 +529,7 @@ mod tests {
                 }
                 None => panic!("baseline {} is not valid!", baseline),
             }
-            let record: Vec<f32> = result?;
+            let record: Vec<f32> = result.expect("Failed to deserialize CSV");
             assert!(
                 row_index < 1_056_768,
                 "row_index is out of bounds {}",
@@ -598,25 +559,10 @@ mod tests {
                     5 => "yx_i",
                     6 => "yy_r",
                     7 => "yy_i",
-                    _ => "?"
-                };                
+                    _ => "?",
+                };
 
-                assert!(float_cmp::approx_eq!(
-                        f64,
-                        mwalib_value,
-                        pyuvdata_value,
-                        float_cmp::F64Margin::default()
-                    ),                    
-                    "baseline: {} ant1: {} v ant2: {} fine_chan: {} pol: {} mwalib_value: {} != pyuvdata_value: {} difference: {}",
-                    baseline,
-                    ant1,
-                    ant2,
-                    fine_chan,
-                    pol,
-                    mwalib_value,
-                    pyuvdata_value,
-                    mwalib_value - pyuvdata_value
-                );
+                assert!(approx_eq!(f64, mwalib_value, pyuvdata_value, F64Margin::default()), "baseline: {} ant1: {} v ant2: {} fine_chan: {} pol: {} mwalib_value: {} != pyuvdata_value: {} difference: {}", baseline, ant1, ant2, fine_chan, pol, mwalib_value, pyuvdata_value, mwalib_value - pyuvdata_value);
             }
 
             if fine_chan < 127 {
@@ -624,11 +570,11 @@ mod tests {
             } else {
                 // We are at the end of a baseline
                 // Get value from mwa_lib
-                let good: u8 = if float_cmp::approx_eq!(
+                let good: u8 = if approx_eq!(
                     f64,
                     mwalib_sum_of_baseline,
                     pyuvdata_sum_of_baseline,
-                    float_cmp::F64Margin::default()
+                    F64Margin::default()
                 ) {
                     // match
                     1
@@ -664,7 +610,5 @@ mod tests {
                 }
             }
         }
-
-        Ok(())
     }
 }

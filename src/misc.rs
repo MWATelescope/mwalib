@@ -5,7 +5,7 @@
 /*!
 General helper/utility methods
 */
-extern crate tempdir;
+
 use crate::antenna;
 use fitsio::FitsFile;
 
@@ -229,60 +229,146 @@ mod tests {
         let mut ants: Vec<mwalibAntenna> = Vec::new();
 
         // We need a dummy rf inputs
-        let dummy_rf_input_x = mwalibRFInput {input: 0, 
-            antenna: 0, 
-            tile_id: 0, 
-            tile_name: String::from("dummy1"), 
-            pol: String::from("X"), 
-            electrical_length_m: 0., 
-            north_m: 0., east_m: 0., 
-            height_m: 0., 
-            vcs_order: 0, 
-            subfile_order: 0, 
-            flagged: false };
-        
-        let dummy_rf_input_y = mwalibRFInput {input: 1, 
-            antenna: 0, 
-            tile_id: 1, 
-            tile_name: String::from("dummy1"), 
-            pol: String::from("Y"), 
-            electrical_length_m: 0., 
-            north_m: 0., east_m: 0., 
-            height_m: 0., 
-            vcs_order: 0, 
-            subfile_order: 1, 
-            flagged: false };
+        let dummy_rf_input_x = mwalibRFInput {
+            input: 0,
+            antenna: 0,
+            tile_id: 0,
+            tile_name: String::from("dummy1"),
+            pol: String::from("X"),
+            electrical_length_m: 0.,
+            north_m: 0.,
+            east_m: 0.,
+            height_m: 0.,
+            vcs_order: 0,
+            subfile_order: 0,
+            flagged: false,
+        };
 
-        ants.push(mwalibAntenna {antenna: 101,
-            tile_id: 101, tile_name: String::from("tile101"), x_pol: dummy_rf_input_x.clone(), y_pol: dummy_rf_input_y.clone() });
-        
-        ants.push(mwalibAntenna {antenna: 102,
-            tile_id: 102, tile_name: String::from("tile102"), x_pol: dummy_rf_input_x.clone(), y_pol: dummy_rf_input_y.clone() });
+        let dummy_rf_input_y = mwalibRFInput {
+            input: 1,
+            antenna: 0,
+            tile_id: 1,
+            tile_name: String::from("dummy1"),
+            pol: String::from("Y"),
+            electrical_length_m: 0.,
+            north_m: 0.,
+            east_m: 0.,
+            height_m: 0.,
+            vcs_order: 0,
+            subfile_order: 1,
+            flagged: false,
+        };
 
-        ants.push(mwalibAntenna {antenna: 103,
-            tile_id: 103, tile_name: String::from("tile103"), x_pol: dummy_rf_input_x.clone(), y_pol: dummy_rf_input_y.clone() });
-        
-        ants.push(mwalibAntenna {antenna: 104,
-            tile_id: 104, tile_name: String::from("tile104"), x_pol: dummy_rf_input_x.clone(), y_pol: dummy_rf_input_y.clone() });
+        ants.push(mwalibAntenna {
+            antenna: 101,
+            tile_id: 101,
+            tile_name: String::from("tile101"),
+            x_pol: dummy_rf_input_x.clone(),
+            y_pol: dummy_rf_input_y.clone(),
+        });
 
-        ants.push(mwalibAntenna {antenna: 105,
-            tile_id: 105, tile_name: String::from("tile105"), x_pol: dummy_rf_input_x.clone(), y_pol: dummy_rf_input_y.clone() });
-        
-        ants.push(mwalibAntenna {antenna: 106,
-            tile_id: 106, tile_name: String::from("tile106"), x_pol: dummy_rf_input_x.clone(), y_pol: dummy_rf_input_y.clone() });
-        
-        ants.push(mwalibAntenna {antenna: 107,
-            tile_id: 107, tile_name: String::from("tile107"), x_pol: dummy_rf_input_x.clone(), y_pol: dummy_rf_input_y.clone() });
-        
-        ants.push(mwalibAntenna {antenna: 108,
-            tile_id: 108, tile_name: String::from("tile108"), x_pol: dummy_rf_input_x, y_pol: dummy_rf_input_y });
+        ants.push(mwalibAntenna {
+            antenna: 102,
+            tile_id: 102,
+            tile_name: String::from("tile102"),
+            x_pol: dummy_rf_input_x.clone(),
+            y_pol: dummy_rf_input_y.clone(),
+        });
+
+        ants.push(mwalibAntenna {
+            antenna: 103,
+            tile_id: 103,
+            tile_name: String::from("tile103"),
+            x_pol: dummy_rf_input_x.clone(),
+            y_pol: dummy_rf_input_y.clone(),
+        });
+
+        ants.push(mwalibAntenna {
+            antenna: 104,
+            tile_id: 104,
+            tile_name: String::from("tile104"),
+            x_pol: dummy_rf_input_x.clone(),
+            y_pol: dummy_rf_input_y.clone(),
+        });
+
+        ants.push(mwalibAntenna {
+            antenna: 105,
+            tile_id: 105,
+            tile_name: String::from("tile105"),
+            x_pol: dummy_rf_input_x.clone(),
+            y_pol: dummy_rf_input_y.clone(),
+        });
+
+        ants.push(mwalibAntenna {
+            antenna: 106,
+            tile_id: 106,
+            tile_name: String::from("tile106"),
+            x_pol: dummy_rf_input_x.clone(),
+            y_pol: dummy_rf_input_y.clone(),
+        });
+
+        ants.push(mwalibAntenna {
+            antenna: 107,
+            tile_id: 107,
+            tile_name: String::from("tile107"),
+            x_pol: dummy_rf_input_x.clone(),
+            y_pol: dummy_rf_input_y.clone(),
+        });
+
+        ants.push(mwalibAntenna {
+            antenna: 108,
+            tile_id: 108,
+            tile_name: String::from("tile108"),
+            x_pol: dummy_rf_input_x,
+            y_pol: dummy_rf_input_y,
+        });
 
         // Now do some tests!
-        assert_eq!(0, get_baseline_from_antenna_names(String::from("tile101"), String::from("tile101"), &ants), "Baseline from antenna names test 1 is wrong");
-        assert_eq!(1, get_baseline_from_antenna_names(String::from("tile101"), String::from("tile102"), &ants), "Baseline from antenna names test 2 is wrong");
-        assert_eq!(7, get_baseline_from_antenna_names(String::from("tile101"), String::from("tile108"), &ants), "Baseline from antenna names test 3 is wrong");
-        assert_eq!(8, get_baseline_from_antenna_names(String::from("tile102"), String::from("tile102"), &ants), "Baseline from antenna names test 4 is wrong");
-        assert_eq!(14, get_baseline_from_antenna_names(String::from("tile102"), String::from("tile108"), &ants), "Baseline from antenna names test 5 is wrong");
+        assert_eq!(
+            0,
+            get_baseline_from_antenna_names(
+                String::from("tile101"),
+                String::from("tile101"),
+                &ants
+            ),
+            "Baseline from antenna names test 1 is wrong"
+        );
+        assert_eq!(
+            1,
+            get_baseline_from_antenna_names(
+                String::from("tile101"),
+                String::from("tile102"),
+                &ants
+            ),
+            "Baseline from antenna names test 2 is wrong"
+        );
+        assert_eq!(
+            7,
+            get_baseline_from_antenna_names(
+                String::from("tile101"),
+                String::from("tile108"),
+                &ants
+            ),
+            "Baseline from antenna names test 3 is wrong"
+        );
+        assert_eq!(
+            8,
+            get_baseline_from_antenna_names(
+                String::from("tile102"),
+                String::from("tile102"),
+                &ants
+            ),
+            "Baseline from antenna names test 4 is wrong"
+        );
+        assert_eq!(
+            14,
+            get_baseline_from_antenna_names(
+                String::from("tile102"),
+                String::from("tile108"),
+                &ants
+            ),
+            "Baseline from antenna names test 5 is wrong"
+        );
     }
 
     #[test]
@@ -292,38 +378,58 @@ mod tests {
         let mut ants: Vec<mwalibAntenna> = Vec::new();
 
         // We need a dummy rf inputs
-        let dummy_rf_input_x = mwalibRFInput {input: 0, 
-            antenna: 0, 
-            tile_id: 0, 
-            tile_name: String::from("dummy1"), 
-            pol: String::from("X"), 
-            electrical_length_m: 0., 
-            north_m: 0., east_m: 0., 
-            height_m: 0., 
-            vcs_order: 0, 
-            subfile_order: 0, 
-            flagged: false };
-        
-        let dummy_rf_input_y = mwalibRFInput {input: 1, 
-            antenna: 0, 
-            tile_id: 1, 
-            tile_name: String::from("dummy1"), 
-            pol: String::from("Y"), 
-            electrical_length_m: 0., 
-            north_m: 0., east_m: 0., 
-            height_m: 0., 
-            vcs_order: 0, 
-            subfile_order: 1, 
-            flagged: false };
+        let dummy_rf_input_x = mwalibRFInput {
+            input: 0,
+            antenna: 0,
+            tile_id: 0,
+            tile_name: String::from("dummy1"),
+            pol: String::from("X"),
+            electrical_length_m: 0.,
+            north_m: 0.,
+            east_m: 0.,
+            height_m: 0.,
+            vcs_order: 0,
+            subfile_order: 0,
+            flagged: false,
+        };
 
-        ants.push(mwalibAntenna {antenna: 101,
-            tile_id: 101, tile_name: String::from("tile101"), x_pol: dummy_rf_input_x.clone(), y_pol: dummy_rf_input_y.clone() });
-        
-        ants.push(mwalibAntenna {antenna: 102,
-            tile_id: 102, tile_name: String::from("tile102"), x_pol: dummy_rf_input_x, y_pol: dummy_rf_input_y });
+        let dummy_rf_input_y = mwalibRFInput {
+            input: 1,
+            antenna: 0,
+            tile_id: 1,
+            tile_name: String::from("dummy1"),
+            pol: String::from("Y"),
+            electrical_length_m: 0.,
+            north_m: 0.,
+            east_m: 0.,
+            height_m: 0.,
+            vcs_order: 0,
+            subfile_order: 1,
+            flagged: false,
+        };
+
+        ants.push(mwalibAntenna {
+            antenna: 101,
+            tile_id: 101,
+            tile_name: String::from("tile101"),
+            x_pol: dummy_rf_input_x.clone(),
+            y_pol: dummy_rf_input_y.clone(),
+        });
+
+        ants.push(mwalibAntenna {
+            antenna: 102,
+            tile_id: 102,
+            tile_name: String::from("tile102"),
+            x_pol: dummy_rf_input_x,
+            y_pol: dummy_rf_input_y,
+        });
 
         // Now do some tests!
-        let _panic_result = get_baseline_from_antenna_names(String::from("tile110"), String::from("tile102"), &ants);
+        let _panic_result = get_baseline_from_antenna_names(
+            String::from("tile110"),
+            String::from("tile102"),
+            &ants,
+        );
     }
 
     #[test]
@@ -333,37 +439,57 @@ mod tests {
         let mut ants: Vec<mwalibAntenna> = Vec::new();
 
         // We need a dummy rf inputs
-        let dummy_rf_input_x = mwalibRFInput {input: 0, 
-            antenna: 0, 
-            tile_id: 0, 
-            tile_name: String::from("dummy2"), 
-            pol: String::from("X"), 
-            electrical_length_m: 0., 
-            north_m: 0., east_m: 0., 
-            height_m: 0., 
-            vcs_order: 0, 
-            subfile_order: 0, 
-            flagged: false };
-        
-        let dummy_rf_input_y = mwalibRFInput {input: 1, 
-            antenna: 0, 
-            tile_id: 1, 
-            tile_name: String::from("dummy2"), 
-            pol: String::from("Y"), 
-            electrical_length_m: 0., 
-            north_m: 0., east_m: 0., 
-            height_m: 0., 
-            vcs_order: 0, 
-            subfile_order: 1, 
-            flagged: false };
+        let dummy_rf_input_x = mwalibRFInput {
+            input: 0,
+            antenna: 0,
+            tile_id: 0,
+            tile_name: String::from("dummy2"),
+            pol: String::from("X"),
+            electrical_length_m: 0.,
+            north_m: 0.,
+            east_m: 0.,
+            height_m: 0.,
+            vcs_order: 0,
+            subfile_order: 0,
+            flagged: false,
+        };
 
-        ants.push(mwalibAntenna {antenna: 101,
-            tile_id: 101, tile_name: String::from("tile101"), x_pol: dummy_rf_input_x.clone(), y_pol: dummy_rf_input_y.clone() });
-        
-        ants.push(mwalibAntenna {antenna: 102,
-            tile_id: 102, tile_name: String::from("tile102"), x_pol: dummy_rf_input_x, y_pol: dummy_rf_input_y });
+        let dummy_rf_input_y = mwalibRFInput {
+            input: 1,
+            antenna: 0,
+            tile_id: 1,
+            tile_name: String::from("dummy2"),
+            pol: String::from("Y"),
+            electrical_length_m: 0.,
+            north_m: 0.,
+            east_m: 0.,
+            height_m: 0.,
+            vcs_order: 0,
+            subfile_order: 1,
+            flagged: false,
+        };
+
+        ants.push(mwalibAntenna {
+            antenna: 101,
+            tile_id: 101,
+            tile_name: String::from("tile101"),
+            x_pol: dummy_rf_input_x.clone(),
+            y_pol: dummy_rf_input_y.clone(),
+        });
+
+        ants.push(mwalibAntenna {
+            antenna: 102,
+            tile_id: 102,
+            tile_name: String::from("tile102"),
+            x_pol: dummy_rf_input_x,
+            y_pol: dummy_rf_input_y,
+        });
 
         // Now do some tests!
-        let _panic_result = get_baseline_from_antenna_names(String::from("tile101"), String::from("tile112"), &ants);
+        let _panic_result = get_baseline_from_antenna_names(
+            String::from("tile101"),
+            String::from("tile112"),
+            &ants,
+        );
     }
 }

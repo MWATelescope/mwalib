@@ -52,7 +52,6 @@ where
 }
 
 /// Given a FITS file pointer, get the size of the image on HDU 2.
-/// TODO: Write tests.
 ///
 /// # Arguments
 ///
@@ -67,7 +66,8 @@ pub fn get_hdu_image_size(fits_fptr: &mut FitsFile) -> Result<Vec<usize>, ErrorK
     match fits_fptr.hdu(1)?.info {
         HduInfo::ImageInfo { shape, .. } => Ok(shape),
         _ => Err(ErrorKind::Custom(
-            "fits_read::get_hdu_image_size: HDU 2 of the first gpubox_fptr was not an image".to_string(),
+            "fits_read::get_hdu_image_size: HDU 2 of the first gpubox_fptr was not an image"
+                .to_string(),
         )),
     }
 }
@@ -117,7 +117,7 @@ mod tests {
     use super::*;
     use crate::misc::*;
     use fitsio::images::{ImageDescription, ImageType};
-    use fitsio::tables::{ColumnDescription, ColumnDataType};
+    use fitsio::tables::{ColumnDataType, ColumnDescription};
     use fitsio_sys::ffpkls;
 
     #[test]
@@ -131,9 +131,10 @@ mod tests {
                 data_type: ImageType::Float,
                 dimensions: &[101, 102],
             };
-            
+
             // Create a new image HDU
-            fptr.create_image("EXTNAME".to_string(), &image_description).unwrap();
+            fptr.create_image("EXTNAME".to_string(), &image_description)
+                .unwrap();
 
             // Run our test
             let size_vec = get_hdu_image_size(fptr).unwrap();
@@ -155,13 +156,16 @@ mod tests {
 
             let first_description = ColumnDescription::new("A")
                 .with_type(ColumnDataType::Int)
-                .create().unwrap();
+                .create()
+                .unwrap();
             let second_description = ColumnDescription::new("B")
                 .with_type(ColumnDataType::Long)
-                .create().unwrap();
+                .create()
+                .unwrap();
             let descriptions = [first_description, second_description];
-            
-            fptr.create_table("EXTNAME".to_string(), &descriptions).unwrap();
+
+            fptr.create_table("EXTNAME".to_string(), &descriptions)
+                .unwrap();
 
             // Run our test
             get_hdu_image_size(fptr).unwrap_err();

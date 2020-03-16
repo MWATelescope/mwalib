@@ -161,7 +161,7 @@ impl mwalibContext {
     pub fn new<T: AsRef<Path> + AsRef<str> + ToString + fmt::Debug>(
         metafits: &T,
         gpuboxes: &[T],
-    ) -> Result<mwalibContext, ErrorKind> {
+    ) -> Result<Self, ErrorKind> {
         // Do the file stuff upfront. Check that at least one gpubox file is
         // present.
         if gpuboxes.is_empty() {
@@ -194,7 +194,7 @@ impl mwalibContext {
 
         // Populate our array of timesteps
         // Create a vector of rf_input structs from the metafits
-        let (timesteps, num_timesteps) = mwalibTimeStep::populate_timesteps(&gpubox_time_map)?;
+        let (timesteps, num_timesteps) = mwalibTimeStep::populate_timesteps(&gpubox_time_map);
         let num_rf_inputs = get_fits_key::<usize>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
             .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?;
 
@@ -335,7 +335,7 @@ impl mwalibContext {
         &mut self,
         timestep_index: usize,
         coarse_channel_index: usize,
-    ) -> Result<Vec<f32>, ErrorKind> {
+    ) -> Result<Vec<f32>, fitsio::errors::Error> {
         // Output buffer for read in data
         let output_buffer: Vec<f32>;
 
@@ -422,12 +422,12 @@ impl fmt::Display for mwalibContext {
 
     num antenna pols:         {},
     num visibility pols:      {},
-        
+
     observation bandwidth:    {} MHz,
     num coarse channels,      {},
     coarse channels:          {:?},
 
-    Correlator Mode:    
+    Correlator Mode:
     fine channel resolution:  {} kHz,
     integration time:         {:.2} s
     num fine channels/coarse: {},
