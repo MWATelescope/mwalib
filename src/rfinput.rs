@@ -10,13 +10,13 @@ use std::fmt;
 
 /// VCS_ORDER is the order that comes out of PFB and into the correlator (for legacy observations)
 /// It can be calculated, so we do that, rather than make the user get a newer metafits (only metafits after mid 2018
-/// have this column pre populated). 
-/// 
-/// 
+/// have this column pre populated).
+///
+///
 /// # Arguments
 ///
 /// `input` - Value from the "input" column in the metafits TILEDATA table.
-/// 
+///
 /// # Returns
 ///
 /// * The PFB order - in other MWA code this is a hardcoded array but we prefer to calculate it.
@@ -27,16 +27,16 @@ fn get_vcs_order(input: u32) -> u32 {
 
 /// mwax_order (aka subfile_order) is the order we want the antennas in, after conversion.
 /// For Correlator v2, the data is already in this order.
-/// 
+///
 /// # Arguments
 ///
 /// `antenna` - value from the "antenna" column of the metafits TILEDATA table.
-/// 
+///
 /// `pol` - polarisation (X or Y)
-/// 
+///
 /// # Returns
 ///
-/// * a number between 0 and N-1 (where N is the number of tiles * 2). First tile would have 0 for X, 1 for Y. 
+/// * a number between 0 and N-1 (where N is the number of tiles * 2). First tile would have 0 for X, 1 for Y.
 ///   Second tile would have 2 for X, 3 for Y, etc.
 ///
 fn get_mwax_order(antenna: u32, pol: String) -> u32 {
@@ -44,15 +44,15 @@ fn get_mwax_order(antenna: u32, pol: String) -> u32 {
 }
 
 /// Returns the electrical length for this rf_input.
-/// 
-/// 
+///
+///
 /// # Arguments
 ///
-/// `metafits_length_string` - The text from the "Length" field in the metafits TILEDATA table. 
+/// `metafits_length_string` - The text from the "Length" field in the metafits TILEDATA table.
 ///                            May be a string like "nnn.nnn" or "EL_nnn.nn".
-/// 
+///
 /// `coax_v_factor` - A constant value for deriving the electrical length based on the properties of the coax used.
-/// 
+///
 /// # Returns
 ///
 /// * An f64 containing the electrical length. If Length string contains "EL_" then just get the numeric part. If not, we need
@@ -135,16 +135,16 @@ pub struct mwalibRFInput {
 
 impl mwalibRFInput {
     /// This method just reads a row from the metafits tiledata table to create a new, populated mwalibCoarseChannel struct
-    /// 
+    ///
     /// # Arguments
     ///
     /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
-    /// 
+    ///
     /// * `metafits_tile_table_hdu` - reference to the HDU containing the TILEDATA table.
-    /// 
+    ///
     /// * `row` - row index to read from the TILEDATA table in the metafits.
-    /// 
-    /// 
+    ///
+    ///
     /// # Returns
     ///
     /// * An Result containing a populated vector of mwalibRFInputMetafitsTableRow structss or an Error
@@ -211,7 +211,7 @@ impl mwalibRFInput {
             .read_cell_value(metafits_fptr, "Flag", row)
             .with_context(|| format!("Failed to read table row {} for Flag from metafits", row))?;
 
-        Ok(mwalibRFInputMetafitsTableRow{
+        Ok(mwalibRFInputMetafitsTableRow {
             input,
             antenna,
             tile_id,
@@ -227,19 +227,19 @@ impl mwalibRFInput {
 
     /// Given the number of (rf)inputs, a metafits fits pointer, ptr to hdu for the tiledata table and coax_v_factor,
     /// populate a vector of rf_inputs
-    /// 
+    ///
     /// # Arguments
     ///
     /// * `num_inputs` - number of rf_inputs to read from the metafits TILEDATA bintable.
-    /// 
+    ///
     /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
-    /// 
+    ///
     /// * `metafits_tile_table_hdu` - reference to the HDU containing the TILEDATA table.
-    /// 
+    ///
     /// * `coax_v_factor` - a constant- the factor to apply to some older metafits "length" value to get the
     ///                     electrical length, if "length" does not start with "EL".
-    /// 
-    /// 
+    ///
+    ///
     /// # Returns
     ///
     /// * An Result containing a populated vector of mwalibRFInputMetafitsTableRow structss or an Error
@@ -311,6 +311,8 @@ impl fmt::Debug for mwalibRFInput {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fitsio::tables::{ColumnDataType, ColumnDescription};
+    use fitsio::*;
     extern crate float_cmp;
 
     #[test]
@@ -351,5 +353,92 @@ mod tests {
             get_electrical_length(String::from("16"), 1.204),
             float_cmp::F64Margin::default()
         ));
+    }
+
+    #[test]
+    fn test_read_metafits_values_from_row_0() {
+        let metafits_filename =
+            String::from("test_files/1101503312_1_timestep/1101503312.metafits");
+        let mut metafits_fptr = FitsFile::open(&metafits_filename)
+            .with_context(|| format!("Failed to open {:?}", metafits_filename))
+            .unwrap();
+
+        let metafits_tile_table_hdu = metafits_fptr
+            .hdu(1)
+            .with_context(|| {
+                format!(
+                    "Failed to open HDU 2 (tiledata table) for {:?}",
+                    metafits_filename
+                )
+            })
+            .unwrap();
+
+        // Get values from row 1
+        let row: mwalibRFInputMetafitsTableRow =
+            mwalibRFInput::read_metafits_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0)
+                .unwrap();
+        assert_eq!(row.input, 0);
+        assert_eq!(row.antenna, 75);
+        assert_eq!(row.tile_id, 104);
+        assert_eq!(row.tile_name, "Tile104");
+        assert_eq!(row.pol, "Y");
+        assert_eq!(row.length_string, "EL_-756.49");
+        assert!(float_cmp::approx_eq!(
+            f64,
+            row.north_m,
+            -101.529_998_779_296_88 as f64,
+            float_cmp::F64Margin::default()
+        ));
+        assert!(float_cmp::approx_eq!(
+            f64,
+            row.east_m,
+            -585.674_987_792_968_8 as f64,
+            float_cmp::F64Margin::default()
+        ));
+        assert!(float_cmp::approx_eq!(
+            f64,
+            row.height_m,
+            375.212_005_615_234_4 as f64,
+            float_cmp::F64Margin::default()
+        ));
+        assert_eq!(row.flag, 1);
+    }
+
+    #[test]
+    fn test_read_metafits_values_from_invalid_metafits() {
+        let metafits_filename = String::from("read_metafits_values_from_invalid_metafits.metafits");
+
+        misc::with_new_temp_fits_file(&metafits_filename, |metafits_fptr| {
+            // Create a tiledata hdu
+            let first_description = ColumnDescription::new("A")
+                .with_type(ColumnDataType::Int)
+                .create()
+                .unwrap();
+            let second_description = ColumnDescription::new("B")
+                .with_type(ColumnDataType::Long)
+                .create()
+                .unwrap();
+            let descriptions = [first_description, second_description];
+
+            metafits_fptr
+                .create_table("TILEDATA".to_string(), &descriptions)
+                .unwrap();
+
+            let metafits_tile_table_hdu = metafits_fptr
+                .hdu(1)
+                .with_context(|| {
+                    format!(
+                        "Failed to open HDU 2 (tiledata table) for {:?}",
+                        metafits_filename
+                    )
+                })
+                .unwrap();
+
+            // Get values from row 1
+            let metafits_result =
+                mwalibRFInput::read_metafits_values(metafits_fptr, &metafits_tile_table_hdu, 0);
+
+            assert_eq!(metafits_result.is_err(), true);
+        });
     }
 }
