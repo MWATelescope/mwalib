@@ -106,10 +106,17 @@ pub unsafe fn get_fits_long_string(fptr: *mut fitsfile, keyword: &str) -> (i32, 
         ptr::null_mut(),
         &mut status,
     );
-    let long_string = CString::from_raw(value[0])
-        .into_string()
-        .expect("get_fits_long_string: converting string_ptr failed");
-    (status, long_string)
+
+    // Check the call worked!
+    if status == 0 {
+        let long_string = CString::from_raw(value[0])
+            .into_string()
+            .expect("get_fits_long_string: converting string_ptr failed");
+        (status, long_string)
+    } else {
+        let long_string = String::from("");
+        (status, long_string)
+    }
 }
 
 #[cfg(test)]
@@ -258,6 +265,36 @@ mod tests {
             let fitsio_str = hdu.read_key::<String>(fptr, "foo");
             assert!(fitsio_str.is_ok());
             assert_eq!(fitsio_str.unwrap(), first_string);
+        });
+    }
+
+    #[test]
+    fn test_get_fits_long_string_failure() {
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        with_new_temp_fits_file("test_get_fits_long_string_failure.fits", |fptr| {
+            let complete_string = "131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154";
+
+            // Sadly, rust's `fitsio` library doesn't support writing long strings
+            // with CONTINUE statements. We have to do it for ourselves.
+            unsafe {
+                let fptr_ffi = fptr.as_raw();
+                let keyword_ffi = CString::new("foo")
+                    .expect("get_fits_long_string: CString::new() failed for 'foo'");
+                let value_ffi = CString::new(complete_string)
+                    .expect("get_fits_long_string: CString::new() failed for 'complete_string'");
+                let mut status = 0;
+
+                ffpkls(
+                    fptr_ffi,
+                    keyword_ffi.as_ptr(),
+                    value_ffi.as_ptr(),
+                    ptr::null_mut(),
+                    &mut status,
+                );
+            }
+
+            let (status, _) = unsafe { get_fits_long_string(fptr.as_raw(), "NOTfoo") };
+            assert_ne!(status, 0);
         });
     }
 }

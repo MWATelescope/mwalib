@@ -300,6 +300,94 @@ pub unsafe extern "C" fn mwalibContext_read_by_baseline(
     0
 }
 
+/// Read a single timestep / coarse channel of MWA data.
+///
+/// This method takes as input a timestep_index and a coarse_channel_index to return one
+/// HDU of data in [freq][baseline][pol][r][i] format
+///
+/// # Arguments
+///
+/// * `context_ptr` - pointer to an already populated mwalibContext object.
+///
+/// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+///                      to mwalibTimeStep.get(context, N) where N is timestep_index.
+///
+/// * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
+///                            to mwalibCoarseChannel.get(context, N) where N is coarse_channel_index.
+///
+/// * `buffer_ptr` - pointer to caller-owned and allocated buffer to write data into.
+///
+/// * `buffer_len` - length of `buffer_ptr`.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * 0 on success, 1 on failure
+///
+///
+/// # Safety
+/// * error_message *must* point to an already allocated char* buffer for any error messages.
+/// * context_ptr must point to a populated object from the mwalibContext_new function.
+/// * Caller *must* call mwalibContext_free_read_buffer function to release the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalibContext_read_by_frequency(
+    context_ptr: *mut mwalibContext,
+    timestep_index: usize,
+    coarse_channel_index: usize,
+    buffer_ptr: *mut c_float,
+    buffer_len: size_t,
+    error_message: *mut u8,
+    error_message_length: size_t,
+) -> i32 {
+    // Load the previously-initialised context and buffer structs. Exit if
+    // either of these are null.
+    let context = if context_ptr.is_null() {
+        set_error_message(
+            "mwalibContext_read_by_frequency() ERROR: null pointer for context_ptr passed in",
+            error_message,
+            error_message_length,
+        );
+        return 1;
+    } else {
+        &mut *context_ptr
+    };
+
+    // Don't do anything if the buffer pointer is null.
+    if buffer_ptr.is_null() {
+        return 1;
+    }
+
+    let output_slice = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
+
+    // Read data in.
+    let data = match context.read_by_frequency(timestep_index, coarse_channel_index) {
+        Ok(data) => data,
+        Err(e) => {
+            set_error_message(&format!("{}", e), error_message, error_message_length);
+            return 1;
+        }
+    };
+
+    // If the data buffer is empty, then just return a null pointer.
+    if data.is_empty() {
+        set_error_message(
+            "mwalibContext_read_by_frequency() ERROR: no data was returned.",
+            error_message,
+            error_message_length,
+        );
+        return 1;
+    }
+
+    // Populate the buffer which was provided to us by caller
+    output_slice[..data.len()].copy_from_slice(data.as_slice());
+    // Return Success
+    0
+}
+
 /// Free a previously-allocated float* created by mwalibContext_read_by_baseline.
 ///
 /// Python can't free memory itself, so this is useful for Python (and perhaps

@@ -17,8 +17,8 @@ use crate::*;
 
 #[derive(Debug)]
 pub struct ObsTimes {
-    pub start_millisec: u64,
-    pub end_millisec: u64,
+    pub start_millisec: u64, // Start= start of first timestep
+    pub end_millisec: u64,   // End  = start of last timestep + integration time
     pub duration_millisec: u64,
 }
 
@@ -508,10 +508,10 @@ pub fn determine_obs_times(
     let proper_end_millisec = match i.last().map(|(time, _)| *time) {
         Some(s) => s,
         None => {
-            // Looks like we only have 1 hdu, so start == end
-            proper_start_millisec + integration_time_ms
+            // Looks like we only have 1 hdu, so end
+            proper_start_millisec
         }
-    };
+    } + integration_time_ms;
 
     Ok(ObsTimes {
         start_millisec: proper_start_millisec,
@@ -917,7 +917,7 @@ mod tests {
     }
 
     #[test]
-    fn test_determine_obs_times_test() {
+    fn test_determine_obs_times_test_many_timesteps() {
         // Create two files, with mostly overlapping times, but also a little
         // dangling at the start and end.
         let common_times: Vec<u64> = vec![
@@ -947,13 +947,58 @@ mod tests {
         new_time_tree.insert(1, (0, common_times.len() + 1));
         input.insert(1_381_844_926_000, new_time_tree);
 
-        let expected_start = common_times.first().unwrap();
-        let expected_end = common_times.last().unwrap();
+        let expected_start = *common_times.first().unwrap();
+        let expected_end = *common_times.last().unwrap() + integration_time_ms;
+        // Duration = common end - common start + integration time
+        // == 1_381_844_925_500 - 1_381_844_923_500 + 500
+        let expected_duration = 2500;
 
         let result = determine_obs_times(&input, integration_time_ms);
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(&result.start_millisec, expected_start);
-        assert_eq!(&result.end_millisec, expected_end);
+        assert_eq!(result.start_millisec, expected_start);
+        assert_eq!(result.end_millisec, expected_end);
+        assert_eq!(result.duration_millisec, expected_duration);
+    }
+
+    #[test]
+    fn test_determine_obs_times_test_one_timestep() {
+        // Create two files, with 1 overlapping times, but also a little
+        // dangling at the start and end.
+        let common_times: Vec<u64> = vec![1_381_844_923_500];
+        let integration_time_ms = 500;
+
+        let mut input = BTreeMap::new();
+        let mut new_time_tree = BTreeMap::new();
+        new_time_tree.insert(0, (0, 1));
+        // Add a dangling time before the common time
+        input.insert(1_381_844_923_000, new_time_tree);
+
+        for (i, time) in common_times.iter().enumerate() {
+            let mut new_time_tree = BTreeMap::new();
+            // gpubox 0.
+            new_time_tree.insert(0, (0, i + 2));
+            // gpubox 1.
+            new_time_tree.insert(1, (0, i + 1));
+            input.insert(*time, new_time_tree);
+        }
+
+        let mut new_time_tree = BTreeMap::new();
+        new_time_tree.insert(1, (0, common_times.len() + 1));
+        // Add a dangling time after the common time
+        input.insert(1_381_844_924_000, new_time_tree);
+
+        let expected_start = *common_times.first().unwrap();
+        let expected_end = *common_times.last().unwrap() + integration_time_ms;
+        // Duration = common end - common start + integration time
+        // == 1_381_844_923_500 - 1_381_844_923_500 + 500
+        let expected_duration = 500;
+
+        let result = determine_obs_times(&input, integration_time_ms);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.start_millisec, expected_start);
+        assert_eq!(result.end_millisec, expected_end);
+        assert_eq!(result.duration_millisec, expected_duration);
     }
 }

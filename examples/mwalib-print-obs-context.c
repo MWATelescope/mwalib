@@ -90,16 +90,6 @@ int main(int argc, char *argv[])
         printf("Error getting timestep 0: %s\n", error_message);
     }
 
-    mwalibTimeStep *ts90 = mwalibTimeStep_get(context, 90, error_message, ERROR_MESSAGE_LEN); // Should return NULL
-    if (ts90 != NULL)
-    {
-        printf("Timestep 90 is %lu\n", ts90->unix_time_ms / 1000);
-    }
-    else
-    {
-        printf("Error getting timestep 90: %s\n", error_message);
-    }
-
     // Example of using coarse channels
     mwalibCoarseChannel *cc0 = mwalibCoarseChannel_get(context, 0, error_message, ERROR_MESSAGE_LEN);
     if (ts0 != NULL)
@@ -109,16 +99,6 @@ int main(int argc, char *argv[])
     else
     {
         printf("Error getting Coarse Channel 0: %s\n", error_message);
-    }
-
-    mwalibCoarseChannel *cc30 = mwalibCoarseChannel_get(context, 30, error_message, ERROR_MESSAGE_LEN); // Should return NULL
-    if (cc30 != NULL)
-    {
-        printf("Coarse Channel 30 is %.2f MHz\n", (float)cc30->channel_centre_hz / 1000000.);
-    }
-    else
-    {
-        printf("Error getting Coarse Channel 30: %s\n", error_message);
     }
 
     // Example of using antennas
@@ -132,16 +112,6 @@ int main(int argc, char *argv[])
         printf("Error getting antenna 0: %s\n", error_message);
     }
 
-    mwalibAntenna *ant300 = mwalibAntenna_get(context, 300, error_message, ERROR_MESSAGE_LEN); // Should return NULL
-    if (ant300 != NULL)
-    {
-        printf("antenna 300 is %s\n", ant300->tile_name);
-    }
-    else
-    {
-        printf("Error getting antenna 300: %s\n", error_message);
-    }
-
     // Example of using rf_inputs
     mwalibRFInput *rf0 = mwalibRFInput_get(context, 0, error_message, ERROR_MESSAGE_LEN);
     if (ts0 != NULL)
@@ -153,31 +123,17 @@ int main(int argc, char *argv[])
         printf("Error getting rf_input 0: %s\n", error_message);
     }
 
-    mwalibRFInput *rf300 = mwalibRFInput_get(context, 300, error_message, ERROR_MESSAGE_LEN); // Should return NULL
-    if (ant300 != NULL)
-    {
-        printf("rf_input 300 is %s %s\n", rf300->tile_name, rf300->pol);
-    }
-    else
-    {
-        printf("Error getting rf_input 300: %s\n", error_message);
-    }
-
     // Clean up coarse rf_inputs
     mwalibRFInput_free(rf0);
-    mwalibRFInput_free(rf300);
 
     // Clean up antennas
     mwalibAntenna_free(ant0);
-    mwalibAntenna_free(ant300);
 
     // Clean up coarse channels
     mwalibCoarseChannel_free(cc0);
-    mwalibCoarseChannel_free(cc30);
 
     // Clean up timesteps
     mwalibTimeStep_free(ts0);
-    mwalibTimeStep_free(ts90);
 
     // Clean up
     mwalibMetadata_free(metadata);

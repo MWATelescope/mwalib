@@ -96,6 +96,7 @@ struct mwalibRFInputMetafitsTableRow {
     pub height_m: f64,
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flag: i32,
+    // TODO: Gains array (1 per coarse channel)
 }
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file

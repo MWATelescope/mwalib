@@ -5,11 +5,10 @@
 /*!
 The main interface to MWA data.
  */
+use fitsio::*;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::*;
-
-use fitsio::*;
 
 use crate::antenna::*;
 use crate::coarse_channel::*;
@@ -68,6 +67,33 @@ impl fmt::Display for CorrelatorVersion {
 pub struct mwalibContext {
     /// Observation id
     pub obsid: u32,
+    // TODO: DATE-OBS   // Scheduled start (UTC) of observation
+    // TODO: MJD        // Scheduled start (MJD) of observation
+    // TODO: EXPOSURE   // Scheduled duration of observation
+    // TODO: RAPHASE    // phase centre
+    // TODO: DECPHASE   // phase centre
+    // TODO: RA         // tile pointing
+    // TODO: DEC        // tile pointing
+    // TODO: AZIMUTH
+    // TODO: ALTITUDE
+    // TODO: SUN-ALT
+    // TODO: SUN-DIST
+    // TODO: MOONDIST
+    // TODO: JUP-DIST
+    // TODO: LST
+    // TODO: HA
+    // TODO: GRIDNAME
+    // TODO: GRIDNUM
+    // TODO: CREATOR
+    // TODO: PROJECT
+    // TODO: FILENAME  // Observation name
+    // TODO: MODE
+    // TODO: RECVRS    // Array of receiver numbers (this tells us how many receivers too)
+    // TODO: DELAYS    // Array of delays
+    // TODO: ATTEN_DB  // global analogue attenuation, in dB
+    // TODO: QUACKTIM  // Seconds of bad data after observation starts
+    // TODO: GOODTIME  // OBSID+QUACKTIM as Unix timestamp (first good timestep)
+    //
     /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
     /// "the velocity factor of electic fields in RG-6 like coax"    
@@ -261,6 +287,8 @@ impl mwalibContext {
             (coarse_channel_width_hz / fine_channel_width_hz) as usize;
 
         // Populate the start and end times of the observation.
+        // Start= start of first timestep
+        // End  = start of last timestep + integration time
         let (start_unix_time_milliseconds, end_unix_time_milliseconds, duration_milliseconds) = {
             let o = determine_obs_times(&gpubox_time_map, integration_time_milliseconds)?;
             (o.start_millisec, o.end_millisec, o.duration_millisec)
@@ -369,7 +397,7 @@ impl mwalibContext {
         if self.corr_version == CorrelatorVersion::OldLegacy
             || self.corr_version == CorrelatorVersion::Legacy
         {
-            convert::convert_legacy_hdu(
+            convert::convert_legacy_hdu_to_mwax_baseline_order(
                 &self.legacy_conversion_table,
                 &output_buffer,
                 &mut temp_buffer,
@@ -379,6 +407,78 @@ impl mwalibContext {
             Ok(temp_buffer)
         } else {
             Ok(output_buffer)
+        }
+    }
+
+    /// Read a single timestep for a single coarse channel
+    /// The output visibilities are in order:
+    /// [frequency][baseline][pol][r][i]
+    ///
+    /// # Arguments
+    ///
+    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+    ///                      to the element within mwalibContext.timesteps.
+    ///
+    /// * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
+    ///                      to the element within mwalibContext.coarse_channels.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * A Result containing vector of 32 bit floats containing the data in [frequency][baseline][pol][r][i] order, if Ok.
+    ///
+    ///
+    pub fn read_by_frequency(
+        &mut self,
+        timestep_index: usize,
+        coarse_channel_index: usize,
+    ) -> Result<Vec<f32>, fitsio::errors::Error> {
+        // Output buffer for read in data
+        let output_buffer: Vec<f32>;
+
+        // Prepare temporary buffer, if we are reading legacy correlator files
+        let mut temp_buffer = vec![
+            0.;
+            self.num_fine_channels_per_coarse
+                * self.num_visibility_pols
+                * self.num_baselines
+                * 2
+        ];
+
+        // Lookup the coarse channel we need
+        let coarse_channel = self.coarse_channels[coarse_channel_index].gpubox_number;
+        let (batch_index, hdu_index) =
+            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
+
+        let mut fptr = self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index]
+            .fptr
+            .as_mut()
+            .unwrap();
+        let hdu = fptr.hdu(hdu_index)?;
+        output_buffer = hdu.read_image(&mut fptr)?;
+        // If legacy correlator, then convert the HDU into the correct output format
+        if self.corr_version == CorrelatorVersion::OldLegacy
+            || self.corr_version == CorrelatorVersion::Legacy
+        {
+            convert::convert_legacy_hdu_to_mwax_frequency_order(
+                &self.legacy_conversion_table,
+                &output_buffer,
+                &mut temp_buffer,
+                self.num_fine_channels_per_coarse,
+            );
+
+            Ok(temp_buffer)
+        } else {
+            // Do conversion for mwax (it is in baseline order, we want it in freq order)
+            convert::convert_mwax_hdu_to_frequency_order(
+                &output_buffer,
+                &mut temp_buffer,
+                self.num_baselines,
+                self.num_fine_channels_per_coarse,
+                self.num_visibility_pols,
+            );
+
+            Ok(temp_buffer)
         }
     }
 }
@@ -464,5 +564,46 @@ impl fmt::Display for mwalibContext {
             self.metafits_filename,
             self.gpubox_batches,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_mwax_read() {
+        // Open the test mwax file
+        // a) directly using Fits  (data will be ordered [baseline][freq][pol][r][i])
+        // b) using mwalib (by baseline) (data will be ordered the same as the raw fits file)
+        // Then check b) is the same as a)
+        let mwax_metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+        let mwax_filename =
+            "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
+
+        //
+        // Read the mwax file using FITS
+        //
+        let mut fptr = FitsFile::open(&mwax_filename).unwrap();
+        let fits_hdu = fptr.hdu(1).unwrap();
+
+        // Read data from fits hdu into vector
+        let fits_hdu_data: Vec<f32> = fits_hdu.read_image(&mut fptr).unwrap();
+
+        //
+        // Read the mwax file by frequency using mwalib
+        //
+        // Open a context and load in a test metafits and gpubox file
+        let metafits: String = String::from(mwax_metafits_filename);
+        let gpuboxfiles: Vec<String> = vec![String::from(mwax_filename)];
+        let mut context =
+            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+
+        // Read and convert first HDU
+        let mwalib_hdu_data: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+
+        // First assert that the data vectors are the same size
+        assert_eq!(fits_hdu_data.len(), mwalib_hdu_data.len());
+        // Check this block of floats matches
+        assert_eq!(fits_hdu_data, mwalib_hdu_data);
     }
 }

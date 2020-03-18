@@ -310,7 +310,6 @@ impl fmt::Debug for mwalibCoarseChannel {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     // Create a BTree Structure for testing
     fn get_gpubox_time_map(
         sub_map_keys: Vec<usize>,
@@ -484,5 +483,26 @@ mod tests {
         assert_eq!(coarse_channel_array[4].correlator_channel_number, 4);
         assert_eq!(coarse_channel_array[4].receiver_channel_number, 130);
         assert_eq!(coarse_channel_array[4].gpubox_number, 130);
+    }
+
+    #[test]
+    fn test_get_metafits_coarse_channel_string_missing() {
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        misc::with_new_temp_fits_file(
+            "test_get_metafits_coarse_channel_string_missing.fits",
+            |mut fptr| {
+                let test_string = "131,132,133";
+
+                fptr.hdu(0)
+                    .unwrap()
+                    .write_key(&mut fptr, "foo", test_string)
+                    .unwrap();
+
+                // Now run the test!
+                let result = mwalibCoarseChannel::get_metafits_coarse_channel_string(fptr);
+
+                assert_eq!(result.is_err(), true);
+            },
+        );
     }
 }

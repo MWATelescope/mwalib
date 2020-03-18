@@ -272,7 +272,7 @@ pub fn generate_conversion_array(
 ///
 /// * `output_buffer` - Float vector to write converted data into.
 ///
-/// * `num_fine_channels` - Number of file channles in this observation.
+/// * `num_fine_channels` - Number of file channels in this observation.
 ///
 ///
 /// # Returns
@@ -282,7 +282,7 @@ pub fn generate_conversion_array(
 /// # TODO
 /// Better error handling by returning a Result with associated Errors. Right now it just panics.
 ///
-pub fn convert_legacy_hdu(
+pub fn convert_legacy_hdu_to_mwax_baseline_order(
     conversion_table: &[mwalibLegacyConversionBaseline],
     input_buffer: &[f32],
     output_buffer: &mut [f32],
@@ -363,11 +363,161 @@ pub fn convert_legacy_hdu(
     }
 }
 
+/// Using the precalculated conversion table, reorder the legacy visibilities into our preferred output order
+/// [time][freq][baseline][pol] in a standard triangle of 0,0 .. 0,N 1,1..1,N baseline order.
+/// # Arguments
+///
+/// * `conversion_table` - A vector containing all of the `mwalibLegacyConversionBaseline`s we have pre-calculated.
+///
+/// * `input_buffer` - Float vector read from legacy MWA HDUs.
+///
+/// * `output_buffer` - Float vector to write converted data into.
+///
+/// * `num_fine_channels` - Number of file channels in this observation.
+///
+///
+/// # Returns
+///
+/// * Nothing
+///
+/// # TODO
+/// Better error handling by returning a Result with associated Errors. Right now it just panics.
+///
+pub fn convert_legacy_hdu_to_mwax_frequency_order(
+    conversion_table: &[mwalibLegacyConversionBaseline],
+    input_buffer: &[f32],
+    output_buffer: &mut [f32],
+    num_fine_channels: usize,
+) {
+    // Note: hardcoded values are safe here because they are only for the case where we are using the
+    // legacy correlator which ALWAYS has 128 tiles
+    let num_baselines = get_baseline_count(128);
+    assert_eq!(num_fine_channels, 128);
+    assert_eq!(conversion_table.len(), num_baselines);
+
+    // Striding for input array
+    let floats_per_baseline_fine_channel = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
+    let floats_per_fine_channel = num_baselines * floats_per_baseline_fine_channel; // All floats for all baselines and 1 fine channel
+                                                                                    // Read from the input buffer and write into the temp buffer
+    for fine_chan_index in 0..num_fine_channels {
+        // convert one fine channel at a time
+        for (baseline_index, baseline) in conversion_table.iter().enumerate() {
+            // Input visibilities are in [fine_chan][baseline][pol][real][imag] order
+            // We need to work out where to start indexing the source data
+            // Go "down" the fine channels as if they are rows
+            // Go "across" the baselines as if they are columns
+            let source_index = fine_chan_index * floats_per_fine_channel;
+            // Since the destination is also to be in [fine_chan][baseline][pol][real][imag] order
+            // For the destination, we have to stride along each baseline for this channel
+            let destination_index =
+                source_index + (baseline_index * floats_per_baseline_fine_channel);
+
+            // xx_r
+            output_buffer[destination_index] = input_buffer[source_index + baseline.xx_index];
+            // xx_i
+            output_buffer[destination_index + 1] = if baseline.xx_conjugate {
+                // We have to conjugate the visibility
+                -input_buffer[source_index + baseline.xx_index + 1]
+            } else {
+                input_buffer[source_index + baseline.xx_index + 1]
+            };
+
+            // xy_r
+            output_buffer[destination_index + 2] = input_buffer[source_index + baseline.xy_index];
+            // xy_i
+            output_buffer[destination_index + 3] = if baseline.xy_conjugate {
+                // We have to conjugate the visibility
+                -input_buffer[source_index + baseline.xy_index + 1]
+            } else {
+                input_buffer[source_index + baseline.xy_index + 1]
+            };
+
+            // yx_r
+            output_buffer[destination_index + 4] = input_buffer[source_index + baseline.yx_index];
+            // yx_i
+            output_buffer[destination_index + 5] = if baseline.yx_conjugate {
+                // We have to conjugate the visibility
+                -input_buffer[source_index + baseline.yx_index + 1]
+            } else {
+                input_buffer[source_index + baseline.yx_index + 1]
+            };
+
+            // yy_r
+            output_buffer[destination_index + 6] = input_buffer[source_index + baseline.yy_index];
+            // yy_i
+            output_buffer[destination_index + 7] = if baseline.yy_conjugate {
+                // We have to conjugate the visibility
+                -input_buffer[source_index + baseline.yy_index + 1]
+            } else {
+                input_buffer[source_index + baseline.yy_index + 1]
+            };
+        }
+    }
+}
+
+/// Reorder correlator v2 (MWAX) visibilities into our preferred output order
+/// [time][freq][baseline][pol]. The antennas/baselines are already in our preferred order.
+/// # Arguments
+///
+/// * `input_buffer` - Float vector read from MWAX HDUs.
+///
+/// * `output_buffer` - Float vector to write converted data into.
+///
+/// * `num_baselines` - Number of baselines in this observation.
+///
+/// * `num_fine_channels` - Number of file channels in this observation.
+///
+///
+/// # Returns
+///
+/// * Nothing
+///
+/// # TODO
+/// Better error handling by returning a Result with associated Errors. Right now it just panics.
+///
+pub fn convert_mwax_hdu_to_frequency_order(
+    input_buffer: &[f32],
+    output_buffer: &mut [f32],
+    num_baselines: usize,
+    num_fine_channels: usize,
+    num_visibility_pols: usize,
+) {
+    // Striding for input array
+    let floats_per_baseline_fine_channel = num_visibility_pols * 2; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
+    let floats_per_baseline = num_fine_channels * floats_per_baseline_fine_channel; // All floats for 1 baseline and all fine channels
+    let floats_per_fine_channel = num_baselines * floats_per_baseline_fine_channel; // All floats for all baselines and 1 fine channel
+                                                                                    // Read from the input buffer and write into the temp buffer
+    for baseline_index in 0..num_baselines {
+        // convert one baseline at a time
+        for fine_chan_index in 0..num_fine_channels {
+            // Input visibilities are in [baseline][fine_chan][pol][real][imag] order
+            //
+            // We need to work out where to start indexing the source data
+            // Go "down" the baselines as if they are rows
+            // Go "across" the fine_channels as if they are columns
+            let source_index = (baseline_index * floats_per_baseline)
+                + (fine_chan_index * floats_per_baseline_fine_channel);
+            // The destination is to be in [fine_chan][baseline][pol][real][imag] order
+            // For the destination, we have to stride along each fine channel for this baseline
+            let destination_index = (fine_chan_index * floats_per_fine_channel)
+                + (baseline_index * floats_per_baseline_fine_channel);
+            // for each polarisation (r,i) => xx_r, xx_i, xy_r, xy_i, ... copy input to output
+            // Copy source into dest
+            output_buffer
+                [destination_index..(floats_per_baseline_fine_channel + destination_index)]
+                .clone_from_slice(
+                    &input_buffer[source_index..(floats_per_baseline_fine_channel + source_index)],
+                );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{misc, mwalibContext};
     use csv::*;
+    use fitsio::*;
     use float_cmp::*;
 
     #[test]
@@ -474,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    fn test_conversion_of_legacy_hdu() {
+    fn test_conversion_of_legacy_hdu_to_mwax_baseline_order() {
         // Open a context and load in a test metafits and gpubox file
         let metafits: String = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
         let gpuboxfiles: Vec<String> = vec![String::from(
@@ -503,13 +653,19 @@ mod tests {
         //
         // Build the CSV reader and iterate over each record.
         // The csv file contains 1056768 (8256 baselines * 128 fine channels) rows
+        // row 0 is bl 0, freq 0
+        // row 1 is bl 0, freq 1
+        // ...
+        // row 127 is bl 0, freq 127
+        // row 128 is bl 1, freq 0
+        // ...
         // each containing each containing 8 floats:
         // XX real, XX imag, XY real, XY imag, YX real, YX imag, YY real, YY imag
         //
         let mut reader = ReaderBuilder::new()
             .has_headers(false)
             .from_path(
-                "test_files/1101503312_1_timestep/1101503312_gpubox01_pyuvdata_1st_timestep.csv",
+                "test_files/1101503312_1_timestep/1101503312_gpubox01_pyuvdata_1st_timestep_by_bl.csv",
             )
             .expect("Failed to read CSV");
 
@@ -608,6 +764,217 @@ mod tests {
                     ant1 += 1;
                     ant2 = ant1;
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn test_conversion_of_legacy_hdu_to_mwax_frequency_order() {
+        // Open a context and load in a test metafits and gpubox file
+        let metafits: String = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
+        let gpuboxfiles: Vec<String> = vec![String::from(
+            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
+        )];
+        let mut context =
+            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+
+        // Read and convert first HDU
+        let mwalib_hdu: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+
+        // Check it
+        // Vector is in:
+        // [fine_channel][baseline][pol][r/i] order
+        //
+        assert_eq!(
+            mwalib_hdu.len(),
+            8256 * 128 * 8,
+            "mwalib HDU vector length is wrong {}. Should be {}",
+            mwalib_hdu.len(),
+            8256 * 128 * 8
+        );
+
+        //
+        // Next read the csv file
+        //
+        // Build the CSV reader and iterate over each record.
+        // The csv file contains 1056768 (8256 baselines * 128 fine channels) rows
+        // row 0 is freq 0, bl 0
+        // row 1 is freq 0, bl 1
+        // ...
+        // row 8255 is freq 0, bl8255
+        // row 8256 is freq 1, bl0
+        // ...
+        //
+        // each containing each containing 8 floats:
+        // XX real, XX imag, XY real, XY imag, YX real, YX imag, YY real, YY imag
+        //
+        let mut reader = ReaderBuilder::new()
+            .has_headers(false)
+            .from_path(
+                "test_files/1101503312_1_timestep/1101503312_gpubox01_pyuvdata_1st_timestep_by_freq.csv",
+            )
+            .expect("Failed to read CSV");
+
+        let mut baseline = 0;
+        let mut fine_chan = 0;
+        let mut mwalib_sum_of_fine_chan: f64 = 0.;
+        let mut pyuvdata_sum_of_fine_chan: f64 = 0.;
+        let mut ant1: usize = 0;
+        let mut ant2: usize = 0;
+
+        for (row_index, result) in reader.deserialize().enumerate() {
+            // Verify the baseline matches the antenna numbers
+            match misc::get_antennas_from_baseline(baseline, 128) {
+                Some(b) => {
+                    assert_eq!(ant1, b.0);
+                    assert_eq!(ant2, b.1);
+                }
+                None => panic!("baseline {} is not valid!", baseline),
+            }
+
+            // Ensure channel is <= num_fine_channels
+            assert_eq!(fine_chan <= context.num_fine_channels_per_coarse, true);
+
+            let record: Vec<f32> = result.expect("Failed to deserialize CSV");
+            assert!(
+                row_index < 1_056_768,
+                "row_index is out of bounds {}",
+                row_index
+            );
+
+            // Determine where we should be in the mwalib array
+            let mwalib_ch_index = fine_chan * (8256 * 8);
+            let mwalib_bl_index = baseline * 8;
+            // Now loop though all the columns in this row
+            for (i, v) in record.iter().enumerate() {
+                assert!(i < 8);
+                let mwalib_dest_index = mwalib_ch_index + mwalib_bl_index + i;
+
+                let mwalib_value = mwalib_hdu[mwalib_dest_index] as f64;
+                let pyuvdata_value = *v as f64;
+
+                mwalib_sum_of_fine_chan += mwalib_value;
+                pyuvdata_sum_of_fine_chan += pyuvdata_value;
+
+                let pol = match i {
+                    0 => "xx_r",
+                    1 => "xx_i",
+                    2 => "xy_r",
+                    3 => "xy_i",
+                    4 => "yx_r",
+                    5 => "yx_i",
+                    6 => "yy_r",
+                    7 => "yy_i",
+                    _ => "?",
+                };
+
+                assert!(approx_eq!(f64, mwalib_value, pyuvdata_value, F64Margin::default()), "mwalib_ch_index: {} mwalib_bl_index: {} fine_chan: {} baseline: {} ant1: {} v ant2: {} fine_chan: {} pol: {} mwalib_value: {} != pyuvdata_value: {} difference: {}", mwalib_ch_index, mwalib_bl_index, fine_chan, baseline, ant1, ant2, fine_chan, pol, mwalib_value, pyuvdata_value, mwalib_value - pyuvdata_value);
+            }
+
+            if baseline < 8255 {
+                baseline += 1;
+
+                if ant2 < 127 {
+                    ant2 += 1;
+                } else {
+                    ant1 += 1;
+                    ant2 = ant1;
+                }
+            } else {
+                // We are at the end of a fine channel
+                // Get value from mwa_lib
+                let good: u8 = if approx_eq!(
+                    f64,
+                    mwalib_sum_of_fine_chan,
+                    pyuvdata_sum_of_fine_chan,
+                    F64Margin::default()
+                ) {
+                    // match
+                    1
+                } else {
+                    // no match
+                    0
+                };
+
+                assert_eq!(
+                    good,
+                    1,
+                    "fine_chan: {} baseline: {} ant1: {} v ant2: {} mwalib_sum: {} != pyuvdata_sum: {} difference: {}",
+                    fine_chan,
+                    baseline,
+                    ant1,
+                    ant2,
+                    mwalib_sum_of_fine_chan,
+                    pyuvdata_sum_of_fine_chan,
+                    mwalib_sum_of_fine_chan - pyuvdata_sum_of_fine_chan
+                );
+
+                // Reset our sums
+                mwalib_sum_of_fine_chan = 0.;
+                pyuvdata_sum_of_fine_chan = 0.;
+
+                // Reset counters
+                baseline = 0;
+                ant1 = 0;
+                ant2 = 0;
+                fine_chan += 1;
+            }
+        }
+    }
+
+    #[test]
+    fn test_mwax_conversion_to_frequency_order() {
+        // Open the test mwax file
+        // a) directly using Fits  (data will be ordered [baseline][freq][pol][r][i])
+        // b) using mwalib (by freq) (data will be ordered [freq][baseline][pol][r][i])
+        // Then check b) is the same as a) modulo the order
+        let mwax_metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+        let mwax_filename =
+            "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
+
+        //
+        // Read the mwax file using FITS
+        //
+        let mut fptr = FitsFile::open(&mwax_filename).unwrap();
+        let fits_hdu = fptr.hdu(1).unwrap();
+
+        // Read data from fits hdu into vector
+        let fits_hdu_data: Vec<f32> = fits_hdu.read_image(&mut fptr).unwrap();
+
+        //
+        // Read the mwax file by frequency using mwalib
+        //
+        // Open a context and load in a test metafits and gpubox file
+        let metafits: String = String::from(mwax_metafits_filename);
+        let gpuboxfiles: Vec<String> = vec![String::from(mwax_filename)];
+        let mut context =
+            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+
+        // Read and convert first HDU
+        let mwalib_hdu_data: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+
+        // First assert that the data vectors are the same size
+        assert_eq!(fits_hdu_data.len(), mwalib_hdu_data.len());
+
+        let num_floats_per_baseline_fine_chan = context.num_visibility_pols * 2; // xx_r, xx_i, xy_r, ...
+
+        // We will walk through the visibilities and compare them
+        for b in 0..context.num_baselines {
+            for f in 0..context.num_fine_channels_per_coarse {
+                // At this point we have 1 baseline and 1 fine channel which == (num_floats_per_baseline_fine_chan)
+                // locate this block of data in both hdus
+                let fits_index = (b
+                    * (context.num_fine_channels_per_coarse * num_floats_per_baseline_fine_chan))
+                    + (f * num_floats_per_baseline_fine_chan);
+                let mwalib_index = (f
+                    * (context.num_baselines * num_floats_per_baseline_fine_chan))
+                    + (b * num_floats_per_baseline_fine_chan);
+
+                // Check this block of floats matches
+                assert_eq!(
+                    fits_hdu_data[fits_index..fits_index + num_floats_per_baseline_fine_chan],
+                    mwalib_hdu_data[mwalib_index..mwalib_index + num_floats_per_baseline_fine_chan]
+                );
             }
         }
     }

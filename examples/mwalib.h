@@ -369,6 +369,49 @@ int32_t mwalibContext_read_by_baseline(mwalibContext *context_ptr,
                                        size_t error_message_length);
 
 /**
+ * Read a single timestep / coarse channel of MWA data.
+ *
+ * This method takes as input a timestep_index and a coarse_channel_index to return one
+ * HDU of data in [freq][baseline][pol][r][i] format
+ *
+ * # Arguments
+ *
+ * * `context_ptr` - pointer to an already populated mwalibContext object.
+ *
+ * * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+ *                      to mwalibTimeStep.get(context, N) where N is timestep_index.
+ *
+ * * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
+ *                            to mwalibCoarseChannel.get(context, N) where N is coarse_channel_index.
+ *
+ * * `buffer_ptr` - pointer to caller-owned and allocated buffer to write data into.
+ *
+ * * `buffer_len` - length of `buffer_ptr`.
+ *
+ * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+ *
+ * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, 1 on failure
+ *
+ *
+ * # Safety
+ * * error_message *must* point to an already allocated char* buffer for any error messages.
+ * * context_ptr must point to a populated object from the mwalibContext_new function.
+ * * Caller *must* call mwalibContext_free_read_buffer function to release the rust memory.
+ */
+int32_t mwalibContext_read_by_frequency(mwalibContext *context_ptr,
+                                        uintptr_t timestep_index,
+                                        uintptr_t coarse_channel_index,
+                                        float *buffer_ptr,
+                                        size_t buffer_len,
+                                        uint8_t *error_message,
+                                        size_t error_message_length);
+
+/**
  * Free a previously-allocated `mwalibContext` struct.
  *
  * # Arguments
