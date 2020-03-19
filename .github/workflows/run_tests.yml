@@ -20,7 +20,7 @@ jobs:
           sudo apt-get update; sudo apt-get install libssl-dev pkg-config cmake zlib1g-dev 
 
     - name: Install Tarpaulin
-      run: cargo install cargo-tarpaulin -f
+      run: cargo install cargo-tarpaulin
 
     - name: Get cfitsio        
       run: |
@@ -31,12 +31,9 @@ jobs:
           make clean && make;
           sudo make install;
           sudo ldconfig;
-    
-    - name: Build
-      run: cargo build --verbose
-      
+          
     - name: Run cargo-tarpaulin
-      run: cargo tarpaulin -v --timeout=360--ignore-tests --out=Lcov --output-dir=./coverage/
+      run: cargo tarpaulin -v --release --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/
 
     - name: Coveralls
       uses: coverallsapp/github-action@master
