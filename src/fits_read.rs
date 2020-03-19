@@ -51,6 +51,31 @@ where
     Ok(hdu.read_key::<String>(fits_fptr, keyword)?.parse()?)
 }
 
+/// Given a FITS file pointer, a HDU that belongs to it, and a keyword, pull out
+/// the string value of the keyword. NOTE: not suitable for long FITS strings
+///
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `hdu` - A reference to the HDU you want to find `keyword` in the header of.
+///
+/// * `keyword` - String containing the keyword to read.
+///
+///
+/// # Returns
+///
+/// *  A Result containing the string value read, if Ok.
+///
+pub fn get_fits_key_string(
+    fits_fptr: &mut FitsFile,
+    hdu: &FitsHdu,
+    keyword: &str,
+) -> Result<String, ErrorKind> {
+    Ok(hdu.read_key::<String>(fits_fptr, keyword)?)
+}
+
 /// Given a FITS file pointer, get the size of the image on HDU 2.
 ///
 /// # Arguments
@@ -221,6 +246,27 @@ mod tests {
             assert!(bar_u8.is_err());
             assert!(bar_i8.is_ok());
             assert_eq!(bar_i8.unwrap(), -5);
+        });
+    }
+
+    #[test]
+    fn test_get_fits_key_string() {
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        with_new_temp_fits_file("test_fits_read_key_string.fits", |fptr| {
+            let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+
+            // Failure to get a key that doesn't exist.
+            assert!(get_fits_key_string(fptr, &hdu, "foo").is_err());
+
+            // Add a test string
+            hdu.write_key(fptr, "foo", "hello")
+                .expect("Couldn't write key 'foo'");
+
+            // Read foo back in
+            let foo_string = get_fits_key_string(fptr, &hdu, "foo").unwrap();
+
+            // Despite writing to "foo", the key is written as "FOO".
+            assert_eq!(foo_string, "hello");
         });
     }
 

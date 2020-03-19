@@ -5,6 +5,7 @@
 /*!
 The main interface to MWA data.
  */
+use chrono::{DateTime, FixedOffset};
 use fitsio::*;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -15,6 +16,7 @@ use crate::coarse_channel::*;
 use crate::convert::*;
 use crate::fits_read::*;
 use crate::gpubox::*;
+use crate::misc::*;
 use crate::rfinput::*;
 use crate::timestep::*;
 use crate::*;
@@ -65,39 +67,70 @@ impl fmt::Display for CorrelatorVersion {
 /// more like a C library.
 #[allow(non_camel_case_types)]
 pub struct mwalibContext {
-    /// Observation id
+    // Instrument details
+    // Lat
+    pub mwa_latitude_radians: f64,
+    // Long
+    pub mwa_longitude_radians: f64,
+    // altitude
+    pub mwa_altitude_metres: f64,
+
+    // "the velocity factor of electic fields in RG-6 like coax"
+    pub coax_v_factor: f64,
+    // Observation id
     pub obsid: u32,
-    // TODO: DATE-OBS   // Scheduled start (UTC) of observation
-    // TODO: MJD        // Scheduled start (MJD) of observation
-    // TODO: EXPOSURE   // Scheduled duration of observation
-    // TODO: RAPHASE    // phase centre
-    // TODO: DECPHASE   // phase centre
-    // TODO: RA         // tile pointing
-    // TODO: DEC        // tile pointing
-    // TODO: AZIMUTH
-    // TODO: ALTITUDE
-    // TODO: SUN-ALT
-    // TODO: SUN-DIST
-    // TODO: MOONDIST
-    // TODO: JUP-DIST
-    // TODO: LST
-    // TODO: HA
-    // TODO: GRIDNAME
-    // TODO: GRIDNUM
-    // TODO: CREATOR
-    // TODO: PROJECT
-    // TODO: FILENAME  // Observation name
-    // TODO: MODE
+    // Scheduled start (UTC) of observation
+    pub scheduled_start_utc: DateTime<FixedOffset>,
+    // Scheduled start (MJD) of observation
+    pub scheduled_start_mjd: f64,
+    // Scheduled duration of observation
+    pub scheduled_duration_milliseconds: u64,
+    // RA tile pointing
+    pub ra_tile_pointing_degrees: f64,
+    // DEC tile pointing
+    pub dec_tile_pointing_degrees: f64,
+    // RA phase centre
+    pub ra_phase_center_degrees: Option<f64>,
+    // DEC phase centre
+    pub dec_phase_center_degrees: Option<f64>,
+    // AZIMUTH
+    pub azimuth_degrees: f64,
+    // ALTITUDE
+    pub altitude_degrees: f64,
+    // Altitude of Sun
+    pub sun_altitude_degrees: f64,
+    // Distance from pointing center to Sun
+    pub sun_distance_degrees: f64,
+    // Distance from pointing center to the Moon
+    pub moon_distance_degrees: f64,
+    // Distance from pointing center to Jupiter
+    pub jupiter_distance_degrees: f64,
+    // Local Sidereal Time
+    pub lst_degrees: f64,
+    // Hour Angle of pointing center
+    pub hour_angle_string: String,
+    // GRIDNAME
+    pub grid_name: String,
+    // GRIDNUM
+    pub grid_number: i32,
+    // CREATOR
+    pub creator: String,
+    // PROJECT
+    pub project_id: String,
+    // Observation name
+    pub observation_name: String,
+    // MWA observation mode
+    pub mode: String,
     // TODO: RECVRS    // Array of receiver numbers (this tells us how many receivers too)
     // TODO: DELAYS    // Array of delays
     // TODO: ATTEN_DB  // global analogue attenuation, in dB
+    pub global_analogue_attenuation_db: f64,
     // TODO: QUACKTIM  // Seconds of bad data after observation starts
+    pub quack_time_duration_milliseconds: u64,
     // TODO: GOODTIME  // OBSID+QUACKTIM as Unix timestamp (first good timestep)
-    //
+    pub good_time_unix_milliseconds: u64,
     /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
-    /// "the velocity factor of electic fields in RG-6 like coax"    
-    pub coax_v_factor: f64,
     /// The proper start of the observation (the time that is common to all
     /// provided gpubox files).
     pub start_unix_time_milliseconds: u64,
@@ -200,6 +233,10 @@ impl mwalibContext {
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
         let coax_v_factor: f64 = 1.204;
 
+        let mwa_latitude_radians: f64 = dms_to_degrees(-26, 42, 11.94986).to_radians(); // -26d42m11.94986s
+        let mwa_longitude_radians: f64 = dms_to_degrees(116, 40, 14.93485).to_radians(); // 116d40m14.93485s
+        let mwa_altitude_metres: f64 = 377.827;
+
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
         let mut metafits_fptr =
@@ -242,6 +279,7 @@ impl mwalibContext {
         // Now populate the antennas (note they need to be sorted by subfile_order)
         let antennas: Vec<mwalibAntenna> = mwalibAntenna::populate_antennas(&rf_inputs);
 
+        // Populate obsid
         let obsid = get_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
             .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;
 
@@ -294,6 +332,90 @@ impl mwalibContext {
             (o.start_millisec, o.end_millisec, o.duration_millisec)
         };
 
+        // populate lots of useful metadata
+        let scheduled_start_utc_string =
+            get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "DATE-OBS")
+                .with_context(|| format!("Failed to read DATE-OBS for {:?}", metafits))?;
+
+        let scheduled_start_utc_string_with_offset = scheduled_start_utc_string + "+00:00";
+
+        let scheduled_start_utc =
+            DateTime::parse_from_rfc3339(&scheduled_start_utc_string_with_offset)
+                .expect("Unable to parse DATE-OBS into a date time");
+        let scheduled_start_mjd: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "MJD")
+            .with_context(|| format!("Failed to read MJD for {:?}", metafits))?;
+        let scheduled_duration_milliseconds: u64 =
+            get_fits_key::<u64>(&mut metafits_fptr, &metafits_hdu, "EXPOSURE")
+                .with_context(|| format!("Failed to read EXPOSURE for {:?}", metafits))?
+                * 1000;
+        let ra_tile_pointing_degrees: f64 =
+            get_fits_key(&mut metafits_fptr, &metafits_hdu, "RA")
+                .with_context(|| format!("Failed to read RA for {:?}", metafits))?;
+        let dec_tile_pointing_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "DEC")
+            .with_context(|| format!("Failed to read DEC for {:?}", metafits))?;
+        let ra_phase_center_degrees: Option<f64> =
+            match get_fits_key(&mut metafits_fptr, &metafits_hdu, "RAPHASE")
+                .with_context(|| format!("Failed to read RAPHASE for {:?}", metafits))
+            {
+                Ok(v) => Some(v),
+                Err(_) => None,
+            };
+        let dec_phase_center_degrees: Option<f64> =
+            match get_fits_key(&mut metafits_fptr, &metafits_hdu, "DECPHASE")
+                .with_context(|| format!("Failed to read DECPHASE for {:?}", metafits))
+            {
+                Ok(v) => Some(v),
+                Err(_) => None,
+            };
+        let azimuth_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "AZIMUTH")
+            .with_context(|| format!("Failed to read AZIMUTH for {:?}", metafits))?;
+        let altitude_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "ALTITUDE")
+            .with_context(|| format!("Failed to read ALTITUDE for {:?}", metafits))?;
+        let sun_altitude_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "SUN-ALT")
+            .with_context(|| format!("Failed to read SUN-ALT for {:?}", metafits))?;
+        let sun_distance_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "SUN-DIST")
+            .with_context(|| format!("Failed to read SUN-DIST for {:?}", metafits))?;
+        let moon_distance_degrees: f64 =
+            get_fits_key(&mut metafits_fptr, &metafits_hdu, "MOONDIST")
+                .with_context(|| format!("Failed to read MOONDIST for {:?}", metafits))?;
+        let jupiter_distance_degrees: f64 =
+            get_fits_key(&mut metafits_fptr, &metafits_hdu, "JUP-DIST")
+                .with_context(|| format!("Failed to read JUP-DIST for {:?}", metafits))?;
+        let lst_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "LST")
+            .with_context(|| format!("Failed to read LST for {:?}", metafits))?;
+        let hour_angle_string = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "HA")
+            .with_context(|| format!("Failed to read HA for {:?}", metafits))?;
+        let grid_name = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "GRIDNAME")
+            .with_context(|| format!("Failed to read GRIDNAME for {:?}", metafits))?;
+        let grid_number = get_fits_key(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")
+            .with_context(|| format!("Failed to read GRIDNUM for {:?}", metafits))?;
+        let creator = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "CREATOR")
+            .with_context(|| format!("Failed to read CREATOR for {:?}", metafits))?;
+        let project_id = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "PROJECT")
+            .with_context(|| format!("Failed to read PROJECT for {:?}", metafits))?;
+        let observation_name =
+            get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "FILENAME")
+                .with_context(|| format!("Failed to read FILENAME for {:?}", metafits))?;
+        let mode = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "MODE")
+            .with_context(|| format!("Failed to read MODE for {:?}", metafits))?;
+        let receivers_string = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "RECVRS")
+            .with_context(|| format!("Failed to read RECVRS for {:?}", metafits))?;
+        let delays_string = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "DELAYS")
+            .with_context(|| format!("Failed to read DELAYS for {:?}", metafits))?;
+        let global_analogue_attenuation_db: f64 =
+            get_fits_key(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")
+                .with_context(|| format!("Failed to read ATTEN_DB for {:?}", metafits))?;
+        let quack_time_duration_milliseconds: u64 =
+            (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")
+                .with_context(|| format!("Failed to read QUACKTIM for {:?}", metafits))?
+                * 1000.)
+                .round() as _;
+        let good_time_unix_milliseconds: u64 =
+            (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "GOODTIME")
+                .with_context(|| format!("Failed to read GOODTIME for {:?}", metafits))?
+                * 1000.)
+                .round() as _;
+
         // Prepare the conversion array to convert legacy correlator format into mwax format
         // or just leave it empty if we're in any other format
         let legacy_conversion_table: Vec<mwalibLegacyConversionBaseline> = if corr_version
@@ -309,9 +431,36 @@ impl mwalibContext {
         rf_inputs.sort_by_key(|k| k.subfile_order);
 
         Ok(mwalibContext {
+            coax_v_factor,
+            mwa_latitude_radians,
+            mwa_longitude_radians,
+            mwa_altitude_metres,
             corr_version,
             obsid,
-            coax_v_factor,
+            scheduled_start_utc,
+            scheduled_start_mjd,
+            scheduled_duration_milliseconds,
+            ra_tile_pointing_degrees,
+            dec_tile_pointing_degrees,
+            ra_phase_center_degrees,
+            dec_phase_center_degrees,
+            azimuth_degrees,
+            altitude_degrees,
+            sun_altitude_degrees,
+            sun_distance_degrees,
+            moon_distance_degrees,
+            jupiter_distance_degrees,
+            lst_degrees,
+            hour_angle_string,
+            grid_name,
+            grid_number,
+            creator,
+            project_id,
+            observation_name,
+            mode,
+            global_analogue_attenuation_db,
+            quack_time_duration_milliseconds,
+            good_time_unix_milliseconds,
             start_unix_time_milliseconds,
             end_unix_time_milliseconds,
             duration_milliseconds,
@@ -334,8 +483,8 @@ impl mwalibContext {
             metafits_filename: metafits.to_string(),
             gpubox_batches,
             gpubox_time_map,
-            num_timestep_coarse_channel_bytes: hdu_size * 4,
             num_gpubox_files,
+            num_timestep_coarse_channel_bytes: hdu_size * 4,
             num_timestep_coarse_channel_floats: hdu_size,
             legacy_conversion_table,
         })
@@ -505,10 +654,41 @@ impl fmt::Display for mwalibContext {
             r#"mwalibContext (
     Correlator version:       {},
 
+    MWA latitude:             {} degrees,
+    MWA longitude:            {} degrees
+    MWA altitude:             {} m,
+
     obsid:                    {},
-    obs UNIX start time:      {} s,
-    obs UNIX end time:        {} s,
-    obs duration:             {} s,
+
+    Creator:                  {},
+    Project ID:               {},
+    Observation Name:         {},    
+    Global attenuation:       {} dB,
+
+    Scheduled start (utc)     {},
+    Scheduled start (MJD)     {},
+    Scheduled duration        {} s,
+    Actual UNIX start time:   {},
+    Actual UNIX end time:     {},
+    Actual duration:          {} s,
+    Quack time:               {} s,
+    Good UNIX start time:     {},
+
+    R.A. (tile_pointing):     {} degrees,
+    Dec. (tile_pointing):     {} degrees,
+    R.A. (phase center):      {:?} degrees,
+    Dec. (phase center):      {:?} degrees,
+    Azimuth:                  {} degrees,
+    Altitude:                 {} degrees,
+    Sun altitude:             {} degrees,
+    Sun distance:             {} degrees,
+    Moon distance:            {} degrees,
+    Jupiter distance:         {} degrees,
+    LST:                      {} degrees,
+    Hour angle:               {} degrees,
+    Grid name:                {},
+    Grid number:              {},    
+    
     num timesteps:            {},
     timesteps:                {:?},
 
@@ -528,6 +708,7 @@ impl fmt::Display for mwalibContext {
     coarse channels:          {:?},
 
     Correlator Mode:
+    Mode:                     {},
     fine channel resolution:  {} kHz,
     integration time:         {:.2} s
     num fine channels/coarse: {},
@@ -539,10 +720,36 @@ impl fmt::Display for mwalibContext {
     gpubox batches:           {:#?},
 )"#,
             self.corr_version,
+            self.mwa_latitude_radians.to_degrees(),
+            self.mwa_longitude_radians.to_degrees(),
+            self.mwa_altitude_metres,
             self.obsid,
+            self.creator,
+            self.project_id,
+            self.observation_name,
+            self.global_analogue_attenuation_db,
+            self.scheduled_start_utc,
+            self.scheduled_start_mjd,
+            self.scheduled_duration_milliseconds as f64 / 1e3,
             self.start_unix_time_milliseconds as f64 / 1e3,
             self.end_unix_time_milliseconds as f64 / 1e3,
             self.duration_milliseconds as f64 / 1e3,
+            self.quack_time_duration_milliseconds as f64 / 1e3,
+            self.good_time_unix_milliseconds as f64 / 1e3,
+            self.ra_tile_pointing_degrees,
+            self.dec_tile_pointing_degrees,
+            self.ra_phase_center_degrees,
+            self.dec_phase_center_degrees,
+            self.azimuth_degrees,
+            self.altitude_degrees,
+            self.sun_altitude_degrees,
+            self.sun_distance_degrees,
+            self.moon_distance_degrees,
+            self.jupiter_distance_degrees,
+            self.lst_degrees,
+            self.hour_angle_string,
+            self.grid_name,
+            self.grid_number,
             self.num_timesteps,
             self.timesteps,
             self.num_antennas,
@@ -556,6 +763,7 @@ impl fmt::Display for mwalibContext {
             self.observation_bandwidth_hz as f64 / 1e6,
             self.num_coarse_channels,
             self.coarse_channels,
+            self.mode,
             self.fine_channel_width_hz as f64 / 1e3,
             self.integration_time_milliseconds as f64 / 1e3,
             self.num_fine_channels_per_coarse,

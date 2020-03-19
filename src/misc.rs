@@ -9,6 +9,31 @@ General helper/utility methods
 use crate::antenna;
 use fitsio::FitsFile;
 
+/// Function to take d m s and return the decimal degrees.
+///
+/// # Arguments
+///
+/// * `degrees` - integer number of degrees
+///
+/// * `minutes` - integer number of minutes
+///
+/// * `seconds` - number of seconds (may be a float)
+///
+///
+/// # Returns
+///
+/// * a float64 containing the number of decimal degrees
+///
+pub fn dms_to_degrees(degrees: i32, minutes: u32, seconds: f64) -> f64 {
+    let deg = degrees.abs() as f64 + (minutes as f64 / 60_f64) + (seconds.abs() / 3600_f64);
+
+    if degrees < 0 {
+        -deg
+    } else {
+        deg
+    }
+}
+
 /// Function to allow access to a temporary file. Temp directory and File is dropped once out of scope.
 /// This is derived from fitsio crate.
 ///
@@ -200,6 +225,7 @@ mod tests {
     use super::*;
     use crate::antenna::*;
     use crate::rfinput::*;
+    use float_cmp::*;
 
     #[test]
     fn test_get_baseline_count() {
@@ -490,6 +516,34 @@ mod tests {
             String::from("tile101"),
             String::from("tile112"),
             &ants,
+        );
+    }
+
+    #[test]
+    fn test_dms_to_degrees() {
+        assert!(approx_eq!(
+            f64,
+            dms_to_degrees(0, 0, 0.),
+            0.,
+            F64Margin::default()
+        ));
+
+        assert!(
+            approx_eq!(
+                f64,
+                dms_to_degrees(-10, 30, 0.),
+                -10.5,
+                F64Margin::default()
+            ),
+            "dms_to_degrees(-10, 30, 0.) == {}",
+            dms_to_degrees(-10, 30, 0.)
+        );
+
+        let test3: f64 = dms_to_degrees(180, 59, 59.9999);
+        assert!(
+            approx_eq!(f64, test3, 180.999_999_972_222_2, F64Margin::default()),
+            "{}",
+            test3
         );
     }
 }
