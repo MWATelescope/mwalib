@@ -12,12 +12,12 @@ correctness of mwalib is verified by using rust directly (and some testing via
 C).
  */
 
+use crate::*;
+extern crate chrono;
+use libc::{c_char, c_float, c_longlong, size_t, time_t};
 use std::ffi::*;
 use std::ptr;
 use std::slice;
-
-use crate::*;
-use libc::{c_char, c_float, c_longlong, size_t};
 
 /// Generic helper function for all FFI modules to take an already allocated C string
 /// and update it with an error message. This is used to pass error messages back to C from Rust.
@@ -431,10 +431,37 @@ pub unsafe extern "C" fn mwalibContext_free_read_buffer(
 ///
 #[repr(C)]
 pub struct mwalibMetadata {
-    /// See definition of context::mwalibContext for full description of each attribute        
+    /// See definition of context::mwalibContext for full description of each attribute
     pub obsid: u32,
     pub corr_version: CorrelatorVersion,
+    pub mwa_latitude_radians: f64,
+    pub mwa_longitude_radians: f64,
+    pub mwa_altitude_metres: f64,
     pub coax_v_factor: f64,
+    pub global_analogue_attenuation_db: f64,
+    pub ra_tile_pointing_degrees: f64,
+    pub dec_tile_pointing_degrees: f64,
+    pub ra_phase_center_degrees: f64,
+    pub dec_phase_center_degrees: f64,
+    pub azimuth_degrees: f64,
+    pub altitude_degrees: f64,
+    pub sun_altitude_degrees: f64,
+    pub sun_distance_degrees: f64,
+    pub moon_distance_degrees: f64,
+    pub jupiter_distance_degrees: f64,
+    pub lst_degrees: f64,
+    pub hour_angle_string: *mut c_char,
+    pub grid_name: *mut c_char,
+    pub grid_number: i32,
+    pub creator: *mut c_char,
+    pub project_id: *mut c_char,
+    pub observation_name: *mut c_char,
+    pub mode: *mut c_char,
+    pub scheduled_start_utc: time_t,
+    pub scheduled_start_mjd: f64,
+    pub scheduled_duration_milliseconds: u64,
+    pub quack_time_duration_milliseconds: u64,
+    pub good_time_unix_milliseconds: u64,
     pub start_unix_time_milliseconds: u64,
     pub end_unix_time_milliseconds: u64,
     pub duration_milliseconds: u64,
@@ -490,14 +517,58 @@ pub unsafe extern "C" fn mwalibMetadata_get(
         return ptr::null_mut();
     }
     let context = &*context_ptr;
-
     let out_context = mwalibMetadata {
         obsid: context.obsid,
         corr_version: context.corr_version,
+        mwa_latitude_radians: context.mwa_latitude_radians,
+        mwa_longitude_radians: context.mwa_longitude_radians,
+        mwa_altitude_metres: context.mwa_altitude_metres,
         coax_v_factor: context.coax_v_factor,
+        global_analogue_attenuation_db: context.global_analogue_attenuation_db,
+        ra_tile_pointing_degrees: context.ra_tile_pointing_degrees,
+        dec_tile_pointing_degrees: context.dec_tile_pointing_degrees,
+        ra_phase_center_degrees: match context.ra_phase_center_degrees {
+            Some(v) => v,
+            None => 0.,
+        },
+        dec_phase_center_degrees: match context.dec_phase_center_degrees {
+            Some(v) => v,
+            None => 0.,
+        },
+        azimuth_degrees: context.azimuth_degrees,
+        altitude_degrees: context.altitude_degrees,
+        sun_altitude_degrees: context.sun_altitude_degrees,
+        sun_distance_degrees: context.sun_distance_degrees,
+        moon_distance_degrees: context.moon_distance_degrees,
+        jupiter_distance_degrees: context.jupiter_distance_degrees,
+        lst_degrees: context.lst_degrees,
+        hour_angle_string: CString::new(String::from(&context.hour_angle_string))
+            .unwrap()
+            .into_raw(),
+        grid_name: CString::new(String::from(&context.grid_name))
+            .unwrap()
+            .into_raw(),
+        grid_number: context.grid_number,
+        creator: CString::new(String::from(&context.creator))
+            .unwrap()
+            .into_raw(),
+        project_id: CString::new(String::from(&context.project_id))
+            .unwrap()
+            .into_raw(),
+        observation_name: CString::new(String::from(&context.observation_name))
+            .unwrap()
+            .into_raw(),
+        mode: CString::new(String::from(&context.mode))
+            .unwrap()
+            .into_raw(),
+        scheduled_start_utc: context.scheduled_start_utc.timestamp(),
+        scheduled_start_mjd: context.scheduled_start_mjd,
+        scheduled_duration_milliseconds: context.scheduled_duration_milliseconds,
         start_unix_time_milliseconds: context.start_unix_time_milliseconds,
         end_unix_time_milliseconds: context.end_unix_time_milliseconds,
         duration_milliseconds: context.duration_milliseconds,
+        quack_time_duration_milliseconds: context.quack_time_duration_milliseconds,
+        good_time_unix_milliseconds: context.good_time_unix_milliseconds,
         num_timesteps: context.num_timesteps,
         num_antennas: context.num_antennas,
         num_baselines: context.num_baselines,

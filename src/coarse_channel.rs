@@ -73,33 +73,6 @@ impl mwalibCoarseChannel {
             channel_end_hz: centre_chan_hz + (coarse_channel_width_hz / 2),
         }
     }
-
-    /// Takes a fits pointer to the metafits file and retrieves the long string for CHANNELS.
-    /// CHANNELS is nearly always a long string, which requires special handling to read.
-    ///
-    /// # Arguments
-    ///
-    /// `metafits_fptr` - a reference to a metafits FitsFile object.
-    ///
-    /// # Returns
-    ///
-    /// * A Result containing the CHANNELS string or an error.
-    ///
-    pub fn get_metafits_coarse_channel_string(
-        metafits_fptr: &mut fitsio::FitsFile,
-    ) -> Result<String, ErrorKind> {
-        // Read the long string.
-        let (status, coarse_channels_string) =
-            unsafe { get_fits_long_string(metafits_fptr.as_raw(), "CHANNELS") };
-        if status != 0 {
-            return Err(ErrorKind::Custom(
-                "mwalibContext::new: get_fits_long_string failed".to_string(),
-            ));
-        }
-
-        Ok(coarse_channels_string)
-    }
-
     /// Takes the metafits long string of coarse channels, parses it and turns it into a vector
     /// with each element being a reciever channel number. This is the total receiver channels
     /// used in this observation.
@@ -150,7 +123,7 @@ impl mwalibCoarseChannel {
         // fitsio library for rust does not (appear) to handle CONTINUE keywords
         // at present, but the underlying fitsio-sys does, so we have to do FFI
         // directly.
-        let coarse_channels_string = Self::get_metafits_coarse_channel_string(metafits_fptr)?;
+        let coarse_channels_string = get_required_fits_key_long_string(metafits_fptr, "CHANNELS")?;
 
         // Get the vector of coarse channels from the metafits
         let coarse_channel_vec = Self::get_metafits_coarse_channel_array(&coarse_channels_string);
@@ -483,26 +456,5 @@ mod tests {
         assert_eq!(coarse_channel_array[4].correlator_channel_number, 4);
         assert_eq!(coarse_channel_array[4].receiver_channel_number, 130);
         assert_eq!(coarse_channel_array[4].gpubox_number, 130);
-    }
-
-    #[test]
-    fn test_get_metafits_coarse_channel_string_missing() {
-        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-        misc::with_new_temp_fits_file(
-            "test_get_metafits_coarse_channel_string_missing.fits",
-            |mut fptr| {
-                let test_string = "131,132,133";
-
-                fptr.hdu(0)
-                    .unwrap()
-                    .write_key(&mut fptr, "foo", test_string)
-                    .unwrap();
-
-                // Now run the test!
-                let result = mwalibCoarseChannel::get_metafits_coarse_channel_string(fptr);
-
-                assert_eq!(result.is_err(), true);
-            },
-        );
     }
 }

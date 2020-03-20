@@ -379,9 +379,9 @@ pub fn create_time_map(
                 .with_context(|| format!("Failed to open HDU 1 of {:?}", gpubox_file))?;
             // New correlator files include a version - check that it is present.
             if correlator_version == CorrelatorVersion::V2 {
-                let v = get_fits_key::<u8>(&mut fptr, &hdu, "CORR_VER").with_context(|| {
-                    format!("Failed to read key CORR_VER from {:?}", gpubox_file)
-                })?;
+                let v = get_required_fits_key::<u8>(&mut fptr, &hdu, "CORR_VER").with_context(
+                    || format!("Failed to read key CORR_VER from {:?}", gpubox_file),
+                )?;
                 if v != 2 {
                     return Err(ErrorKind::Custom(
                         "mwalibContext::new: MWAX gpubox file had a CORR_VER not equal to 2"

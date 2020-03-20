@@ -37,22 +37,107 @@ use crate::error::ErrorKind;
 ///
 /// # Returns
 ///
-/// *  A Result containing the value read, if Ok.
+/// *  A Result containing an Option containing the value read or None if the key did not exist, or an error.
 ///
-pub fn get_fits_key<T>(
+pub fn get_optional_fits_key<T>(
+    fits_fptr: &mut FitsFile,
+    hdu: &FitsHdu,
+    keyword: &str,
+) -> Result<Option<T>, ErrorKind>
+where
+    T: std::str::FromStr,
+{
+    let unparsed_value: String = match hdu.read_key(fits_fptr, keyword) {
+        Ok(key_value) => key_value,
+        Err(e) => match e {
+            fitsio::errors::Error::Fits(fe) => match fe.status {
+                202 => return Ok(None),
+                _ => {
+                    return Err(ErrorKind::Custom(format!(
+                        "FITS error reading key {} code: {} message: {}",
+                        keyword, fe.status, fe.message
+                    )))
+                }
+            },
+            _ => return Err(ErrorKind::from(e)),
+        },
+    };
+
+    match unparsed_value.parse() {
+        Ok(parsed_value) => Ok(Some(parsed_value)),
+        Err(_) => Err(ErrorKind::Custom(format!(
+            "unable to parse fits key {} - invalid data type",
+            keyword
+        ))),
+    }
+}
+
+/// Given a FITS file pointer, a HDU that belongs to it, and a keyword, pull out
+/// the value of the keyword, parsing it into the desired type.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `hdu` - A reference to the HDU you want to find `keyword` in the header of.
+///
+/// * `keyword` - String containing the keyword to read.
+///
+///
+/// # Returns
+///
+/// *  A Result containing an Option containing the value read or None if the key did not exist, or an error.
+///
+pub fn get_required_fits_key<T>(
     fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
 ) -> Result<T, ErrorKind>
 where
     T: std::str::FromStr,
-    ErrorKind: From<<T as str::FromStr>::Err>,
 {
-    Ok(hdu.read_key::<String>(fits_fptr, keyword)?.parse()?)
+    match get_optional_fits_key(fits_fptr, hdu, keyword) {
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Err(ErrorKind::Custom(format!(
+            "FITS keyword {} was not found",
+            keyword
+        ))),
+        Err(error) => Err(error),
+    }
 }
 
-/// Given a FITS file pointer, a HDU that belongs to it, and a keyword, pull out
-/// the string value of the keyword. NOTE: not suitable for long FITS strings
+/// Given a FITS file pointer, and a keyword to a long string keyword, pull out
+/// the string of the keyword. This deals with FITSs CONTINUE mechanism by calling a low level fits function.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `keyword` - String containing the keyword to read.
+///
+///
+/// # Returns
+///
+/// *  A Result containing an Option containing the value read or None if the key did not exist, or an error.
+///
+pub fn get_optional_fits_key_long_string(
+    fits_fptr: &mut fitsio::FitsFile,
+    keyword: &str,
+) -> Result<Option<String>, ErrorKind> {
+    // Read the long string.
+    let (status, long_string) = unsafe { get_fits_long_string(fits_fptr.as_raw(), keyword) };
+    match status {
+        0 => Ok(Some(long_string)),
+        202 => Ok(None),
+        _ => Err(ErrorKind::Custom(format!(
+            "get_optional_fits_key_long_string failed reading {}",
+            keyword
+        ))),
+    }
+}
+
+/// Given a FITS file pointer, and a keyword to a long string keyword, pull out
+/// the string of the keyword. This deals with FITSs CONTINUE mechanism by calling a low level fits function.
 ///
 ///
 /// # Arguments
@@ -66,34 +151,19 @@ where
 ///
 /// # Returns
 ///
-/// *  A Result containing the string value read, if Ok.
+/// *  A Result containing an Option containing the value read or None if the key did not exist, or an error.
 ///
-pub fn get_fits_key_string(
+pub fn get_required_fits_key_long_string(
     fits_fptr: &mut FitsFile,
-    hdu: &FitsHdu,
     keyword: &str,
 ) -> Result<String, ErrorKind> {
-    Ok(hdu.read_key::<String>(fits_fptr, keyword)?)
-}
-
-/// Given a FITS file pointer, get the size of the image on HDU 2.
-///
-/// # Arguments
-///
-/// * `fits_fptr` - A reference to the `FITSFile` object.
-///
-///
-/// # Returns
-///
-/// *  A Result containing a vector of the size of each dimension, if Ok.
-///
-pub fn get_hdu_image_size(fits_fptr: &mut FitsFile) -> Result<Vec<usize>, ErrorKind> {
-    match fits_fptr.hdu(1)?.info {
-        HduInfo::ImageInfo { shape, .. } => Ok(shape),
-        _ => Err(ErrorKind::Custom(
-            "fits_read::get_hdu_image_size: HDU 2 of the first gpubox_fptr was not an image"
-                .to_string(),
-        )),
+    match get_optional_fits_key_long_string(fits_fptr, keyword) {
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Err(ErrorKind::Custom(format!(
+            "FITS keyword {} was not found",
+            keyword
+        ))),
+        Err(error) => Err(error),
     }
 }
 
@@ -103,7 +173,6 @@ pub fn get_hdu_image_size(fits_fptr: &mut FitsFile) -> Result<Vec<usize>, ErrorK
 /// This function exists because the rust library `fitsio` does not support
 /// reading in long strings (i.e. those that have CONTINUE statements).
 ///
-/// TODO better error handling?
 ///
 /// # Arguments
 ///
@@ -116,7 +185,7 @@ pub fn get_hdu_image_size(fits_fptr: &mut FitsFile) -> Result<Vec<usize>, ErrorK
 ///
 /// *  A FITS status code and the long string
 ///
-pub unsafe fn get_fits_long_string(fptr: *mut fitsfile, keyword: &str) -> (i32, String) {
+unsafe fn get_fits_long_string(fptr: *mut fitsfile, keyword: &str) -> (i32, String) {
     let keyword_ffi =
         CString::new(keyword).expect("get_fits_long_string: CString::new() failed for keyword");
     // For reasons I cannot fathom, ffgkls expects `value` to be a malloc'd
@@ -141,6 +210,27 @@ pub unsafe fn get_fits_long_string(fptr: *mut fitsfile, keyword: &str) -> (i32, 
     } else {
         let long_string = String::from("");
         (status, long_string)
+    }
+}
+
+/// Given a FITS file pointer, get the size of the image on HDU 2.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+///
+/// # Returns
+///
+/// *  A Result containing a vector of the size of each dimension, if Ok.
+///
+pub fn get_hdu_image_size(fits_fptr: &mut FitsFile) -> Result<Vec<usize>, ErrorKind> {
+    match fits_fptr.hdu(1)?.info {
+        HduInfo::ImageInfo { shape, .. } => Ok(shape),
+        _ => Err(ErrorKind::Custom(
+            "fits_read::get_hdu_image_size: HDU 2 of the first gpubox_fptr was not an image"
+                .to_string(),
+        )),
     }
 }
 
@@ -211,7 +301,7 @@ mod tests {
             let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
 
             // Failure to get a key that doesn't exist.
-            assert!(get_fits_key::<u8>(fptr, &hdu, "foo").is_err());
+            assert!(get_required_fits_key::<u8>(fptr, &hdu, "foo").is_err());
 
             // Key types must be i64 to get any sort of sanity.
             hdu.write_key(fptr, "foo", 10i64)
@@ -233,16 +323,16 @@ mod tests {
             assert!(foo_i64.is_ok());
             assert_eq!(foo_i64.unwrap(), 10);
 
-            let foo_u8 = get_fits_key::<u8>(fptr, &hdu, "foo");
-            let foo_i8 = get_fits_key::<i8>(fptr, &hdu, "foo");
+            let foo_u8 = get_required_fits_key::<u8>(fptr, &hdu, "foo");
+            let foo_i8 = get_required_fits_key::<i8>(fptr, &hdu, "foo");
             assert!(foo_u8.is_ok());
             assert!(foo_i8.is_ok());
             assert_eq!(foo_u8.unwrap(), 10);
             assert_eq!(foo_i8.unwrap(), 10);
 
             // Can't parse the negative number into a unsigned int.
-            let bar_u8 = get_fits_key::<u8>(fptr, &hdu, "bar");
-            let bar_i8 = get_fits_key::<i8>(fptr, &hdu, "bar");
+            let bar_u8 = get_required_fits_key::<u8>(fptr, &hdu, "bar");
+            let bar_i8 = get_required_fits_key::<i8>(fptr, &hdu, "bar");
             assert!(bar_u8.is_err());
             assert!(bar_i8.is_ok());
             assert_eq!(bar_i8.unwrap(), -5);
@@ -256,14 +346,16 @@ mod tests {
             let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
 
             // Failure to get a key that doesn't exist.
-            assert!(get_fits_key_string(fptr, &hdu, "foo").is_err());
+            let does_not_exist: Result<String, ErrorKind> =
+                get_required_fits_key(fptr, &hdu, "foo");
+            assert!(does_not_exist.is_err());
 
             // Add a test string
             hdu.write_key(fptr, "foo", "hello")
                 .expect("Couldn't write key 'foo'");
 
             // Read foo back in
-            let foo_string = get_fits_key_string(fptr, &hdu, "foo").unwrap();
+            let foo_string: String = get_required_fits_key(fptr, &hdu, "foo").unwrap();
 
             // Despite writing to "foo", the key is written as "FOO".
             assert_eq!(foo_string, "hello");

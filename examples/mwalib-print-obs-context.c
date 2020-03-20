@@ -60,11 +60,43 @@ int main(int argc, char *argv[])
         break;
     }
 
+    printf("mwa_latitude:                   %f rad\n", metadata->mwa_latitude_radians);
+    printf("mwa_longitude:                  %f rad\n", metadata->mwa_longitude_radians);
+    printf("mwa_altitude:                   %f m\n", metadata->mwa_altitude_metres);
+
     printf("coax_v_factor:                  %f\n", metadata->coax_v_factor);
-    printf("start_unix_time_milliseconds:   %ld\n", metadata->start_unix_time_milliseconds);
-    printf("end_unix_time_milliseconds:     %ld\n", metadata->end_unix_time_milliseconds);
-    printf("duration_milliseconds:          %ld\n", metadata->duration_milliseconds);
-    printf("integration_time_milliseconds:  %ld\n", metadata->integration_time_milliseconds);
+
+    printf("R.A. (tile pointing):           %f degrees\n", metadata->ra_tile_pointing_degrees);
+    printf("Dec. (tile pointing):           %f degrees\n", metadata->dec_tile_pointing_degrees);
+    printf("R.A. (phase centre):            %f degrees\n", metadata->ra_phase_center_degrees);
+    printf("Dec. (phase centre):            %f degrees\n", metadata->dec_phase_center_degrees);
+    printf("Azimuth:                        %f degrees\n", metadata->azimuth_degrees);
+    printf("Altitude:                       %f degrees\n", metadata->altitude_degrees);
+    printf("Sun altitude:                   %f degrees\n", metadata->sun_altitude_degrees);
+    printf("Sun distance:                   %f degrees\n", metadata->sun_distance_degrees);
+    printf("Moon distance:                  %f degrees\n", metadata->moon_distance_degrees);
+    printf("Jupiter distance:               %f degrees\n", metadata->jupiter_distance_degrees);
+    printf("LST:                            %f degrees\n", metadata->lst_degrees);
+    printf("HA:                             %s H:M:S\n", metadata->hour_angle_string);
+    printf("Grid name:                      %s\n", metadata->grid_name);
+    printf("Grid number:                    %d\n", metadata->grid_number);
+    printf("Creator:                        %s\n", metadata->creator);
+    printf("Project Id:                     %s\n", metadata->project_id);
+    printf("Observation Name:               %s\n", metadata->observation_name);
+    printf("Mode:                           %s\n", metadata->mode);
+    printf("Global analogue attenuation:    %f dB\n", metadata->global_analogue_attenuation_db);
+    printf("Scheduled start:                %ld UNIX timestamp\n", metadata->scheduled_start_utc);
+    printf("Scheduled start:                %f MJD\n", metadata->scheduled_start_mjd);
+    printf("Scheduled duration:             %ld ms\n", metadata->scheduled_duration_milliseconds);
+
+    printf("Start UNIX time:                %ld ms\n", metadata->start_unix_time_milliseconds);
+    printf("End UNIX time:                  %ld ms\n", metadata->end_unix_time_milliseconds);
+    printf("Duration:                       %ld ms\n", metadata->duration_milliseconds);
+
+    printf("Quacktime:                      %ld ms\n", metadata->quack_time_duration_milliseconds);
+    printf("Good UNIX time:                 %ld ms\n", metadata->good_time_unix_milliseconds);
+
+    printf("integration_time:               %ld ms\n", metadata->integration_time_milliseconds);
     printf("num_timesteps:                  %ld\n", metadata->num_timesteps);
     printf("num_antennas:                   %ld\n", metadata->num_antennas);
     printf("num_baselines:                  %ld\n", metadata->num_baselines);

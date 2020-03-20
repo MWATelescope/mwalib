@@ -96,7 +96,8 @@ struct mwalibRFInputMetafitsTableRow {
     pub height_m: f64,
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flag: i32,
-    // TODO: Gains array (1 per coarse channel)
+    // Gains - TODO these are implemented as arrays of ints which is not supported by fitsio crate at this time
+    // Delays - TODO these are implemented as arrays of ints which is not supported by fitsio crate at this time
 }
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file

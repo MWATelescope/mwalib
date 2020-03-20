@@ -121,8 +121,10 @@ pub struct mwalibContext {
     pub observation_name: String,
     // MWA observation mode
     pub mode: String,
-    // TODO: RECVRS    // Array of receiver numbers (this tells us how many receivers too)
-    // TODO: DELAYS    // Array of delays
+    // RECVRS    // Array of receiver numbers (this tells us how many receivers too)
+    pub receivers: Vec<usize>,
+    // DELAYS    // Array of delays
+    pub delays: Vec<usize>,
     // TODO: ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
     // TODO: QUACKTIM  // Seconds of bad data after observation starts
@@ -258,8 +260,9 @@ impl mwalibContext {
         // Populate our array of timesteps
         // Create a vector of rf_input structs from the metafits
         let (timesteps, num_timesteps) = mwalibTimeStep::populate_timesteps(&gpubox_time_map);
-        let num_rf_inputs = get_fits_key::<usize>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
-            .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?;
+        let num_rf_inputs =
+            get_required_fits_key::<usize>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
+                .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?;
 
         // There are twice as many inputs as
         // there are antennas; halve that value.
@@ -280,7 +283,7 @@ impl mwalibContext {
         let antennas: Vec<mwalibAntenna> = mwalibAntenna::populate_antennas(&rf_inputs);
 
         // Populate obsid
-        let obsid = get_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
+        let obsid = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
             .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;
 
         // Always assume that MWA antennas have 2 pols, therefore the data has four polarisations. Would this ever
@@ -293,12 +296,12 @@ impl mwalibContext {
         let num_baselines = (num_antennas / 2) * (num_antennas + 1);
 
         let integration_time_milliseconds: u64 =
-            (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "INTTIME")
+            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "INTTIME")
                 .with_context(|| format!("Failed to read INTTIME for {:?}", metafits))?
                 * 1000.) as u64;
         // observation bandwidth (read from metafits in MHz)
         let metafits_observation_bandwidth_hz =
-            (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")
+            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")
                 .with_context(|| format!("Failed to read BANDWDTH for {:?}", metafits))?
                 * 1e6)
                 .round() as _;
@@ -315,7 +318,7 @@ impl mwalibContext {
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.
         let fine_channel_width_hz =
-            (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "FINECHAN")
+            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "FINECHAN")
                 .with_context(|| format!("Failed to read FINECHAN for {:?}", metafits))?
                 * 1000.)
                 .round() as _;
@@ -333,85 +336,98 @@ impl mwalibContext {
         };
 
         // populate lots of useful metadata
-        let scheduled_start_utc_string =
-            get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "DATE-OBS")
+        let scheduled_start_utc_string: String =
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "DATE-OBS")
                 .with_context(|| format!("Failed to read DATE-OBS for {:?}", metafits))?;
 
-        let scheduled_start_utc_string_with_offset = scheduled_start_utc_string + "+00:00";
+        let scheduled_start_utc_string_with_offset: String = scheduled_start_utc_string + "+00:00";
 
         let scheduled_start_utc =
             DateTime::parse_from_rfc3339(&scheduled_start_utc_string_with_offset)
                 .expect("Unable to parse DATE-OBS into a date time");
-        let scheduled_start_mjd: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "MJD")
-            .with_context(|| format!("Failed to read MJD for {:?}", metafits))?;
+        let scheduled_start_mjd: f64 =
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "MJD")
+                .with_context(|| format!("Failed to read MJD for {:?}", metafits))?;
         let scheduled_duration_milliseconds: u64 =
-            get_fits_key::<u64>(&mut metafits_fptr, &metafits_hdu, "EXPOSURE")
+            get_required_fits_key::<u64>(&mut metafits_fptr, &metafits_hdu, "EXPOSURE")
                 .with_context(|| format!("Failed to read EXPOSURE for {:?}", metafits))?
                 * 1000;
         let ra_tile_pointing_degrees: f64 =
-            get_fits_key(&mut metafits_fptr, &metafits_hdu, "RA")
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "RA")
                 .with_context(|| format!("Failed to read RA for {:?}", metafits))?;
-        let dec_tile_pointing_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "DEC")
-            .with_context(|| format!("Failed to read DEC for {:?}", metafits))?;
+        let dec_tile_pointing_degrees: f64 =
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "DEC")
+                .with_context(|| format!("Failed to read DEC for {:?}", metafits))?;
         let ra_phase_center_degrees: Option<f64> =
-            match get_fits_key(&mut metafits_fptr, &metafits_hdu, "RAPHASE")
-                .with_context(|| format!("Failed to read RAPHASE for {:?}", metafits))
-            {
-                Ok(v) => Some(v),
-                Err(_) => None,
-            };
+            get_optional_fits_key(&mut metafits_fptr, &metafits_hdu, "RAPHASE")
+                .with_context(|| format!("Failed to read RAPHASE for {:?}", metafits))?;
         let dec_phase_center_degrees: Option<f64> =
-            match get_fits_key(&mut metafits_fptr, &metafits_hdu, "DECPHASE")
-                .with_context(|| format!("Failed to read DECPHASE for {:?}", metafits))
-            {
-                Ok(v) => Some(v),
-                Err(_) => None,
-            };
-        let azimuth_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "AZIMUTH")
-            .with_context(|| format!("Failed to read AZIMUTH for {:?}", metafits))?;
-        let altitude_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "ALTITUDE")
-            .with_context(|| format!("Failed to read ALTITUDE for {:?}", metafits))?;
-        let sun_altitude_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "SUN-ALT")
-            .with_context(|| format!("Failed to read SUN-ALT for {:?}", metafits))?;
-        let sun_distance_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "SUN-DIST")
-            .with_context(|| format!("Failed to read SUN-DIST for {:?}", metafits))?;
+            get_optional_fits_key(&mut metafits_fptr, &metafits_hdu, "DECPHASE")
+                .with_context(|| format!("Failed to read DECPHASE for {:?}", metafits))?;
+        let azimuth_degrees: f64 =
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "AZIMUTH")
+                .with_context(|| format!("Failed to read AZIMUTH for {:?}", metafits))?;
+        let altitude_degrees: f64 =
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "ALTITUDE")
+                .with_context(|| format!("Failed to read ALTITUDE for {:?}", metafits))?;
+        let sun_altitude_degrees: f64 =
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "SUN-ALT")
+                .with_context(|| format!("Failed to read SUN-ALT for {:?}", metafits))?;
+        let sun_distance_degrees: f64 =
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "SUN-DIST")
+                .with_context(|| format!("Failed to read SUN-DIST for {:?}", metafits))?;
         let moon_distance_degrees: f64 =
-            get_fits_key(&mut metafits_fptr, &metafits_hdu, "MOONDIST")
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "MOONDIST")
                 .with_context(|| format!("Failed to read MOONDIST for {:?}", metafits))?;
         let jupiter_distance_degrees: f64 =
-            get_fits_key(&mut metafits_fptr, &metafits_hdu, "JUP-DIST")
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "JUP-DIST")
                 .with_context(|| format!("Failed to read JUP-DIST for {:?}", metafits))?;
-        let lst_degrees: f64 = get_fits_key(&mut metafits_fptr, &metafits_hdu, "LST")
+        let lst_degrees: f64 = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "LST")
             .with_context(|| format!("Failed to read LST for {:?}", metafits))?;
-        let hour_angle_string = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "HA")
+        let hour_angle_string = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "HA")
             .with_context(|| format!("Failed to read HA for {:?}", metafits))?;
-        let grid_name = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "GRIDNAME")
+        let grid_name = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "GRIDNAME")
             .with_context(|| format!("Failed to read GRIDNAME for {:?}", metafits))?;
-        let grid_number = get_fits_key(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")
+        let grid_number = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")
             .with_context(|| format!("Failed to read GRIDNUM for {:?}", metafits))?;
-        let creator = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "CREATOR")
+        let creator = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "CREATOR")
             .with_context(|| format!("Failed to read CREATOR for {:?}", metafits))?;
-        let project_id = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "PROJECT")
+        let project_id = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "PROJECT")
             .with_context(|| format!("Failed to read PROJECT for {:?}", metafits))?;
-        let observation_name =
-            get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "FILENAME")
-                .with_context(|| format!("Failed to read FILENAME for {:?}", metafits))?;
-        let mode = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "MODE")
+        let observation_name = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "FILENAME")
+            .with_context(|| format!("Failed to read FILENAME for {:?}", metafits))?;
+        let mode = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "MODE")
             .with_context(|| format!("Failed to read MODE for {:?}", metafits))?;
-        let receivers_string = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "RECVRS")
-            .with_context(|| format!("Failed to read RECVRS for {:?}", metafits))?;
-        let delays_string = get_fits_key_string(&mut metafits_fptr, &metafits_hdu, "DELAYS")
-            .with_context(|| format!("Failed to read DELAYS for {:?}", metafits))?;
+        let receivers_string: String =
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "RECVRS")
+                .with_context(|| format!("Failed to read RECVRS for {:?}", metafits))?;
+
+        let receivers: Vec<usize> = receivers_string
+            .replace(&['\'', '&'][..], "")
+            .split(',')
+            .map(|s| s.parse().unwrap())
+            .collect();
+
+        let delays_string: String =
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "DELAYS")
+                .with_context(|| format!("Failed to read DELAYS for {:?}", metafits))?;
+
+        let delays: Vec<usize> = delays_string
+            .replace(&['\'', '&'][..], "")
+            .split(',')
+            .map(|s| s.parse().unwrap())
+            .collect();
+
         let global_analogue_attenuation_db: f64 =
-            get_fits_key(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")
+            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")
                 .with_context(|| format!("Failed to read ATTEN_DB for {:?}", metafits))?;
         let quack_time_duration_milliseconds: u64 =
-            (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")
+            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")
                 .with_context(|| format!("Failed to read QUACKTIM for {:?}", metafits))?
                 * 1000.)
                 .round() as _;
         let good_time_unix_milliseconds: u64 =
-            (get_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "GOODTIME")
+            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "GOODTIME")
                 .with_context(|| format!("Failed to read GOODTIME for {:?}", metafits))?
                 * 1000.)
                 .round() as _;
@@ -452,6 +468,8 @@ impl mwalibContext {
             jupiter_distance_degrees,
             lst_degrees,
             hour_angle_string,
+            receivers,
+            delays,
             grid_name,
             grid_number,
             creator,
@@ -662,7 +680,9 @@ impl fmt::Display for mwalibContext {
 
     Creator:                  {},
     Project ID:               {},
-    Observation Name:         {},    
+    Observation Name:         {},
+    Receivers:                {:?},    
+    Delays:                   {:?},
     Global attenuation:       {} dB,
 
     Scheduled start (utc)     {},
@@ -727,6 +747,8 @@ impl fmt::Display for mwalibContext {
             self.creator,
             self.project_id,
             self.observation_name,
+            self.receivers,
+            self.delays,
             self.global_analogue_attenuation_db,
             self.scheduled_start_utc,
             self.scheduled_start_mjd,

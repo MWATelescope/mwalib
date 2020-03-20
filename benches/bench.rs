@@ -25,11 +25,11 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("read_key directly from HDU", |b| {
         b.iter(|| hdu.read_key::<i64>(&mut fptr, "NAXIS2").unwrap())
     });
-    c.bench_function("get_fits_key", |b| {
-        b.iter(|| get_fits_key::<i64>(&mut fptr, &hdu, "NAXIS2"))
+    c.bench_function("get_required_fits_key", |b| {
+        b.iter(|| get_required_fits_key::<i64>(&mut fptr, &hdu, "NAXIS2"))
     });
-    c.bench_function("get_fits_key with smaller type", |b| {
-        b.iter(|| get_fits_key::<u8>(&mut fptr, &hdu, "NAXIS2"))
+    c.bench_function("get_required_fits_key with smaller type", |b| {
+        b.iter(|| get_required_fits_key::<u8>(&mut fptr, &hdu, "NAXIS2"))
     });
 }
 
