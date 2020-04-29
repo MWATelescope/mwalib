@@ -40,9 +40,7 @@ jobs:
       run: cargo clean
 
     - name: Run cargo-tarpaulin
-      run: export RUSTFLAGS="-Copt-level=0"; cargo tarpaulin -v --release --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/
+      run: cargo tarpaulin -v --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/
 
-    - uses: codecov/codecov-action@v1
-      with:          
-          file: ./coverage/lcov.info
-          fail_ci_if_error: true # optional (default = false)
+    - name: codecov
+      run: bash <(curl -s https://codecov.io/bash)
