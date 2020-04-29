@@ -21,7 +21,7 @@ struct Opt {
 
     /// Path to the metafits file.
     #[structopt(short, long)]
-    metafits: Option<String>,
+    metafits: String,
 
     /// Paths to the gpubox files.
     #[structopt(name = "GPUBOX FILE")]
@@ -91,12 +91,7 @@ fn main() -> Result<(), anyhow::Error> {
     if opts.direct {
         sum_direct(opts.files)?;
     } else {
-        // Ensure we have a metafits file.
-        if let Some(m) = opts.metafits {
-            sum_mwalib(m, opts.files)?;
-        } else {
-            bail!("A metafits file is required when using mwalib.")
-        }
+        sum_mwalib(opts.metafits, opts.files)?;
     }
 
     Ok(())

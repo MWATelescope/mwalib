@@ -13,7 +13,6 @@ C).
  */
 
 use crate::*;
-extern crate chrono;
 use libc::{c_char, c_float, c_longlong, size_t, time_t};
 use std::ffi::*;
 use std::ptr;

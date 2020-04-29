@@ -13,12 +13,16 @@ In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.c`, and
 `mwalib-sum-all-hdus.c` for examples of usage.
 
 ## Usage via Python
-In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.py`, and
-`mwalib-sum-all-hdus.py` for examples of usage.
+The primary Python interface to `mwalib` is
+[`pymwalib`](https://github.com/MWATelescope/pymwalib).
+
+There are also a couple of simple examples here; see
+`examples/mwalib-print-obs-context.py`, and `examples/mwalib-sum-all-hdus.py`.
 
 ## Usage in Rust
-See `mwalib-print-obs-context.rs` and `mwalib-print-obs-context.rs` for
-examples. Also run `cargo doc --open` to see the rendered documentation.
+In the `examples` directory, see `mwalib-print-obs-context.rs` and
+`mwalib-print-obs-context.rs` for examples. Also run `cargo doc --open` to see
+the rendered documentation.
 
 ## Usage approach
 - Populate a `mwalibContext` struct
@@ -31,8 +35,8 @@ examples. Also run `cargo doc --open` to see the rendered documentation.
 - Read raw data
 
     The `read_by_baseline` function associated with `mwalibContext` takes in a
-    timestep index (see: context.timesteps vector) and a coarse channel index
-    (see: context.coarse_channels vector) and will return a vector of 32bit
+    timestep index (see: `context.timesteps` vector) and a coarse channel index
+    (see: `context.coarse_channels` vector) and will return a vector of 32bit
     floats. The data is organised as [baseline][fine_channel][polarisation][r][i].
 
 ## Concepts
@@ -79,10 +83,15 @@ GitHub in the future, but for now, `mwalib` should be compiled from source.
 
 - (Optional) If you are modifying the ffi functions, you'll need to regenerate mwalib.h
 
-    `cargo install cbindgen`
+    `cbindgen -l c <path/to/mwalib/repo> > mwalib.h`
+
+    Install `cbindgen` with your package manager or via `cargo` with `cargo
+    install cbindgen`.
 
 
 ## Consistency checks
+(TODO: This is non-exhaustive!)
+
 `mwalib` checks input files for the presence of:
 
 - a metafits file,

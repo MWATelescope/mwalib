@@ -5,9 +5,7 @@
 /*!
 General helper/utility methods
 */
-
 use crate::antenna;
-use fitsio::FitsFile;
 
 /// Function to take d m s and return the decimal degrees.
 ///
@@ -46,6 +44,7 @@ pub fn dms_to_degrees(degrees: i32, minutes: u32, seconds: f64) -> f64 {
 ///
 /// * A temporary file which will be deleted (along with the temp directory created) once out of scope
 ///
+#[cfg(test)]
 pub fn with_temp_file<F>(filename: &str, callback: F)
 where
     F: for<'a> Fn(&'a str),
@@ -70,9 +69,10 @@ where
 ///
 /// * A temporary FITS file which will be deleted (along with the temp directory created) once out of scope
 ///
+#[cfg(test)]
 pub fn with_new_temp_fits_file<F>(filename: &str, callback: F)
 where
-    F: for<'a> Fn(&'a mut FitsFile),
+    F: for<'a> Fn(&'a mut fitsio::FitsFile),
 {
     let tdir = tempdir::TempDir::new("fitsio-").unwrap();
     let tdir_path = tdir.path();
@@ -80,7 +80,7 @@ where
 
     let filename_str = filename.to_str().expect("cannot create string filename");
 
-    let mut fptr = FitsFile::create(filename_str)
+    let mut fptr = fitsio::FitsFile::create(filename_str)
         .open()
         .expect("Couldn't open tempfile");
 

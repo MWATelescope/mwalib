@@ -5,14 +5,15 @@
 /*!
 Functions for organising and checking the consistency of gpubox files.
 */
-use crate::fits_read::*;
-use fitsio::{hdu::FitsHdu, FitsFile};
-use regex::Regex;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::Debug;
 use std::string::ToString;
 
+use fitsio::{hdu::FitsHdu, FitsFile};
+use regex::Regex;
+
+use crate::fits_read::*;
 use crate::*;
 
 #[derive(Debug)]
@@ -89,7 +90,7 @@ impl std::cmp::PartialEq for GPUBoxFile {
     }
 }
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref RE_MWAX: Regex =
         Regex::new(r"\d{10}_\d{8}(.)?\d{6}_ch(?P<channel>\d{3})_(?P<batch>\d{3}).fits").unwrap();
     static ref RE_LEGACY_BATCH: Regex =

@@ -5,9 +5,6 @@
 /*!
 Definitions for what we expose to the library
 */
-#[macro_use]
-extern crate lazy_static;
-
 pub mod antenna;
 pub mod coarse_channel;
 pub mod context;
