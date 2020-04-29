@@ -291,8 +291,6 @@ pub fn convert_legacy_hdu_to_mwax_baseline_order(
     // Note: hardcoded values are safe here because they are only for the case where we are using the
     // legacy correlator which ALWAYS has 128 tiles
     let num_baselines = get_baseline_count(128);
-    assert_eq!(num_fine_channels, 128);
-    assert_eq!(conversion_table.len(), num_baselines);
 
     // Striding for input array
     let floats_per_baseline_fine_channel = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
@@ -392,8 +390,6 @@ pub fn convert_legacy_hdu_to_mwax_frequency_order(
     // Note: hardcoded values are safe here because they are only for the case where we are using the
     // legacy correlator which ALWAYS has 128 tiles
     let num_baselines = get_baseline_count(128);
-    assert_eq!(num_fine_channels, 128);
-    assert_eq!(conversion_table.len(), num_baselines);
 
     // Striding for input array
     let floats_per_baseline_fine_channel = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i

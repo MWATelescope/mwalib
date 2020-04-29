@@ -37,26 +37,36 @@ impl mwalibTimeStep {
     ///
     /// # Arguments
     ///
-    /// * `gpubox_time_map` - BTree structure containing the map of what gpubox files and timesteps we were supplied by the client.
+    /// * `gpubox_time_map` - BTree structure containing the map of what gpubox
+    ///   files and timesteps we were supplied by the client.
     ///
     ///
     /// # Returns
     ///
-    /// * An Result containing a populated vector of mwalibTimeStep structs and
-    ///   number of timesteps or an Error
+    /// * A populated vector of mwalibTimeStep structs inside an Option. Only
+    ///   timesteps *common to all* gpubox files are included. If the Option has
+    ///   a value of None, then `gpubox_time_map` is empty.
     ///
     pub fn populate_timesteps(
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
-    ) -> (Vec<Self>, usize) {
-        let num_timesteps = gpubox_time_map.len();
-        // Initialise the timstep vector of structs
-        let mut timesteps: Vec<mwalibTimeStep> = Vec::with_capacity(num_timesteps);
-        // Each item of the gpubox_time_map has the unixtime(in ms) and another BTtree of GPUBOX files
-        for key in gpubox_time_map.iter() {
-            timesteps.push(Self::new(*key.0));
+    ) -> Option<Vec<Self>> {
+        if gpubox_time_map.is_empty() {
+            return None;
+        }
+        // We need to determine the timesteps that are common to all gpubox
+        // files. First, determine the maximum number of gpubox files by
+        // inspecting the length of the BTreeMaps associated with each key of
+        // `gpubox_time_map`.
+        let num_gpubox_files: usize = gpubox_time_map.iter().map(|(_, m)| m.len()).max().unwrap();
+        // Now we find all keys with lengths equal to `num_gpubox_files`.
+        let mut timesteps: Vec<mwalibTimeStep> = vec![];
+        for (key, m) in gpubox_time_map.iter() {
+            if m.len() == num_gpubox_files {
+                timesteps.push(Self::new(*key));
+            }
         }
 
-        (timesteps, num_timesteps)
+        Some(timesteps)
     }
 }
 
@@ -107,11 +117,10 @@ mod tests {
         }
 
         // Get a vector timesteps
-        let (timesteps, num_timesteps) = mwalibTimeStep::populate_timesteps(&gpubox_time_map);
+        let timesteps = mwalibTimeStep::populate_timesteps(&gpubox_time_map).unwrap();
 
         // Check
-        assert_eq!(timesteps.len(), num_timesteps);
-        assert_eq!(6, num_timesteps);
+        assert_eq!(6, timesteps.len());
         assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
         assert_eq!(timesteps[5].unix_time_ms, 1_381_844_925_500);
     }

@@ -154,7 +154,7 @@ pub struct mwalibContext {
     pub num_baselines: usize,
     /// Total number of rf_inputs (tiles * 2 pols X&Y)
     pub num_rf_inputs: usize,
-    /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)    
+    /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
     pub rf_inputs: Vec<mwalibRFInput>,
     /// Number of antenna pols. e.g. X and Y
     pub num_antenna_pols: usize,
@@ -257,9 +257,13 @@ impl mwalibContext {
         let (gpubox_time_map, hdu_size) =
             gpubox::create_time_map(&mut gpubox_batches, corr_version)?;
 
-        // Populate our array of timesteps
+        // Populate our array of timesteps. We can unwrap here because the
+        // `gpubox_time_map` can't be empty, as we assert that gpubox files must
+        // be present at the start of this function.
+        let timesteps = mwalibTimeStep::populate_timesteps(&gpubox_time_map).unwrap();
+        let num_timesteps = timesteps.len();
+
         // Create a vector of rf_input structs from the metafits
-        let (timesteps, num_timesteps) = mwalibTimeStep::populate_timesteps(&gpubox_time_map);
         let num_rf_inputs =
             get_required_fits_key::<usize>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
                 .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?;
