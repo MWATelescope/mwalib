@@ -46,6 +46,7 @@ pub enum CorrelatorVersion {
 /// * `fmt::Result` - Result of this method
 ///
 ///
+#[cfg_attr(tarpaulin, skip)]
 impl fmt::Display for CorrelatorVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -804,12 +805,15 @@ impl fmt::Display for mwalibContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use float_cmp::*;
     #[test]
     fn test_mwax_read() {
         // Open the test mwax file
         // a) directly using Fits  (data will be ordered [baseline][freq][pol][r][i])
         // b) using mwalib (by baseline) (data will be ordered the same as the raw fits file)
-        // Then check b) is the same as a)
+        // c) using mwalib (by frequency) (data will be ordered [freq][baseline][pol][r][i])
+        // Then check b) is the same as a) and
+        // that c) is the same size and sum as a) and b)
         let mwax_metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
         let mwax_filename =
             "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
@@ -832,12 +836,32 @@ mod tests {
         let mut context =
             mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
 
-        // Read and convert first HDU
-        let mwalib_hdu_data: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+        // Read and convert first HDU by baseline
+        let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+
+        // Read and convert first HDU by frequency
+        let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
 
         // First assert that the data vectors are the same size
-        assert_eq!(fits_hdu_data.len(), mwalib_hdu_data.len());
+        assert_eq!(fits_hdu_data.len(), mwalib_hdu_data_by_bl.len());
+        assert_eq!(fits_hdu_data.len(), mwalib_hdu_data_by_freq.len());
+
+        // Check all 3 sum to the same value
+        let sum_fits: f64 = fits_hdu_data.iter().fold(0., |sum, x| sum + *x as f64);
+        let sum_freq: f64 = mwalib_hdu_data_by_freq
+            .iter()
+            .fold(0., |sum, x| sum + *x as f64);
+        let sum_bl: f64 = mwalib_hdu_data_by_bl
+            .iter()
+            .fold(0., |sum, x| sum + *x as f64);
+
+        // Check sums match
+        assert_eq!(
+            approx_eq!(f64, sum_fits, sum_freq, F64Margin::default()),
+            approx_eq!(f64, sum_fits, sum_bl, F64Margin::default())
+        );
+
         // Check this block of floats matches
-        assert_eq!(fits_hdu_data, mwalib_hdu_data);
+        assert_eq!(fits_hdu_data, mwalib_hdu_data_by_bl);
     }
 }

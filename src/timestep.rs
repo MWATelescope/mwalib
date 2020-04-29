@@ -126,6 +126,17 @@ mod tests {
     }
 
     #[test]
+    fn test_populate_timesteps_none() {
+        // Create a dummy BTree GPUbox map
+        let gpubox_time_map = BTreeMap::new();
+        // Get a vector timesteps
+        let timesteps = mwalibTimeStep::populate_timesteps(&gpubox_time_map);
+
+        // Check
+        assert!(timesteps.is_none());
+    }
+
+    #[test]
     fn test_timestep_new() {
         // This test is a bit of a waste right now but it will be useful once
         // julian date and possibly UTC conversions are done in the new() method

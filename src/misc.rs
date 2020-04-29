@@ -520,14 +520,17 @@ mod tests {
     }
 
     #[test]
-    fn test_dms_to_degrees() {
+    fn test_dms_to_degrees_zero() {
         assert!(approx_eq!(
             f64,
             dms_to_degrees(0, 0, 0.),
             0.,
             F64Margin::default()
         ));
+    }
 
+    #[test]
+    fn test_dms_to_degrees_negative() {
         assert!(
             approx_eq!(
                 f64,
@@ -538,12 +541,14 @@ mod tests {
             "dms_to_degrees(-10, 30, 0.) == {}",
             dms_to_degrees(-10, 30, 0.)
         );
-
-        let test3: f64 = dms_to_degrees(180, 59, 59.9999);
+    }
+    #[test]
+    fn test_dms_to_degrees_large() {
+        let test: f64 = dms_to_degrees(180, 59, 59.9999);
         assert!(
-            approx_eq!(f64, test3, 180.999_999_972_222_2, F64Margin::default()),
+            approx_eq!(f64, test, 180.999_999_972_222_2, F64Margin::default()),
             "{}",
-            test3
+            test
         );
     }
 }
