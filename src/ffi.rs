@@ -1088,7 +1088,7 @@ mod tests {
 
             // Check we got a context object
             let context_ptr = context.as_mut();
-            assert_eq!(context_ptr.is_some(), true);
+            assert!(context_ptr.is_some());
 
             let md = Box::from_raw(mwalibMetadata_get(context, error_message_ptr, error_len));
 
@@ -1112,15 +1112,11 @@ mod tests {
         let error_len: size_t = 60;
 
         unsafe {
-            let md = Box::from_raw(mwalibMetadata_get(
-                std::ptr::null_mut(),
-                error_message_ptr,
-                error_len,
-            ));
-            let md_ptr = Box::into_raw(md);
+            let context_ptr = std::ptr::null_mut();
+            let md_ptr = mwalibMetadata_get(context_ptr, error_message_ptr, error_len);
 
             // We should get a null pointer and an error message
-            assert_eq!(md_ptr.is_null(), true);
+            assert!(md_ptr.is_null());
             let expected_error: &str = &"mwalibMetadata_get() ERROR:";
             assert_eq!(
                 error_message.into_string().unwrap()[0..expected_error.len()],
@@ -1163,7 +1159,7 @@ mod tests {
 
             // Check we got a context object
             let context_ptr = context.as_mut();
-            assert_eq!(context_ptr.is_some(), true);
+            assert!(context_ptr.is_some());
 
             let rf = Box::from_raw(mwalibRFInput_get(
                 context,
@@ -1223,18 +1219,12 @@ mod tests {
 
             // Check we got a context object
             let context_ptr = context.as_mut();
-            assert_eq!(context_ptr.is_some(), true);
+            assert!(context_ptr.is_some());
 
-            let rf = Box::from_raw(mwalibRFInput_get(
-                context,
-                rf_index,
-                error_message_ptr,
-                error_len,
-            ));
-            let rf_ptr = Box::into_raw(rf);
+            let rf_ptr = mwalibRFInput_get(context, rf_index, error_message_ptr, error_len);
 
             // We should get a null pointer and an error message
-            assert_eq!(rf_ptr.is_null(), true);
+            assert!(rf_ptr.is_null());
             let expected_error: &str = &"mwalibRFInput_get() ERROR:";
             assert_eq!(
                 error_message.into_string().unwrap()[0..expected_error.len()],
@@ -1254,16 +1244,11 @@ mod tests {
         let error_len: size_t = 60;
 
         unsafe {
-            let rf = Box::from_raw(mwalibRFInput_get(
-                std::ptr::null_mut(),
-                rf_index,
-                error_message_ptr,
-                error_len,
-            ));
-            let rf_ptr = Box::into_raw(rf);
+            let context_ptr = std::ptr::null_mut();
+            let rf_ptr = mwalibRFInput_get(context_ptr, rf_index, error_message_ptr, error_len);
 
             // We should get a null pointer and an error message
-            assert_eq!(rf_ptr.is_null(), true);
+            assert!(rf_ptr.is_null());
             let expected_error: &str = &"mwalibRFInput_get() ERROR:";
             assert_eq!(
                 error_message.into_string().unwrap()[0..expected_error.len()],
@@ -1306,7 +1291,7 @@ mod tests {
 
             // Check we got a context object
             let context_ptr = context.as_mut();
-            assert_eq!(context_ptr.is_some(), true);
+            assert!(context_ptr.is_some());
 
             let ch = Box::from_raw(mwalibCoarseChannel_get(
                 context,
@@ -1359,18 +1344,12 @@ mod tests {
 
             // Check we got a context object
             let context_ptr = context.as_mut();
-            assert_eq!(context_ptr.is_some(), true);
+            assert!(context_ptr.is_some());
 
-            let ch = Box::from_raw(mwalibCoarseChannel_get(
-                context,
-                chan_index,
-                error_message_ptr,
-                error_len,
-            ));
-            let ch_ptr = Box::into_raw(ch);
+            let ch_ptr = mwalibCoarseChannel_get(context, chan_index, error_message_ptr, error_len);
 
             // We should get a null pointer and an error message
-            assert_eq!(ch_ptr.is_null(), true);
+            assert!(ch_ptr.is_null());
             let expected_error: &str = &"mwalibCoarseChannel_get() ERROR:";
             assert_eq!(
                 error_message.into_string().unwrap()[0..expected_error.len()],
@@ -1390,16 +1369,12 @@ mod tests {
         let error_len: size_t = 60;
 
         unsafe {
-            let ch = Box::from_raw(mwalibCoarseChannel_get(
-                std::ptr::null_mut(),
-                timestep_index,
-                error_message_ptr,
-                error_len,
-            ));
-            let ch_ptr = Box::into_raw(ch);
+            let context_ptr = std::ptr::null_mut();
+            let ch_ptr =
+                mwalibCoarseChannel_get(context_ptr, timestep_index, error_message_ptr, error_len);
 
             // We should get a null pointer and an error message
-            assert_eq!(ch_ptr.is_null(), true);
+            assert!(ch_ptr.is_null());
             let expected_error: &str = &"mwalibCoarseChannel_get() ERROR:";
             assert_eq!(
                 error_message.into_string().unwrap()[0..expected_error.len()],
@@ -1442,7 +1417,7 @@ mod tests {
 
             // Check we got a context object
             let context_ptr = context.as_mut();
-            assert_eq!(context_ptr.is_some(), true);
+            assert!(context_ptr.is_some());
 
             let ant = Box::from_raw(mwalibAntenna_get(
                 context,
@@ -1495,18 +1470,12 @@ mod tests {
 
             // Check we got a context object
             let context_ptr = context.as_mut();
-            assert_eq!(context_ptr.is_some(), true);
+            assert!(context_ptr.is_some());
 
-            let ant = Box::from_raw(mwalibAntenna_get(
-                context,
-                ant_index,
-                error_message_ptr,
-                error_len,
-            ));
-            let ant_ptr = Box::into_raw(ant);
+            let ant_ptr = mwalibAntenna_get(context, ant_index, error_message_ptr, error_len);
 
             // We should get a null pointer and an error message
-            assert_eq!(ant_ptr.is_null(), true);
+            assert!(ant_ptr.is_null());
             let expected_error: &str = &"mwalibAntenna_get() ERROR:";
             assert_eq!(
                 error_message.into_string().unwrap()[0..expected_error.len()],
@@ -1526,16 +1495,11 @@ mod tests {
         let error_len: size_t = 60;
 
         unsafe {
-            let ant = Box::from_raw(mwalibAntenna_get(
-                std::ptr::null_mut(),
-                ant_index,
-                error_message_ptr,
-                error_len,
-            ));
-            let ant_ptr = Box::into_raw(ant);
+            let context_ptr = std::ptr::null_mut();
+            let ant_ptr = mwalibAntenna_get(context_ptr, ant_index, error_message_ptr, error_len);
 
             // We should get a null pointer and an error message
-            assert_eq!(ant_ptr.is_null(), true);
+            assert!(ant_ptr.is_null());
             let expected_error: &str = &"mwalibAntenna_get() ERROR:";
             assert_eq!(
                 error_message.into_string().unwrap()[0..expected_error.len()],
@@ -1578,7 +1542,7 @@ mod tests {
 
             // Check we got a context object
             let context_ptr = context.as_mut();
-            assert_eq!(context_ptr.is_some(), true);
+            assert!(context_ptr.is_some());
 
             let ts = Box::from_raw(mwalibTimeStep_get(
                 context,
@@ -1631,18 +1595,12 @@ mod tests {
 
             // Check we got a context object
             let context_ptr = context.as_mut();
-            assert_eq!(context_ptr.is_some(), true);
+            assert!(context_ptr.is_some());
 
-            let ts = Box::from_raw(mwalibTimeStep_get(
-                context,
-                timestep_index,
-                error_message_ptr,
-                error_len,
-            ));
-            let ts_ptr = Box::into_raw(ts);
+            let ts_ptr = mwalibTimeStep_get(context, timestep_index, error_message_ptr, error_len);
 
             // We should get a null pointer and an error message
-            assert_eq!(ts_ptr.is_null(), true);
+            assert!(ts_ptr.is_null());
             let expected_error: &str = &"mwalibTimeStep_get() ERROR:";
             assert_eq!(
                 error_message.into_string().unwrap()[0..expected_error.len()],
@@ -1662,16 +1620,12 @@ mod tests {
         let error_len: size_t = 60;
 
         unsafe {
-            let ts = Box::from_raw(mwalibTimeStep_get(
-                std::ptr::null_mut(),
-                timestep_index,
-                error_message_ptr,
-                error_len,
-            ));
-            let ts_ptr = Box::into_raw(ts);
+            let context_ptr = std::ptr::null_mut();
+            let ts_ptr =
+                mwalibTimeStep_get(context_ptr, timestep_index, error_message_ptr, error_len);
 
             // We should get a null pointer and an error message
-            assert_eq!(ts_ptr.is_null(), true);
+            assert!(ts_ptr.is_null());
             let expected_error: &str = &"mwalibTimeStep_get() ERROR:";
             assert_eq!(
                 error_message.into_string().unwrap()[0..expected_error.len()],
