@@ -1,6 +1,6 @@
 # mwalib
 ![Run Tests](https://github.com/MWATelescope/mwalib/workflows/Run%20Tests/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/MWATelescope/mwalib/badge.png?branch=master)](https://coveralls.io/github/MWATelescope/mwalib?branch=master)
+[![codecov](https://codecov.io/gh/MWATelescope/mwalib/branch/master/graph/badge.svg)](https://codecov.io/gh/MWATelescope/mwalib)
 <br/>
 MWA library to read raw visibilities and metadata into a common structure. 
 mwalib supports the existing "legacy" MWA correlator, as well as the in-development

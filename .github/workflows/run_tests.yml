@@ -15,9 +15,13 @@ jobs:
           toolchain: stable
           override: true
     
+    - name: Update package manager
+      run: |
+          sudo apt-get update
+
     - name: Install prerequisites for Tarpaulin (for code coverage)        
       run: |
-          sudo apt-get update; sudo apt-get install libssl-dev pkg-config cmake zlib1g-dev 
+          sudo apt-get install libssl-dev pkg-config cmake zlib1g-dev 
 
     - name: Install Tarpaulin
       run: cargo install cargo-tarpaulin
@@ -31,11 +35,17 @@ jobs:
           make clean && make;
           sudo make install;
           sudo ldconfig;
-          
-    - name: Run cargo-tarpaulin
-      run: cargo tarpaulin -v --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/
 
-    - name: Coveralls
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Clean
+      run: cargo clean
+
+    - name: Build
+      run: cargo build --release
+
+    - name: Run cargo-tarpaulin
+      run: cargo tarpaulin -v --release --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/
+
+    - uses: codecov/codecov-action@v1
+      with:          
+          file: ./coverage/lcov.info
+          fail_ci_if_error: true # optional (default = false)
