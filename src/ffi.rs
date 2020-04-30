@@ -13,7 +13,7 @@ C).
  */
 
 use crate::*;
-use libc::{c_char, c_float, c_longlong, size_t, time_t};
+use libc::{c_char, c_float, c_longlong, size_t};
 use std::ffi::*;
 use std::ptr;
 use std::slice;
@@ -456,7 +456,7 @@ pub struct mwalibMetadata {
     pub project_id: *mut c_char,
     pub observation_name: *mut c_char,
     pub mode: *mut c_char,
-    pub scheduled_start_utc: time_t,
+    pub scheduled_start_utc: i64,
     pub scheduled_start_mjd: f64,
     pub scheduled_duration_milliseconds: u64,
     pub quack_time_duration_milliseconds: u64,

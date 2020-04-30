@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
     printf("timestep_coarse_channel_bytes:  %ld\n", metadata->num_timestep_coarse_channel_bytes);
 
     // Example of using timestep struct
-    mwalibTimeStep *ts0 = mwalibTimeStep_get(NULL, 0, error_message, ERROR_MESSAGE_LEN); // Should return first timestep
+    mwalibTimeStep *ts0 = mwalibTimeStep_get(context, 0, error_message, ERROR_MESSAGE_LEN); // Should return first timestep
     if (ts0 != NULL)
     {
         printf("Timestep 0 is %lu\n", ts0->unix_time_ms / 1000);
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 
     // Example of using coarse channels
     mwalibCoarseChannel *cc0 = mwalibCoarseChannel_get(context, 0, error_message, ERROR_MESSAGE_LEN);
-    if (ts0 != NULL)
+    if (cc0 != NULL)
     {
         printf("Coarse Channel 0 is %.2f MHz\n", (float)cc0->channel_centre_hz / 1000000.);
     }
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
 
     // Example of using antennas
     mwalibAntenna *ant0 = mwalibAntenna_get(context, 0, error_message, ERROR_MESSAGE_LEN);
-    if (ts0 != NULL)
+    if (ant0 != NULL)
     {
         printf("antenna 0 is %s\n", ant0->tile_name);
     }
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 
     // Example of using rf_inputs
     mwalibRFInput *rf0 = mwalibRFInput_get(context, 0, error_message, ERROR_MESSAGE_LEN);
-    if (ts0 != NULL)
+    if (rf0 != NULL)
     {
         printf("rf_input 0 is %s %s\n", rf0->tile_name, rf0->pol);
     }

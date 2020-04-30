@@ -295,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_fits_key() {
+    fn test_get_required_fits_key() {
         // with_temp_file creates a temp dir and temp file, then removes them once out of scope
         with_new_temp_fits_file("test_fits_read_key.fits", |fptr| {
             let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
@@ -340,7 +340,55 @@ mod tests {
     }
 
     #[test]
-    fn test_get_fits_key_string() {
+    fn test_get_optional_fits_key() {
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        with_new_temp_fits_file("test_fits_read_key.fits", |fptr| {
+            let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+
+            // Failure to get a key that doesn't exist is OK if we're using the optional variant.
+            assert!(get_optional_fits_key::<u8>(fptr, &hdu, "foo").is_ok());
+            assert!(get_optional_fits_key::<u8>(fptr, &hdu, "foo")
+                .unwrap()
+                .is_none());
+
+            // Key types must be i64 to get any sort of sanity.
+            hdu.write_key(fptr, "foo", 10i64)
+                .expect("Couldn't write key 'foo'");
+            hdu.write_key(fptr, "bar", -5i64)
+                .expect("Couldn't write key 'bar'");
+
+            // Verify that using the normal `fitsio` gives the wrong result, unless
+            // the type is an i64.
+            let foo_i32 = hdu.read_key::<i32>(fptr, "foo");
+            let foo_i64 = hdu.read_key::<i64>(fptr, "foo");
+            assert!(foo_i32.is_ok());
+            assert!(foo_i64.is_ok());
+            assert_eq!(foo_i32.unwrap(), 1);
+            assert_eq!(foo_i64.unwrap(), 10);
+
+            // Despite writing to "foo", the key is written as "FOO".
+            let foo_i64 = hdu.read_key::<i64>(fptr, "FOO");
+            assert!(foo_i64.is_ok());
+            assert_eq!(foo_i64.unwrap(), 10);
+
+            let foo_u8 = get_optional_fits_key::<u8>(fptr, &hdu, "foo");
+            let foo_i8 = get_optional_fits_key::<i8>(fptr, &hdu, "foo");
+            assert!(foo_u8.is_ok());
+            assert!(foo_i8.is_ok());
+            assert_eq!(foo_u8.unwrap().unwrap(), 10);
+            assert_eq!(foo_i8.unwrap().unwrap(), 10);
+
+            // Can't parse the negative number into a unsigned int.
+            let bar_u8 = get_required_fits_key::<u8>(fptr, &hdu, "bar");
+            let bar_i8 = get_required_fits_key::<i8>(fptr, &hdu, "bar");
+            assert!(bar_u8.is_err());
+            assert!(bar_i8.is_ok());
+            assert_eq!(bar_i8.unwrap(), -5);
+        });
+    }
+
+    #[test]
+    fn test_get_required_fits_key_string() {
         // with_temp_file creates a temp dir and temp file, then removes them once out of scope
         with_new_temp_fits_file("test_fits_read_key_string.fits", |fptr| {
             let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
@@ -359,6 +407,33 @@ mod tests {
 
             // Despite writing to "foo", the key is written as "FOO".
             assert_eq!(foo_string, "hello");
+        });
+    }
+
+    #[test]
+    fn test_get_optional_fits_key_string() {
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        with_new_temp_fits_file("test_fits_read_key_string.fits", |fptr| {
+            let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+
+            // No Failure to get a key that doesn't exist.
+            let does_not_exist: Result<Option<String>, ErrorKind> =
+                get_optional_fits_key(fptr, &hdu, "foo");
+
+            assert!(does_not_exist.is_ok());
+            assert!(does_not_exist.unwrap().is_none());
+
+            // Add a test string
+            hdu.write_key(fptr, "foo", "hello")
+                .expect("Couldn't write key 'foo'");
+
+            // Read foo back in
+            let foo_string: Result<Option<String>, ErrorKind> =
+                get_optional_fits_key(fptr, &hdu, "foo");
+
+            // Despite writing to "foo", the key is written as "FOO".
+            assert!(foo_string.is_ok());
+            assert_eq!(foo_string.unwrap().unwrap(), "hello");
         });
     }
 

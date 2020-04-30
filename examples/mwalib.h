@@ -93,7 +93,7 @@ typedef struct {
   char *project_id;
   char *observation_name;
   char *mode;
-  time_t scheduled_start_utc;
+  int64_t scheduled_start_utc;
   double scheduled_start_mjd;
   uint64_t scheduled_duration_milliseconds;
   uint64_t quack_time_duration_milliseconds;

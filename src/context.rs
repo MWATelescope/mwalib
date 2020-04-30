@@ -224,21 +224,14 @@ impl mwalibContext {
         metafits: &T,
         gpuboxes: &[T],
     ) -> Result<Self, ErrorKind> {
-        // Do the file stuff upfront. Check that at least one gpubox file is
+        // Do the file stuff upfront.
+        // Check that at least one gpubox file is
         // present.
         if gpuboxes.is_empty() {
             return Err(ErrorKind::Custom(
                 "mwalibContext::new: gpubox / mwax fits files missing".to_string(),
             ));
         }
-
-        // from MWA_Tools/CONV2UVFITS/convutils.h
-        // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
-        let coax_v_factor: f64 = 1.204;
-
-        let mwa_latitude_radians: f64 = dms_to_degrees(-26, 42, 11.94986).to_radians(); // -26d42m11.94986s
-        let mwa_longitude_radians: f64 = dms_to_degrees(116, 40, 14.93485).to_radians(); // 116d40m14.93485s
-        let mwa_altitude_metres: f64 = 377.827;
 
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
@@ -257,6 +250,14 @@ impl mwalibContext {
 
         let (gpubox_time_map, hdu_size) =
             gpubox::create_time_map(&mut gpubox_batches, corr_version)?;
+
+        // from MWA_Tools/CONV2UVFITS/convutils.h
+        // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
+        let coax_v_factor: f64 = 1.204;
+
+        let mwa_latitude_radians: f64 = dms_to_degrees(-26, 42, 11.94986).to_radians(); // -26d42m11.94986s
+        let mwa_longitude_radians: f64 = dms_to_degrees(116, 40, 14.93485).to_radians(); // 116d40m14.93485s
+        let mwa_altitude_metres: f64 = 377.827;
 
         // Populate our array of timesteps. We can unwrap here because the
         // `gpubox_time_map` can't be empty, as we assert that gpubox files must
@@ -667,6 +668,7 @@ impl mwalibContext {
 /// * `fmt::Result` - Result of this method
 ///
 ///
+#[cfg_attr(tarpaulin, skip)]
 impl fmt::Display for mwalibContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // `size` is the number of floats (self.gpubox_hdu_size) multiplied by 4
@@ -806,6 +808,279 @@ impl fmt::Display for mwalibContext {
 mod tests {
     use super::*;
     use float_cmp::*;
+
+    #[test]
+    fn test_context_new_missing_gpubox_files() {
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+        let metafits: String = String::from(metafits_filename);
+        let gpuboxfiles: Vec<String> = Vec::new();
+
+        // No gpubox files provided
+        let context = mwalibContext::new(&metafits, &gpuboxfiles);
+
+        assert!(context.is_err());
+    }
+
+    #[test]
+    fn test_context_new_invalid_metafits() {
+        let metafits_filename = "invalid.metafits";
+        let metafits: String = String::from(metafits_filename);
+        let filename =
+            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+        let gpuboxfiles: Vec<String> = vec![String::from(filename)];
+
+        // No gpubox files provided
+        let context = mwalibContext::new(&metafits, &gpuboxfiles);
+
+        assert!(context.is_err());
+    }
+
+    #[test]
+    #[allow(clippy::cognitive_complexity)]
+    fn test_context_legacy_v1() {
+        // Open the test mwax file
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+        let filename =
+            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+
+        //
+        // Read the observation using mwalib
+        //
+        // Open a context and load in a test metafits and gpubox file
+        let metafits: String = String::from(metafits_filename);
+        let gpuboxfiles: Vec<String> = vec![String::from(filename)];
+        let context =
+            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+
+        // Test the properties of the context object match what we expect
+        // Correlator version:       v1 Legacy,
+        assert_eq!(context.corr_version, CorrelatorVersion::Legacy);
+
+        // MWA latitude:             -26.703319405555554 degrees,
+        assert!(approx_eq!(
+            f64,
+            context.mwa_latitude_radians.to_degrees(),
+            -26.703_319_405_555_554,
+            F64Margin::default()
+        ));
+        // MWA longitude:            116.67081523611111 degrees
+        assert!(approx_eq!(
+            f64,
+            context.mwa_longitude_radians.to_degrees(),
+            116.670_815_236_111_11,
+            F64Margin::default()
+        ));
+        // MWA altitude:             377.827 m,
+        assert!(approx_eq!(
+            f64,
+            context.mwa_altitude_metres,
+            377.827,
+            F64Margin::default()
+        ));
+
+        // obsid:                    1101503312,
+        assert_eq!(context.obsid, 1_101_503_312);
+
+        // Creator:                  Randall,
+        assert_eq!(context.creator, "Randall");
+
+        // Project ID:               G0009,
+        assert_eq!(context.project_id, "G0009");
+
+        // Observation Name:         FDS_DEC-26.7_121,
+        assert_eq!(context.observation_name, "FDS_DEC-26.7_121");
+
+        // Receivers:                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+        assert_eq!(context.receivers.len(), 16);
+        assert_eq!(context.receivers[0], 1);
+        assert_eq!(context.receivers[15], 16);
+
+        // Delays:                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        assert_eq!(context.delays.len(), 16);
+        assert_eq!(context.delays[0], 0);
+        assert_eq!(context.delays[15], 0);
+
+        // Global attenuation:       1 dB,
+        assert_eq!(context.global_analogue_attenuation_db as i16, 1);
+
+        // Scheduled start (utc)     2014-12-01 21:08:16 +00:00,
+        assert_eq!(
+            context.scheduled_start_utc,
+            DateTime::parse_from_rfc3339("2014-12-01T21:08:16+00:00").unwrap()
+        );
+
+        // Scheduled start (MJD)     56992.88074074074,
+        assert!(approx_eq!(
+            f64,
+            context.scheduled_start_mjd,
+            56_992.880_740_740_74,
+            F64Margin::default()
+        ));
+
+        // Scheduled duration        112 s,
+        assert_eq!(context.scheduled_duration_milliseconds, 112_000);
+
+        // Actual UNIX start time:   1417468096,
+        assert_eq!(context.start_unix_time_milliseconds, 1_417_468_096_000);
+
+        // Actual UNIX end time:     1417468098,
+        assert_eq!(context.end_unix_time_milliseconds, 1_417_468_098_000);
+
+        // Actual duration:          2 s,
+        assert_eq!(context.duration_milliseconds, 2000);
+
+        // Quack time:               2 s,
+        assert_eq!(context.quack_time_duration_milliseconds, 2000);
+
+        // Good UNIX start time:     1417468098,
+        assert_eq!(context.good_time_unix_milliseconds, 1_417_468_098_000);
+
+        // R.A. (tile_pointing):     144.2107504850443 degrees,
+        assert!(approx_eq!(
+            f64,
+            context.ra_tile_pointing_degrees,
+            144.210_750_485_044_3,
+            F64Margin::default()
+        ));
+
+        // Dec. (tile_pointing):     -26.63403125476213 degrees,
+        assert!(approx_eq!(
+            f64,
+            context.dec_tile_pointing_degrees,
+            -26.634_031_254_762_13,
+            F64Margin::default()
+        ));
+
+        // R.A. (phase center):      None degrees,
+        assert!(context.ra_phase_center_degrees.is_none());
+
+        // Dec. (phase center):      None degrees,
+        assert!(context.dec_phase_center_degrees.is_none());
+
+        // Azimuth:                  0 degrees,
+        assert!(approx_eq!(
+            f64,
+            context.azimuth_degrees,
+            0.,
+            F64Margin::default()
+        ));
+
+        // Altitude:                 90 degrees,
+        assert!(approx_eq!(
+            f64,
+            context.altitude_degrees,
+            90.,
+            F64Margin::default()
+        ));
+
+        // Sun altitude:             -1.53222775573148 degrees,
+        assert!(approx_eq!(
+            f64,
+            context.sun_altitude_degrees,
+            -1.532_227_755_731_48,
+            F64Margin::default()
+        ));
+
+        // Sun distance:             91.5322277557315 degrees,
+        assert!(approx_eq!(
+            f64,
+            context.sun_distance_degrees,
+            91.532_227_755_731_5,
+            F64Margin::default()
+        ));
+
+        // Moon distance:            131.880015235607 degrees,
+        assert!(approx_eq!(
+            f64,
+            context.moon_distance_degrees,
+            131.880_015_235_607,
+            F64Margin::default()
+        ));
+
+        // Jupiter distance:         41.401684338269 degrees,
+        assert!(approx_eq!(
+            f64,
+            context.jupiter_distance_degrees,
+            41.401_684_338_269,
+            F64Margin::default()
+        ));
+
+        // LST:                      144.381251875516 degrees,
+        assert!(approx_eq!(
+            f64,
+            context.lst_degrees,
+            144.381_251_875_516,
+            F64Margin::default()
+        ));
+
+        // Hour angle:               -00:00:00.00 degrees,
+        // Grid name:                sweet,
+        assert_eq!(context.grid_name, "sweet");
+
+        // Grid number:              0,
+        assert_eq!(context.grid_number, 0);
+
+        // num timesteps:            1,
+        assert_eq!(context.num_timesteps, 1);
+
+        // timesteps:                [unix=1417468096.000],
+        assert_eq!(context.timesteps[0].unix_time_ms, 1_417_468_096_000);
+
+        // num antennas:             128,
+        assert_eq!(context.num_antennas, 128);
+
+        // antennas:                 [Tile011, Tile012, ... Tile167, Tile168],
+        assert_eq!(context.antennas[0].tile_name, "Tile011");
+        assert_eq!(context.antennas[127].tile_name, "Tile168");
+
+        // rf_inputs:                [Tile011X, Tile011Y, ... Tile168X, Tile168Y],
+        assert_eq!(context.num_rf_inputs, 256);
+        assert_eq!(context.rf_inputs[0].pol, "X");
+        assert_eq!(context.rf_inputs[0].tile_name, "Tile011");
+        assert_eq!(context.rf_inputs[255].pol, "Y");
+        assert_eq!(context.rf_inputs[255].tile_name, "Tile168");
+
+        // num baselines:            8256,
+        assert_eq!(context.num_baselines, 8256);
+
+        // num antenna pols:         2,
+        assert_eq!(context.num_antenna_pols, 2);
+
+        // num visibility pols:      4,
+        assert_eq!(context.num_visibility_pols, 4);
+
+        // observation bandwidth:    1.28 MHz,
+        assert_eq!(context.observation_bandwidth_hz, 1_280_000);
+
+        // num coarse channels,      1,
+        assert_eq!(context.num_coarse_channels, 1);
+
+        // coarse channels:          [gpu=1 corr=0 rec=109 @ 139.520 MHz],
+        assert_eq!(context.coarse_channels[0].gpubox_number, 1);
+        assert_eq!(context.coarse_channels[0].receiver_channel_number, 109);
+        assert_eq!(context.coarse_channels[0].channel_centre_hz, 139_520_000);
+
+        // Correlator Mode:
+        // Mode:                     HW_LFILES,
+        assert_eq!(context.mode, "HW_LFILES");
+
+        // fine channel resolution:  10 kHz,
+        assert_eq!(context.fine_channel_width_hz, 10_000);
+
+        // integration time:         2.00 s
+        assert_eq!(context.integration_time_milliseconds, 2000);
+
+        // num fine channels/coarse: 128,
+        assert_eq!(context.num_fine_channels_per_coarse, 128);
+
+        // gpubox HDU size:          32.25 MiB,
+        // Memory usage per scan:    32.25 MiB,
+
+        // metafits filename:        ../test_files/1101503312_1_timestep/1101503312.metafits,
+        // gpubox batches:           [
+        // batch_number=0 gpubox_files=[filename=../test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits channelidentifier=1]
+    }
+
     #[test]
     fn test_mwax_read() {
         // Open the test mwax file
