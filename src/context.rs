@@ -333,6 +333,25 @@ impl mwalibContext {
         let num_fine_channels_per_coarse =
             (coarse_channel_width_hz / fine_channel_width_hz) as usize;
 
+        // We have enough information to validate HDU matches metafits
+        {
+            let coarse_channel = coarse_channels[0].gpubox_number;
+            let (batch_index, _) = gpubox_time_map[&timesteps[0].unix_time_ms][&coarse_channel];
+
+            let fptr = gpubox_batches[batch_index].gpubox_files[0]
+                .fptr
+                .as_mut()
+                .unwrap();
+
+            mwalibContext::validate_first_hdu(
+                corr_version,
+                num_fine_channels_per_coarse,
+                num_baselines,
+                num_visibility_pols,
+                fptr,
+            )?;
+        }
+
         // Populate the start and end times of the observation.
         // Start= start of first timestep
         // End  = start of last timestep + integration time
@@ -512,6 +531,123 @@ impl mwalibContext {
             num_timestep_coarse_channel_floats: hdu_size,
             legacy_conversion_table,
         })
+    }
+
+    /// Validates the first HDU of a gpubox file against metafits metadata
+    ///
+    /// In this case we call `validate_hdu_axes()`
+    ///
+    /// # Arguments
+    ///
+    /// * `corr_version` - Correlator version of this gpubox file.
+    ///
+    /// * `metafits_fine_channels_per_coarse` - the number of fine chan per coarse as calculated using info from metafits.
+    ///
+    /// * `metafits_baselines` - the number of baselines as reported by the metafits file.
+    ///
+    /// * `visibility_pols` - the number of pols produced by the correlator (always 4 for MWA)
+    ///
+    /// * `gpubox_fptr` - FITSFile pointer to an MWA GPUbox file
+    ///
+    /// # Returns
+    ///
+    /// * Result containing `Ok` if it is valid, or a `CustomErrorKind` if not valid.
+    ///
+    ///
+    pub fn validate_first_hdu(
+        corr_version: CorrelatorVersion,
+        metafits_fine_channels_per_coarse: usize,
+        metafits_baselines: usize,
+        visibility_pols: usize,
+        gpubox_fptr: &mut fitsio::FitsFile,
+    ) -> Result<(), ErrorKind> {
+        // Get NAXIS1 and NAXIS2 from a gpubox file first image HDU
+        let dimensions = get_hdu_image_size(gpubox_fptr)?;
+        let naxis1 = dimensions[1];
+        let naxis2 = dimensions[0];
+
+        Self::validate_hdu_axes(
+            corr_version,
+            metafits_fine_channels_per_coarse,
+            metafits_baselines,
+            visibility_pols,
+            naxis1,
+            naxis2,
+        )
+    }
+
+    /// Validates the first HDU of a gpubox file against metafits metadata
+    ///
+    /// In this case we check that NAXIS1 = the correct value and NAXIS2 = the correct value calculated from the metafits
+    ///
+    /// # Arguments
+    ///
+    /// * `corr_version` - Correlator version of this gpubox file.
+    ///
+    /// * `metafits_fine_channels_per_coarse` - the number of fine chan per coarse as calculated using info from metafits.
+    ///
+    /// * `metafits_baselines` - the number of baselines as reported by the metafits file.
+    ///
+    /// * `visibility_pols` - the number of pols produced by the correlator (always 4 for MWA)
+    ///
+    /// * `naxis1` - NAXIS1 keyword read from HDU1 of a Gpubox file
+    ///
+    /// * `naxis2` - NAXIS2 keyword read from HDU1 of a Gpubox file
+    ///
+    /// # Returns
+    ///
+    /// * Result containing `Ok` if it is valid, or a `CustomErrorKind` if not valid.
+    ///
+    ///
+    pub fn validate_hdu_axes(
+        corr_version: CorrelatorVersion,
+        metafits_fine_channels_per_coarse: usize,
+        metafits_baselines: usize,
+        visibility_pols: usize,
+        naxis1: usize,
+        naxis2: usize,
+    ) -> Result<(), ErrorKind> {
+        // We have different values depending on the version of the correlator
+        match corr_version {
+            CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
+                // NAXIS1 = baselines * visibility_pols * 2
+                // NAXIS2 = fine channels
+                let calculated_naxis1: i32 = metafits_baselines as i32 * visibility_pols as i32 * 2;
+                let calculated_naxis2: i32 = metafits_fine_channels_per_coarse as i32;
+
+                if calculated_naxis1 != naxis1 as i32 {
+                    return Err(ErrorKind::Custom(format!(
+                    "NAXIS1 in first gpubox image HDU {} does not match expected value {} (metafits baselines [{}] * pols [{}] * 2 [r,i]). NAXIS2={}", 
+                    naxis1, calculated_naxis1, metafits_baselines, visibility_pols, naxis2)));
+                }
+                if calculated_naxis2 != naxis2 as i32 {
+                    return Err(ErrorKind::Custom(format!(
+                    "NAXIS2 in first gpubox image HDU {} does not match expected value {} (metafits fine chans per coarse [{}])",
+                    naxis2, calculated_naxis2, metafits_fine_channels_per_coarse
+                )));
+                }
+            }
+            CorrelatorVersion::V2 => {
+                // NAXIS1 = fine channels * visibility pols * 2
+                // NAXIS2 = baselines
+                let calculated_naxis1: i32 =
+                    metafits_fine_channels_per_coarse as i32 * visibility_pols as i32 * 2;
+                let calculated_naxis2: i32 = metafits_baselines as i32;
+
+                if calculated_naxis1 != naxis1 as i32 {
+                    return Err(ErrorKind::Custom(format!(
+                    "NAXIS1 in first gpubox image HDU {} does not match expected value {} (metafits fine chans per coarse [{}] * pols [{}] * 2 [r,i]. NAXIS2={})", 
+                    naxis1, calculated_naxis1, metafits_fine_channels_per_coarse, visibility_pols, naxis2)));
+                }
+                if calculated_naxis2 != naxis2 as i32 {
+                    return Err(ErrorKind::Custom(format!(
+                    "NAXIS2 in first gpubox image HDU {} does not match expected value {} (metafits baselines [{}]", 
+                    naxis2, calculated_naxis2, metafits_baselines)));
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Read a single timestep for a single coarse channel
@@ -1138,5 +1274,72 @@ mod tests {
 
         // Check this block of floats matches
         assert_eq!(fits_hdu_data, mwalib_hdu_data_by_bl);
+    }
+
+    #[test]
+    fn test_validate_first_hdu() {
+        // Open the test mwax file
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+        let filename =
+            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+
+        //
+        // Read the observation using mwalib
+        //
+        // Open a context and load in a test metafits and gpubox file
+        let metafits: String = String::from(metafits_filename);
+        let gpuboxfiles: Vec<String> = vec![String::from(filename)];
+        let mut context =
+            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+
+        let coarse_channel = context.coarse_channels[0].gpubox_number;
+        let (batch_index, _) =
+            context.gpubox_time_map[&context.timesteps[0].unix_time_ms][&coarse_channel];
+
+        let fptr = context.gpubox_batches[batch_index].gpubox_files[0]
+            .fptr
+            .as_mut()
+            .unwrap();
+
+        let result_valid = mwalibContext::validate_first_hdu(
+            context.corr_version,
+            context.num_fine_channels_per_coarse,
+            context.num_baselines,
+            context.num_visibility_pols,
+            fptr,
+        );
+
+        let result_invalid1 = mwalibContext::validate_first_hdu(
+            context.corr_version,
+            context.num_fine_channels_per_coarse + 1,
+            context.num_baselines,
+            context.num_visibility_pols,
+            fptr,
+        );
+
+        let result_invalid2 = mwalibContext::validate_first_hdu(
+            context.corr_version,
+            context.num_fine_channels_per_coarse,
+            context.num_baselines + 1,
+            context.num_visibility_pols,
+            fptr,
+        );
+
+        let result_invalid3 = mwalibContext::validate_first_hdu(
+            context.corr_version,
+            context.num_fine_channels_per_coarse,
+            context.num_baselines,
+            context.num_visibility_pols + 1,
+            fptr,
+        );
+
+        // This is valid
+        assert!(result_valid.is_ok());
+
+        assert!(result_invalid1.is_err());
+
+        assert!(result_invalid2.is_err());
+
+        assert!(result_invalid3.is_err());
     }
 }
