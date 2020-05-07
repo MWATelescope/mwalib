@@ -245,11 +245,15 @@ impl mwalibContext {
             .hdu(1)
             .with_context(|| format!("Failed to open HDU 2 (tiledata table) for {:?}", metafits))?;
 
+        // Populate obsid from the metafits
+        let obsid = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
+            .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;
+
         let (mut gpubox_batches, corr_version, num_gpubox_files) =
             determine_gpubox_batches(&gpuboxes)?;
 
         let (gpubox_time_map, hdu_size) =
-            gpubox::create_time_map(&mut gpubox_batches, corr_version)?;
+            gpubox::create_time_map(&mut gpubox_batches, obsid, corr_version)?;
 
         // from MWA_Tools/CONV2UVFITS/convutils.h
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
@@ -287,10 +291,6 @@ impl mwalibContext {
 
         // Now populate the antennas (note they need to be sorted by subfile_order)
         let antennas: Vec<mwalibAntenna> = mwalibAntenna::populate_antennas(&rf_inputs);
-
-        // Populate obsid
-        let obsid = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
-            .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;
 
         // Always assume that MWA antennas have 2 pols, therefore the data has four polarisations. Would this ever
         // not be true?
@@ -338,6 +338,7 @@ impl mwalibContext {
             let coarse_channel = coarse_channels[0].gpubox_number;
             let (batch_index, _) = gpubox_time_map[&timesteps[0].unix_time_ms][&coarse_channel];
 
+            // We will check the first hdu of the first gpubox file
             let fptr = gpubox_batches[batch_index].gpubox_files[0]
                 .fptr
                 .as_mut()

@@ -120,7 +120,8 @@ lazy_static::lazy_static! {
 /// # Returns
 ///
 /// * A Result containing a vector of GPUBoxBatch structs as well as the Correlator version
-///   and the number of GPUBoxes supplied.
+///   (which is based on the filename ONLY - we check this in `create_time_map()`) and the
+///   number of GPUBoxes supplied.
 ///
 ///
 pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
@@ -345,16 +346,129 @@ pub fn map_unix_times_to_hdus(
     Ok(map)
 }
 
+/// Validate that the correlator version we worked out from the filename does not contradict
+/// the CORR_VER key from MWAX files or absence of that key for legacy correlator.
+///
+///
+/// # Arguments
+///
+/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
+///
+/// * `gpubox_primary_hdu` - The primary HDU of the gpubox file.
+///
+/// * `gpubox_filename` - The filename of the gpubox file being validated.
+///
+/// * `correlator_version` - enum telling us which correlator version the observation was created by.
+///
+///
+/// # Returns
+///
+/// * A Result containing `Ok` or an `ErrorKind` if it fails validation.
+///
+///
+pub fn validate_gpubox_metadata_correlator_version(
+    gpubox_fptr: &mut FitsFile,
+    gpubox_primary_hdu: &FitsHdu,
+    gpubox_filename: &str,
+    correlator_version: CorrelatorVersion,
+) -> Result<(), ErrorKind> {
+    // New correlator files include a version - check that it is present.
+    // For pre v2, ensure the key isn't present
+    let gpu_corr_version =
+        get_optional_fits_key::<u8>(gpubox_fptr, &gpubox_primary_hdu, "CORR_VER").unwrap();
+
+    match correlator_version {
+        CorrelatorVersion::V2 => {
+            match gpu_corr_version {
+                None => Err(ErrorKind::Custom(format!(
+                    "gpubox::validate_gpubox_metadata_correlator_version: Failed to read key CORR_VER from {}",
+                    gpubox_filename
+                ))),
+                Some(gpu_corr_version_value) => {
+                    match gpu_corr_version_value {
+                        2 => Ok(()),
+                        _ => Err(ErrorKind::Custom(format!(
+                            "gpubox::validate_gpubox_metadata_correlator_version: CORR_VER {} from {} does not match expected value of 2",
+                            gpu_corr_version_value, gpubox_filename
+                        )))
+                    }
+                }
+            }
+        }
+
+        CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
+            match gpu_corr_version {
+                None => Ok(()),
+                Some(gpu_corr_version_value) => Err(ErrorKind::Custom(format!(
+                    "gpubox::validate_gpubox_metadata_correlator_version: Correlator version mismatch: gpubox filenames indicate OldLegacy or 
+                    Legacy but {} has CORR_VER = {:?}", gpubox_filename, gpu_corr_version_value),
+                ))
+            }
+        }
+    }
+}
+
+/// Validate that the obsid we got from the metafits does not contradict
+/// the GPSTIME key (obsid) from gpubox files.
+///
+///
+/// # Arguments
+///
+/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
+///
+/// * `gpubox_primary_hdu` - The primary HDU of the gpubox file.
+///
+/// * `gpubox_filename` - The filename of the gpubox file being validated.
+///
+/// * `metafits_obsid` - Obsid as determined by reading the metafits.
+///
+///
+/// # Returns
+///
+/// * A Result containing `Ok` or an `ErrorKind` if it fails validation.
+///
+///
+pub fn validate_gpubox_metadata_obs_id(
+    gpubox_fptr: &mut FitsFile,
+    gpubox_primary_hdu: &FitsHdu,
+    gpubox_filename: &str,
+    metafits_obsid: u32,
+) -> Result<(), ErrorKind> {
+    // Get the OBSID- if not present, this is probably not an MWA fits file!
+    let gpu_obs_id = get_required_fits_key::<u32>(gpubox_fptr, &gpubox_primary_hdu, "OBSID")
+        .with_context(|| {
+            format!(
+                "gpubox::validate_gpubox_metadata_obs_id: Failed to read OBSID for {} - is this an MWA fits file?",
+                gpubox_filename
+            )
+        })?;
+
+    if gpu_obs_id != metafits_obsid {
+        Err(ErrorKind::Custom(format!(
+            "gpubox::validate_gpubox_metadata_obs_id: OBSID {} from {} does not match expected value of obs_id from metafits file {} 
+            maybe you have a mix of different files?",
+            gpu_obs_id, gpubox_filename, metafits_obsid
+        )))
+    } else {
+        Ok(())
+    }
+}
+
 /// Returns a BTree structure consisting of:
 /// BTree of timesteps. Each timestep is a BTree for a course channel.
 /// Each coarse channel then contains the batch number and hdu index.
+/// Since we are reading each gpubox file, we also confirm that the
+/// correlator version we got from the filenames matches what's in the
+/// primary HDU, and we also check that the metafits obs_id matches
+/// the primary HDU obs_id value.
 ///
 /// # Arguments
 ///
 /// * `gpubox_batches` - vector of structs describing each gpubox "batch"
 ///
-/// * `correlator_version` - enum telling us which correlator version the observation was created by.
+/// * `metafits_obs_id` - obs_id as read from metafits
 ///
+/// * `correlator_version` - enum telling us which correlator version the observation was created by (based on filename).
 ///
 /// # Returns
 ///
@@ -363,6 +477,7 @@ pub fn map_unix_times_to_hdus(
 ///
 pub fn create_time_map(
     gpubox_batches: &mut Vec<GPUBoxBatch>,
+    metafits_obs_id: u32,
     correlator_version: CorrelatorVersion,
 ) -> Result<(BTreeMap<u64, BTreeMap<usize, (usize, usize)>>, usize), ErrorKind> {
     // Open all the files.
@@ -378,18 +493,22 @@ pub fn create_time_map(
             let hdu = fptr
                 .hdu(0)
                 .with_context(|| format!("Failed to open HDU 1 of {:?}", gpubox_file))?;
-            // New correlator files include a version - check that it is present.
-            if correlator_version == CorrelatorVersion::V2 {
-                let v = get_required_fits_key::<u8>(&mut fptr, &hdu, "CORR_VER").with_context(
-                    || format!("Failed to read key CORR_VER from {:?}", gpubox_file),
-                )?;
-                if v != 2 {
-                    return Err(ErrorKind::Custom(
-                        "mwalibContext::new: MWAX gpubox file had a CORR_VER not equal to 2"
-                            .to_string(),
-                    ));
-                }
-            }
+
+            // Validate gpubox file header against metafits and other known info
+            validate_gpubox_metadata_obs_id(
+                &mut fptr,
+                &hdu,
+                &gpubox_file.filename,
+                metafits_obs_id,
+            )?;
+
+            validate_gpubox_metadata_correlator_version(
+                &mut fptr,
+                &hdu,
+                &gpubox_file.filename,
+                correlator_version,
+            )?;
+
             // Store the FITS file pointer for later.
             gpubox_file.fptr = Some(fptr);
         }
@@ -1001,5 +1120,139 @@ mod tests {
         assert_eq!(result.start_millisec, expected_start);
         assert_eq!(result.end_millisec, expected_end);
         assert_eq!(result.duration_millisec, expected_duration);
+    }
+
+    #[test]
+    fn test_validate_gpubox_metadata_correlator_version() {
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        with_new_temp_fits_file(
+            "test_validate_gpubox_metadata_correlator_version.fits",
+            |fptr| {
+                let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+
+                // This should succeed- LegacyOld should NOT have CORR_VER key
+                assert!(validate_gpubox_metadata_correlator_version(
+                    fptr,
+                    &hdu,
+                    &String::from("test_file.fits"),
+                    CorrelatorVersion::OldLegacy,
+                )
+                .is_ok());
+
+                // This should succeed- Legacy should NOT have CORR_VER key
+                assert!(validate_gpubox_metadata_correlator_version(
+                    fptr,
+                    &hdu,
+                    &String::from("test_file.fits"),
+                    CorrelatorVersion::Legacy,
+                )
+                .is_ok());
+
+                // This should fail- V2 needs CORR_VER key
+                assert!(validate_gpubox_metadata_correlator_version(
+                    fptr,
+                    &hdu,
+                    &String::from("test_file.fits"),
+                    CorrelatorVersion::V2,
+                )
+                .is_err());
+
+                // Now put in a corr version
+                hdu.write_key(fptr, "CORR_VER", 2)
+                    .expect("Couldn't write key 'CORR_VER'");
+
+                // This should succeed- V2 should have CORR_VER key
+                assert!(validate_gpubox_metadata_correlator_version(
+                    fptr,
+                    &hdu,
+                    &String::from("test_file.fits"),
+                    CorrelatorVersion::V2,
+                )
+                .is_ok());
+
+                // This should fail- OldLegacy should NOT have CORR_VER key
+                assert!(validate_gpubox_metadata_correlator_version(
+                    fptr,
+                    &hdu,
+                    &String::from("test_file.fits"),
+                    CorrelatorVersion::OldLegacy,
+                )
+                .is_err());
+
+                // This should fail- Legacy should NOT have CORR_VER key
+                assert!(validate_gpubox_metadata_correlator_version(
+                    fptr,
+                    &hdu,
+                    &String::from("test_file.fits"),
+                    CorrelatorVersion::Legacy,
+                )
+                .is_err());
+            },
+        );
+
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        // This section tests CORR_VER where it is != 2
+        with_new_temp_fits_file(
+            "test_validate_gpubox_metadata_correlator_version.fits",
+            |fptr| {
+                let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+
+                // This should not succeed- CORR_VER key if it exists should be 2
+                // CORR_VER did not exist in OldLegacy or Legacy correlator
+                // Now put in a corr version
+                hdu.write_key(fptr, "CORR_VER", 1)
+                    .expect("Couldn't write key 'CORR_VER'");
+
+                assert!(validate_gpubox_metadata_correlator_version(
+                    fptr,
+                    &hdu,
+                    &String::from("test_file.fits"),
+                    CorrelatorVersion::V2,
+                )
+                .is_err());
+            },
+        );
+    }
+
+    #[test]
+    fn test_validate_gpubox_metadata_obsid() {
+        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+        with_new_temp_fits_file(
+            "test_validate_gpubox_metadata_correlator_version.fits",
+            |fptr| {
+                let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+
+                // OBSID is not there, this should be an error
+                assert!(validate_gpubox_metadata_obs_id(
+                    fptr,
+                    &hdu,
+                    &String::from("test_file.fits"),
+                    1_234_567_890,
+                )
+                .is_err());
+
+                // Now add the key
+                hdu.write_key(fptr, "OBSID", 1_234_567_890)
+                    .expect("Couldn't write key 'OBSID'");
+
+                // OBSID is there, but does not match metafits- this should be an error
+                assert!(validate_gpubox_metadata_obs_id(
+                    fptr,
+                    &hdu,
+                    &String::from("test_file.fits"),
+                    2_345_678_901,
+                )
+                .is_err());
+
+                // OBSID is there, and it matches
+                assert!(validate_gpubox_metadata_obs_id(
+                    fptr,
+                    &hdu,
+                    &String::from("test_file.fits"),
+                    1_234_567_890,
+                )
+                .is_ok());
+            },
+        );
     }
 }
