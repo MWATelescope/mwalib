@@ -5,7 +5,7 @@
 /*!
 The main interface to MWA data.
  */
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Duration, FixedOffset};
 use fitsio::*;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -80,10 +80,22 @@ pub struct mwalibContext {
     pub coax_v_factor: f64,
     // Observation id
     pub obsid: u32,
+    /// Scheduled start (gps time) of observation
+    pub scheduled_start_gpstime_milliseconds: u64,
+    /// Scheduled end (gps time) of observation
+    pub scheduled_end_gpstime_milliseconds: u64,
+    /// Scheduled start (UNIX time) of observation
+    pub scheduled_start_unix_time_milliseconds: u64,
+    /// Scheduled end (UNIX time) of observation
+    pub scheduled_end_unix_time_milliseconds: u64,
     // Scheduled start (UTC) of observation
     pub scheduled_start_utc: DateTime<FixedOffset>,
+    // Scheduled end (UTC) of observation
+    pub scheduled_end_utc: DateTime<FixedOffset>,
     // Scheduled start (MJD) of observation
     pub scheduled_start_mjd: f64,
+    // Scheduled end (MJD) of observation
+    pub scheduled_end_mjd: f64,
     // Scheduled duration of observation
     pub scheduled_duration_milliseconds: u64,
     // RA tile pointing
@@ -378,6 +390,33 @@ impl mwalibContext {
             get_required_fits_key::<u64>(&mut metafits_fptr, &metafits_hdu, "EXPOSURE")
                 .with_context(|| format!("Failed to read EXPOSURE for {:?}", metafits))?
                 * 1000;
+        let scheduled_end_utc =
+            scheduled_start_utc + Duration::milliseconds(scheduled_duration_milliseconds as i64);
+
+        // To increment the mjd we need to fractional proportion of the day that the duration represents
+        let scheduled_end_mjd =
+            scheduled_start_mjd + (scheduled_duration_milliseconds as f64 / 1000. / 86400.);
+
+        let scheduled_start_gpstime_milliseconds: u64 = obsid as u64 * 1000;
+        let scheduled_end_gpstime_milliseconds: u64 =
+            scheduled_start_gpstime_milliseconds + scheduled_duration_milliseconds;
+
+        let quack_time_duration_milliseconds: u64 =
+            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")
+                .with_context(|| format!("Failed to read QUACKTIM for {:?}", metafits))?
+                * 1000.)
+                .round() as _;
+        let good_time_unix_milliseconds: u64 =
+            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "GOODTIME")
+                .with_context(|| format!("Failed to read GOODTIME for {:?}", metafits))?
+                * 1000.)
+                .round() as _;
+
+        let scheduled_start_unix_time_milliseconds: u64 =
+            good_time_unix_milliseconds - quack_time_duration_milliseconds;
+        let scheduled_end_unix_time_milliseconds: u64 =
+            scheduled_start_unix_time_milliseconds + scheduled_duration_milliseconds;
+
         let ra_tile_pointing_degrees: f64 =
             get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "RA")
                 .with_context(|| format!("Failed to read RA for {:?}", metafits))?;
@@ -447,17 +486,6 @@ impl mwalibContext {
         let global_analogue_attenuation_db: f64 =
             get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")
                 .with_context(|| format!("Failed to read ATTEN_DB for {:?}", metafits))?;
-        let quack_time_duration_milliseconds: u64 =
-            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")
-                .with_context(|| format!("Failed to read QUACKTIM for {:?}", metafits))?
-                * 1000.)
-                .round() as _;
-        let good_time_unix_milliseconds: u64 =
-            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "GOODTIME")
-                .with_context(|| format!("Failed to read GOODTIME for {:?}", metafits))?
-                * 1000.)
-                .round() as _;
-
         // Prepare the conversion array to convert legacy correlator format into mwax format
         // or just leave it empty if we're in any other format
         let legacy_conversion_table: Vec<mwalibLegacyConversionBaseline> = if corr_version
@@ -479,8 +507,14 @@ impl mwalibContext {
             mwa_altitude_metres,
             corr_version,
             obsid,
+            scheduled_start_unix_time_milliseconds,
+            scheduled_end_unix_time_milliseconds,
+            scheduled_start_gpstime_milliseconds,
+            scheduled_end_gpstime_milliseconds,
             scheduled_start_utc,
+            scheduled_end_utc,
             scheduled_start_mjd,
+            scheduled_end_mjd,
             scheduled_duration_milliseconds,
             ra_tile_pointing_degrees,
             dec_tile_pointing_degrees,
@@ -829,9 +863,15 @@ impl fmt::Display for mwalibContext {
     Delays:                   {:?},
     Global attenuation:       {} dB,
 
+    Scheduled start (UNIX)    {},
+    Scheduled end (UNIX)      {}, 
+    Scheduled start (GPS)     {},
+    Scheduled end (GPS)       {}, 
     Scheduled start (utc)     {},
+    Scheduled end (utc)       {},
     Scheduled start (MJD)     {},
-    Scheduled duration        {} s,
+    Scheduled end (MJD)       {},
+    Scheduled duration        {} s,                
     Actual UNIX start time:   {},
     Actual UNIX end time:     {},
     Actual duration:          {} s,
@@ -894,8 +934,14 @@ impl fmt::Display for mwalibContext {
             self.receivers,
             self.delays,
             self.global_analogue_attenuation_db,
+            self.scheduled_start_unix_time_milliseconds as f64 / 1e3,
+            self.scheduled_end_unix_time_milliseconds as f64 / 1e3,
+            self.scheduled_start_gpstime_milliseconds as f64 / 1e3,
+            self.scheduled_end_gpstime_milliseconds as f64 / 1e3,
             self.scheduled_start_utc,
+            self.scheduled_end_utc,
             self.scheduled_start_mjd,
+            self.scheduled_end_mjd,
             self.scheduled_duration_milliseconds as f64 / 1e3,
             self.start_unix_time_milliseconds as f64 / 1e3,
             self.end_unix_time_milliseconds as f64 / 1e3,
