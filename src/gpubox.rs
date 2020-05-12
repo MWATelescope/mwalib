@@ -11,6 +11,7 @@ use std::fmt::Debug;
 use std::string::ToString;
 
 use fitsio::{hdu::FitsHdu, FitsFile};
+use rayon::prelude::*;
 use regex::Regex;
 
 use crate::fits_read::*;
@@ -52,19 +53,12 @@ impl fmt::Debug for GPUBoxBatch {
 
 /// This represents one gpubox file
 pub struct GPUBoxFile {
-    pub filename: String,          // Filename of gpubox file
-    pub channel_identifier: usize, // channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
-    pub fptr: Option<FitsFile>,    // Pointer to fits file
-}
-
-impl GPUBoxFile {
-    pub fn new(filename: String, channel_identifier: usize) -> Self {
-        Self {
-            filename,
-            channel_identifier,
-            fptr: None,
-        }
-    }
+    /// Filename of gpubox file
+    pub filename: String,
+    /// channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
+    pub channel_identifier: usize,
+    /// Pointer to fits file
+    pub fptr: FitsFile,
 }
 
 #[cfg_attr(tarpaulin, skip)]
@@ -90,6 +84,25 @@ impl std::cmp::PartialEq for GPUBoxFile {
     }
 }
 
+/// A temporary representation of a gpubox file
+#[derive(Clone, Debug)]
+struct TempGPUBoxFile<'a> {
+    /// Filename of gpubox file
+    filename: &'a str,
+    /// Channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
+    channel_identifier: usize,
+    /// Batch number (00,01,02..n)
+    batch_number: usize,
+}
+
+impl<'a> std::cmp::PartialEq for TempGPUBoxFile<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.filename == other.filename
+            && self.channel_identifier == other.channel_identifier
+            && self.batch_number == other.batch_number
+    }
+}
+
 lazy_static::lazy_static! {
     static ref RE_MWAX: Regex =
         Regex::new(r"\d{10}_\d{8}(.)?\d{6}_ch(?P<channel>\d{3})_(?P<batch>\d{3}).fits").unwrap();
@@ -100,15 +113,152 @@ lazy_static::lazy_static! {
     static ref RE_BAND: Regex = Regex::new(r"\d{10}_\d{14}_(ch|gpubox)(?P<band>\d+)").unwrap();
 }
 
-/// Group input gpubox files into a vector of vectors containing their
-/// batches. A "gpubox batch" refers to the number XX in a gpubox filename
-/// (e.g. `1065880128_20131015134930_gpubox01_XX.fits`). Fail if the number of
-/// files in each batch is not equal.
+/// Convert `Vec<TempGPUBoxFile>` to `Vec<GPUBoxBatch>`. This requires the fits
+/// files to actually be present, as `GPUBoxFile`s need an open fits file
+/// handle.
 ///
-/// Some older files might have a "batchless" format
-/// (e.g. `1065880128_20131015134930_gpubox01.fits`); in this case, this
-/// function will just return one sub-vector for one batch.
-/// From a path to a metafits file and paths to gpubox files, create an `mwalibContext`.
+/// Fail if
+///
+/// * no files were supplied;
+/// * the fits files specified by the `TempGPUBoxFile`s can't be opened.
+///
+///
+/// # Arguments
+///
+/// * `temp_gpuboxes` - A vector of `TempGPUBoxFile` to be converted.
+///
+///
+/// # Returns
+///
+/// * A Result containing a vector of `GPUBoxBatch`.
+///
+///
+fn convert_temp_gpuboxes(
+    temp_gpuboxes: Vec<TempGPUBoxFile>,
+) -> Result<Vec<GPUBoxBatch>, fitsio::errors::Error> {
+    // unwrap is safe as a check is performed above to ensure that there are
+    // some files present.
+    let num_batches = temp_gpuboxes.iter().map(|g| g.batch_number).max().unwrap() + 1;
+    let mut gpubox_batches: Vec<GPUBoxBatch> = Vec::with_capacity(num_batches);
+    for b in 0..num_batches {
+        gpubox_batches.push(GPUBoxBatch::new(b));
+    }
+
+    for temp_g in temp_gpuboxes.into_iter() {
+        let fptr = FitsFile::open(&temp_g.filename)?;
+        let g = GPUBoxFile {
+            filename: temp_g.filename.to_string(),
+            channel_identifier: temp_g.channel_identifier,
+            fptr,
+        };
+        gpubox_batches[temp_g.batch_number].gpubox_files.push(g);
+    }
+
+    // Ensure the output is properly sorted - each batch is sorted by
+    // channel_identifier.
+    for v in &mut gpubox_batches {
+        v.gpubox_files
+            .sort_unstable_by(|a, b| a.channel_identifier.cmp(&b.channel_identifier));
+    }
+
+    // Sort the batches by batch number
+    gpubox_batches.sort_by_key(|b| b.batch_number);
+
+    Ok(gpubox_batches)
+}
+
+/// This function unpacks the metadata associated with input gpubox files. The
+/// input filenames are grouped into into batches. A "gpubox batch" refers to
+/// the number XX in a gpubox filename
+/// (e.g. `1065880128_20131015134930_gpubox01_XX.fits`). Some older files might
+/// have a "batchless" format
+/// (e.g. `1065880128_20131015134930_gpubox01.fits`). These details are
+/// reflected in the returned `CorrelatorVersion`.
+///
+/// Fail if
+///
+/// * no files were supplied;
+/// * there is a mixture of the types of gpubox files supplied (e.g. different
+///   correlator versions);
+/// * a gpubox filename's structure could not be identified;
+/// * the gpubox batch numbers are not contiguous;
+/// * the number of files in each batch is not equal;
+/// * MWAX gpubox files don't have a CORR_VER key in HDU 0, or it is not equal
+///   to 2;
+/// * the amount of data in each HDU is not equal.
+///
+///
+/// # Arguments
+///
+/// * `gpubox_filenames` - A vector or slice of strings or references to strings
+///                        containing all of the gpubox filenames provided by the client.
+///
+///
+/// # Returns
+///
+/// * A Result containing a vector of GPUBoxBatch structs, the MWA Correlator
+///   version, the UNIX times paired with gpubox HDU numbers, and the amount of
+///   data in each HDU.
+///
+///
+pub fn examine_gpubox_files<T: AsRef<str> + ToString + Debug>(
+    gpubox_filenames: &[T],
+) -> Result<
+    (
+        Vec<GPUBoxBatch>,
+        usize,
+        CorrelatorVersion,
+        BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
+        usize,
+    ),
+    ErrorKind,
+> {
+    let (temp_gpuboxes, corr_format, num_gpubox_files, _) =
+        determine_gpubox_batches(gpubox_filenames)?;
+
+    let gpubox_time_map = create_time_map(&temp_gpuboxes, corr_format)?;
+
+    let mut gpubox_batches = convert_temp_gpuboxes(temp_gpuboxes)?;
+
+    // Determine the size of each gpubox's image on HDU 1. mwalib will throw an
+    // error if this size is not consistent for all gpubox files.
+    let mut hdu_size = 0;
+    for b in &mut gpubox_batches {
+        for g in &mut b.gpubox_files {
+            let this_size = get_hdu_image_size(&mut g.fptr)?.iter().product();
+            if hdu_size == 0 {
+                hdu_size = this_size;
+            } else if hdu_size != this_size {
+                return Err(ErrorKind::Custom(
+                    "HDU sizes in gpubox files are not equal".to_string(),
+                ));
+            }
+        }
+    }
+
+    Ok((
+        gpubox_batches,
+        num_gpubox_files,
+        corr_format,
+        gpubox_time_map,
+        hdu_size,
+    ))
+}
+
+/// Group input gpubox files into batches. A "gpubox batch" refers to the number
+/// XX in a gpubox filename
+/// (e.g. `1065880128_20131015134930_gpubox01_XX.fits`). Some older files might
+/// have a "batchless" format (e.g. `1065880128_20131015134930_gpubox01.fits`).
+///
+///
+/// Fail if
+///
+/// * no files were supplied;
+/// * there is a mixture of the types of gpubox files supplied (e.g. different correlator
+///   versions);
+/// * a gpubox filename's structure could not be identified;
+/// * the gpubox batch numbers are not contiguous;
+/// * the number of files in each batch is not equal;
 ///
 ///
 /// # Arguments
@@ -119,13 +269,14 @@ lazy_static::lazy_static! {
 ///
 /// # Returns
 ///
-/// * A Result containing a vector of GPUBoxBatch structs as well as the Correlator version
-///   and the number of GPUBoxes supplied.
+/// * A Result containing a vector of `TempGPUBoxFile` structs as well as a
+///   `CorrelatorVersion`, the number of GPUBoxes supplied, and the number of
+///   gpubox batches.
 ///
 ///
-pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
+fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
     gpubox_filenames: &[T],
-) -> Result<(Vec<GPUBoxBatch>, CorrelatorVersion, usize), ErrorKind> {
+) -> Result<(Vec<TempGPUBoxFile>, CorrelatorVersion, usize, usize), ErrorKind> {
     if gpubox_filenames.is_empty() {
         return Err(ErrorKind::Custom(
             "determine_gpubox_batches: gpubox / mwax fits files missing".to_string(),
@@ -133,7 +284,7 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
     }
     let num_gpubox_files = gpubox_filenames.len();
     let mut format = None;
-    let mut out_gpubox_batches: Vec<GPUBoxBatch> = vec![];
+    let mut temp_gpuboxes: Vec<TempGPUBoxFile> = Vec::with_capacity(gpubox_filenames.len());
 
     for g in gpubox_filenames {
         match RE_MWAX.captures(g.as_ref()) {
@@ -152,19 +303,11 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
                     }
                 }
 
-                let batch: usize = caps["batch"].parse()?;
-                let channel: usize = caps["channel"].parse()?;
-                if !&out_gpubox_batches.iter().any(|b| b.batch_number == batch) {
-                    // Enlarge the output vector if we need to.
-                    out_gpubox_batches.push(GPUBoxBatch::new(batch));
-                }
-                // This finds the correct batch and then adds the gpubox file to it
-                out_gpubox_batches
-                    .iter_mut()
-                    .find(|b| b.batch_number == batch)
-                    .unwrap()
-                    .gpubox_files
-                    .push(GPUBoxFile::new(g.to_string(), channel));
+                temp_gpuboxes.push(TempGPUBoxFile {
+                    filename: g.as_ref(),
+                    channel_identifier: caps["channel"].parse()?,
+                    batch_number: caps["batch"].parse()?,
+                });
             }
 
             // Try to match the legacy format.
@@ -181,20 +324,11 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
                         }
                     }
 
-                    let batch: usize = caps["batch"].parse()?;
-                    let channel: usize = caps["band"].parse()?;
-                    if !out_gpubox_batches.iter().any(|b| b.batch_number == batch) {
-                        // Enlarge the output vector if we need to.
-                        out_gpubox_batches.push(GPUBoxBatch::new(batch));
-                    }
-
-                    // This finds the correct batch and then adds the gpubox file to it
-                    out_gpubox_batches
-                        .iter_mut()
-                        .find(|b| b.batch_number == batch)
-                        .unwrap()
-                        .gpubox_files
-                        .push(GPUBoxFile::new(g.to_string(), channel));
+                    temp_gpuboxes.push(TempGPUBoxFile {
+                        filename: g.as_ref(),
+                        channel_identifier: caps["band"].parse()?,
+                        batch_number: caps["batch"].parse()?,
+                    });
                 }
 
                 // Try to match the old legacy format.
@@ -211,16 +345,12 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
                             }
                         }
 
-                        let channel: usize = caps["band"].parse()?;
-
-                        // There's only one batch.
-                        if !out_gpubox_batches.iter().any(|b| b.batch_number == 0) {
-                            // Enlarge the output vector if we need to.
-                            out_gpubox_batches.push(GPUBoxBatch::new(0));
-                        }
-                        out_gpubox_batches[0]
-                            .gpubox_files
-                            .push(GPUBoxFile::new(g.to_string(), channel));
+                        temp_gpuboxes.push(TempGPUBoxFile {
+                            filename: g.as_ref(),
+                            channel_identifier: caps["band"].parse()?,
+                            // There's only one batch.
+                            batch_number: 0,
+                        });
                     }
                     None => {
                         return Err(ErrorKind::Custom(format!(
@@ -233,50 +363,40 @@ pub fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
         }
     }
 
-    // Ensure the output is properly sorted - each batch is sorted by
-    // channel_identifier.
-    for v in &mut out_gpubox_batches {
-        v.gpubox_files
-            .sort_unstable_by(|a, b| a.channel_identifier.cmp(&b.channel_identifier));
+    // Check batches are contiguous and have equal numbers of files.
+    let mut batches_and_files: BTreeMap<usize, u8> = BTreeMap::new();
+    for gpubox in &temp_gpuboxes {
+        *batches_and_files.entry(gpubox.batch_number).or_insert(0) += 1;
     }
 
-    // Sort the batches by batch number
-    out_gpubox_batches.sort_by_key(|b| b.batch_number);
-
-    // Check batches are contiguous
-    for (i, batch) in out_gpubox_batches.iter().enumerate() {
-        if i != batch.batch_number {
+    let mut file_count = 0;
+    for (i, (batch_num, num_files)) in batches_and_files.iter().enumerate() {
+        if i != *batch_num {
             return Err(ErrorKind::Custom(format!(
-                "There is an entire gpubox batch missing (expected batch {} got {}).\n{}",
-                i,
-                batch.batch_number,
-                out_gpubox_batches
-                    .iter()
-                    .enumerate()
-                    .map(|(i, x)| format!("Batch {}: {}", i, x.gpubox_files.len()))
-                    .collect::<Vec<String>>()
-                    .join(", ")
+                "There is an entire gpubox batch missing (expected batch {} got {}).",
+                i, batch_num
+            )));
+        }
+
+        if file_count == 0 {
+            file_count = *num_files;
+        } else if file_count != *num_files {
+            return Err(ErrorKind::Custom(format!(
+                "There are an uneven number of files in the gpubox batches."
             )));
         }
     }
 
-    // Check that an equal number of files are in each batch.
-    if !out_gpubox_batches
-        .iter()
-        .all(|x| x.gpubox_files.len() == out_gpubox_batches[0].gpubox_files.len())
-    {
-        return Err(ErrorKind::Custom(format!(
-            "There are an uneven number of files in the gpubox batches.\n{}",
-            out_gpubox_batches
-                .iter()
-                .enumerate()
-                .map(|(i, x)| format!("Batch {}: {}", i, x.gpubox_files.len()))
-                .collect::<Vec<String>>()
-                .join(", ")
-        )));
-    }
+    // Ensure the output is properly sorted - each batch is sorted by batch
+    // number, then channel identifier.
+    temp_gpuboxes.sort_unstable_by_key(|g| (g.batch_number, g.channel_identifier));
 
-    Ok((out_gpubox_batches, format.unwrap(), num_gpubox_files))
+    Ok((
+        temp_gpuboxes,
+        format.unwrap(),
+        num_gpubox_files,
+        batches_and_files.len(),
+    ))
 }
 
 /// Given a FITS file pointer and HDU, determine the time in units of
@@ -361,84 +481,64 @@ pub fn map_unix_times_to_hdus(
 /// * A Result containing the GPUBox Time Map or an error.
 ///
 ///
-pub fn create_time_map(
-    gpubox_batches: &mut Vec<GPUBoxBatch>,
+fn create_time_map(
+    gpuboxes: &[TempGPUBoxFile],
     correlator_version: CorrelatorVersion,
-) -> Result<(BTreeMap<u64, BTreeMap<usize, (usize, usize)>>, usize), ErrorKind> {
-    // Open all the files.
-    //let mut gpubox_fptrs = Vec::with_capacity(gpubox_batches.len());
-    let mut gpubox_time_map = BTreeMap::new();
-    // Keep track of the gpubox HDU size and the number of gpubox files.
-    let mut size = 0;
-    for (batch_num, batch) in gpubox_batches.iter_mut().enumerate() {
-        for gpubox_file in &mut batch.gpubox_files {
-            let mut fptr = FitsFile::open(&gpubox_file.filename)
-                .with_context(|| format!("Failed to open {:?}", gpubox_file))?;
+) -> Result<BTreeMap<u64, BTreeMap<usize, (usize, usize)>>, ErrorKind> {
+    // Ugly hack to open up all the HDUs of the gpubox files in parallel. We
+    // can't do this over the `GPUBoxBatch` or `GPUBoxFile` structs because they
+    // contain the `FitsFile` struct, which does not implement the `Send`
+    // trait. `ThreadsafeFitsFile` does contain this, but does not allow
+    // iteration. It seems like the smaller evil to just iterate over the
+    // filenames here and get the relevant info out of the HDUs before things
+    // get too complicated elsewhere.
 
+    // In parallel, open up all the fits files and get their HDU times. rayon
+    // preserves the order of the input argument, so there is no need to keep
+    // the temporary gpubox file along with its times. In any case, doing so is
+    // difficult!
+    let maps = gpuboxes
+        .par_iter()
+        .map(|g| {
+            let mut fptr = FitsFile::open(&g.filename)
+                .with_context(|| format!("Failed to open {}", g.filename))?;
             let hdu = fptr
                 .hdu(0)
-                .with_context(|| format!("Failed to open HDU 1 of {:?}", gpubox_file))?;
+                .with_context(|| format!("Failed to open HDU 1 of {}", g.filename))?;
+
             // New correlator files include a version - check that it is present.
             if correlator_version == CorrelatorVersion::V2 {
-                let v = get_required_fits_key::<u8>(&mut fptr, &hdu, "CORR_VER").with_context(
-                    || format!("Failed to read key CORR_VER from {:?}", gpubox_file),
-                )?;
+                let v = get_required_fits_key::<u8>(&mut fptr, &hdu, "CORR_VER")
+                    .with_context(|| format!("Failed to read key CORR_VER from {}", g.filename))?;
                 if v != 2 {
                     return Err(ErrorKind::Custom(
-                        "mwalibContext::new: MWAX gpubox file had a CORR_VER not equal to 2"
-                            .to_string(),
+                        "MWAX gpubox file had a CORR_VER not equal to 2".to_string(),
                     ));
                 }
             }
-            // Store the FITS file pointer for later.
-            gpubox_file.fptr = Some(fptr);
-        }
 
-        // Because of the way `fitsio` uses the mutable reference to the
-        // file handle, it's easier to do another loop here than use `fptr`
-        // above.
-        for gpubox_file in batch.gpubox_files.iter_mut() {
-            // Determine gpubox number. This is from 0..N
-            // and will map to the receiver channel numbers in the metafits*
-            // (* except for legacy and old legacy if rec channel is > 128 in which case it is reversed), but at this point
-            // we don't care about that.
-            // Legacy- number is 2 digits and represents the physical gpubox that produced this file. These are mapped in ascending order
-            // to the metafits COARSE_CHANNEL list of reciver channels
-            // V2- number if 3 digits and referes to the receiver channel number
-            let channel_identifier: usize = gpubox_file.channel_identifier;
-
-            let time_map =
-                map_unix_times_to_hdus((gpubox_file.fptr.as_mut()).unwrap(), correlator_version)?;
-            for (time, hdu_index) in time_map {
-                // For the current `time`, check if it's in the map. If not,
-                // insert it and a new tree. Then check if `gpubox_num` is
-                // in the sub-map for this `time`, etc.
-                let new_time_tree = BTreeMap::new();
-                gpubox_time_map
-                    .entry(time)
-                    .or_insert(new_time_tree)
-                    .entry(channel_identifier)
-                    .or_insert((batch_num, hdu_index));
+            // Get the UNIX times from each of the HDUs of this `FitsFile`.
+            match map_unix_times_to_hdus(&mut fptr, correlator_version) {
+                Ok(m) => Ok(m),
+                Err(e) => return Err(ErrorKind::Fitsio(e)),
             }
+        })
+        .collect::<Vec<Result<BTreeMap<u64, usize>, ErrorKind>>>();
 
-            // Determine the size of the gpubox HDU image. mwalib will panic
-            // if this size is not consistent for all HDUs in all gpubox
-            // files.
-            let this_size = get_hdu_image_size((gpubox_file.fptr.as_mut()).unwrap())?
-                .iter()
-                .product();
-            if size != 0 && size != this_size {
-                return Err(ErrorKind::Custom(
-                    "mwalibBuffer::read: Error: HDU sizes in gpubox files are not equal"
-                        .to_string(),
-                ));
-            } else {
-                size = this_size;
-            }
+    // Collapse all of the gpubox time maps into a single map.
+    let mut gpubox_time_map = BTreeMap::new();
+    for (map_maybe_error, gpubox) in maps.into_iter().zip(gpuboxes.iter()) {
+        let map = map_maybe_error?;
+        for (time, hdu_index) in map {
+            gpubox_time_map
+                .entry(time)
+                .or_insert(BTreeMap::new())
+                .entry(gpubox.channel_identifier)
+                .or_insert((gpubox.batch_number, hdu_index));
         }
     }
 
-    Ok((gpubox_time_map, size))
+    Ok(gpubox_time_map)
 }
 
 /// Determine the proper start and end times of an observation. In this context,
@@ -537,32 +637,30 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files) = result.unwrap();
-        assert_eq!(gpubox_batches.len(), 3);
+        let (temp_gpuboxes, corr_format, num_gpubox_files, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(num_gpubox_files, 3);
+        assert_eq!(num_batches, 3);
 
-        let mut expected_batches: Vec<GPUBoxBatch> = vec![
-            GPUBoxBatch::new(0),
-            GPUBoxBatch::new(1),
-            GPUBoxBatch::new(2),
+        let expected_gpuboxes = vec![
+            TempGPUBoxFile {
+                filename: "1065880128_20131015134930_gpubox01_00.fits",
+                channel_identifier: 1,
+                batch_number: 0,
+            },
+            TempGPUBoxFile {
+                filename: "1065880128_20131015134930_gpubox20_01.fits",
+                channel_identifier: 20,
+                batch_number: 1,
+            },
+            TempGPUBoxFile {
+                filename: "1065880128_20131015134930_gpubox15_02.fits",
+                channel_identifier: 15,
+                batch_number: 2,
+            },
         ];
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("1065880128_20131015134930_gpubox01_00.fits"),
-            1,
-        ));
 
-        expected_batches[1].gpubox_files.push(GPUBoxFile::new(
-            String::from("1065880128_20131015134930_gpubox20_01.fits"),
-            20,
-        ));
-
-        expected_batches[2].gpubox_files.push(GPUBoxFile::new(
-            String::from("1065880128_20131015134930_gpubox15_02.fits"),
-            15,
-        ));
-
-        assert_eq!(gpubox_batches, expected_batches);
+        assert_eq!(temp_gpuboxes, expected_gpuboxes);
     }
 
     #[test]
@@ -574,30 +672,27 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files) = result.unwrap();
-        assert_eq!(gpubox_batches.len(), 3);
+        let (gpubox_batches, corr_format, num_gpubox_files, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(num_gpubox_files, 3);
-        let mut expected_batches: Vec<GPUBoxBatch> = vec![
-            GPUBoxBatch::new(0),
-            GPUBoxBatch::new(1),
-            GPUBoxBatch::new(2),
+        assert_eq!(num_batches, 3);
+        let expected_batches = vec![
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
+                channel_identifier: 1,
+                batch_number: 0,
+            },
+            TempGPUBoxFile {
+                filename: "/home/gs/1065880128_20131015134930_gpubox20_01.fits",
+                channel_identifier: 20,
+                batch_number: 1,
+            },
+            TempGPUBoxFile {
+                filename: "/var/cache/1065880128_20131015134930_gpubox15_02.fits",
+                channel_identifier: 15,
+                batch_number: 2,
+            },
         ];
-
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134930_gpubox01_00.fits"),
-            1,
-        ));
-
-        expected_batches[1].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/gs/1065880128_20131015134930_gpubox20_01.fits"),
-            20,
-        ));
-
-        expected_batches[2].gpubox_files.push(GPUBoxFile::new(
-            String::from("/var/cache/1065880128_20131015134930_gpubox15_02.fits"),
-            15,
-        ));
 
         assert_eq!(gpubox_batches, expected_batches);
     }
@@ -614,43 +709,43 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files) = result.unwrap();
-        assert_eq!(gpubox_batches.len(), 3);
+        let (gpubox_batches, corr_format, num_gpubox_files, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(num_gpubox_files, 6);
+        assert_eq!(num_batches, 3);
 
-        let mut expected_batches: Vec<GPUBoxBatch> = vec![
-            GPUBoxBatch::new(0),
-            GPUBoxBatch::new(1),
-            GPUBoxBatch::new(2),
+        let expected_batches = vec![
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
+                channel_identifier: 1,
+                batch_number: 0,
+            },
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134930_gpubox02_00.fits",
+                channel_identifier: 2,
+                batch_number: 0,
+            },
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134930_gpubox19_01.fits",
+                channel_identifier: 19,
+                batch_number: 1,
+            },
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134930_gpubox20_01.fits",
+                channel_identifier: 20,
+                batch_number: 1,
+            },
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134930_gpubox14_02.fits",
+                channel_identifier: 14,
+                batch_number: 2,
+            },
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134930_gpubox15_02.fits",
+                channel_identifier: 15,
+                batch_number: 2,
+            },
         ];
-
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134930_gpubox01_00.fits"),
-            1,
-        ));
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134930_gpubox02_00.fits"),
-            2,
-        ));
-
-        expected_batches[1].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134930_gpubox19_01.fits"),
-            19,
-        ));
-        expected_batches[1].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134930_gpubox20_01.fits"),
-            20,
-        ));
-
-        expected_batches[2].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134930_gpubox14_02.fits"),
-            14,
-        ));
-        expected_batches[2].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134930_gpubox15_02.fits"),
-            15,
-        ));
 
         assert_eq!(gpubox_batches, expected_batches);
     }
@@ -667,42 +762,44 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files) = result.unwrap();
-        assert_eq!(gpubox_batches.len(), 3);
+        let (gpubox_batches, corr_format, num_gpubox_files, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(num_gpubox_files, 6);
+        assert_eq!(num_batches, 3);
 
-        let mut expected_batches: Vec<GPUBoxBatch> = vec![
-            GPUBoxBatch::new(0),
-            GPUBoxBatch::new(1),
-            GPUBoxBatch::new(2),
+        let expected_batches = vec![
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
+                channel_identifier: 1,
+                batch_number: 0,
+            },
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134929_gpubox02_00.fits",
+                channel_identifier: 2,
+                batch_number: 0,
+            },
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134930_gpubox19_01.fits",
+                channel_identifier: 19,
+                batch_number: 1,
+            },
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134929_gpubox20_01.fits",
+                channel_identifier: 20,
+                batch_number: 1,
+            },
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134931_gpubox14_02.fits",
+                channel_identifier: 14,
+                batch_number: 2,
+            },
+            TempGPUBoxFile {
+                filename: "/home/chj/1065880128_20131015134930_gpubox15_02.fits",
+                channel_identifier: 15,
+                batch_number: 2,
+            },
         ];
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134930_gpubox01_00.fits"),
-            1,
-        ));
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134929_gpubox02_00.fits"),
-            2,
-        ));
 
-        expected_batches[1].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134930_gpubox19_01.fits"),
-            19,
-        ));
-        expected_batches[1].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134929_gpubox20_01.fits"),
-            20,
-        ));
-
-        expected_batches[2].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134931_gpubox14_02.fits"),
-            14,
-        ));
-        expected_batches[2].gpubox_files.push(GPUBoxFile::new(
-            String::from("/home/chj/1065880128_20131015134930_gpubox15_02.fits"),
-            15,
-        ));
         assert_eq!(gpubox_batches, expected_batches);
     }
 
@@ -761,24 +858,28 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files) = result.unwrap();
-        assert_eq!(gpubox_batches.len(), 1);
+        let (gpubox_batches, corr_format, num_gpubox_files, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::OldLegacy);
         assert_eq!(num_gpubox_files, 3);
+        assert_eq!(num_batches, 1);
 
-        let mut expected_batches: Vec<GPUBoxBatch> = vec![GPUBoxBatch::new(0)];
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("1065880128_20131015134930_gpubox01.fits"),
-            1,
-        ));
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("1065880128_20131015134930_gpubox15.fits"),
-            15,
-        ));
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("1065880128_20131015134930_gpubox20.fits"),
-            20,
-        ));
+        let expected_batches = vec![
+            TempGPUBoxFile {
+                filename: "1065880128_20131015134930_gpubox01.fits",
+                channel_identifier: 1,
+                batch_number: 0,
+            },
+            TempGPUBoxFile {
+                filename: "1065880128_20131015134930_gpubox15.fits",
+                channel_identifier: 15,
+                batch_number: 0,
+            },
+            TempGPUBoxFile {
+                filename: "1065880128_20131015134930_gpubox20.fits",
+                channel_identifier: 20,
+                batch_number: 0,
+            },
+        ];
 
         assert_eq!(gpubox_batches, expected_batches);
     }
@@ -793,28 +894,33 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files) = result.unwrap();
-        assert_eq!(gpubox_batches.len(), 2);
+        let (gpubox_batches, corr_format, num_gpubox_files, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::V2);
         assert_eq!(num_gpubox_files, 4);
+        assert_eq!(num_batches, 2);
 
-        let mut expected_batches: Vec<GPUBoxBatch> = vec![GPUBoxBatch::new(0), GPUBoxBatch::new(1)];
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("1065880128_20131015134930_ch101_000.fits"),
-            101,
-        ));
-        expected_batches[0].gpubox_files.push(GPUBoxFile::new(
-            String::from("1065880128_20131015134930_ch102_000.fits"),
-            102,
-        ));
-        expected_batches[1].gpubox_files.push(GPUBoxFile::new(
-            String::from("1065880128_20131015135030_ch101_001.fits"),
-            101,
-        ));
-        expected_batches[1].gpubox_files.push(GPUBoxFile::new(
-            String::from("1065880128_20131015135030_ch102_001.fits"),
-            102,
-        ));
+        let expected_batches = vec![
+            TempGPUBoxFile {
+                filename: "1065880128_20131015134930_ch101_000.fits",
+                channel_identifier: 101,
+                batch_number: 0,
+            },
+            TempGPUBoxFile {
+                filename: "1065880128_20131015134930_ch102_000.fits",
+                channel_identifier: 102,
+                batch_number: 0,
+            },
+            TempGPUBoxFile {
+                filename: "1065880128_20131015135030_ch101_001.fits",
+                channel_identifier: 101,
+                batch_number: 1,
+            },
+            TempGPUBoxFile {
+                filename: "1065880128_20131015135030_ch102_001.fits",
+                channel_identifier: 102,
+                batch_number: 1,
+            },
+        ];
 
         assert_eq!(gpubox_batches, expected_batches);
     }
