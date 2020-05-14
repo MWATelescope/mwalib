@@ -260,12 +260,8 @@ impl mwalibContext {
         // Populate obsid from the metafits
         let obsid = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
             .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;
-
-        let (mut gpubox_batches, corr_version, num_gpubox_files) =
-            determine_gpubox_batches(&gpuboxes)?;
-
-        let (gpubox_time_map, hdu_size) =
-            gpubox::create_time_map(&mut gpubox_batches, obsid, corr_version)?;
+        let (mut gpubox_batches, num_gpubox_files, corr_version, gpubox_time_map, hdu_size) =
+            examine_gpubox_files(&gpuboxes)?;
 
         // from MWA_Tools/CONV2UVFITS/convutils.h
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
@@ -350,18 +346,14 @@ impl mwalibContext {
             let coarse_channel = coarse_channels[0].gpubox_number;
             let (batch_index, _) = gpubox_time_map[&timesteps[0].unix_time_ms][&coarse_channel];
 
-            // We will check the first hdu of the first gpubox file
-            let fptr = gpubox_batches[batch_index].gpubox_files[0]
-                .fptr
-                .as_mut()
-                .unwrap();
+            let mut fptr = &mut gpubox_batches[batch_index].gpubox_files[0].fptr;
 
             mwalibContext::validate_first_hdu(
                 corr_version,
                 num_fine_channels_per_coarse,
                 num_baselines,
                 num_visibility_pols,
-                fptr,
+                &mut fptr,
             )?;
         }
 
@@ -731,10 +723,8 @@ impl mwalibContext {
         let (batch_index, hdu_index) =
             self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
 
-        let mut fptr = self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index]
-            .fptr
-            .as_mut()
-            .unwrap();
+        let mut fptr =
+            &mut self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].fptr;
         let hdu = fptr.hdu(hdu_index)?;
         output_buffer = hdu.read_image(&mut fptr)?;
         // If legacy correlator, then convert the HDU into the correct output format
@@ -794,10 +784,8 @@ impl mwalibContext {
         let (batch_index, hdu_index) =
             self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
 
-        let mut fptr = self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index]
-            .fptr
-            .as_mut()
-            .unwrap();
+        let mut fptr =
+            &mut self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].fptr;
         let hdu = fptr.hdu(hdu_index)?;
         output_buffer = hdu.read_image(&mut fptr)?;
         // If legacy correlator, then convert the HDU into the correct output format
@@ -1343,17 +1331,14 @@ mod tests {
         let (batch_index, _) =
             context.gpubox_time_map[&context.timesteps[0].unix_time_ms][&coarse_channel];
 
-        let fptr = context.gpubox_batches[batch_index].gpubox_files[0]
-            .fptr
-            .as_mut()
-            .unwrap();
+        let mut fptr = &mut context.gpubox_batches[batch_index].gpubox_files[0].fptr;
 
         let result_valid = mwalibContext::validate_first_hdu(
             context.corr_version,
             context.num_fine_channels_per_coarse,
             context.num_baselines,
             context.num_visibility_pols,
-            fptr,
+            &mut fptr,
         );
 
         let result_invalid1 = mwalibContext::validate_first_hdu(
@@ -1361,7 +1346,7 @@ mod tests {
             context.num_fine_channels_per_coarse + 1,
             context.num_baselines,
             context.num_visibility_pols,
-            fptr,
+            &mut fptr,
         );
 
         let result_invalid2 = mwalibContext::validate_first_hdu(
@@ -1369,7 +1354,7 @@ mod tests {
             context.num_fine_channels_per_coarse,
             context.num_baselines + 1,
             context.num_visibility_pols,
-            fptr,
+            &mut fptr,
         );
 
         let result_invalid3 = mwalibContext::validate_first_hdu(
@@ -1377,7 +1362,7 @@ mod tests {
             context.num_fine_channels_per_coarse,
             context.num_baselines,
             context.num_visibility_pols + 1,
-            fptr,
+            &mut fptr,
         );
 
         // This is valid
