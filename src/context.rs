@@ -12,6 +12,7 @@ use std::fmt;
 use std::path::*;
 
 use crate::antenna::*;
+use crate::baseline::*;
 use crate::coarse_channel::*;
 use crate::convert::*;
 use crate::fits_read::*;
@@ -19,6 +20,7 @@ use crate::gpubox::*;
 use crate::misc::*;
 use crate::rfinput::*;
 use crate::timestep::*;
+use crate::visibility_pol::*;
 use crate::*;
 
 /// Enum for all of the known variants of file format based on Correlator version
@@ -165,6 +167,8 @@ pub struct mwalibContext {
     pub antennas: Vec<mwalibAntenna>,
     /// Number of baselines stored. This is autos plus cross correlations
     pub num_baselines: usize,
+    // Baslines
+    pub baselines: Vec<mwalibBaseline>,
     /// Total number of rf_inputs (tiles * 2 pols X&Y)
     pub num_rf_inputs: usize,
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
@@ -173,6 +177,8 @@ pub struct mwalibContext {
     pub num_antenna_pols: usize,
     /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
     pub num_visibility_pols: usize,
+    /// Visibility polarisations
+    pub visibility_pols: Vec<mwalibVisibilityPol>,
     /// Number of coarse channels after we've validated the input gpubox files
     pub num_coarse_channels: usize,
     /// Vector of coarse channel structs
@@ -300,10 +306,15 @@ impl mwalibContext {
         // Now populate the antennas (note they need to be sorted by subfile_order)
         let antennas: Vec<mwalibAntenna> = mwalibAntenna::populate_antennas(&rf_inputs);
 
-        // Always assume that MWA antennas have 2 pols, therefore the data has four polarisations. Would this ever
-        // not be true?
+        // Populate baselines
+        let baselines = mwalibBaseline::populate_baselines(num_antennas);
+
+        // Always assume that MWA antennas have 2 pols
         let num_antenna_pols = 2;
-        let num_visibility_pols = num_antenna_pols * num_antenna_pols;
+
+        // Populate the pols that come out of the correlator
+        let visibility_pols = mwalibVisibilityPol::populate_visibility_pols();
+        let num_visibility_pols = visibility_pols.len();
 
         // `num_baselines` is the number of cross-correlations + the number of
         // auto-correlations.
@@ -539,11 +550,13 @@ impl mwalibContext {
             num_antennas,
             antennas,
             num_baselines,
+            baselines,
             num_rf_inputs,
             rf_inputs,
             integration_time_milliseconds,
             num_antenna_pols,
             num_visibility_pols,
+            visibility_pols,
             num_fine_channels_per_coarse,
             num_coarse_channels,
             coarse_channels,
@@ -889,11 +902,13 @@ impl fmt::Display for mwalibContext {
     rf_inputs:                {:?},
 
     num baselines:            {},
+    baselines:                {} v {} to {} v {}
     num auto-correlations:    {},
     num cross-correlations:   {},
 
     num antenna pols:         {},
     num visibility pols:      {},
+    visibility pols:          {}, {}, {}, {},
 
     observation bandwidth:    {} MHz,
     num coarse channels,      {},
@@ -956,10 +971,18 @@ impl fmt::Display for mwalibContext {
             self.antennas,
             self.rf_inputs,
             self.num_baselines,
+            self.baselines[0].antenna1_index,
+            self.baselines[0].antenna2_index,
+            self.baselines[self.num_baselines - 1].antenna1_index,
+            self.baselines[self.num_baselines - 1].antenna2_index,
             self.num_antennas,
             self.num_baselines - self.num_antennas,
             self.num_antenna_pols,
             self.num_visibility_pols,
+            self.visibility_pols[0].polarisation,
+            self.visibility_pols[1].polarisation,
+            self.visibility_pols[2].polarisation,
+            self.visibility_pols[3].polarisation,
             self.observation_bandwidth_hz as f64 / 1e6,
             self.num_coarse_channels,
             self.coarse_channels,

@@ -6,6 +6,7 @@
 Definitions for what we expose to the library
 */
 pub mod antenna;
+pub mod baseline;
 pub mod coarse_channel;
 pub mod context;
 pub mod convert;
@@ -16,6 +17,7 @@ pub mod gpubox;
 pub mod misc;
 pub mod rfinput;
 pub mod timestep;
+pub mod visibility_pol;
 
 // Re-exports.
 use anyhow::Context;

@@ -457,7 +457,11 @@ pub struct mwalibMetadata {
     pub observation_name: *mut c_char,
     pub mode: *mut c_char,
     pub scheduled_start_utc: i64,
+    pub scheduled_end_utc: i64,
     pub scheduled_start_mjd: f64,
+    pub scheduled_end_mjd: f64,
+    pub scheduled_start_unix_time_milliseconds: u64,
+    pub scheduled_end_unix_time_milliseconds: u64,
     pub scheduled_duration_milliseconds: u64,
     pub quack_time_duration_milliseconds: u64,
     pub good_time_unix_milliseconds: u64,
@@ -561,8 +565,12 @@ pub unsafe extern "C" fn mwalibMetadata_get(
             .unwrap()
             .into_raw(),
         scheduled_start_utc: context.scheduled_start_utc.timestamp(),
+        scheduled_end_utc: context.scheduled_end_utc.timestamp(),
         scheduled_start_mjd: context.scheduled_start_mjd,
+        scheduled_end_mjd: context.scheduled_end_mjd,
         scheduled_duration_milliseconds: context.scheduled_duration_milliseconds,
+        scheduled_start_unix_time_milliseconds: context.start_unix_time_milliseconds,
+        scheduled_end_unix_time_milliseconds: context.end_unix_time_milliseconds,
         start_unix_time_milliseconds: context.start_unix_time_milliseconds,
         end_unix_time_milliseconds: context.end_unix_time_milliseconds,
         duration_milliseconds: context.duration_milliseconds,
@@ -602,7 +610,7 @@ pub unsafe extern "C" fn mwalibMetadata_get(
 ///
 /// # Safety
 /// * This must be called once caller is finished with the mwalibMetadata object
-/// * metadata_ptr must point to a populated mwalibMetadata object from the mwalibMetadata_new function.
+/// * metadata_ptr must point to a populated mwalibMetadata object from the mwalibMetadata_get function.
 /// * metadata_ptr must not have already been freed.
 #[no_mangle]
 #[cfg_attr(tarpaulin, skip)]
@@ -611,6 +619,104 @@ pub unsafe extern "C" fn mwalibMetadata_free(metadata_ptr: *mut mwalibMetadata) 
         return;
     }
     drop(Box::from_raw(metadata_ptr));
+}
+
+///
+/// C Representation of a mwalibBaseline struct
+///
+#[repr(C)]
+pub struct mwalibBaseline {
+    /// See definition of context::mwalibBaseline for full description of each attribute
+    pub antenna1_index: usize,
+    pub antenna2_index: usize,
+}
+
+/// This returns a struct containing the requested baseline
+///
+/// # Arguments
+///
+/// * `context_ptr` - pointer to an already populated mwalibContext object.
+///
+/// * `baseline_index` - item in the baseline array to return. This must be be between 0 and context->num_baselines - 1.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * A Rust-owned populated mwalibBaseline struct or NULL if there was an error (check error_message)
+///
+///
+/// # Safety
+/// * error_message *must* point to an already allocated char* buffer for any error messages.
+/// * context_ptr must point to a populated mwalibContext object from the mwalibContext_new function.
+/// * Caller must call mwalibBaseline_free once finished, to free the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalibBaseline_get(
+    context_ptr: *mut mwalibContext,
+    baseline_index: size_t,
+    error_message: *mut u8,
+    error_message_length: size_t,
+) -> *mut mwalibBaseline {
+    if context_ptr.is_null() {
+        set_error_message(
+            "mwalibBaseline_get() ERROR: null pointer passed in",
+            error_message,
+            error_message_length,
+        );
+        return ptr::null_mut();
+    }
+    let context = &*context_ptr;
+
+    if baseline_index < context.num_baselines {
+        let out_baseline = mwalibBaseline {
+            antenna1_index: context.baselines[baseline_index].antenna1_index,
+            antenna2_index: context.baselines[baseline_index].antenna2_index,
+        };
+
+        Box::into_raw(Box::new(out_baseline))
+    } else {
+        set_error_message(
+            &format!(
+                "mwalibBaseline_get() ERROR: baseline_index index must be between 0 ({} v {}) and {} ({} v {}).",
+                context.baselines[0].antenna1_index,
+                context.baselines[0].antenna2_index,
+                context.num_baselines - 1,
+                context.baselines[context.num_baselines - 1].antenna1_index,
+                context.baselines[context.num_baselines - 1].antenna2_index,
+            ),
+            error_message,
+            error_message_length,
+        );
+        ptr::null_mut()
+    }
+}
+
+/// Free a previously-allocated `mwalibBaseline` struct.
+///
+/// # Arguments
+///
+/// * `baseline_ptr` - pointer to an already populated mwalibBaseline object
+///
+///
+/// # Returns
+///
+/// * Nothing
+///
+///
+/// # Safety
+/// * This must be called once caller is finished with the mwalibBaseline object
+/// * baseline_ptr must point to a populated mwalibBaseline object from the mwalibBaseline_get function.
+/// * baseline_ptr must not have already been freed.
+#[no_mangle]
+#[cfg_attr(tarpaulin, skip)]
+pub unsafe extern "C" fn mwalibBaseline_free(baseline_ptr: *mut mwalibBaseline) {
+    if baseline_ptr.is_null() {
+        return;
+    }
+    drop(Box::from_raw(baseline_ptr));
 }
 
 /// Representation in C of an mwalibRFInput struct
@@ -723,7 +829,7 @@ pub unsafe extern "C" fn mwalibRFInput_get(
 ///
 /// # Safety
 /// * This must be called once caller is finished with the mwalibRFInput object
-/// * rf_input_ptr must point to a populated mwalibRFInput object from the mwalibRFInput_new function.
+/// * rf_input_ptr must point to a populated mwalibRFInput object from the mwalibRFInput_get function.
 /// * rf_input_ptr must not have already been freed.
 #[no_mangle]
 #[cfg_attr(tarpaulin, skip)]
@@ -930,7 +1036,7 @@ pub unsafe extern "C" fn mwalibAntenna_get(
 ///
 /// # Safety
 /// * This must be called once caller is finished with the mwalibAntenna object
-/// * antenna_ptr must point to a populated mwalibAntenna object from the mwalibAntenna_new function.
+/// * antenna_ptr must point to a populated mwalibAntenna object from the mwalibAntenna_get function.
 /// * antenna_ptr must not have already been freed.
 #[no_mangle]
 #[cfg_attr(tarpaulin, skip)]
@@ -1029,7 +1135,7 @@ pub unsafe extern "C" fn mwalibTimeStep_get(
 ///
 /// # Safety
 /// * This must be called once caller is finished with the mwalibTimeStep object
-/// * timestep_ptr must point to a populated mwalibTimeStep object from the mwalibTimeStep_new function.
+/// * timestep_ptr must point to a populated mwalibTimeStep object from the mwalibTimeStep_get function.
 /// * timestep_ptr must not have already been freed.
 #[no_mangle]
 #[cfg_attr(tarpaulin, skip)]
@@ -1038,6 +1144,104 @@ pub unsafe extern "C" fn mwalibTimeStep_free(timestep_ptr: *mut mwalibTimeStep) 
         return;
     }
     drop(Box::from_raw(timestep_ptr));
+}
+
+///
+/// C Representation of a mwalibVisibilityPol struct
+///
+#[repr(C)]
+pub struct mwalibVisibilityPol {
+    /// See definition of context::mwalibVisibilityPol for full description of each attribute
+    pub polarisation: *mut libc::c_char,
+}
+
+/// This returns a struct containing the requested visibility polarisation
+///
+/// # Arguments
+///
+/// * `context_ptr` - pointer to an already populated mwalibContext object.
+///
+/// * `visibility_pol_index` - item in the visibility pol array to return. This must be be between 0 and context->num_visibility_pols - 1.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * A Rust-owned populated mwalibVisibilityPol struct or NULL if there was an error (check error_message)
+///
+///
+/// # Safety
+/// * error_message *must* point to an already allocated char* buffer for any error messages.
+/// * context_ptr must point to a populated mwalibContext object from the mwalibContext_new function.
+/// * Caller must call mwalibVisibilityPol_free once finished, to free the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalibVisibilityPol_get(
+    context_ptr: *mut mwalibContext,
+    visibility_pol_index: size_t,
+    error_message: *mut u8,
+    error_message_length: size_t,
+) -> *mut mwalibVisibilityPol {
+    if context_ptr.is_null() {
+        set_error_message(
+            "mwalibVisibilityPol_get() ERROR: null pointer passed in",
+            error_message,
+            error_message_length,
+        );
+        return ptr::null_mut();
+    }
+    let context = &*context_ptr;
+
+    if visibility_pol_index < context.num_visibility_pols {
+        let out_visibility_pol = mwalibVisibilityPol {
+            polarisation: CString::new(String::from(
+                &context.visibility_pols[visibility_pol_index].polarisation,
+            ))
+            .unwrap()
+            .into_raw(),
+        };
+
+        Box::into_raw(Box::new(out_visibility_pol))
+    } else {
+        set_error_message(
+            &format!(
+                "mwalibVisibilityPol_get() ERROR: visibility_pol_index index must be between 0 ({}) and {} ({}).",
+                context.visibility_pols[0].polarisation,
+                context.num_visibility_pols - 1,
+                context.visibility_pols[context.num_visibility_pols - 1].polarisation,
+            ),
+            error_message,
+            error_message_length,
+        );
+        ptr::null_mut()
+    }
+}
+
+/// Free a previously-allocated `mwalibVisibilityPol` struct.
+///
+/// # Arguments
+///
+/// * `visibility_pol_ptr` - pointer to an already populated mwalibVisibilityPol object
+///
+///
+/// # Returns
+///
+/// * Nothing
+///
+///
+/// # Safety
+/// * This must be called once caller is finished with the mwalibVisibilityPol object
+/// * visibility_pol_ptr must point to a populated mwalibVisibilityPol object from the mwalibVisibilityPol_get function.
+/// * visibility_pol_ptr must not have already been freed.
+#[no_mangle]
+#[cfg_attr(tarpaulin, skip)]
+pub unsafe extern "C" fn mwalibVisibilityPol_free(visibility_pol_ptr: *mut mwalibVisibilityPol) {
+    if visibility_pol_ptr.is_null() {
+        return;
+    }
+    drop(Box::from_raw(visibility_pol_ptr));
 }
 
 #[cfg(test)]
@@ -1507,6 +1711,133 @@ mod tests {
         }
     }
 
+    // baseline
+    #[test]
+    fn test_mwalibbaseline_get_valid() {
+        // This tests for a valid context with a valid baseline
+        let baseline_index = 2; // valid
+
+        let error_message =
+            CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file =
+            CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new(
+            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
+        )
+        .unwrap();
+        let mut gpubox_files: Vec<*const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
+
+        unsafe {
+            let context = mwalibContext_get(
+                metafits_file_ptr,
+                gpubox_files_ptr,
+                1,
+                error_message_ptr,
+                60,
+            );
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert!(context_ptr.is_some());
+
+            let bl = Box::from_raw(mwalibBaseline_get(
+                context,
+                baseline_index,
+                error_message_ptr,
+                error_len,
+            ));
+
+            // We should get a valid baseline and no error message
+            assert_eq!(bl.antenna1_index, 0);
+            assert_eq!(bl.antenna2_index, 2);
+
+            let expected_error: &str = &"mwalibBaseline_get() ERROR:";
+            assert_ne!(
+                error_message.into_string().unwrap()[0..expected_error.len()],
+                *expected_error
+            );
+        }
+    }
+
+    #[test]
+    fn test_mwalibbaseline_get_invalid() {
+        // This tests for a valid context with an invalid baseline (out of bounds)
+        let baseline_index = 100_000; // invalid
+
+        let error_message =
+            CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file =
+            CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new(
+            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
+        )
+        .unwrap();
+        let mut gpubox_files: Vec<*const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
+
+        unsafe {
+            let context = mwalibContext_get(
+                metafits_file_ptr,
+                gpubox_files_ptr,
+                1,
+                error_message_ptr,
+                60,
+            );
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert!(context_ptr.is_some());
+
+            let bl_ptr = mwalibBaseline_get(context, baseline_index, error_message_ptr, error_len);
+
+            // We should get a null pointer and an error message
+            assert!(bl_ptr.is_null());
+            let expected_error: &str = &"mwalibBaseline_get() ERROR:";
+            assert_eq!(
+                error_message.into_string().unwrap()[0..expected_error.len()],
+                *expected_error
+            );
+        }
+    }
+
+    #[test]
+    fn test_mwalibbaseline_get_null_context() {
+        // This tests for a null context with an valid baseline
+        let baseline_index = 1; // valid
+
+        let error_message =
+            CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        unsafe {
+            let context_ptr = std::ptr::null_mut();
+            let bl_ptr =
+                mwalibBaseline_get(context_ptr, baseline_index, error_message_ptr, error_len);
+
+            // We should get a null pointer and an error message
+            assert!(bl_ptr.is_null());
+            let expected_error: &str = &"mwalibBaseline_get() ERROR:";
+            assert_eq!(
+                error_message.into_string().unwrap()[0..expected_error.len()],
+                *expected_error
+            );
+        }
+    }
+
     // timestep
     #[test]
     fn test_mwalibtimestep_get_valid() {
@@ -1626,6 +1957,136 @@ mod tests {
             // We should get a null pointer and an error message
             assert!(ts_ptr.is_null());
             let expected_error: &str = &"mwalibTimeStep_get() ERROR:";
+            assert_eq!(
+                error_message.into_string().unwrap()[0..expected_error.len()],
+                *expected_error
+            );
+        }
+    }
+
+    // visibilitypol
+    #[test]
+    fn test_mwalibvisibilitypol_get_valid() {
+        // This tests for a valid context with a valid visibilitypol
+        let vispol_index = 0; // valid
+
+        let error_message =
+            CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file =
+            CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new(
+            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
+        )
+        .unwrap();
+        let mut gpubox_files: Vec<*const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
+
+        unsafe {
+            let context = mwalibContext_get(
+                metafits_file_ptr,
+                gpubox_files_ptr,
+                1,
+                error_message_ptr,
+                60,
+            );
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert!(context_ptr.is_some());
+
+            let vp = Box::from_raw(mwalibVisibilityPol_get(
+                context,
+                vispol_index,
+                error_message_ptr,
+                error_len,
+            ));
+
+            // We should get a valid timestep and no error message
+            assert_eq!(
+                CString::from_raw(vp.polarisation).into_string().unwrap(),
+                String::from("XX")
+            );
+
+            let expected_error: &str = &"mwalibVisibilityPol_get() ERROR:";
+            assert_ne!(
+                error_message.into_string().unwrap()[0..expected_error.len()],
+                *expected_error
+            );
+        }
+    }
+
+    #[test]
+    fn test_mwalibvisibilitypol_get_invalid() {
+        // This tests for a valid context with an invalid visibility pol (out of bounds)
+        let vispol_index = 100; // invalid
+
+        let error_message =
+            CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        let metafits_file =
+            CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+        let metafits_file_ptr = metafits_file.as_ptr();
+
+        let gpubox_file = CString::new(
+            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
+        )
+        .unwrap();
+        let mut gpubox_files: Vec<*const c_char> = Vec::new();
+        gpubox_files.push(gpubox_file.as_ptr());
+        let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
+
+        unsafe {
+            let context = mwalibContext_get(
+                metafits_file_ptr,
+                gpubox_files_ptr,
+                1,
+                error_message_ptr,
+                60,
+            );
+
+            // Check we got a context object
+            let context_ptr = context.as_mut();
+            assert!(context_ptr.is_some());
+
+            let ts_ptr =
+                mwalibVisibilityPol_get(context, vispol_index, error_message_ptr, error_len);
+
+            // We should get a null pointer and an error message
+            assert!(ts_ptr.is_null());
+            let expected_error: &str = &"mwalibVisibilityPol_get() ERROR:";
+            assert_eq!(
+                error_message.into_string().unwrap()[0..expected_error.len()],
+                *expected_error
+            );
+        }
+    }
+
+    #[test]
+    fn test_mwalibvisibilitypol_get_null_context() {
+        // This tests for a null context with an valid visibility pol
+        let vispol_index = 0; // valid
+
+        let error_message =
+            CString::new("                                                            ").unwrap();
+        let error_message_ptr = error_message.as_ptr() as *mut u8;
+        let error_len: size_t = 60;
+
+        unsafe {
+            let context_ptr = std::ptr::null_mut();
+            let ts_ptr =
+                mwalibVisibilityPol_get(context_ptr, vispol_index, error_message_ptr, error_len);
+
+            // We should get a null pointer and an error message
+            assert!(ts_ptr.is_null());
+            let expected_error: &str = &"mwalibVisibilityPol_get() ERROR:";
             assert_eq!(
                 error_message.into_string().unwrap()[0..expected_error.len()],
                 *expected_error

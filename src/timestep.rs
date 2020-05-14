@@ -9,7 +9,7 @@ Structs and helper methods for timestep metadata
 use std::collections::BTreeMap;
 use std::fmt;
 
-/// This is a struct for our coarse channels
+/// This is a struct for our timesteps
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
 pub struct mwalibTimeStep {
@@ -27,7 +27,7 @@ impl mwalibTimeStep {
     ///
     /// # Returns
     ///
-    /// * An Result containing a populated mwalibTimeStep struct or an Error
+    /// * A populated mwalibTimeStep struct
     ///
     pub fn new(unix_time_ms: u64) -> Self {
         mwalibTimeStep { unix_time_ms }
