@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "0.2.0"
+version = "0.3.0"
 homepage = "https://github.com/MWATelescope/mwalib"
 authors = ["Greg Sleap <greg.sleap@curtin.edu.au>",
            "Christopher H. Jordan <christopherjordan87@gmail.com>"]
