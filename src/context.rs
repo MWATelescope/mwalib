@@ -140,20 +140,19 @@ pub struct mwalibContext {
     pub receivers: Vec<usize>,
     // DELAYS    // Array of delays
     pub delays: Vec<usize>,
-    // TODO: ATTEN_DB  // global analogue attenuation, in dB
+    // ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
-    // TODO: QUACKTIM  // Seconds of bad data after observation starts
+    // QUACKTIM  // Seconds of bad data after observation starts
     pub quack_time_duration_milliseconds: u64,
-    // TODO: GOODTIME  // OBSID+QUACKTIM as Unix timestamp (first good timestep)
+    // GOODTIME  // OBSID+QUACKTIM as Unix timestamp (first good timestep)
     pub good_time_unix_milliseconds: u64,
     /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
     /// The proper start of the observation (the time that is common to all
     /// provided gpubox files).
     pub start_unix_time_milliseconds: u64,
-    /// `end_time_milliseconds` will reflect the start time of the *last* HDU it
-    /// is derived from (i.e. `end_time_milliseconds` + integration time is the
-    /// actual end time of the observation).
+    /// `end_time_milliseconds` will is the actual end time of the observation
+    /// i.e. start time of last common timestep plus integration time.
     pub end_unix_time_milliseconds: u64,
     /// Total duration of observation (based on gpubox files)
     pub duration_milliseconds: u64,

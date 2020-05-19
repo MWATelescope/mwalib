@@ -2,15 +2,14 @@
 
 set -eux
 
-cargo build --release
+# Build mwalib in release and regenerate mwalib.h
+../tools/generate_mwalib_h.sh
 
-# Requires cbindgen to be installed. Run "cargo install cbindgen" to do that,
-# or, if available, install it via your package manager.
-cbindgen -l c .. > mwalib.h
-
+# Compile the example C code
 gcc -O3 \
     mwalib-print-obs-context.c \
     -o mwalib-print-obs-context \
+    -I ../include \
     -lcfitsio -lm -lpthread -ldl \
     -L../target/release/ \
     -lmwalib
@@ -18,6 +17,7 @@ gcc -O3 \
 gcc -O3 \
     mwalib-sum-all-hdus.c \
     -o mwalib-sum-all-hdus \
+    -I ../include \
     -lcfitsio -lm -lpthread -ldl \
     -L../target/release/ \
     -lmwalib

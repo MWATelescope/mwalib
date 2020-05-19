@@ -4,19 +4,19 @@
 <br/>
 MWA library to read raw visibilities and metadata into a common structure. 
 mwalib supports the existing "legacy" MWA correlator, as well as the in-development
-"MWAX" correlator. This library strives to provide a single interface to work will 
+"MWAX" correlator. This library strives to provide a single interface to work with 
 all incarnations of MWA correlator formats and abstract away the nitty gritty details
 about reading MWA data.
 
 ## Usage via C
-In the `examples` directory, see `build.sh`, `mwalib-print-obs-context.c`, and
+In the `examples` directory, see `build_c_examples.sh`, `mwalib-print-obs-context.c`, and
 `mwalib-sum-all-hdus.c` for examples of usage.
 
 ## Usage via Python
 The primary Python interface to `mwalib` is
 [`pymwalib`](https://github.com/MWATelescope/pymwalib).
 
-There are also a couple of simple examples here; see
+There are also a couple of simple examples Python scripts here that use mwalib's ffi interface instead; see
 `examples/mwalib-print-obs-context.py`, and `examples/mwalib-sum-all-hdus.py`.
 
 ## Usage in Rust
@@ -29,8 +29,8 @@ the rendered documentation.
 
     This struct contains only information on the metafits file and gpubox files
     associated with an observation. During creation, a number of checks are
-    performed on the MWA data to ensure consistency. Once created, the
-    observation is primed for reading data.
+    performed on the MWA data (metadata and gpubox files) to ensure consistency. 
+    Once created, the observation is primed for reading data.
 
 - Read raw data
 
@@ -38,6 +38,9 @@ the rendered documentation.
     timestep index (see: `context.timesteps` vector) and a coarse channel index
     (see: `context.coarse_channels` vector) and will return a vector of 32bit
     floats. The data is organised as [baseline][fine_channel][polarisation][r][i].
+
+    The `read_by_frequency` function is similar to `read_by_baseline` but outputs
+    data in [fine_channel][baseline][polarisation][r][i] order.
 
 ## Concepts
 - gpubox "batches"
@@ -66,6 +69,11 @@ GitHub in the future, but for now, `mwalib` should be compiled from source.
 - Install rust
 
     `https://www.rust-lang.org/tools/install`
+
+- Install cfitsio
+    If using a package manager install the `cfitsio-dev` package.
+    If building from source ensure you build it with with `--enable-reentrant` option.
+       See: https://heasarc.gsfc.nasa.gov/fitsio/
 
 - Compile the source
 
