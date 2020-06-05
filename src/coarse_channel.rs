@@ -12,7 +12,7 @@ use std::fmt;
 
 /// This is a struct for our coarse channels
 #[allow(non_camel_case_types)]
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct mwalibCoarseChannel {
     /// Correlator channel is 0 indexed (0..N-1)
     pub correlator_channel_number: usize,
@@ -181,62 +181,59 @@ impl mwalibCoarseChannel {
 
         // Initialise the coarse channel vector of structs
         let mut coarse_channels: Vec<mwalibCoarseChannel> = Vec::new();
-        let mut first_chan_index_over_128: usize = 0;
+        let mut first_chan_index_over_128: Option<usize> = None;
         for (i, rec_channel_number) in coarse_channel_vec.iter().enumerate() {
             // Final Correlator channel number is 0 indexed. e.g. 0..N-1
             let mut correlator_channel_number = i;
 
-            if corr_version == CorrelatorVersion::Legacy
-                || corr_version == CorrelatorVersion::OldLegacy
-            {
-                // Legacy and Old Legacy: if receiver channel number is >128 then the order is reversed
-                if *rec_channel_number > 128 {
-                    if first_chan_index_over_128 == 0 {
-                        // Set this variable so we know the index where the channels reverse
-                        first_chan_index_over_128 = i;
+            match corr_version {
+                CorrelatorVersion::Legacy | CorrelatorVersion::OldLegacy => {
+                    // Legacy and Old Legacy: if receiver channel number is >128 then the order is reversed
+                    if *rec_channel_number > 128 {
+                        if let None = first_chan_index_over_128 {
+                            // Set this variable so we know the index where the channels reverse
+                            first_chan_index_over_128 = Some(i);
+                        }
+
+                        correlator_channel_number = (num_coarse_channels - 1)
+                            - (i - first_chan_index_over_128.unwrap_or(0));
                     }
 
-                    correlator_channel_number =
-                        (num_coarse_channels - 1) - (i - first_chan_index_over_128);
-                }
+                    // Before we commit to adding this coarse channel, lets ensure that the client supplied the
+                    // gpubox file needed for it
+                    // Get the first node (which is the first timestep)
+                    // Then see if a coarse channel exists based on gpubox number
+                    // We add one since gpubox numbers are 1..N, while we will be recording
+                    // 0..N-1
+                    let gpubox_channel_number = correlator_channel_number + 1;
 
-                // Before we commit to adding this coarse channel, lets ensure that the client supplied the
-                // gpubox file needed for it
-                // Get the first node (which is the first timestep)
-                // Then see if a coarse channel exists based on gpubox number
-                // We add one since gpubox numbers are 1..N, while we will be recording
-                // 0..N-1
-                let gpubox_channel_number = correlator_channel_number + 1;
-
-                if gpubox_time_map
-                    .iter()
-                    .next() // this gets us the first item
-                    .unwrap()
-                    .1 // get the second item from tuple (u64, BTreeMap)
-                    .contains_key(&gpubox_channel_number)
-                // see if we have the correlator channel number
-                {
-                    coarse_channels.push(mwalibCoarseChannel::new(
-                        correlator_channel_number,
-                        *rec_channel_number,
-                        gpubox_channel_number,
-                        coarse_channel_width_hz,
-                    ));
+                    // If we have the correlator channel number, then add it to
+                    // the output vector.
+                    if let Some((_, channel_map)) = gpubox_time_map.iter().next() {
+                        if channel_map.contains_key(&gpubox_channel_number) {
+                            coarse_channels.push(mwalibCoarseChannel::new(
+                                correlator_channel_number,
+                                *rec_channel_number,
+                                gpubox_channel_number,
+                                coarse_channel_width_hz,
+                            ));
+                        }
+                    }
                 }
-            } else if gpubox_time_map
-                .iter()
-                .next() // this gets us the first item
-                .unwrap()
-                .1 // get the second item from tuple (u64, BTreeMap)
-                .contains_key(&rec_channel_number)
-            // see if we have the correlator channel number
-            {
-                coarse_channels.push(mwalibCoarseChannel::new(
-                    correlator_channel_number,
-                    *rec_channel_number,
-                    *rec_channel_number,
-                    coarse_channel_width_hz,
-                ));
+                CorrelatorVersion::V2 => {
+                    // If we have the correlator channel number, then add it to
+                    // the output vector.
+                    if let Some((_, channel_map)) = gpubox_time_map.iter().next() {
+                        if channel_map.contains_key(&rec_channel_number) {
+                            coarse_channels.push(mwalibCoarseChannel::new(
+                                correlator_channel_number,
+                                *rec_channel_number,
+                                *rec_channel_number,
+                                coarse_channel_width_hz,
+                            ));
+                        }
+                    }
+                }
             }
         }
 
@@ -456,5 +453,35 @@ mod tests {
         assert_eq!(coarse_channel_array[4].correlator_channel_number, 4);
         assert_eq!(coarse_channel_array[4].receiver_channel_number, 130);
         assert_eq!(coarse_channel_array[4].gpubox_number, 130);
+    }
+
+    #[test]
+    /// This test exposed a bug which is triggered when a legacy observation has
+    /// all coarse channel numbers > 128 (typical for EoR).
+    fn test_process_coarse_channels_legacy_eor() {
+        let gpubox_time_map = get_gpubox_time_map((1..=3).collect());
+        let metafits_channel_array: Vec<_> = (133..=135).collect();
+        let channel_width = 1_280_000;
+
+        // Process coarse channels
+        let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
+            mwalibCoarseChannel::process_coarse_channels(
+                CorrelatorVersion::Legacy,
+                (channel_width * metafits_channel_array.len()) as u32,
+                &metafits_channel_array,
+                &gpubox_time_map,
+            );
+        assert_eq!(coarse_channel_array.len(), 3);
+        assert_eq!(coarse_channel_count, 3);
+        assert_eq!(coarse_channel_width_hz, channel_width as u32);
+        assert_eq!(coarse_channel_array[0].correlator_channel_number, 2);
+        assert_eq!(coarse_channel_array[0].receiver_channel_number, 133);
+        assert_eq!(coarse_channel_array[0].gpubox_number, 3);
+        assert_eq!(coarse_channel_array[1].correlator_channel_number, 1);
+        assert_eq!(coarse_channel_array[1].receiver_channel_number, 134);
+        assert_eq!(coarse_channel_array[1].gpubox_number, 2);
+        assert_eq!(coarse_channel_array[2].correlator_channel_number, 0);
+        assert_eq!(coarse_channel_array[2].receiver_channel_number, 135);
+        assert_eq!(coarse_channel_array[2].gpubox_number, 1);
     }
 }
