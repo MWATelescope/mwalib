@@ -1,6 +1,11 @@
 # Change Log
 Changes in each release are listed below.
 
+## 0.3.1 08-June-2020 (Pre-release)
+* Bugfix: Fixed panic when all 24 coarse channels are using receiver channel numbers >128.
+* Added more inline documentation for mwalib.h.
+* Improved the output, by making it more complete, when displaying the contents of the context object.
+
 ## 0.3.0 14-May-2020 (Pre-release)
 * Added baseline array.
 * Added visibility pol(arisations) array.
