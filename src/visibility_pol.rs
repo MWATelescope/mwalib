@@ -12,7 +12,7 @@ use std::fmt;
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
 pub struct mwalibVisibilityPol {
-    //
+    /// Polarisation (e.g. "XX" or "XY" or "YX" or "YY")
     pub polarisation: String,
 }
 

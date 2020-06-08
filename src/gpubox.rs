@@ -641,7 +641,7 @@ fn create_time_map(
         for (time, hdu_index) in map {
             gpubox_time_map
                 .entry(time)
-                .or_insert(BTreeMap::new())
+                .or_insert_with(BTreeMap::new)
                 .entry(gpubox.channel_identifier)
                 .or_insert((gpubox.batch_number, hdu_index));
         }

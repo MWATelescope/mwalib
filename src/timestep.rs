@@ -13,7 +13,7 @@ use std::fmt;
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
 pub struct mwalibTimeStep {
-    // UNIX time (in milliseconds to avoid floating point inaccuracy)
+    /// UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,
 }
 

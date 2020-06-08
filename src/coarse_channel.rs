@@ -190,7 +190,7 @@ impl mwalibCoarseChannel {
                 CorrelatorVersion::Legacy | CorrelatorVersion::OldLegacy => {
                     // Legacy and Old Legacy: if receiver channel number is >128 then the order is reversed
                     if *rec_channel_number > 128 {
-                        if let None = first_chan_index_over_128 {
+                        if first_chan_index_over_128.is_none() {
                             // Set this variable so we know the index where the channels reverse
                             first_chan_index_over_128 = Some(i);
                         }

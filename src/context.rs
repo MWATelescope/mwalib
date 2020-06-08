@@ -70,17 +70,15 @@ impl fmt::Display for CorrelatorVersion {
 /// more like a C library.
 #[allow(non_camel_case_types)]
 pub struct mwalibContext {
-    // Instrument details
-    // Lat
+    /// Latitude of centre point of MWA in raidans
     pub mwa_latitude_radians: f64,
-    // Long
+    /// Longitude of centre point of MWA in raidans
     pub mwa_longitude_radians: f64,
-    // altitude
+    /// Altitude of centre poing of MWA in metres
     pub mwa_altitude_metres: f64,
-
-    // "the velocity factor of electic fields in RG-6 like coax"
+    /// the velocity factor of electic fields in RG-6 like coax
     pub coax_v_factor: f64,
-    // Observation id
+    /// Observation id
     pub obsid: u32,
     /// Scheduled start (gps time) of observation
     pub scheduled_start_gpstime_milliseconds: u64,
@@ -90,61 +88,61 @@ pub struct mwalibContext {
     pub scheduled_start_unix_time_milliseconds: u64,
     /// Scheduled end (UNIX time) of observation
     pub scheduled_end_unix_time_milliseconds: u64,
-    // Scheduled start (UTC) of observation
+    /// Scheduled start (UTC) of observation
     pub scheduled_start_utc: DateTime<FixedOffset>,
-    // Scheduled end (UTC) of observation
+    /// Scheduled end (UTC) of observation
     pub scheduled_end_utc: DateTime<FixedOffset>,
-    // Scheduled start (MJD) of observation
+    /// Scheduled start (MJD) of observation
     pub scheduled_start_mjd: f64,
-    // Scheduled end (MJD) of observation
+    /// Scheduled end (MJD) of observation
     pub scheduled_end_mjd: f64,
-    // Scheduled duration of observation
+    /// Scheduled duration of observation
     pub scheduled_duration_milliseconds: u64,
-    // RA tile pointing
+    /// RA tile pointing
     pub ra_tile_pointing_degrees: f64,
-    // DEC tile pointing
+    /// DEC tile pointing
     pub dec_tile_pointing_degrees: f64,
-    // RA phase centre
+    /// RA phase centre
     pub ra_phase_center_degrees: Option<f64>,
-    // DEC phase centre
+    /// DEC phase centre
     pub dec_phase_center_degrees: Option<f64>,
-    // AZIMUTH
+    /// AZIMUTH
     pub azimuth_degrees: f64,
-    // ALTITUDE
+    /// ALTITUDE
     pub altitude_degrees: f64,
-    // Altitude of Sun
+    /// Altitude of Sun
     pub sun_altitude_degrees: f64,
-    // Distance from pointing center to Sun
+    /// Distance from pointing center to Sun
     pub sun_distance_degrees: f64,
-    // Distance from pointing center to the Moon
+    /// Distance from pointing center to the Moon
     pub moon_distance_degrees: f64,
-    // Distance from pointing center to Jupiter
+    /// Distance from pointing center to Jupiter
     pub jupiter_distance_degrees: f64,
-    // Local Sidereal Time
+    /// Local Sidereal Time
     pub lst_degrees: f64,
-    // Hour Angle of pointing center
+    /// Hour Angle of pointing center (as a string)
     pub hour_angle_string: String,
-    // GRIDNAME
+    /// GRIDNAME
     pub grid_name: String,
-    // GRIDNUM
+    /// GRIDNUM
     pub grid_number: i32,
-    // CREATOR
+    /// CREATOR
     pub creator: String,
-    // PROJECT
+    /// PROJECT
     pub project_id: String,
-    // Observation name
+    /// Observation name
     pub observation_name: String,
-    // MWA observation mode
+    /// MWA observation mode
     pub mode: String,
-    // RECVRS    // Array of receiver numbers (this tells us how many receivers too)
+    /// RECVRS    // Array of receiver numbers (this tells us how many receivers too)
     pub receivers: Vec<usize>,
-    // DELAYS    // Array of delays
+    /// DELAYS    // Array of delays
     pub delays: Vec<usize>,
-    // ATTEN_DB  // global analogue attenuation, in dB
+    /// ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
-    // QUACKTIM  // Seconds of bad data after observation starts
+    /// Seconds of bad data after observation starts
     pub quack_time_duration_milliseconds: u64,
-    // GOODTIME  // OBSID+QUACKTIM as Unix timestamp (first good timestep)
+    /// OBSID+QUACKTIM as Unix timestamp (first good timestep)
     pub good_time_unix_milliseconds: u64,
     /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
@@ -166,7 +164,7 @@ pub struct mwalibContext {
     pub antennas: Vec<mwalibAntenna>,
     /// Number of baselines stored. This is autos plus cross correlations
     pub num_baselines: usize,
-    // Baslines
+    /// Baslines
     pub baselines: Vec<mwalibBaseline>,
     /// Total number of rf_inputs (tiles * 2 pols X&Y)
     pub num_rf_inputs: usize,

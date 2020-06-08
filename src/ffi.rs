@@ -430,58 +430,111 @@ pub unsafe extern "C" fn mwalibContext_free_read_buffer(
 ///
 #[repr(C)]
 pub struct mwalibMetadata {
-    /// See definition of context::mwalibContext for full description of each attribute
+    /// Observation id
     pub obsid: u32,
+    /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
+    /// Latitude of centre point of MWA in raidans
     pub mwa_latitude_radians: f64,
+    /// Longitude of centre point of MWA in raidans
     pub mwa_longitude_radians: f64,
+    /// Altitude of centre poing of MWA in metres
     pub mwa_altitude_metres: f64,
+    /// the velocity factor of electic fields in RG-6 like coax
     pub coax_v_factor: f64,
+    /// ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
+    /// RA tile pointing
     pub ra_tile_pointing_degrees: f64,
+    /// DEC tile pointing
     pub dec_tile_pointing_degrees: f64,
+    /// RA phase centre
     pub ra_phase_center_degrees: f64,
+    /// DEC phase centre
     pub dec_phase_center_degrees: f64,
+    /// AZIMUTH
     pub azimuth_degrees: f64,
+    /// ALTITUDE
     pub altitude_degrees: f64,
+    /// Altitude of Sun
     pub sun_altitude_degrees: f64,
+    /// Distance from pointing center to Sun
     pub sun_distance_degrees: f64,
+    /// Distance from pointing center to the Moon
     pub moon_distance_degrees: f64,
+    /// Distance from pointing center to Jupiter
     pub jupiter_distance_degrees: f64,
+    /// Local Sidereal Time
     pub lst_degrees: f64,
+    /// Hour Angle of pointing center (as a string)
     pub hour_angle_string: *mut c_char,
+    /// GRIDNAME
     pub grid_name: *mut c_char,
+    /// GRIDNUM
     pub grid_number: i32,
+    /// CREATOR
     pub creator: *mut c_char,
+    /// PROJECT
     pub project_id: *mut c_char,
+    /// Observation name
     pub observation_name: *mut c_char,
+    /// MWA observation mode
     pub mode: *mut c_char,
+    /// Scheduled start (gps time) of observation
     pub scheduled_start_utc: i64,
+    /// Scheduled end (gps time) of observation
     pub scheduled_end_utc: i64,
+    /// Scheduled start (MJD) of observation
     pub scheduled_start_mjd: f64,
+    /// Scheduled end (MJD) of observation
     pub scheduled_end_mjd: f64,
+    /// Scheduled start (UNIX time) of observation
     pub scheduled_start_unix_time_milliseconds: u64,
+    /// Scheduled end (UNIX time) of observation
     pub scheduled_end_unix_time_milliseconds: u64,
+    /// Scheduled duration of observation
     pub scheduled_duration_milliseconds: u64,
+    /// Seconds of bad data after observation starts
     pub quack_time_duration_milliseconds: u64,
+    /// OBSID+QUACKTIM as Unix timestamp (first good timestep)
     pub good_time_unix_milliseconds: u64,
+    /// The proper start of the observation (the time that is common to all
+    /// provided gpubox files).
     pub start_unix_time_milliseconds: u64,
+    /// `end_time_milliseconds` will is the actual end time of the observation
+    /// i.e. start time of last common timestep plus integration time.
     pub end_unix_time_milliseconds: u64,
+    /// Total duration of observation (based on gpubox files)
     pub duration_milliseconds: u64,
+    /// Number of timesteps in the observation
     pub num_timesteps: usize,
+    /// Total number of antennas (tiles) in the array
     pub num_antennas: usize,
+    /// Number of baselines stored. This is autos plus cross correlations
     pub num_baselines: usize,
+    /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
     pub num_rf_inputs: usize,
+    /// Number of antenna pols. e.g. X and Y
     pub num_antenna_pols: usize,
+    /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
     pub num_visibility_pols: usize,
+    /// Number of coarse channels after we've validated the input gpubox files
     pub num_coarse_channels: usize,
+    /// Correlator mode dump time
     pub integration_time_milliseconds: u64,
+    /// Correlator fine_channel_resolution
     pub fine_channel_width_hz: u32,
+    /// Total bandwidth of observation (of the coarse channels we have)
     pub observation_bandwidth_hz: u32,
+    /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,
+    /// Number of fine channels in each coarse channel
     pub num_fine_channels_per_coarse: usize,
+    /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_channel_bytes: usize,
+    /// The number of floats in each gpubox HDU.
     pub num_timestep_coarse_channel_floats: usize,
+    /// This is the number of gpubox files *per batch*.
     pub num_gpubox_files: usize,
 }
 
@@ -626,8 +679,9 @@ pub unsafe extern "C" fn mwalibMetadata_free(metadata_ptr: *mut mwalibMetadata) 
 ///
 #[repr(C)]
 pub struct mwalibBaseline {
-    /// See definition of context::mwalibBaseline for full description of each attribute
+    /// Index in the mwalibContext.antenna array for antenna1 for this baseline
     pub antenna1_index: usize,
+    /// Index in the mwalibContext.antenna array for antenna2 for this baseline
     pub antenna2_index: usize,
 }
 
@@ -722,18 +776,34 @@ pub unsafe extern "C" fn mwalibBaseline_free(baseline_ptr: *mut mwalibBaseline) 
 /// Representation in C of an mwalibRFInput struct
 #[repr(C)]
 pub struct mwalibRFInput {
-    /// See definition of context::mwalibContext for full description of each attribute
+    /// This is the metafits order (0-n inputs)
     pub input: u32,
+    /// This is the antenna number.
+    /// Nominally this is the field we sort by to get the desired output order of antenna.
+    /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
+    /// e.g. 0...N-1
     pub antenna: u32,
+    /// Numeric part of tile_name for the antenna. Each pol has the same value
+    /// e.g. tile_name "tile011" hsa tile_id of 11
     pub tile_id: u32,
+    /// Human readable name of the antenna
+    /// X and Y have the same name
     pub tile_name: *mut c_char,
+    /// Polarisation - X or Y
     pub pol: *mut c_char,
+    /// Electrical length in metres for this antenna and polarisation to the receiver
     pub electrical_length_m: f64,
+    /// Antenna position North from the array centre (metres)
     pub north_m: f64,
+    /// Antenna position East from the array centre (metres)
     pub east_m: f64,
+    /// Antenna height from the array centre (metres)
     pub height_m: f64,
+    /// AKA PFB to correlator input order (only relevant for pre V2 correlator)
     pub vcs_order: u32,
+    /// Subfile order is the order in which this rf_input is desired in our final output of data
     pub subfile_order: u32,
+    /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flagged: bool,
 }
 
@@ -848,13 +918,21 @@ pub unsafe extern "C" fn mwalibRFInput_free(rf_input_ptr: *mut mwalibRFInput) {
 /// Representation in C of an mwalibCoarseChannel struct
 #[repr(C)]
 pub struct mwalibCoarseChannel {
-    /// See definition of context::mwalibContext for full description of each attribute
+    /// Correlator channel is 0 indexed (0..N-1)
     pub correlator_channel_number: usize,
+    /// Receiver channel is 0-255 in the RRI recivers
     pub receiver_channel_number: usize,
+    /// gpubox channel number
+    /// Legacy e.g. obsid_datetime_gpuboxXX_00
+    /// v2     e.g. obsid_datetime_gpuboxXXX_00
     pub gpubox_number: usize,
+    /// Width of a coarse channel in Hz
     pub channel_width_hz: u32,
+    /// Starting frequency of coarse channel in Hz
     pub channel_start_hz: u32,
+    /// Centre frequency of coarse channel in Hz
     pub channel_centre_hz: u32,
+    /// Ending frequency of coarse channel in Hz
     pub channel_end_hz: u32,
 }
 
@@ -952,9 +1030,16 @@ pub unsafe extern "C" fn mwalibCoarseChannel_free(coarse_channel_ptr: *mut mwali
 /// Representation in C of an mwalibAntenna struct
 #[repr(C)]
 pub struct mwalibAntenna {
-    /// See definition of context::mwalibAntenna for full description of each attribute
+    /// This is the antenna number.
+    /// Nominally this is the field we sort by to get the desired output order of antenna.
+    /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
+    /// e.g. 0...N-1
     pub antenna: u32,
+    /// Numeric part of tile_name for the antenna. Each pol has the same value
+    /// e.g. tile_name "tile011" hsa tile_id of 11
     pub tile_id: u32,
+    /// Human readable name of the antenna
+    /// X and Y have the same name
     pub tile_name: *mut libc::c_char,
 }
 
@@ -1057,7 +1142,7 @@ pub unsafe extern "C" fn mwalibAntenna_free(antenna_ptr: *mut mwalibAntenna) {
 ///
 #[repr(C)]
 pub struct mwalibTimeStep {
-    /// See definition of context::mwalibTimeStep for full description of each attribute
+    /// UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,
 }
 
@@ -1151,7 +1236,7 @@ pub unsafe extern "C" fn mwalibTimeStep_free(timestep_ptr: *mut mwalibTimeStep) 
 ///
 #[repr(C)]
 pub struct mwalibVisibilityPol {
-    /// See definition of context::mwalibVisibilityPol for full description of each attribute
+    /// Polarisation (e.g. "XX" or "XY" or "YX" or "YY")
     pub polarisation: *mut libc::c_char,
 }
 

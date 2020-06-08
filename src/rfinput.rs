@@ -72,6 +72,7 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
 #[allow(non_camel_case_types)]
 /// Structure to hold one row of the metafits tiledata table
 struct mwalibRFInputMetafitsTableRow {
+    /// This is the ordinal index of the rf_input in the metafits file
     pub input: u32,
     /// This is the antenna number.
     /// Nominally this is the field we sort by to get the desired output order of antenna.
@@ -84,7 +85,7 @@ struct mwalibRFInputMetafitsTableRow {
     /// Human readable name of the antenna
     /// X and Y have the same name
     pub tile_name: String,
-    /// Polarisation - X & Y
+    /// Polarisation - X or Y
     pub pol: String,
     /// Electrical length in metres for this antenna and polarisation to the receiver
     pub length_string: String,
@@ -117,7 +118,7 @@ pub struct mwalibRFInput {
     /// Human readable name of the antenna
     /// X and Y have the same name
     pub tile_name: String,
-    /// Polarisation - X & Y
+    /// Polarisation - X or Y
     pub pol: String,
     /// Electrical length in metres for this antenna and polarisation to the receiver
     pub electrical_length_m: f64,

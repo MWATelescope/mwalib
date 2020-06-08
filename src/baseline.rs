@@ -12,9 +12,9 @@ use std::fmt;
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
 pub struct mwalibBaseline {
-    // Index in the mwalibContext.antenna array for antenna1 for this baseline
+    /// Index in the mwalibContext.antenna array for antenna1 for this baseline
     pub antenna1_index: usize,
-    // Index in the mwalibContext.antenna array for antenna2 for this baseline
+    /// Index in the mwalibContext.antenna array for antenna2 for this baseline
     pub antenna2_index: usize,
 }
 

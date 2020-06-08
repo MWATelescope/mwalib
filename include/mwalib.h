@@ -36,10 +36,21 @@ typedef struct mwalibContext mwalibContext;
  */
 typedef struct {
   /**
-   * See definition of context::mwalibAntenna for full description of each attribute
+   * This is the antenna number.
+   * Nominally this is the field we sort by to get the desired output order of antenna.
+   * X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
+   * e.g. 0...N-1
    */
   uint32_t antenna;
+  /**
+   * Numeric part of tile_name for the antenna. Each pol has the same value
+   * e.g. tile_name "tile011" hsa tile_id of 11
+   */
   uint32_t tile_id;
+  /**
+   * Human readable name of the antenna
+   * X and Y have the same name
+   */
   char *tile_name;
 } mwalibAntenna;
 
@@ -50,9 +61,12 @@ typedef struct {
  */
 typedef struct {
   /**
-   * See definition of context::mwalibBaseline for full description of each attribute
+   * Index in the mwalibContext.antenna array for antenna1 for this baseline
    */
   uintptr_t antenna1_index;
+  /**
+   * Index in the mwalibContext.antenna array for antenna2 for this baseline
+   */
   uintptr_t antenna2_index;
 } mwalibBaseline;
 
@@ -61,14 +75,34 @@ typedef struct {
  */
 typedef struct {
   /**
-   * See definition of context::mwalibContext for full description of each attribute
+   * Correlator channel is 0 indexed (0..N-1)
    */
   uintptr_t correlator_channel_number;
+  /**
+   * Receiver channel is 0-255 in the RRI recivers
+   */
   uintptr_t receiver_channel_number;
+  /**
+   * gpubox channel number
+   * Legacy e.g. obsid_datetime_gpuboxXX_00
+   * v2     e.g. obsid_datetime_gpuboxXXX_00
+   */
   uintptr_t gpubox_number;
+  /**
+   * Width of a coarse channel in Hz
+   */
   uint32_t channel_width_hz;
+  /**
+   * Starting frequency of coarse channel in Hz
+   */
   uint32_t channel_start_hz;
+  /**
+   * Centre frequency of coarse channel in Hz
+   */
   uint32_t channel_centre_hz;
+  /**
+   * Ending frequency of coarse channel in Hz
+   */
   uint32_t channel_end_hz;
 } mwalibCoarseChannel;
 
@@ -79,59 +113,214 @@ typedef struct {
  */
 typedef struct {
   /**
-   * See definition of context::mwalibContext for full description of each attribute
+   * Observation id
    */
   uint32_t obsid;
+  /**
+   * Version of the correlator format
+   */
   CorrelatorVersion corr_version;
+  /**
+   * Latitude of centre point of MWA in raidans
+   */
   double mwa_latitude_radians;
+  /**
+   * Longitude of centre point of MWA in raidans
+   */
   double mwa_longitude_radians;
+  /**
+   * Altitude of centre poing of MWA in metres
+   */
   double mwa_altitude_metres;
+  /**
+   * the velocity factor of electic fields in RG-6 like coax
+   */
   double coax_v_factor;
+  /**
+   * ATTEN_DB  // global analogue attenuation, in dB
+   */
   double global_analogue_attenuation_db;
+  /**
+   * RA tile pointing
+   */
   double ra_tile_pointing_degrees;
+  /**
+   * DEC tile pointing
+   */
   double dec_tile_pointing_degrees;
+  /**
+   * RA phase centre
+   */
   double ra_phase_center_degrees;
+  /**
+   * DEC phase centre
+   */
   double dec_phase_center_degrees;
+  /**
+   * AZIMUTH
+   */
   double azimuth_degrees;
+  /**
+   * ALTITUDE
+   */
   double altitude_degrees;
+  /**
+   * Altitude of Sun
+   */
   double sun_altitude_degrees;
+  /**
+   * Distance from pointing center to Sun
+   */
   double sun_distance_degrees;
+  /**
+   * Distance from pointing center to the Moon
+   */
   double moon_distance_degrees;
+  /**
+   * Distance from pointing center to Jupiter
+   */
   double jupiter_distance_degrees;
+  /**
+   * Local Sidereal Time
+   */
   double lst_degrees;
+  /**
+   * Hour Angle of pointing center (as a string)
+   */
   char *hour_angle_string;
+  /**
+   * GRIDNAME
+   */
   char *grid_name;
+  /**
+   * GRIDNUM
+   */
   int32_t grid_number;
+  /**
+   * CREATOR
+   */
   char *creator;
+  /**
+   * PROJECT
+   */
   char *project_id;
+  /**
+   * Observation name
+   */
   char *observation_name;
+  /**
+   * MWA observation mode
+   */
   char *mode;
+  /**
+   * Scheduled start (gps time) of observation
+   */
   int64_t scheduled_start_utc;
+  /**
+   * Scheduled end (gps time) of observation
+   */
   int64_t scheduled_end_utc;
+  /**
+   * Scheduled start (MJD) of observation
+   */
   double scheduled_start_mjd;
+  /**
+   * Scheduled end (MJD) of observation
+   */
   double scheduled_end_mjd;
+  /**
+   * Scheduled start (UNIX time) of observation
+   */
   uint64_t scheduled_start_unix_time_milliseconds;
+  /**
+   * Scheduled end (UNIX time) of observation
+   */
   uint64_t scheduled_end_unix_time_milliseconds;
+  /**
+   * Scheduled duration of observation
+   */
   uint64_t scheduled_duration_milliseconds;
+  /**
+   * Seconds of bad data after observation starts
+   */
   uint64_t quack_time_duration_milliseconds;
+  /**
+   * OBSID+QUACKTIM as Unix timestamp (first good timestep)
+   */
   uint64_t good_time_unix_milliseconds;
+  /**
+   * The proper start of the observation (the time that is common to all
+   * provided gpubox files).
+   */
   uint64_t start_unix_time_milliseconds;
+  /**
+   * `end_time_milliseconds` will is the actual end time of the observation
+   * i.e. start time of last common timestep plus integration time.
+   */
   uint64_t end_unix_time_milliseconds;
+  /**
+   * Total duration of observation (based on gpubox files)
+   */
   uint64_t duration_milliseconds;
+  /**
+   * Number of timesteps in the observation
+   */
   uintptr_t num_timesteps;
+  /**
+   * Total number of antennas (tiles) in the array
+   */
   uintptr_t num_antennas;
+  /**
+   * Number of baselines stored. This is autos plus cross correlations
+   */
   uintptr_t num_baselines;
+  /**
+   * The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
+   */
   uintptr_t num_rf_inputs;
+  /**
+   * Number of antenna pols. e.g. X and Y
+   */
   uintptr_t num_antenna_pols;
+  /**
+   * Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
+   */
   uintptr_t num_visibility_pols;
+  /**
+   * Number of coarse channels after we've validated the input gpubox files
+   */
   uintptr_t num_coarse_channels;
+  /**
+   * Correlator mode dump time
+   */
   uint64_t integration_time_milliseconds;
+  /**
+   * Correlator fine_channel_resolution
+   */
   uint32_t fine_channel_width_hz;
+  /**
+   * Total bandwidth of observation (of the coarse channels we have)
+   */
   uint32_t observation_bandwidth_hz;
+  /**
+   * Bandwidth of each coarse channel
+   */
   uint32_t coarse_channel_width_hz;
+  /**
+   * Number of fine channels in each coarse channel
+   */
   uintptr_t num_fine_channels_per_coarse;
+  /**
+   * The number of bytes taken up by a scan/timestep in each gpubox file.
+   */
   uintptr_t num_timestep_coarse_channel_bytes;
+  /**
+   * The number of floats in each gpubox HDU.
+   */
   uintptr_t num_timestep_coarse_channel_floats;
+  /**
+   * This is the number of gpubox files *per batch*.
+   */
   uintptr_t num_gpubox_files;
 } mwalibMetadata;
 
@@ -140,19 +329,57 @@ typedef struct {
  */
 typedef struct {
   /**
-   * See definition of context::mwalibContext for full description of each attribute
+   * This is the metafits order (0-n inputs)
    */
   uint32_t input;
+  /**
+   * This is the antenna number.
+   * Nominally this is the field we sort by to get the desired output order of antenna.
+   * X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
+   * e.g. 0...N-1
+   */
   uint32_t antenna;
+  /**
+   * Numeric part of tile_name for the antenna. Each pol has the same value
+   * e.g. tile_name "tile011" hsa tile_id of 11
+   */
   uint32_t tile_id;
+  /**
+   * Human readable name of the antenna
+   * X and Y have the same name
+   */
   char *tile_name;
+  /**
+   * Polarisation - X or Y
+   */
   char *pol;
+  /**
+   * Electrical length in metres for this antenna and polarisation to the receiver
+   */
   double electrical_length_m;
+  /**
+   * Antenna position North from the array centre (metres)
+   */
   double north_m;
+  /**
+   * Antenna position East from the array centre (metres)
+   */
   double east_m;
+  /**
+   * Antenna height from the array centre (metres)
+   */
   double height_m;
+  /**
+   * AKA PFB to correlator input order (only relevant for pre V2 correlator)
+   */
   uint32_t vcs_order;
+  /**
+   * Subfile order is the order in which this rf_input is desired in our final output of data
+   */
   uint32_t subfile_order;
+  /**
+   * Is this rf_input flagged out (due to tile error, etc from metafits)
+   */
   bool flagged;
 } mwalibRFInput;
 
@@ -163,7 +390,7 @@ typedef struct {
  */
 typedef struct {
   /**
-   * See definition of context::mwalibTimeStep for full description of each attribute
+   * UNIX time (in milliseconds to avoid floating point inaccuracy)
    */
   uint64_t unix_time_ms;
 } mwalibTimeStep;
@@ -175,7 +402,7 @@ typedef struct {
  */
 typedef struct {
   /**
-   * See definition of context::mwalibVisibilityPol for full description of each attribute
+   * Polarisation (e.g. "XX" or "XY" or "YX" or "YY")
    */
   char *polarisation;
 } mwalibVisibilityPol;
