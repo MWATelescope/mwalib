@@ -34,10 +34,7 @@ jobs:
           ./configure --prefix=/usr/local --enable-reentrant;
           make clean && make;
           sudo make install;
-          sudo ldconfig;
-
-    - name: Clean
-      run: cargo clean
+          sudo ldconfig;    
 
     - name: Run cargo-tarpaulin
       run: cargo tarpaulin -v --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/

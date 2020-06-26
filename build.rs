@@ -12,17 +12,10 @@ fn main() {
     // 2. libcfitsio.a needs to have been built with the following ./configure statement:
     //    ./configure --disable-curl --prefix=/usr/local --enable-reentrant
     match env::var("MWALIB_LINK_STATIC_CFITSIO") {
-        Ok(val) => {
-            match val.as_str() {
-                "0" => {
-                    println!("cargo:warning=rustc will link with the shared libcfitsio.so library. Set MWALIB_LINK_STATIC_CFITSIO=1 in your environment to link statically.")    
-                },
-                _ => {
-                    println!("cargo:rustc-link-lib=static=cfitsio");
-                    println!("cargo:warning=rustc will link with the static libcfitsio.a library. Remove MWALIB_LINK_STATIC_CFITSIO from your environment (or set to 0) to link dynamically.");
-                }
-            }            
+        Ok(val) => match val.as_str() {
+            "0" => (),
+            _ => println!("cargo:rustc-link-lib=static=cfitsio"),
         },
-        Err(_) => println!("cargo:warning=rustc will link with the shared libcfitsio.so library. Set MWALIB_LINK_STATIC_CFITSIO=1 in your environment to link statically."),
+        Err(_) => (),
     }
 }

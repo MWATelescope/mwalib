@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 echo "Making release..."
 echo "Cleaning up previous release files..."
 rm -rf ../target

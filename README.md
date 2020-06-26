@@ -77,6 +77,9 @@ You can build mwalib from source:
 
     `cargo build --release`
 
+- MWALIB_LINK_STATIC_CFITSIO environment variable
+    If this environment variable exists and is set to a non-zero value, rustc will statically link libcfitsio. If the environment variable does not exist or is 0, rustc will dynamically link libcfitsio. This is an attempt to give developers the choice of having a static or dynamic link of the fits library to ease the build and deploy process.
+
 - Use the dynamic-shared and/or static objects in the `target/release` directory
 
     e.g. on linux, `libmwalib.a` or `libmwalib.so`
@@ -103,6 +106,8 @@ As an alternative to building from source, we produce github releases whenever f
 * LICENSE            (License for using mwalib in your projects)
 * LICENSE-cfitsio    (Since libcfitsio is statically compiled into our static and dynamic libraries, we also include it's license)
 
+NOTE: from release 0.3.2 onwards, libcfitsio is statically linked to mwalib in order to reduce issues with conflicting/incompatible versions of cfitsio. Therefore, there is no need for you to have cfitsio installed on your machine.
+
 To install on a regular linux x86/64 distribution, the following would be all that is needed:
 - Download release from mwalib [github releases](https://github.com/MWATelescope/mwalib/releases).
     `wget "https://github.com/MWATelescope/mwalib/releases/download/v0.3.1/libmwalib-0.3.1-linux_x86_64.tar.gz" -O mwalib.tar.gz`
@@ -115,7 +120,7 @@ To install on a regular linux x86/64 distribution, the following would be all th
     `sudo cp mwalib/include/libmwalib.h /usr/local/include`
 
 - Register the library with ldconfig
-    'sudo ldconfig'
+    `sudo ldconfig`
 
 ## Consistency checks
 (TODO: This is non-exhaustive!)
