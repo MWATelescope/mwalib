@@ -82,7 +82,7 @@ impl mwalibTimeStep {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for mwalibTimeStep {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "unix={:.3}", self.unix_time_ms as f64 / 1000.,)

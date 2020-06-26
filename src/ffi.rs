@@ -90,7 +90,7 @@ fn set_error_message(in_message: &str, error_buffer_ptr: *mut u8, error_buffer_l
 /// # Safety
 /// * rust_cstring must not have already been freed and must point to a Rust string.
 #[no_mangle]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) {
     // Don't do anything if the pointer is null.
     if rust_cstring.is_null() {
@@ -164,7 +164,7 @@ pub unsafe extern "C" fn mwalibContext_get(
 /// * context_ptr must point to a populated mwalibContext object from the mwalibContext_new function.
 /// * context_ptr must not have already been freed.
 #[no_mangle]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 pub unsafe extern "C" fn mwalibContext_free(context_ptr: *mut mwalibContext) {
     if context_ptr.is_null() {
         return;
@@ -409,7 +409,7 @@ pub unsafe extern "C" fn mwalibContext_read_by_frequency(
 /// * float_buffer_ptr must point to a populated float buffer from the mwalibContext_read_by_baseline function.
 /// * float_buffer_ptr must not have already been freed.
 #[no_mangle]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 pub unsafe extern "C" fn mwalibContext_free_read_buffer(
     float_buffer_ptr: *mut c_float,
     float_buffer_len: *const c_longlong,
@@ -666,7 +666,7 @@ pub unsafe extern "C" fn mwalibMetadata_get(
 /// * metadata_ptr must point to a populated mwalibMetadata object from the mwalibMetadata_get function.
 /// * metadata_ptr must not have already been freed.
 #[no_mangle]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 pub unsafe extern "C" fn mwalibMetadata_free(metadata_ptr: *mut mwalibMetadata) {
     if metadata_ptr.is_null() {
         return;
@@ -765,7 +765,7 @@ pub unsafe extern "C" fn mwalibBaseline_get(
 /// * baseline_ptr must point to a populated mwalibBaseline object from the mwalibBaseline_get function.
 /// * baseline_ptr must not have already been freed.
 #[no_mangle]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 pub unsafe extern "C" fn mwalibBaseline_free(baseline_ptr: *mut mwalibBaseline) {
     if baseline_ptr.is_null() {
         return;
@@ -902,7 +902,7 @@ pub unsafe extern "C" fn mwalibRFInput_get(
 /// * rf_input_ptr must point to a populated mwalibRFInput object from the mwalibRFInput_get function.
 /// * rf_input_ptr must not have already been freed.
 #[no_mangle]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 pub unsafe extern "C" fn mwalibRFInput_free(rf_input_ptr: *mut mwalibRFInput) {
     if rf_input_ptr.is_null() {
         return;
@@ -1019,7 +1019,7 @@ pub unsafe extern "C" fn mwalibCoarseChannel_get(
 /// * coarse_channel_ptr must point to a populated mwalibCoarseChannel object from the mwalibCoarseChannel_new function.
 /// * coarse_channel_ptr must not have already been freed.
 #[no_mangle]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 pub unsafe extern "C" fn mwalibCoarseChannel_free(coarse_channel_ptr: *mut mwalibCoarseChannel) {
     if coarse_channel_ptr.is_null() {
         return;
@@ -1124,7 +1124,7 @@ pub unsafe extern "C" fn mwalibAntenna_get(
 /// * antenna_ptr must point to a populated mwalibAntenna object from the mwalibAntenna_get function.
 /// * antenna_ptr must not have already been freed.
 #[no_mangle]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 pub unsafe extern "C" fn mwalibAntenna_free(antenna_ptr: *mut mwalibAntenna) {
     if antenna_ptr.is_null() {
         return;
@@ -1223,7 +1223,7 @@ pub unsafe extern "C" fn mwalibTimeStep_get(
 /// * timestep_ptr must point to a populated mwalibTimeStep object from the mwalibTimeStep_get function.
 /// * timestep_ptr must not have already been freed.
 #[no_mangle]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 pub unsafe extern "C" fn mwalibTimeStep_free(timestep_ptr: *mut mwalibTimeStep) {
     if timestep_ptr.is_null() {
         return;
@@ -1321,7 +1321,7 @@ pub unsafe extern "C" fn mwalibVisibilityPol_get(
 /// * visibility_pol_ptr must point to a populated mwalibVisibilityPol object from the mwalibVisibilityPol_get function.
 /// * visibility_pol_ptr must not have already been freed.
 #[no_mangle]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 pub unsafe extern "C" fn mwalibVisibilityPol_free(visibility_pol_ptr: *mut mwalibVisibilityPol) {
     if visibility_pol_ptr.is_null() {
         return;

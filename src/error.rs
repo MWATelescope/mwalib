@@ -19,35 +19,35 @@ pub enum ErrorKind {
     Fitsio(fitsio::errors::Error),
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl From<num::ParseIntError> for ErrorKind {
     fn from(err: num::ParseIntError) -> ErrorKind {
         ErrorKind::ParseInt(err)
     }
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl From<num::ParseFloatError> for ErrorKind {
     fn from(err: num::ParseFloatError) -> ErrorKind {
         ErrorKind::ParseFloat(err)
     }
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl From<io::Error> for ErrorKind {
     fn from(err: io::Error) -> ErrorKind {
         ErrorKind::IO(err)
     }
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl From<anyhow::Error> for ErrorKind {
     fn from(err: anyhow::Error) -> ErrorKind {
         ErrorKind::Anyhow(err)
     }
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl From<fitsio::errors::Error> for ErrorKind {
     fn from(err: fitsio::errors::Error) -> ErrorKind {
         ErrorKind::Fitsio(err)
@@ -56,7 +56,7 @@ impl From<fitsio::errors::Error> for ErrorKind {
 
 impl Error for ErrorKind {}
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {

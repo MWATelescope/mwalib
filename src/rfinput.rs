@@ -301,7 +301,7 @@ impl mwalibRFInput {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for mwalibRFInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.tile_name, self.pol)

@@ -34,6 +34,8 @@ csv = "1.1.*"
 float-cmp = "0.7.*"
 structopt = "0.3.*"
 tempdir = "0.3.*"
+cbindgen = "*"
+cargo-tarpaulin = "*"
 
 [[bench]]
 name = "bench"

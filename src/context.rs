@@ -48,7 +48,7 @@ pub enum CorrelatorVersion {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for CorrelatorVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -837,7 +837,7 @@ impl mwalibContext {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for mwalibContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // `size` is the number of floats (self.gpubox_hdu_size) multiplied by 4

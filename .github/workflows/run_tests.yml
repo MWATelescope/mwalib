@@ -37,7 +37,7 @@ jobs:
           sudo ldconfig;    
 
     - name: Run cargo-tarpaulin
-      run: cargo tarpaulin -v --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/
+      run: cargo tarpaulin --verbose --force-clean --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/
 
     - name: codecov
       run: bash <(curl -s https://codecov.io/bash)

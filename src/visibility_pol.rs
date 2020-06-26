@@ -57,7 +57,7 @@ impl mwalibVisibilityPol {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for mwalibVisibilityPol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "pol={}", self.polarisation,)

@@ -12,7 +12,7 @@ use structopt::StructOpt;
 
 use mwalib::*;
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 #[derive(StructOpt, Debug)]
 #[structopt(name = "mwalib-sum-first-fine-channel-gpubox-hdus", author)]
 struct Opt {
@@ -25,7 +25,7 @@ struct Opt {
     files: Vec<String>,
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 #[allow(clippy::needless_range_loop)] // Ignoring this, as it is a false positive
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();

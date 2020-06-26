@@ -66,7 +66,7 @@ impl mwalibBaseline {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for mwalibBaseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{},{}", self.antenna1_index, self.antenna2_index,)
