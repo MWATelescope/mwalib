@@ -1,6 +1,9 @@
 # Change Log
 Changes in each release are listed below.
 
+## 0.3.2 25-June-2020 (Pre-release)
+* libmwalib.so now has statically linked libcfitsio library as cfitsio's ABI keeps changing making linking difficult for users.
+
 ## 0.3.1 08-June-2020 (Pre-release)
 * Bugfix: Fixed panic when all 24 coarse channels are using receiver channel numbers >128.
 * Added more inline documentation for mwalib.h.

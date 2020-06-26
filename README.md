@@ -62,10 +62,8 @@ the rendered documentation.
     presented in the data is calculated as `n/2 * (n+1)` (where `n` is the
     number of antennas).
 
-## Installation
-It is possible that a dynamic-shared and/or static objects can be provided on
-GitHub in the future, but for now, `mwalib` should be compiled from source.
-
+## Building From Source
+You can build mwalib from source:
 - Install rust
 
     `https://www.rust-lang.org/tools/install`
@@ -96,6 +94,28 @@ GitHub in the future, but for now, `mwalib` should be compiled from source.
     Install `cbindgen` with your package manager or via `cargo` with `cargo
     install cbindgen`.
 
+## Installation
+As an alternative to building from source, we produce github releases whenever features or bug fixes are completed as tarballs. In the release you will find everything you need to use mwalib from C/C++/Python or any other language that can utilise shared libraries:
+* lib/libmwalib.a    (Statically compiled library)
+* lib/libmwalib.so   (Dynamic library)
+* include/mwalib.h   (C Header file)
+* CHANGELOG.md       (Change log for this and previous relases)
+* LICENSE            (License for using mwalib in your projects)
+* LICENSE-cfitsio    (Since libcfitsio is statically compiled into our static and dynamic libraries, we also include it's license)
+
+To install on a regular linux x86/64 distribution, the following would be all that is needed:
+- Download release from mwalib [github releases](https://github.com/MWATelescope/mwalib/releases).
+    `wget "https://github.com/MWATelescope/mwalib/releases/download/v0.3.1/libmwalib-0.3.1-linux_x86_64.tar.gz" -O mwalib.tar.gz`
+
+- Untar the tarball
+    `mkdir mwalib; tar xvf mwalib.tar.gz -C mwalib`
+
+- Install
+    `sudo cp mwalib/lib/libmwalib.* /usr/local/lib`
+    `sudo cp mwalib/include/libmwalib.h /usr/local/include`
+
+- Register the library with ldconfig
+    'sudo ldconfig'
 
 ## Consistency checks
 (TODO: This is non-exhaustive!)
