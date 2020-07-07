@@ -19,16 +19,17 @@ codegen-units = 1   # Set this to 1 in Cargo.toml to allow for maximum size redu
 crate-type = ["rlib", "staticlib", "cdylib"]
 
 [dependencies]
-anyhow = "1.0.*"
 chrono = "0.4.*"
-fitsio = "0.15.*"
+fitsio = "0.16.*"
 fitsio-sys = "0.3.*"
 lazy_static = "1.4.*"
 libc = "0.2.*"
 rayon = "1.3.*"
 regex = "1.3.*"
+thiserror = "1.0.20"
 
 [dev-dependencies]
+anyhow = "1.0.*"
 criterion = "0.3.*"
 csv = "1.1.*"
 float-cmp = "0.7.*"

@@ -33,31 +33,31 @@ struct Opt {
     coarse_channel: usize,
 
     /// Path to the metafits file.
-    #[structopt(short, long)]
-    metafits: String,
+    #[structopt(short, long, parse(from_os_str))]
+    metafits: std::path::PathBuf,
 
     /// Paths to the gpubox files.
-    #[structopt(name = "GPUBOX FILE")]
-    files: Vec<String>,
+    #[structopt(name = "GPUBOX FILE", parse(from_os_str))]
+    files: Vec<std::path::PathBuf>,
 
     // Dump filename
-    #[structopt(short, long)]
-    dump_filename: String,
+    #[structopt(short, long, parse(from_os_str))]
+    dump_filename: std::path::PathBuf,
 }
 
 #[cfg(not(tarpaulin_include))]
-fn dump_data(
-    metafits: String,
-    files: Vec<String>,
+fn dump_data<T: AsRef<std::path::Path>>(
+    metafits: &T,
+    files: &[T],
     timestep: usize,
     baseline: usize,
     fine_channel_range: (usize, usize),
     coarse_channel: usize,
-    dump_filename: String,
+    dump_filename: &T,
 ) -> Result<(), anyhow::Error> {
     let mut dump_file = File::create(dump_filename)?;
     println!("Dumping data via mwalib...");
-    let mut context = mwalibContext::new(&metafits, &files)?;
+    let mut context = mwalibContext::new(metafits, files)?;
     let coarse_channel_array = context.coarse_channels.clone();
     let timestep_array = context.timesteps.clone();
 
@@ -144,13 +144,13 @@ fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
 
     dump_data(
-        opts.metafits,
-        opts.files,
+        &opts.metafits,
+        &opts.files,
         opts.timestep,
         opts.baseline,
         (opts.fine_chan1, opts.fine_chan2),
         opts.coarse_channel,
-        opts.dump_filename,
+        &opts.dump_filename,
     )?;
     Ok(())
 }

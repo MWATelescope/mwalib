@@ -4,68 +4,30 @@
 /*!
 Structs and helper methods for Error handling
 */
-use std::error::Error;
-use std::fmt;
-use std::io;
-use std::num;
 
-#[derive(Debug)]
-pub enum ErrorKind {
-    Custom(String),
-    ParseInt(num::ParseIntError),
-    ParseFloat(num::ParseFloatError),
-    IO(io::Error),
-    Anyhow(anyhow::Error),
-    Fitsio(fitsio::errors::Error),
-}
+use thiserror::Error;
 
-#[cfg(not(tarpaulin_include))]
-impl From<num::ParseIntError> for ErrorKind {
-    fn from(err: num::ParseIntError) -> ErrorKind {
-        ErrorKind::ParseInt(err)
-    }
-}
+#[derive(Error, Debug)]
+pub enum MwalibError {
+    /// An error derived from `FitsError`.
+    #[error("{0}")]
+    Fits(#[from] crate::fits_read::error::FitsError),
 
-#[cfg(not(tarpaulin_include))]
-impl From<num::ParseFloatError> for ErrorKind {
-    fn from(err: num::ParseFloatError) -> ErrorKind {
-        ErrorKind::ParseFloat(err)
-    }
-}
+    /// An error derived from `RfinputError`.
+    #[error("{0}")]
+    Rfinput(#[from] crate::rfinput::error::RfinputError),
 
-#[cfg(not(tarpaulin_include))]
-impl From<io::Error> for ErrorKind {
-    fn from(err: io::Error) -> ErrorKind {
-        ErrorKind::IO(err)
-    }
-}
+    /// An error derived from `GpuboxError`.
+    #[error("{0}")]
+    Gpubox(#[from] crate::gpubox::error::GpuboxError),
 
-#[cfg(not(tarpaulin_include))]
-impl From<anyhow::Error> for ErrorKind {
-    fn from(err: anyhow::Error) -> ErrorKind {
-        ErrorKind::Anyhow(err)
-    }
-}
-
-#[cfg(not(tarpaulin_include))]
-impl From<fitsio::errors::Error> for ErrorKind {
-    fn from(err: fitsio::errors::Error) -> ErrorKind {
-        ErrorKind::Fitsio(err)
-    }
-}
-
-impl Error for ErrorKind {}
-
-#[cfg(not(tarpaulin_include))]
-impl fmt::Display for ErrorKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ErrorKind::Custom(ref err) => err.fmt(f),
-            ErrorKind::ParseInt(ref err) => err.fmt(f),
-            ErrorKind::ParseFloat(ref err) => err.fmt(f),
-            ErrorKind::IO(ref err) => err.fmt(f),
-            ErrorKind::Anyhow(ref err) => err.fmt(f),
-            ErrorKind::Fitsio(ref err) => err.fmt(f),
-        }
-    }
+    /// An error associated with parsing a string into another type.
+    #[error("{source_file}:{source_line}\nCouldn't parse {key} in {fits_filename} HDU {hdu_num}")]
+    Parse {
+        key: String,
+        fits_filename: String,
+        hdu_num: usize,
+        source_file: String,
+        source_line: u32,
+    },
 }

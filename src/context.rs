@@ -5,17 +5,15 @@
 /*!
 The main interface to MWA data.
  */
-use chrono::{DateTime, Duration, FixedOffset};
-use fitsio::*;
 use std::collections::BTreeMap;
 use std::fmt;
-use std::path::*;
+
+use chrono::{DateTime, Duration, FixedOffset};
 
 use crate::antenna::*;
 use crate::baseline::*;
 use crate::coarse_channel::*;
 use crate::convert::*;
-use crate::fits_read::*;
 use crate::gpubox::*;
 use crate::misc::*;
 use crate::rfinput::*;
@@ -235,34 +233,25 @@ impl mwalibContext {
     /// * Result containing a populated mwalibContext object if Ok.
     ///
     ///
-    pub fn new<T: AsRef<Path> + AsRef<str> + ToString + fmt::Debug>(
+    pub fn new<T: AsRef<std::path::Path>>(
         metafits: &T,
         gpuboxes: &[T],
-    ) -> Result<Self, ErrorKind> {
+    ) -> Result<Self, MwalibError> {
         // Do the file stuff upfront.
         // Check that at least one gpubox file is
         // present.
         if gpuboxes.is_empty() {
-            return Err(ErrorKind::Custom(
-                "mwalibContext::new: gpubox / mwax fits files missing".to_string(),
-            ));
+            return Err(MwalibError::from(GpuboxError::NoGpuboxes));
         }
 
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
-        let mut metafits_fptr =
-            FitsFile::open(&metafits).with_context(|| format!("Failed to open {:?}", metafits))?;
-        let metafits_hdu = metafits_fptr
-            .hdu(0)
-            .with_context(|| format!("Failed to open HDU 1 (primary hdu) for {:?}", metafits))?;
-
-        let metafits_tile_table_hdu = metafits_fptr
-            .hdu(1)
-            .with_context(|| format!("Failed to open HDU 2 (tiledata table) for {:?}", metafits))?;
+        let mut metafits_fptr = fits_open!(&metafits)?;
+        let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
+        let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1)?;
 
         // Populate obsid from the metafits
-        let obsid = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "GPSTIME")
-            .with_context(|| format!("Failed to read GPSTIME for {:?}", metafits))?;
+        let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
         let (mut gpubox_batches, num_gpubox_files, corr_version, gpubox_time_map, hdu_size) =
             examine_gpubox_files(&gpuboxes)?;
 
@@ -281,9 +270,8 @@ impl mwalibContext {
         let num_timesteps = timesteps.len();
 
         // Create a vector of rf_input structs from the metafits
-        let num_rf_inputs =
-            get_required_fits_key::<usize>(&mut metafits_fptr, &metafits_hdu, "NINPUTS")
-                .with_context(|| format!("Failed to read NINPUTS for {:?}", metafits))?;
+        let num_rf_inputs: usize =
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "NINPUTS")?;
 
         // There are twice as many inputs as
         // there are antennas; halve that value.
@@ -317,20 +305,22 @@ impl mwalibContext {
         // auto-correlations.
         let num_baselines = (num_antennas / 2) * (num_antennas + 1);
 
-        let integration_time_milliseconds: u64 =
-            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "INTTIME")
-                .with_context(|| format!("Failed to read INTTIME for {:?}", metafits))?
-                * 1000.) as u64;
+        let integration_time_milliseconds: u64 = {
+            let it: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "INTTIME")?;
+            (it * 1000.) as _
+        };
+
         // observation bandwidth (read from metafits in MHz)
-        let metafits_observation_bandwidth_hz =
-            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")
-                .with_context(|| format!("Failed to read BANDWDTH for {:?}", metafits))?
-                * 1e6)
-                .round() as _;
+        let metafits_observation_bandwidth_hz: u32 = {
+            let bw: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")?;
+            (bw * 1e6).round() as _
+        };
+
         // Populate coarse channels
         let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
             coarse_channel::mwalibCoarseChannel::populate_coarse_channels(
                 &mut metafits_fptr,
+                &metafits_hdu,
                 corr_version,
                 metafits_observation_bandwidth_hz,
                 &gpubox_time_map,
@@ -339,11 +329,10 @@ impl mwalibContext {
 
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.
-        let fine_channel_width_hz =
-            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "FINECHAN")
-                .with_context(|| format!("Failed to read FINECHAN for {:?}", metafits))?
-                * 1000.)
-                .round() as _;
+        let fine_channel_width_hz: u32 = {
+            let fc: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FINECHAN")?;
+            (fc * 1000.).round() as _
+        };
 
         // Determine the number of fine channels per coarse channel.
         let num_fine_channels_per_coarse =
@@ -375,8 +364,7 @@ impl mwalibContext {
 
         // populate lots of useful metadata
         let scheduled_start_utc_string: String =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "DATE-OBS")
-                .with_context(|| format!("Failed to read DATE-OBS for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "DATE-OBS")?;
 
         let scheduled_start_utc_string_with_offset: String = scheduled_start_utc_string + "+00:00";
 
@@ -384,12 +372,11 @@ impl mwalibContext {
             DateTime::parse_from_rfc3339(&scheduled_start_utc_string_with_offset)
                 .expect("Unable to parse DATE-OBS into a date time");
         let scheduled_start_mjd: f64 =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "MJD")
-                .with_context(|| format!("Failed to read MJD for {:?}", metafits))?;
-        let scheduled_duration_milliseconds: u64 =
-            get_required_fits_key::<u64>(&mut metafits_fptr, &metafits_hdu, "EXPOSURE")
-                .with_context(|| format!("Failed to read EXPOSURE for {:?}", metafits))?
-                * 1000;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MJD")?;
+        let scheduled_duration_milliseconds: u64 = {
+            let ex: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "EXPOSURE")?;
+            ex * 1000
+        };
         let scheduled_end_utc =
             scheduled_start_utc + Duration::milliseconds(scheduled_duration_milliseconds as i64);
 
@@ -401,16 +388,14 @@ impl mwalibContext {
         let scheduled_end_gpstime_milliseconds: u64 =
             scheduled_start_gpstime_milliseconds + scheduled_duration_milliseconds;
 
-        let quack_time_duration_milliseconds: u64 =
-            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")
-                .with_context(|| format!("Failed to read QUACKTIM for {:?}", metafits))?
-                * 1000.)
-                .round() as _;
-        let good_time_unix_milliseconds: u64 =
-            (get_required_fits_key::<f64>(&mut metafits_fptr, &metafits_hdu, "GOODTIME")
-                .with_context(|| format!("Failed to read GOODTIME for {:?}", metafits))?
-                * 1000.)
-                .round() as _;
+        let quack_time_duration_milliseconds: u64 = {
+            let qt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")?;
+            (qt * 1000.).round() as _
+        };
+        let good_time_unix_milliseconds: u64 = {
+            let gt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GOODTIME")?;
+            (gt * 1000.).round() as _
+        };
 
         let scheduled_start_unix_time_milliseconds: u64 =
             good_time_unix_milliseconds - quack_time_duration_milliseconds;
@@ -418,54 +403,36 @@ impl mwalibContext {
             scheduled_start_unix_time_milliseconds + scheduled_duration_milliseconds;
 
         let ra_tile_pointing_degrees: f64 =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "RA")
-                .with_context(|| format!("Failed to read RA for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "RA")?;
         let dec_tile_pointing_degrees: f64 =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "DEC")
-                .with_context(|| format!("Failed to read DEC for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "DEC")?;
         let ra_phase_center_degrees: Option<f64> =
-            get_optional_fits_key(&mut metafits_fptr, &metafits_hdu, "RAPHASE")
-                .with_context(|| format!("Failed to read RAPHASE for {:?}", metafits))?;
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "RAPHASE")?;
         let dec_phase_center_degrees: Option<f64> =
-            get_optional_fits_key(&mut metafits_fptr, &metafits_hdu, "DECPHASE")
-                .with_context(|| format!("Failed to read DECPHASE for {:?}", metafits))?;
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DECPHASE")?;
         let azimuth_degrees: f64 =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "AZIMUTH")
-                .with_context(|| format!("Failed to read AZIMUTH for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "AZIMUTH")?;
         let altitude_degrees: f64 =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "ALTITUDE")
-                .with_context(|| format!("Failed to read ALTITUDE for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ALTITUDE")?;
         let sun_altitude_degrees: f64 =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "SUN-ALT")
-                .with_context(|| format!("Failed to read SUN-ALT for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "SUN-ALT")?;
         let sun_distance_degrees: f64 =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "SUN-DIST")
-                .with_context(|| format!("Failed to read SUN-DIST for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "SUN-DIST")?;
         let moon_distance_degrees: f64 =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "MOONDIST")
-                .with_context(|| format!("Failed to read MOONDIST for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MOONDIST")?;
         let jupiter_distance_degrees: f64 =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "JUP-DIST")
-                .with_context(|| format!("Failed to read JUP-DIST for {:?}", metafits))?;
-        let lst_degrees: f64 = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "LST")
-            .with_context(|| format!("Failed to read LST for {:?}", metafits))?;
-        let hour_angle_string = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "HA")
-            .with_context(|| format!("Failed to read HA for {:?}", metafits))?;
-        let grid_name = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "GRIDNAME")
-            .with_context(|| format!("Failed to read GRIDNAME for {:?}", metafits))?;
-        let grid_number = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")
-            .with_context(|| format!("Failed to read GRIDNUM for {:?}", metafits))?;
-        let creator = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "CREATOR")
-            .with_context(|| format!("Failed to read CREATOR for {:?}", metafits))?;
-        let project_id = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "PROJECT")
-            .with_context(|| format!("Failed to read PROJECT for {:?}", metafits))?;
-        let observation_name = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "FILENAME")
-            .with_context(|| format!("Failed to read FILENAME for {:?}", metafits))?;
-        let mode = get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "MODE")
-            .with_context(|| format!("Failed to read MODE for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "JUP-DIST")?;
+        let lst_degrees: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "LST")?;
+        let hour_angle_string = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "HA")?;
+        let grid_name = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNAME")?;
+        let grid_number = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")?;
+        let creator = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "CREATOR")?;
+        let project_id = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "PROJECT")?;
+        let observation_name =
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FILENAME")?;
+        let mode = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MODE")?;
         let receivers_string: String =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "RECVRS")
-                .with_context(|| format!("Failed to read RECVRS for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "RECVRS")?;
 
         let receivers: Vec<usize> = receivers_string
             .replace(&['\'', '&'][..], "")
@@ -474,8 +441,7 @@ impl mwalibContext {
             .collect();
 
         let delays_string: String =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "DELAYS")
-                .with_context(|| format!("Failed to read DELAYS for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "DELAYS")?;
 
         let delays: Vec<usize> = delays_string
             .replace(&['\'', '&'][..], "")
@@ -484,8 +450,7 @@ impl mwalibContext {
             .collect();
 
         let global_analogue_attenuation_db: f64 =
-            get_required_fits_key(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")
-                .with_context(|| format!("Failed to read ATTEN_DB for {:?}", metafits))?;
+            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?;
         // Prepare the conversion array to convert legacy correlator format into mwax format
         // or just leave it empty if we're in any other format
         let legacy_conversion_table: Vec<mwalibLegacyConversionBaseline> = if corr_version
@@ -560,7 +525,11 @@ impl mwalibContext {
             coarse_channel_width_hz,
             fine_channel_width_hz,
             observation_bandwidth_hz,
-            metafits_filename: metafits.to_string(),
+            metafits_filename: metafits
+                .as_ref()
+                .to_str()
+                .expect("Metafits filename is not UTF-8 compliant")
+                .to_string(),
             gpubox_batches,
             gpubox_time_map,
             num_gpubox_files,
@@ -588,7 +557,7 @@ impl mwalibContext {
     ///
     /// # Returns
     ///
-    /// * Result containing `Ok` if it is valid, or a `CustomErrorKind` if not valid.
+    /// * Result containing `Ok` if it is valid, or a custom `MwalibError` if not valid.
     ///
     ///
     pub fn validate_first_hdu(
@@ -597,9 +566,10 @@ impl mwalibContext {
         metafits_baselines: usize,
         visibility_pols: usize,
         gpubox_fptr: &mut fitsio::FitsFile,
-    ) -> Result<(), ErrorKind> {
+    ) -> Result<(), GpuboxError> {
         // Get NAXIS1 and NAXIS2 from a gpubox file first image HDU
-        let dimensions = get_hdu_image_size(gpubox_fptr)?;
+        let hdu = fits_open_hdu!(gpubox_fptr, 1)?;
+        let dimensions = get_hdu_image_size!(gpubox_fptr, &hdu)?;
         let naxis1 = dimensions[1];
         let naxis2 = dimensions[0];
 
@@ -633,7 +603,7 @@ impl mwalibContext {
     ///
     /// # Returns
     ///
-    /// * Result containing `Ok` if it is valid, or a `CustomErrorKind` if not valid.
+    /// * Result containing `Ok` if it is valid, or a custom `MwalibError` if not valid.
     ///
     ///
     pub fn validate_hdu_axes(
@@ -643,7 +613,7 @@ impl mwalibContext {
         visibility_pols: usize,
         naxis1: usize,
         naxis2: usize,
-    ) -> Result<(), ErrorKind> {
+    ) -> Result<(), GpuboxError> {
         // We have different values depending on the version of the correlator
         match corr_version {
             CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
@@ -653,15 +623,20 @@ impl mwalibContext {
                 let calculated_naxis2: i32 = metafits_fine_channels_per_coarse as i32;
 
                 if calculated_naxis1 != naxis1 as i32 {
-                    return Err(ErrorKind::Custom(format!(
-                    "NAXIS1 in first gpubox image HDU {} does not match expected value {} (metafits baselines [{}] * pols [{}] * 2 [r,i]). NAXIS2={}",
-                    naxis1, calculated_naxis1, metafits_baselines, visibility_pols, naxis2)));
+                    return Err(GpuboxError::LegacyNAXIS1Mismatch {
+                        naxis1,
+                        calculated_naxis1,
+                        metafits_baselines,
+                        visibility_pols,
+                        naxis2,
+                    });
                 }
                 if calculated_naxis2 != naxis2 as i32 {
-                    return Err(ErrorKind::Custom(format!(
-                    "NAXIS2 in first gpubox image HDU {} does not match expected value {} (metafits fine chans per coarse [{}])",
-                    naxis2, calculated_naxis2, metafits_fine_channels_per_coarse
-                )));
+                    return Err(GpuboxError::LegacyNAXIS2Mismatch {
+                        naxis2,
+                        calculated_naxis2,
+                        metafits_fine_channels_per_coarse,
+                    });
                 }
             }
             CorrelatorVersion::V2 => {
@@ -672,14 +647,20 @@ impl mwalibContext {
                 let calculated_naxis2: i32 = metafits_baselines as i32;
 
                 if calculated_naxis1 != naxis1 as i32 {
-                    return Err(ErrorKind::Custom(format!(
-                    "NAXIS1 in first gpubox image HDU {} does not match expected value {} (metafits fine chans per coarse [{}] * pols [{}] * 2 [r,i]. NAXIS2={})",
-                    naxis1, calculated_naxis1, metafits_fine_channels_per_coarse, visibility_pols, naxis2)));
+                    return Err(GpuboxError::MwaxNAXIS1Mismatch {
+                        naxis1,
+                        calculated_naxis1,
+                        metafits_fine_channels_per_coarse,
+                        visibility_pols,
+                        naxis2,
+                    });
                 }
                 if calculated_naxis2 != naxis2 as i32 {
-                    return Err(ErrorKind::Custom(format!(
-                    "NAXIS2 in first gpubox image HDU {} does not match expected value {} (metafits baselines [{}]",
-                    naxis2, calculated_naxis2, metafits_baselines)));
+                    return Err(GpuboxError::MwaxNAXIS2Mismatch {
+                        naxis2,
+                        calculated_naxis2,
+                        metafits_baselines,
+                    });
                 }
             }
         }
@@ -709,7 +690,7 @@ impl mwalibContext {
         &mut self,
         timestep_index: usize,
         coarse_channel_index: usize,
-    ) -> Result<Vec<f32>, fitsio::errors::Error> {
+    ) -> Result<Vec<f32>, FitsError> {
         // Output buffer for read in data
         let output_buffer: Vec<f32>;
 
@@ -735,8 +716,8 @@ impl mwalibContext {
 
         let mut fptr =
             &mut self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].fptr;
-        let hdu = fptr.hdu(hdu_index)?;
-        output_buffer = hdu.read_image(&mut fptr)?;
+        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
+        output_buffer = get_fits_image!(&mut fptr, &hdu)?;
         // If legacy correlator, then convert the HDU into the correct output format
         if self.corr_version == CorrelatorVersion::OldLegacy
             || self.corr_version == CorrelatorVersion::Legacy
@@ -776,7 +757,7 @@ impl mwalibContext {
         &mut self,
         timestep_index: usize,
         coarse_channel_index: usize,
-    ) -> Result<Vec<f32>, fitsio::errors::Error> {
+    ) -> Result<Vec<f32>, FitsError> {
         // Output buffer for read in data
         let output_buffer: Vec<f32>;
 
@@ -796,8 +777,8 @@ impl mwalibContext {
 
         let mut fptr =
             &mut self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].fptr;
-        let hdu = fptr.hdu(hdu_index)?;
-        output_buffer = hdu.read_image(&mut fptr)?;
+        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
+        output_buffer = get_fits_image!(&mut fptr, &hdu)?;
         // If legacy correlator, then convert the HDU into the correct output format
         if self.corr_version == CorrelatorVersion::OldLegacy
             || self.corr_version == CorrelatorVersion::Legacy
@@ -1010,11 +991,10 @@ mod tests {
     #[test]
     fn test_context_new_missing_gpubox_files() {
         let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
-        let metafits: String = String::from(metafits_filename);
-        let gpuboxfiles: Vec<String> = Vec::new();
+        let gpuboxfiles = Vec::new();
 
         // No gpubox files provided
-        let context = mwalibContext::new(&metafits, &gpuboxfiles);
+        let context = mwalibContext::new(&metafits_filename, &gpuboxfiles);
 
         assert!(context.is_err());
     }
@@ -1022,13 +1002,12 @@ mod tests {
     #[test]
     fn test_context_new_invalid_metafits() {
         let metafits_filename = "invalid.metafits";
-        let metafits: String = String::from(metafits_filename);
         let filename =
             "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
-        let gpuboxfiles: Vec<String> = vec![String::from(filename)];
+        let gpuboxfiles = vec![filename];
 
         // No gpubox files provided
-        let context = mwalibContext::new(&metafits, &gpuboxfiles);
+        let context = mwalibContext::new(&metafits_filename, &gpuboxfiles);
 
         assert!(context.is_err());
     }
@@ -1045,10 +1024,9 @@ mod tests {
         // Read the observation using mwalib
         //
         // Open a context and load in a test metafits and gpubox file
-        let metafits: String = String::from(metafits_filename);
-        let gpuboxfiles: Vec<String> = vec![String::from(filename)];
-        let context =
-            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+        let gpuboxfiles = vec![filename];
+        let context = mwalibContext::new(&metafits_filename, &gpuboxfiles)
+            .expect("Failed to create mwalibContext");
 
         // Test the properties of the context object match what we expect
         // Correlator version:       v1 Legacy,
@@ -1294,20 +1272,18 @@ mod tests {
         //
         // Read the mwax file using FITS
         //
-        let mut fptr = FitsFile::open(&mwax_filename).unwrap();
-        let fits_hdu = fptr.hdu(1).unwrap();
+        let mut fptr = fits_open!(&mwax_filename).unwrap();
+        let fits_hdu = fits_open_hdu!(&mut fptr, 1).unwrap();
 
         // Read data from fits hdu into vector
-        let fits_hdu_data: Vec<f32> = fits_hdu.read_image(&mut fptr).unwrap();
-
+        let fits_hdu_data: Vec<f32> = get_fits_image!(&mut fptr, &fits_hdu).unwrap();
         //
         // Read the mwax file by frequency using mwalib
         //
         // Open a context and load in a test metafits and gpubox file
-        let metafits: String = String::from(mwax_metafits_filename);
-        let gpuboxfiles: Vec<String> = vec![String::from(mwax_filename)];
-        let mut context =
-            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+        let gpuboxfiles = vec![mwax_filename];
+        let mut context = mwalibContext::new(&mwax_metafits_filename, &gpuboxfiles)
+            .expect("Failed to create mwalibContext");
 
         // Read and convert first HDU by baseline
         let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
@@ -1349,10 +1325,9 @@ mod tests {
         // Read the observation using mwalib
         //
         // Open a context and load in a test metafits and gpubox file
-        let metafits: String = String::from(metafits_filename);
-        let gpuboxfiles: Vec<String> = vec![String::from(filename)];
-        let mut context =
-            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+        let gpuboxfiles = vec![filename];
+        let mut context = mwalibContext::new(&metafits_filename, &gpuboxfiles)
+            .expect("Failed to create mwalibContext");
 
         let coarse_channel = context.coarse_channels[0].gpubox_number;
         let (batch_index, _) =

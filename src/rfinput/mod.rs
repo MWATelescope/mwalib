@@ -5,7 +5,9 @@
 /*!
 Structs and helper methods for rf_input metadata
 */
-use crate::*;
+pub mod error;
+use error::RfinputError;
+
 use std::fmt;
 
 /// VCS_ORDER is the order that comes out of PFB and into the correlator (for legacy observations)
@@ -156,63 +158,19 @@ impl mwalibRFInput {
         metafits_fptr: &mut fitsio::FitsFile,
         metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
         row: usize,
-    ) -> Result<mwalibRFInputMetafitsTableRow, ErrorKind> {
-        let input = metafits_tile_table_hdu
-            .read_cell_value(metafits_fptr, "Input", row)
-            .with_context(|| {
-                format!("Failed to read table row {} for Input from metafits.", row)
-            })?;
-
-        let antenna = metafits_tile_table_hdu
-            .read_cell_value(metafits_fptr, "Antenna", row)
-            .with_context(|| {
-                format!(
-                    "Failed to read table row {} for Antenna from metafits.",
-                    row
-                )
-            })?;
-
-        let tile_id = metafits_tile_table_hdu
-            .read_cell_value(metafits_fptr, "Tile", row)
-            .with_context(|| format!("Failed to read table row {} for Tile from metafits.", row))?;
-
-        let tile_name = metafits_tile_table_hdu
-            .read_cell_value(metafits_fptr, "TileName", row)
-            .with_context(|| {
-                format!(
-                    "Failed to read table row {} for TileName from metafits.",
-                    row
-                )
-            })?;
-
-        let pol: String = metafits_tile_table_hdu
-            .read_cell_value(metafits_fptr, "Pol", row)
-            .with_context(|| format!("Failed to read table row {} for Pol from metafits.", row))?;
+    ) -> Result<mwalibRFInputMetafitsTableRow, RfinputError> {
+        let input = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Input", row)?;
+        let antenna = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Antenna", row)?;
+        let tile_id = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Tile", row)?;
+        let tile_name = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "TileName", row)?;
+        let pol: String = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Pol", row)?;
         // Length is stored as a string (no one knows why) starting with "EL_" the rest is a float so remove the prefix and get the float
-        let length_string: String = metafits_tile_table_hdu
-            .read_cell_value(metafits_fptr, "Length", row)
-            .with_context(|| {
-                format!("Failed to read table row {} for Length from metafits.", row)
-            })?;
-        let north_m = metafits_tile_table_hdu
-            .read_cell_value(metafits_fptr, "North", row)
-            .with_context(|| {
-                format!("Failed to read table row {} for North from metafits.", row)
-            })?;
-
-        let east_m = metafits_tile_table_hdu
-            .read_cell_value(metafits_fptr, "East", row)
-            .with_context(|| format!("Failed to read table row {} for East from metafits.", row))?;
-
-        let height_m = metafits_tile_table_hdu
-            .read_cell_value(metafits_fptr, "Height", row)
-            .with_context(|| {
-                format!("Failed to read table row {} for Height from metafits", row)
-            })?;
-
-        let flag = metafits_tile_table_hdu
-            .read_cell_value(metafits_fptr, "Flag", row)
-            .with_context(|| format!("Failed to read table row {} for Flag from metafits", row))?;
+        let length_string: String =
+            read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Length", row)?;
+        let north_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "North", row)?;
+        let east_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "East", row)?;
+        let height_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Height", row)?;
+        let flag = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flag", row)?;
 
         Ok(mwalibRFInputMetafitsTableRow {
             input,
@@ -252,7 +210,7 @@ impl mwalibRFInput {
         metafits_fptr: &mut fitsio::FitsFile,
         metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
         coax_v_factor: f64,
-    ) -> Result<Vec<Self>, ErrorKind> {
+    ) -> Result<Vec<Self>, RfinputError> {
         let mut rf_inputs: Vec<Self> = Vec::with_capacity(num_inputs);
         for input in 0..num_inputs {
             // Note fits row numbers start at 1
@@ -289,6 +247,23 @@ impl mwalibRFInput {
     }
 }
 
+fn read_cell_value<T: fitsio::tables::ReadsCol>(
+    metafits_fptr: &mut fitsio::FitsFile,
+    metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: usize,
+) -> Result<T, RfinputError> {
+    match metafits_tile_table_hdu.read_cell_value(metafits_fptr, col_name, row) {
+        Ok(c) => Ok(c),
+        Err(_) => Err(RfinputError::Read {
+            fits_filename: metafits_fptr.filename.clone(),
+            hdu_num: metafits_tile_table_hdu.number + 1,
+            row_num: row,
+            col_name: col_name.to_string(),
+        }),
+    }
+}
+
 /// Implements fmt::Debug for mwalibRFInput struct
 ///
 /// # Arguments
@@ -311,8 +286,8 @@ impl fmt::Debug for mwalibRFInput {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::*;
     use fitsio::tables::{ColumnDataType, ColumnDescription};
-    use fitsio::*;
 
     #[test]
     fn test_get_vcs_order() {
@@ -356,21 +331,10 @@ mod tests {
 
     #[test]
     fn test_read_metafits_values_from_row_0() {
-        let metafits_filename =
-            String::from("test_files/1101503312_1_timestep/1101503312.metafits");
-        let mut metafits_fptr = FitsFile::open(&metafits_filename)
-            .with_context(|| format!("Failed to open {:?}", metafits_filename))
-            .unwrap();
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+        let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
 
-        let metafits_tile_table_hdu = metafits_fptr
-            .hdu(1)
-            .with_context(|| {
-                format!(
-                    "Failed to open HDU 2 (tiledata table) for {:?}",
-                    metafits_filename
-                )
-            })
-            .unwrap();
+        let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
 
         // Get values from row 1
         let row: mwalibRFInputMetafitsTableRow =
@@ -405,9 +369,9 @@ mod tests {
 
     #[test]
     fn test_read_metafits_values_from_invalid_metafits() {
-        let metafits_filename = String::from("read_metafits_values_from_invalid_metafits.metafits");
+        let metafits_filename = "read_metafits_values_from_invalid_metafits.metafits";
 
-        misc::with_new_temp_fits_file(&metafits_filename, |metafits_fptr| {
+        crate::misc::with_new_temp_fits_file(&metafits_filename, |metafits_fptr| {
             // Create a tiledata hdu
             let first_description = ColumnDescription::new("A")
                 .with_type(ColumnDataType::Int)
@@ -423,15 +387,7 @@ mod tests {
                 .create_table("TILEDATA".to_string(), &descriptions)
                 .unwrap();
 
-            let metafits_tile_table_hdu = metafits_fptr
-                .hdu(1)
-                .with_context(|| {
-                    format!(
-                        "Failed to open HDU 2 (tiledata table) for {:?}",
-                        metafits_filename
-                    )
-                })
-                .unwrap();
+            let metafits_tile_table_hdu = fits_open_hdu!(metafits_fptr, 1).unwrap();
 
             // Get values from row 1
             let metafits_result =

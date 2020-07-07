@@ -17,12 +17,12 @@ use mwalib::*;
 #[structopt(name = "mwalib-sum-first-fine-channel-gpubox-hdus", author)]
 struct Opt {
     /// Path to the metafits file.
-    #[structopt(short, long)]
-    metafits: String,
+    #[structopt(short, long, parse(from_os_str))]
+    metafits: std::path::PathBuf,
 
     /// Paths to the gpubox files.
-    #[structopt(name = "GPUBOX FILE")]
-    files: Vec<String>,
+    #[structopt(name = "GPUBOX FILE", parse(from_os_str))]
+    files: Vec<std::path::PathBuf>,
 }
 
 #[cfg(not(tarpaulin_include))]

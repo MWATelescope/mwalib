@@ -14,12 +14,12 @@ use mwalib::*;
 #[structopt(name = "mwalib-print-obs-context", author)]
 struct Opt {
     /// The path to an observation's metafits file.
-    #[structopt(short, long)]
-    metafits: String,
+    #[structopt(short, long, parse(from_os_str))]
+    metafits: std::path::PathBuf,
 
     /// Paths to the observation's gpubox files.
-    #[structopt(name = "GPUBOX FILE")]
-    files: Vec<String>,
+    #[structopt(name = "GPUBOX FILE", parse(from_os_str))]
+    files: Vec<std::path::PathBuf>,
 }
 
 #[cfg(not(tarpaulin_include))]

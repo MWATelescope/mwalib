@@ -511,9 +511,8 @@ pub fn convert_mwax_hdu_to_frequency_order(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{misc, mwalibContext};
+    use crate::*;
     use csv::*;
-    use fitsio::*;
     use float_cmp::*;
 
     #[test]
@@ -622,10 +621,9 @@ mod tests {
     #[test]
     fn test_conversion_of_legacy_hdu_to_mwax_baseline_order() {
         // Open a context and load in a test metafits and gpubox file
-        let metafits: String = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
-        let gpuboxfiles: Vec<String> = vec![String::from(
-            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
-        )];
+        let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
+        let gpuboxfiles =
+            vec!["test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits"];
         let mut context =
             mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
 
@@ -767,10 +765,9 @@ mod tests {
     #[test]
     fn test_conversion_of_legacy_hdu_to_mwax_frequency_order() {
         // Open a context and load in a test metafits and gpubox file
-        let metafits: String = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
-        let gpuboxfiles: Vec<String> = vec![String::from(
-            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
-        )];
+        let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
+        let gpuboxfiles =
+            vec!["test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits"];
         let mut context =
             mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
 
@@ -931,20 +928,19 @@ mod tests {
         //
         // Read the mwax file using FITS
         //
-        let mut fptr = FitsFile::open(&mwax_filename).unwrap();
-        let fits_hdu = fptr.hdu(1).unwrap();
+        let mut fptr = fits_open!(&mwax_filename).unwrap();
+        let fits_hdu = fits_open_hdu!(&mut fptr, 1).unwrap();
 
         // Read data from fits hdu into vector
-        let fits_hdu_data: Vec<f32> = fits_hdu.read_image(&mut fptr).unwrap();
+        let fits_hdu_data: Vec<f32> = get_fits_image!(&mut fptr, &fits_hdu).unwrap();
 
         //
         // Read the mwax file by frequency using mwalib
         //
         // Open a context and load in a test metafits and gpubox file
-        let metafits: String = String::from(mwax_metafits_filename);
-        let gpuboxfiles: Vec<String> = vec![String::from(mwax_filename)];
-        let mut context =
-            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+        let gpuboxfiles = vec![mwax_filename];
+        let mut context = mwalibContext::new(&mwax_metafits_filename, &gpuboxfiles)
+            .expect("Failed to create mwalibContext");
 
         // Read and convert first HDU
         let mwalib_hdu_data: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");

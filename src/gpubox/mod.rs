@@ -5,17 +5,19 @@
 /*!
 Functions for organising and checking the consistency of gpubox files.
 */
+
+pub mod error;
+
 use std::collections::BTreeMap;
 use std::fmt;
-use std::fmt::Debug;
-use std::string::ToString;
+use std::path::Path;
 
 use fitsio::{hdu::FitsHdu, FitsFile};
 use rayon::prelude::*;
 use regex::Regex;
 
-use crate::fits_read::*;
 use crate::*;
+pub use error::GpuboxError;
 
 #[derive(Debug)]
 pub struct ObsTimes {
@@ -135,7 +137,7 @@ lazy_static::lazy_static! {
 ///
 fn convert_temp_gpuboxes(
     temp_gpuboxes: Vec<TempGPUBoxFile>,
-) -> Result<Vec<GPUBoxBatch>, fitsio::errors::Error> {
+) -> Result<Vec<GPUBoxBatch>, FitsError> {
     // unwrap is safe as a check is performed above to ensure that there are
     // some files present.
     let num_batches = temp_gpuboxes.iter().map(|g| g.batch_number).max().unwrap() + 1;
@@ -145,7 +147,7 @@ fn convert_temp_gpuboxes(
     }
 
     for temp_g in temp_gpuboxes.into_iter() {
-        let fptr = FitsFile::open(&temp_g.filename)?;
+        let fptr = fits_open!(&temp_g.filename)?;
         let g = GPUBoxFile {
             filename: temp_g.filename.to_string(),
             channel_identifier: temp_g.channel_identifier,
@@ -201,7 +203,7 @@ fn convert_temp_gpuboxes(
 ///   data in each HDU.
 ///
 ///
-pub fn examine_gpubox_files<T: AsRef<str> + ToString + Debug>(
+pub fn examine_gpubox_files<T: AsRef<Path>>(
     gpubox_filenames: &[T],
 ) -> Result<
     (
@@ -211,7 +213,7 @@ pub fn examine_gpubox_files<T: AsRef<str> + ToString + Debug>(
         BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
         usize,
     ),
-    ErrorKind,
+    GpuboxError,
 > {
     let (temp_gpuboxes, corr_format, num_gpubox_files, _) =
         determine_gpubox_batches(gpubox_filenames)?;
@@ -222,26 +224,30 @@ pub fn examine_gpubox_files<T: AsRef<str> + ToString + Debug>(
 
     // Determine the size of each gpubox's image on HDU 1. mwalib will throw an
     // error if this size is not consistent for all gpubox files.
-    let mut hdu_size = 0;
+    let mut hdu_size: Option<usize> = None;
     for b in &mut gpubox_batches {
         for g in &mut b.gpubox_files {
-            let this_size = get_hdu_image_size(&mut g.fptr)?.iter().product();
-            if hdu_size == 0 {
-                hdu_size = this_size;
-            } else if hdu_size != this_size {
-                return Err(ErrorKind::Custom(
-                    "HDU sizes in gpubox files are not equal".to_string(),
-                ));
+            let hdu = fits_open_hdu!(&mut g.fptr, 1)?;
+            let this_size = get_hdu_image_size!(&mut g.fptr, &hdu)?.iter().product();
+            match hdu_size {
+                None => hdu_size = Some(this_size),
+                Some(s) => {
+                    if s != this_size {
+                        return Err(GpuboxError::UnequalHduSizes);
+                    }
+                }
             }
         }
     }
 
+    // `determine_gpubox_batches` fails if no gpubox files are supplied, so it
+    // is safe to unwrap hdu_size.
     Ok((
         gpubox_batches,
         num_gpubox_files,
         corr_format,
         gpubox_time_map,
-        hdu_size,
+        hdu_size.unwrap(),
     ))
 }
 
@@ -274,20 +280,26 @@ pub fn examine_gpubox_files<T: AsRef<str> + ToString + Debug>(
 ///   gpubox batches.
 ///
 ///
-fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
+fn determine_gpubox_batches<T: AsRef<Path>>(
     gpubox_filenames: &[T],
-) -> Result<(Vec<TempGPUBoxFile>, CorrelatorVersion, usize, usize), ErrorKind> {
+) -> Result<(Vec<TempGPUBoxFile>, CorrelatorVersion, usize, usize), GpuboxError> {
     if gpubox_filenames.is_empty() {
-        return Err(ErrorKind::Custom(
-            "determine_gpubox_batches: gpubox / mwax fits files missing".to_string(),
-        ));
+        return Err(GpuboxError::NoGpuboxes);
     }
     let num_gpubox_files = gpubox_filenames.len();
     let mut format = None;
     let mut temp_gpuboxes: Vec<TempGPUBoxFile> = Vec::with_capacity(gpubox_filenames.len());
 
-    for g in gpubox_filenames {
-        match RE_MWAX.captures(g.as_ref()) {
+    for g_path in gpubox_filenames {
+        // So that we can pass along useful error messages, convert the input
+        // filename type to a string slice. This will fail if the filename is
+        // not UTF-8 compliant, but, I don't think cfitsio will work in that
+        // case anyway.
+        let g = g_path
+            .as_ref()
+            .to_str()
+            .expect("gpubox filename is not UTF-8 compliant");
+        match RE_MWAX.captures(g) {
             Some(caps) => {
                 // Check if we've already matched any files as being the old
                 // format. If so, then we've got a mix, and we should exit
@@ -295,69 +307,51 @@ fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
                 match format {
                     None => format = Some(CorrelatorVersion::V2),
                     Some(CorrelatorVersion::V2) => (),
-                    _ => {
-                        return Err(ErrorKind::Custom(format!(
-                            "There are a mixture of gpubox filename types in {:?}",
-                            gpubox_filenames
-                        )))
-                    }
+                    _ => return Err(GpuboxError::Mixture),
                 }
 
+                // The following unwraps are safe, because the regex wouldn't
+                // work if they couldn't be parsed into ints.
                 temp_gpuboxes.push(TempGPUBoxFile {
-                    filename: g.as_ref(),
-                    channel_identifier: caps["channel"].parse()?,
-                    batch_number: caps["batch"].parse()?,
+                    filename: g,
+                    channel_identifier: caps["channel"].parse().unwrap(),
+                    batch_number: caps["batch"].parse().unwrap(),
                 });
             }
 
             // Try to match the legacy format.
-            None => match RE_LEGACY_BATCH.captures(g.as_ref()) {
+            None => match RE_LEGACY_BATCH.captures(g) {
                 Some(caps) => {
                     match format {
                         None => format = Some(CorrelatorVersion::Legacy),
                         Some(CorrelatorVersion::Legacy) => (),
-                        _ => {
-                            return Err(ErrorKind::Custom(format!(
-                                "There are a mixture of gpubox filename types in {:?}",
-                                gpubox_filenames
-                            )))
-                        }
+                        _ => return Err(GpuboxError::Mixture),
                     }
 
                     temp_gpuboxes.push(TempGPUBoxFile {
-                        filename: g.as_ref(),
-                        channel_identifier: caps["band"].parse()?,
-                        batch_number: caps["batch"].parse()?,
+                        filename: g,
+                        channel_identifier: caps["band"].parse().unwrap(),
+                        batch_number: caps["batch"].parse().unwrap(),
                     });
                 }
 
                 // Try to match the old legacy format.
-                None => match RE_OLD_LEGACY_FORMAT.captures(g.as_ref()) {
+                None => match RE_OLD_LEGACY_FORMAT.captures(g) {
                     Some(caps) => {
                         match format {
                             None => format = Some(CorrelatorVersion::OldLegacy),
                             Some(CorrelatorVersion::OldLegacy) => (),
-                            _ => {
-                                return Err(ErrorKind::Custom(format!(
-                                    "There are a mixture of gpubox filename types in {:?}",
-                                    gpubox_filenames
-                                )))
-                            }
+                            _ => return Err(GpuboxError::Mixture),
                         }
 
                         temp_gpuboxes.push(TempGPUBoxFile {
-                            filename: g.as_ref(),
-                            channel_identifier: caps["band"].parse()?,
+                            filename: g,
+                            channel_identifier: caps["band"].parse().unwrap(),
                             // There's only one batch.
                             batch_number: 0,
                         });
                     }
-                    None => {
-                        return Err(ErrorKind::Custom(format!(
-                            "Could not identify the gpubox filename structure for {:?}",
-                            g
-                        )))
-                    }
+                    None => return Err(GpuboxError::Unrecognised(g.to_string())),
                 },
             },
         }
@@ -369,22 +363,25 @@ fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
         *batches_and_files.entry(gpubox.batch_number).or_insert(0) += 1;
     }
 
-    let mut file_count = 0;
+    let mut file_count: Option<u8> = None;
     for (i, (batch_num, num_files)) in batches_and_files.iter().enumerate() {
         if i != *batch_num {
-            return Err(ErrorKind::Custom(format!(
-                "There is an entire gpubox batch missing (expected batch {} got {}).",
-                i, batch_num
-            )));
+            return Err(GpuboxError::BatchMissing {
+                expected: i,
+                got: *batch_num,
+            });
         }
 
-        if file_count == 0 {
-            file_count = *num_files;
-        } else if file_count != *num_files {
-            return Err(ErrorKind::Custom(format!(
-                "There are an uneven number of files in the gpubox batches {} vs {}.",
-                file_count, num_files
-            )));
+        match file_count {
+            None => file_count = Some(*num_files),
+            Some(c) => {
+                if c != *num_files {
+                    return Err(GpuboxError::UnevenCountInBatches {
+                        expected: c,
+                        got: *num_files,
+                    });
+                }
+            }
         }
     }
 
@@ -420,9 +417,10 @@ fn determine_gpubox_batches<T: AsRef<str> + ToString + Debug>(
 pub fn determine_hdu_time(
     gpubox_fptr: &mut FitsFile,
     metafits_hdu_fptr: &FitsHdu,
-) -> Result<u64, fitsio::errors::Error> {
-    let start_unix_time: i64 = metafits_hdu_fptr.read_key(gpubox_fptr, "TIME")?;
-    let start_unix_millitime: i64 = metafits_hdu_fptr.read_key(gpubox_fptr, "MILLITIM")?;
+) -> Result<u64, FitsError> {
+    let start_unix_time: u64 = get_required_fits_key!(gpubox_fptr, metafits_hdu_fptr, "TIME")?;
+    let start_unix_millitime: u64 =
+        get_required_fits_key!(gpubox_fptr, metafits_hdu_fptr, "MILLITIM")?;
     Ok((start_unix_time * 1000 + start_unix_millitime) as u64)
 }
 
@@ -445,7 +443,7 @@ pub fn determine_hdu_time(
 pub fn map_unix_times_to_hdus(
     gpubox_fptr: &mut FitsFile,
     correlator_version: CorrelatorVersion,
-) -> Result<BTreeMap<u64, usize>, fitsio::errors::Error> {
+) -> Result<BTreeMap<u64, usize>, FitsError> {
     let mut map = BTreeMap::new();
     let last_hdu_index = gpubox_fptr.iter().count();
     // The new correlator has a "weights" HDU in each alternating HDU. Skip
@@ -458,7 +456,7 @@ pub fn map_unix_times_to_hdus(
     // Ignore the first HDU in all gpubox files; it contains only a little
     // metadata.
     for hdu_index in (1..last_hdu_index).step_by(step_size) {
-        let hdu = gpubox_fptr.hdu(hdu_index)?;
+        let hdu = fits_open_hdu!(gpubox_fptr, hdu_index)?;
         let time = determine_hdu_time(gpubox_fptr, &hdu)?;
         map.insert(time, hdu_index);
     }
@@ -483,7 +481,7 @@ pub fn map_unix_times_to_hdus(
 ///
 /// # Returns
 ///
-/// * A Result containing `Ok` or an `ErrorKind` if it fails validation.
+/// * A Result containing `Ok` or an `MwalibError` if it fails validation.
 ///
 ///
 pub fn validate_gpubox_metadata_correlator_version(
@@ -491,40 +489,30 @@ pub fn validate_gpubox_metadata_correlator_version(
     gpubox_primary_hdu: &FitsHdu,
     gpubox_filename: &str,
     correlator_version: CorrelatorVersion,
-) -> Result<(), ErrorKind> {
+) -> Result<(), GpuboxError> {
     // New correlator files include a version - check that it is present.
     // For pre v2, ensure the key isn't present
-    let gpu_corr_version =
-        get_optional_fits_key::<u8>(gpubox_fptr, &gpubox_primary_hdu, "CORR_VER").unwrap();
+    let gpu_corr_version: Option<u8> =
+        get_optional_fits_key!(gpubox_fptr, &gpubox_primary_hdu, "CORR_VER")?;
 
     match correlator_version {
-        CorrelatorVersion::V2 => {
-            match gpu_corr_version {
-                None => Err(ErrorKind::Custom(format!(
-                    "gpubox::validate_gpubox_metadata_correlator_version: Failed to read key CORR_VER from {}",
-                    gpubox_filename
-                ))),
-                Some(gpu_corr_version_value) => {
-                    match gpu_corr_version_value {
-                        2 => Ok(()),
-                        _ => Err(ErrorKind::Custom(format!(
-                            "gpubox::validate_gpubox_metadata_correlator_version: CORR_VER {} from {} does not match expected value of 2",
-                            gpu_corr_version_value, gpubox_filename
-                        )))
-                    }
-                }
-            }
-        }
+        CorrelatorVersion::V2 => match gpu_corr_version {
+            None => Err(GpuboxError::MWAXCorrVerMissing(gpubox_filename.to_string())),
+            Some(gpu_corr_version_value) => match gpu_corr_version_value {
+                2 => Ok(()),
+                _ => Err(GpuboxError::MWAXCorrVerMismatch(
+                    gpubox_filename.to_string(),
+                )),
+            },
+        },
 
-        CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
-            match gpu_corr_version {
-                None => Ok(()),
-                Some(gpu_corr_version_value) => Err(ErrorKind::Custom(format!(
-                    "gpubox::validate_gpubox_metadata_correlator_version: Correlator version mismatch: gpubox filenames indicate OldLegacy or 
-                    Legacy but {} has CORR_VER = {:?}", gpubox_filename, gpu_corr_version_value),
-                ))
-            }
-        }
+        CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => match gpu_corr_version {
+            None => Ok(()),
+            Some(gpu_corr_version_value) => Err(GpuboxError::CorrVerMismatch {
+                gpubox_filename: gpubox_filename.to_string(),
+                gpu_corr_version_value,
+            }),
+        },
     }
 }
 
@@ -545,7 +533,7 @@ pub fn validate_gpubox_metadata_correlator_version(
 ///
 /// # Returns
 ///
-/// * A Result containing `Ok` or an `ErrorKind` if it fails validation.
+/// * A Result containing `Ok` or an `MwalibError` if it fails validation.
 ///
 ///
 pub fn validate_gpubox_metadata_obs_id(
@@ -553,22 +541,19 @@ pub fn validate_gpubox_metadata_obs_id(
     gpubox_primary_hdu: &FitsHdu,
     gpubox_filename: &str,
     metafits_obsid: u32,
-) -> Result<(), ErrorKind> {
+) -> Result<(), GpuboxError> {
     // Get the OBSID- if not present, this is probably not an MWA fits file!
-    let gpu_obs_id = get_required_fits_key::<u32>(gpubox_fptr, &gpubox_primary_hdu, "OBSID")
-        .with_context(|| {
-            format!(
-                "gpubox::validate_gpubox_metadata_obs_id: Failed to read OBSID for {} - is this an MWA fits file?",
-                gpubox_filename
-            )
-        })?;
+    let gpu_obs_id: u32 = match get_required_fits_key!(gpubox_fptr, gpubox_primary_hdu, "OBSID") {
+        Ok(o) => o,
+        Err(_) => return Err(GpuboxError::MissingObsid(gpubox_filename.to_string())),
+    };
 
     if gpu_obs_id != metafits_obsid {
-        Err(ErrorKind::Custom(format!(
-            "gpubox::validate_gpubox_metadata_obs_id: OBSID {} from {} does not match expected value of obs_id from metafits file {} 
-            maybe you have a mix of different files?",
-            gpu_obs_id, gpubox_filename, metafits_obsid
-        )))
+        return Err(GpuboxError::ObsidMismatch {
+            obsid: metafits_obsid,
+            gpubox_filename: gpubox_filename.to_string(),
+            gpubox_obsid: gpu_obs_id,
+        });
     } else {
         Ok(())
     }
@@ -593,46 +578,37 @@ pub fn validate_gpubox_metadata_obs_id(
 fn create_time_map(
     gpuboxes: &[TempGPUBoxFile],
     correlator_version: CorrelatorVersion,
-) -> Result<BTreeMap<u64, BTreeMap<usize, (usize, usize)>>, ErrorKind> {
+) -> Result<BTreeMap<u64, BTreeMap<usize, (usize, usize)>>, GpuboxError> {
     // Ugly hack to open up all the HDUs of the gpubox files in parallel. We
     // can't do this over the `GPUBoxBatch` or `GPUBoxFile` structs because they
     // contain the `FitsFile` struct, which does not implement the `Send`
     // trait. `ThreadsafeFitsFile` does contain this, but does not allow
-    // iteration. It seems like the smaller evil to just iterate over the
+    // iteration. It seems like the smaller evil is to just iterate over the
     // filenames here and get the relevant info out of the HDUs before things
     // get too complicated elsewhere.
 
     // In parallel, open up all the fits files and get their HDU times. rayon
-    // preserves the order of the input argument, so there is no need to keep
-    // the temporary gpubox file along with its times. In any case, doing so is
-    // difficult!
+    // preserves the order of the input arguments, so there is no need to keep
+    // the temporary gpubox files along with their times. In any case, handling
+    // that would be difficult!
     let maps = gpuboxes
-        .par_iter()
+        .into_par_iter()
         .map(|g| {
-            let mut fptr = FitsFile::open(&g.filename)
-                .with_context(|| format!("Failed to open {}", g.filename))?;
-            let hdu = fptr
-                .hdu(0)
-                .with_context(|| format!("Failed to open HDU 1 of {}", g.filename))?;
+            let mut fptr = fits_open!(&g.filename)?;
+            let hdu = fits_open_hdu!(&mut fptr, 0)?;
 
             // New correlator files include a version - check that it is present.
             if correlator_version == CorrelatorVersion::V2 {
-                let v = get_required_fits_key::<u8>(&mut fptr, &hdu, "CORR_VER")
-                    .with_context(|| format!("Failed to read key CORR_VER from {}", g.filename))?;
+                let v: u8 = get_required_fits_key!(&mut fptr, &hdu, "CORR_VER")?;
                 if v != 2 {
-                    return Err(ErrorKind::Custom(
-                        "MWAX gpubox file had a CORR_VER not equal to 2".to_string(),
-                    ));
+                    return Err(GpuboxError::MWAXCorrVerMismatch(g.filename.to_string()));
                 }
             }
 
             // Get the UNIX times from each of the HDUs of this `FitsFile`.
-            match map_unix_times_to_hdus(&mut fptr, correlator_version) {
-                Ok(m) => Ok(m),
-                Err(e) => Err(ErrorKind::Fitsio(e)),
-            }
+            map_unix_times_to_hdus(&mut fptr, correlator_version).map_err(|e| GpuboxError::from(e))
         })
-        .collect::<Vec<Result<BTreeMap<u64, usize>, ErrorKind>>>();
+        .collect::<Vec<Result<BTreeMap<u64, usize>, GpuboxError>>>();
 
     // Collapse all of the gpubox time maps into a single map.
     let mut gpubox_time_map = BTreeMap::new();
@@ -687,34 +663,23 @@ fn create_time_map(
 pub fn determine_obs_times(
     gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
     integration_time_ms: u64,
-) -> Result<ObsTimes, ErrorKind> {
+) -> Result<ObsTimes, GpuboxError> {
     // Find the maximum number of gpubox files, and assume that this is the
     // total number of input gpubox files.
     let size = match gpubox_time_map.iter().map(|(_, submap)| submap.len()).max() {
         Some(m) => m,
-        None => {
-            return Err(ErrorKind::Custom(
-                "determine_obs_times: Input BTreeMap was empty".to_string(),
-            ))
-        }
+        None => return Err(GpuboxError::EmptyBTreeMap),
     };
 
     // Filter the first elements that don't satisfy `submap.len() == size`. The
     // first and last of the submaps that satisfy this condition are the proper
     // start and end of the observation.
 
-    // Is there a way to iterate only once?
     let mut i = gpubox_time_map
         .iter()
         .filter(|(_, submap)| submap.len() == size);
-    let proper_start_millisec = match i.next().map(|(time, _)| *time) {
-        Some(s) => s,
-        None => {
-            return Err(ErrorKind::Custom(
-                "determine_obs_times: proper_start_millisec was not set".to_string(),
-            ))
-        }
-    };
+    // unwrap is safe because an empty map is checked above.
+    let proper_start_millisec = i.next().map(|(time, _)| *time).unwrap();
     let proper_end_millisec = match i.last().map(|(time, _)| *time) {
         Some(s) => s,
         None => {

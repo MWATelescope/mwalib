@@ -4,7 +4,6 @@
 
 /// Given gpubox files, add the contents of their HDUs and report the sum.
 use anyhow::*;
-use fitsio::FitsFile;
 use structopt::StructOpt;
 
 use mwalib::*;
@@ -20,25 +19,25 @@ struct Opt {
     direct: bool,
 
     /// Path to the metafits file.
-    #[structopt(short, long)]
-    metafits: String,
+    #[structopt(short, long, parse(from_os_str))]
+    metafits: std::path::PathBuf,
 
     /// Paths to the gpubox files.
-    #[structopt(name = "GPUBOX FILE")]
-    files: Vec<String>,
+    #[structopt(name = "GPUBOX FILE", parse(from_os_str))]
+    files: Vec<std::path::PathBuf>,
 }
 
 #[cfg(not(tarpaulin_include))]
-fn sum_direct(files: Vec<String>) -> Result<(), anyhow::Error> {
+fn sum_direct(files: Vec<std::path::PathBuf>) -> Result<(), anyhow::Error> {
     println!("Summing directly from HDUs...");
     let mut sum: f64 = 0.0;
     for gpubox in files {
-        println!("Reading {}", gpubox);
+        println!("Reading {}", gpubox.display());
         let mut hdu_index = 1;
         let mut s: f64 = 0.0;
-        let mut fptr = FitsFile::open(&gpubox)?;
-        while let Ok(hdu) = fptr.hdu(hdu_index) {
-            let buffer: Vec<f32> = hdu.read_image(&mut fptr)?;
+        let mut fptr = fits_open!(&gpubox)?;
+        while let Ok(hdu) = fits_open_hdu!(&mut fptr, hdu_index) {
+            let buffer: Vec<f32> = get_fits_image!(&mut fptr, &hdu)?;
             s += buffer.iter().map(|v| *v as f64).sum::<f64>();
             hdu_index += 1;
         }
@@ -52,9 +51,9 @@ fn sum_direct(files: Vec<String>) -> Result<(), anyhow::Error> {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn sum_mwalib(metafits: String, files: Vec<String>) -> Result<(), anyhow::Error> {
+fn sum_mwalib<T: AsRef<std::path::Path>>(metafits: &T, files: &[T]) -> Result<(), anyhow::Error> {
     println!("Summing via mwalib using read_by_baseline()...");
-    let mut context = mwalibContext::new(&metafits, &files)?;
+    let mut context = mwalibContext::new(metafits, files)?;
     println!("Correlator version: {}", context.corr_version);
 
     let mut sum: f64 = 0.0;
@@ -91,7 +90,7 @@ fn main() -> Result<(), anyhow::Error> {
     if opts.direct {
         sum_direct(opts.files)?;
     } else {
-        sum_mwalib(opts.metafits, opts.files)?;
+        sum_mwalib(&opts.metafits, &opts.files)?;
     }
 
     Ok(())

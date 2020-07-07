@@ -5,7 +5,6 @@
 /*!
 Structs and helper methods for coarse channel metadata
 */
-use crate::fits_read::*;
 use crate::*;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -115,15 +114,17 @@ impl mwalibCoarseChannel {
     ///
     pub fn populate_coarse_channels(
         metafits_fptr: &mut fitsio::FitsFile,
+        hdu: &fitsio::hdu::FitsHdu,
         corr_version: context::CorrelatorVersion,
         observation_bandwidth_hz: u32,
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
-    ) -> Result<(Vec<Self>, usize, u32), ErrorKind> {
+    ) -> Result<(Vec<Self>, usize, u32), FitsError> {
         // The coarse-channels string uses the FITS "CONTINUE" keywords. The
         // fitsio library for rust does not (appear) to handle CONTINUE keywords
         // at present, but the underlying fitsio-sys does, so we have to do FFI
         // directly.
-        let coarse_channels_string = get_required_fits_key_long_string(metafits_fptr, "CHANNELS")?;
+        let coarse_channels_string =
+            get_required_fits_key_long_string!(metafits_fptr, hdu, "CHANNELS")?;
 
         // Get the vector of coarse channels from the metafits
         let coarse_channel_vec = Self::get_metafits_coarse_channel_array(&coarse_channels_string);
@@ -157,8 +158,8 @@ impl mwalibCoarseChannel {
     ///
     /// `coarse_channel_vec` - Vector of receiver channel numbers read from the metafits CHANNELS string value.
     ///
-    /// `gpubox_time_map` - BTreeMap detailing which timesteps exist and which gpuboxes and channels were provided by the client.  
-    ///  
+    /// `gpubox_time_map` - BTreeMap detailing which timesteps exist and which gpuboxes and channels were provided by the client.
+    ///
     ///
     /// # Returns
     ///
