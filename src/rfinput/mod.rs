@@ -132,8 +132,10 @@ struct mwalibRFInputMetafitsTableRow {
     pub height_m: f64,
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flag: i32,
-    // Gains - TODO these are implemented as arrays of ints which is not supported by fitsio crate at this time
-    // Delays - TODO these are implemented as arrays of ints which is not supported by fitsio crate at this time
+    /// Digital gains
+    pub gains: Vec<i16>,
+    /// Dipole delays
+    pub delays: Vec<i16>,
 }
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
@@ -169,6 +171,10 @@ pub struct mwalibRFInput {
     pub subfile_order: u32,
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flagged: bool,
+    /// Digital gains
+    pub gains: Vec<i16>,
+    /// Dipole delays
+    pub delays: Vec<i16>,
 }
 
 impl mwalibRFInput {
@@ -218,6 +224,20 @@ impl mwalibRFInput {
         let east_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "East", row)?;
         let height_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Height", row)?;
         let flag = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flag", row)?;
+        let gains = read_cell_array(
+            metafits_fptr,
+            metafits_tile_table_hdu,
+            "Gains",
+            row as i64,
+            24,
+        )?;
+        let delays = read_cell_array(
+            metafits_fptr,
+            metafits_tile_table_hdu,
+            "Delays",
+            row as i64,
+            16,
+        )?;
 
         Ok(mwalibRFInputMetafitsTableRow {
             input,
@@ -230,6 +250,8 @@ impl mwalibRFInput {
             east_m,
             height_m,
             flag,
+            gains,
+            delays,
         })
     }
 
@@ -288,6 +310,8 @@ impl mwalibRFInput {
                 vcs_order,
                 subfile_order,
                 flagged: metafits_row.flag == 1,
+                gains: metafits_row.gains,
+                delays: metafits_row.delays,
             })
         }
         Ok(rf_inputs)
@@ -308,6 +332,74 @@ fn read_cell_value<T: fitsio::tables::ReadsCol>(
             row_num: row,
             col_name: col_name.to_string(),
         }),
+    }
+}
+
+/// Pull out the array-in-a-cell values. This function assumes that the output
+/// datatype is i16, and that the fits datatype is TINT, so it is not to be used
+/// generally!
+fn read_cell_array(
+    metafits_fptr: &mut fitsio::FitsFile,
+    metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: i64,
+    n_elem: i64,
+) -> Result<Vec<i16>, RfinputError> {
+    unsafe {
+        // With the column name, get the column number.
+        let mut status = 0;
+        let mut col_num = -1;
+        let keyword = std::ffi::CString::new(col_name).unwrap();
+        fitsio_sys::ffgcno(
+            metafits_fptr.as_raw(),
+            0,
+            keyword.as_ptr() as *mut libc::c_char,
+            &mut col_num,
+            &mut status,
+        );
+        // Check the status.
+        if status != 0 {
+            return Err(RfinputError::CellArray {
+                fits_filename: metafits_fptr.filename.clone(),
+                hdu_num: metafits_tile_table_hdu.number + 1,
+                row_num: row,
+                col_name: col_name.to_string(),
+            });
+        }
+
+        // Now get the specified row from that column.
+        // cfitsio is stupid. The data we want fits in i16, but we're forced to
+        // unpack it into i32. Demote the data at the end.
+        let mut array: Vec<u32> = vec![0; n_elem as usize];
+        array.shrink_to_fit();
+        let array_ptr = array.as_mut_ptr();
+        fitsio_sys::ffgcv(
+            metafits_fptr.as_raw(),
+            31,
+            col_num,
+            row + 1,
+            1,
+            n_elem,
+            std::ptr::null_mut(),
+            array_ptr as *mut core::ffi::c_void,
+            &mut 0,
+            &mut status,
+        );
+
+        // Check the status.
+        match status {
+            0 => {
+                // Re-assemble the raw array into a Rust Vector.
+                let v = std::slice::from_raw_parts(array_ptr, n_elem as usize);
+                Ok(v.into_iter().map(|v| *v as _).collect())
+            }
+            _ => Err(RfinputError::CellArray {
+                fits_filename: metafits_fptr.filename.clone(),
+                hdu_num: metafits_tile_table_hdu.number + 1,
+                row_num: row,
+                col_name: col_name.to_string(),
+            }),
+        }
     }
 }
 
@@ -374,6 +466,22 @@ mod tests {
             get_electrical_length(String::from("16"), 1.204),
             float_cmp::F64Margin::default()
         ));
+    }
+
+    #[test]
+    fn test_read_cell_array() {
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+        let mut fptr = fits_open!(&metafits_filename).unwrap();
+        let hdu = fits_open_hdu!(&mut fptr, 1).unwrap();
+
+        let delays = read_cell_array(&mut fptr, &hdu, "Delays", 0, 16);
+        assert!(delays.is_ok());
+
+        let gains = read_cell_array(&mut fptr, &hdu, "Gains", 0, 24);
+        assert!(gains.is_ok());
+
+        let asdf = read_cell_array(&mut fptr, &hdu, "NotReal", 0, 24);
+        assert!(asdf.is_err());
     }
 
     #[test]

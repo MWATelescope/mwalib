@@ -28,6 +28,15 @@ pub enum RfinputError {
         got: String,
     },
 
+    /// Error when attempting to read a cell array.
+    #[error("{fits_filename} HDU {hdu_num}: Failed to read cell array from column {col_name}, row {row_num} from metafits")]
+    CellArray {
+        fits_filename: String,
+        hdu_num: usize,
+        row_num: i64,
+        col_name: String,
+    },
+
     /// An error derived from `FitsError`.
     #[error("{0}")]
     Fits(#[from] crate::fits_read::error::FitsError),

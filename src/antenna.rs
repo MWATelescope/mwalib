@@ -113,6 +113,8 @@ mod tests {
             vcs_order: 0,
             subfile_order: 0,
             flagged: false,
+            delays: vec![],
+            gains: vec![],
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -128,6 +130,8 @@ mod tests {
             vcs_order: 4,
             subfile_order: 1,
             flagged: false,
+            delays: vec![],
+            gains: vec![],
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -143,6 +147,8 @@ mod tests {
             vcs_order: 0,
             subfile_order: 0,
             flagged: false,
+            delays: vec![],
+            gains: vec![],
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -158,6 +164,8 @@ mod tests {
             vcs_order: 4,
             subfile_order: 1,
             flagged: false,
+            delays: vec![],
+            gains: vec![],
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -173,6 +181,8 @@ mod tests {
             vcs_order: 0,
             subfile_order: 0,
             flagged: false,
+            delays: vec![],
+            gains: vec![],
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -188,6 +198,8 @@ mod tests {
             vcs_order: 4,
             subfile_order: 1,
             flagged: false,
+            delays: vec![],
+            gains: vec![],
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -203,6 +215,8 @@ mod tests {
             vcs_order: 0,
             subfile_order: 0,
             flagged: false,
+            delays: vec![],
+            gains: vec![],
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -218,6 +232,8 @@ mod tests {
             vcs_order: 4,
             subfile_order: 1,
             flagged: false,
+            delays: vec![],
+            gains: vec![],
         });
 
         // Call populate
