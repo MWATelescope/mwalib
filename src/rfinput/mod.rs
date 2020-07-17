@@ -41,8 +41,8 @@ fn get_vcs_order(input: u32) -> u32 {
 /// * a number between 0 and N-1 (where N is the number of tiles * 2). First tile would have 0 for X, 1 for Y.
 ///   Second tile would have 2 for X, 3 for Y, etc.
 ///
-fn get_mwax_order(antenna: u32, pol: String) -> u32 {
-    (antenna * 2) + (if pol == "Y" { 1 } else { 0 })
+fn get_mwax_order(antenna: u32, pol: Pol) -> u32 {
+    (antenna * 2) + (if pol == Pol::Y { 1 } else { 0 })
 }
 
 /// Returns the electrical length for this rf_input.
@@ -71,6 +71,39 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
     }
 }
 
+/// Instrument polarisation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Pol {
+    X,
+    Y,
+}
+
+/// Implements fmt::Display for Pol
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+#[cfg(not(tarpaulin_include))]
+impl fmt::Display for Pol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Pol::X => "X",
+                Pol::Y => "Y",
+            }
+        )
+    }
+}
+
 #[allow(non_camel_case_types)]
 /// Structure to hold one row of the metafits tiledata table
 struct mwalibRFInputMetafitsTableRow {
@@ -88,7 +121,7 @@ struct mwalibRFInputMetafitsTableRow {
     /// X and Y have the same name
     pub tile_name: String,
     /// Polarisation - X or Y
-    pub pol: String,
+    pub pol: Pol,
     /// Electrical length in metres for this antenna and polarisation to the receiver
     pub length_string: String,
     /// Antenna position North from the array centre (metres)
@@ -121,7 +154,7 @@ pub struct mwalibRFInput {
     /// X and Y have the same name
     pub tile_name: String,
     /// Polarisation - X or Y
-    pub pol: String,
+    pub pol: Pol,
     /// Electrical length in metres for this antenna and polarisation to the receiver
     pub electrical_length_m: f64,
     /// Antenna position North from the array centre (metres)
@@ -163,7 +196,21 @@ impl mwalibRFInput {
         let antenna = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Antenna", row)?;
         let tile_id = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Tile", row)?;
         let tile_name = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "TileName", row)?;
-        let pol: String = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Pol", row)?;
+        let pol = {
+            let p: String = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Pol", row)?;
+            match p.as_str() {
+                "X" => Pol::X,
+                "Y" => Pol::Y,
+                _ => {
+                    return Err(RfinputError::UnrecognisedPol {
+                        fits_filename: metafits_fptr.filename.clone(),
+                        hdu_num: metafits_tile_table_hdu.number + 1,
+                        row_num: row,
+                        got: p,
+                    })
+                }
+            }
+        };
         // Length is stored as a string (no one knows why) starting with "EL_" the rest is a float so remove the prefix and get the float
         let length_string: String =
             read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Length", row)?;
@@ -226,7 +273,7 @@ impl mwalibRFInput {
                 get_electrical_length(metafits_row.length_string, coax_v_factor);
 
             let vcs_order = get_vcs_order(metafits_row.input);
-            let subfile_order = get_mwax_order(metafits_row.antenna, metafits_row.pol.to_string());
+            let subfile_order = get_mwax_order(metafits_row.antenna, metafits_row.pol);
 
             rf_inputs.push(Self {
                 input: metafits_row.input,
@@ -255,7 +302,7 @@ fn read_cell_value<T: fitsio::tables::ReadsCol>(
 ) -> Result<T, RfinputError> {
     match metafits_tile_table_hdu.read_cell_value(metafits_fptr, col_name, row) {
         Ok(c) => Ok(c),
-        Err(_) => Err(RfinputError::Read {
+        Err(_) => Err(RfinputError::ReadCell {
             fits_filename: metafits_fptr.filename.clone(),
             hdu_num: metafits_tile_table_hdu.number + 1,
             row_num: row,
@@ -303,14 +350,14 @@ mod tests {
 
     #[test]
     fn test_get_mwax_order() {
-        assert_eq!(0, get_mwax_order(0, String::from("X")));
-        assert_eq!(1, get_mwax_order(0, String::from("Y")));
-        assert_eq!(32, get_mwax_order(16, String::from("X")));
-        assert_eq!(33, get_mwax_order(16, String::from("Y")));
-        assert_eq!(120, get_mwax_order(60, String::from("X")));
-        assert_eq!(121, get_mwax_order(60, String::from("Y")));
-        assert_eq!(254, get_mwax_order(127, String::from("X")));
-        assert_eq!(255, get_mwax_order(127, String::from("Y")));
+        assert_eq!(0, get_mwax_order(0, Pol::X));
+        assert_eq!(1, get_mwax_order(0, Pol::Y));
+        assert_eq!(32, get_mwax_order(16, Pol::X));
+        assert_eq!(33, get_mwax_order(16, Pol::Y));
+        assert_eq!(120, get_mwax_order(60, Pol::X));
+        assert_eq!(121, get_mwax_order(60, Pol::Y));
+        assert_eq!(254, get_mwax_order(127, Pol::X));
+        assert_eq!(255, get_mwax_order(127, Pol::Y));
     }
 
     #[test]
@@ -344,7 +391,7 @@ mod tests {
         assert_eq!(row.antenna, 75);
         assert_eq!(row.tile_id, 104);
         assert_eq!(row.tile_name, "Tile104");
-        assert_eq!(row.pol, "Y");
+        assert_eq!(row.pol, Pol::Y);
         assert_eq!(row.length_string, "EL_-756.49");
         assert!(float_cmp::approx_eq!(
             f64,

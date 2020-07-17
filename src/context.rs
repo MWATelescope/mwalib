@@ -1211,9 +1211,9 @@ mod tests {
 
         // rf_inputs:                [Tile011X, Tile011Y, ... Tile168X, Tile168Y],
         assert_eq!(context.num_rf_inputs, 256);
-        assert_eq!(context.rf_inputs[0].pol, "X");
+        assert_eq!(context.rf_inputs[0].pol, Pol::X);
         assert_eq!(context.rf_inputs[0].tile_name, "Tile011");
-        assert_eq!(context.rf_inputs[255].pol, "Y");
+        assert_eq!(context.rf_inputs[255].pol, Pol::Y);
         assert_eq!(context.rf_inputs[255].tile_name, "Tile168");
 
         // num baselines:            8256,

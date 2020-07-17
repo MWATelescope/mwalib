@@ -855,7 +855,7 @@ pub unsafe extern "C" fn mwalibRFInput_get(
             tile_name: CString::new(String::from(&context.rf_inputs[rf_input_index].tile_name))
                 .unwrap()
                 .into_raw(),
-            pol: CString::new(String::from(&context.rf_inputs[rf_input_index].pol))
+            pol: CString::new(context.rf_inputs[rf_input_index].pol.to_string())
                 .unwrap()
                 .into_raw(),
             electrical_length_m: context.rf_inputs[rf_input_index].electrical_length_m,

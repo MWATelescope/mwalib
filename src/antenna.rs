@@ -105,7 +105,7 @@ mod tests {
             antenna: 101,
             tile_id: 101,
             tile_name: String::from("Tile101"),
-            pol: String::from("X"),
+            pol: Pol::X,
             electrical_length_m: 101.,
             north_m: 11.,
             east_m: 21.,
@@ -120,7 +120,7 @@ mod tests {
             antenna: 101,
             tile_id: 101,
             tile_name: String::from("Tile101"),
-            pol: String::from("Y"),
+            pol: Pol::Y,
             electrical_length_m: 102.,
             north_m: 12.,
             east_m: 22.,
@@ -135,7 +135,7 @@ mod tests {
             antenna: 102,
             tile_id: 102,
             tile_name: String::from("Tile102"),
-            pol: String::from("X"),
+            pol: Pol::X,
             electrical_length_m: 103.,
             north_m: 13.,
             east_m: 23.,
@@ -150,7 +150,7 @@ mod tests {
             antenna: 102,
             tile_id: 102,
             tile_name: String::from("Tile102"),
-            pol: String::from("Y"),
+            pol: Pol::Y,
             electrical_length_m: 104.,
             north_m: 14.,
             east_m: 24.,
@@ -165,7 +165,7 @@ mod tests {
             antenna: 103,
             tile_id: 103,
             tile_name: String::from("Tile103"),
-            pol: String::from("X"),
+            pol: Pol::X,
             electrical_length_m: 105.,
             north_m: 15.,
             east_m: 25.,
@@ -180,7 +180,7 @@ mod tests {
             antenna: 103,
             tile_id: 103,
             tile_name: String::from("Tile103"),
-            pol: String::from("Y"),
+            pol: Pol::Y,
             electrical_length_m: 106.,
             north_m: 16.,
             east_m: 26.,
@@ -195,7 +195,7 @@ mod tests {
             antenna: 104,
             tile_id: 104,
             tile_name: String::from("Tile104"),
-            pol: String::from("X"),
+            pol: Pol::X,
             electrical_length_m: 107.,
             north_m: 17.,
             east_m: 27.,
@@ -210,7 +210,7 @@ mod tests {
             antenna: 104,
             tile_id: 104,
             tile_name: String::from("Tile104"),
-            pol: String::from("Y"),
+            pol: Pol::Y,
             electrical_length_m: 108.,
             north_m: 18.,
             east_m: 28.,
@@ -227,7 +227,7 @@ mod tests {
         assert_eq!(antennas.len(), 4);
         assert_eq!(antennas[0].tile_id, 101);
         assert_eq!(antennas[0].antenna, 101);
-        assert_eq!(antennas[1].y_pol.pol, "Y");
+        assert_eq!(antennas[1].y_pol.pol, Pol::Y);
         assert_eq!(antennas[1].tile_name, "Tile102");
         assert_eq!(antennas[2].tile_name, "Tile103");
         assert_eq!(antennas[2].x_pol.input, 4);

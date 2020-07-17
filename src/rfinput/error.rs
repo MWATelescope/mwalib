@@ -10,13 +10,22 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum RfinputError {
-    /// Error when opening a fits file.
+    /// Error when reading from an MWA metafits table cell.
     #[error("{fits_filename} HDU {hdu_num}: Failed to read table row {row_num} for {col_name} from metafits")]
-    Read {
+    ReadCell {
         fits_filename: String,
         hdu_num: usize,
         row_num: usize,
         col_name: String,
+    },
+
+    /// Error when reading in a Rfinput's polarisation.
+    #[error("{fits_filename} HDU {hdu_num}: Did not recognise the polarisation at in row {row_num} ({got}); expected X or Y")]
+    UnrecognisedPol {
+        fits_filename: String,
+        hdu_num: usize,
+        row_num: usize,
+        got: String,
     },
 
     /// An error derived from `FitsError`.

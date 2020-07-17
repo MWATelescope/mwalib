@@ -20,7 +20,8 @@ pub mod timestep;
 pub mod visibility_pol;
 
 // Re-exports.
-pub use context::mwalibContext;
-pub use context::CorrelatorVersion;
+pub use antenna::*;
+pub use context::{mwalibContext, CorrelatorVersion};
 pub use error::MwalibError;
 pub use fits_read::*;
+pub use rfinput::*;
