@@ -237,13 +237,6 @@ impl mwalibContext {
         metafits: &T,
         gpuboxes: &[T],
     ) -> Result<Self, MwalibError> {
-        // Do the file stuff upfront.
-        // Check that at least one gpubox file is
-        // present.
-        if gpuboxes.is_empty() {
-            return Err(MwalibError::from(GpuboxError::NoGpuboxes));
-        }
-
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
         let mut metafits_fptr = fits_open!(&metafits)?;
@@ -252,8 +245,6 @@ impl mwalibContext {
 
         // Populate obsid from the metafits
         let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
-        let (mut gpubox_batches, num_gpubox_files, corr_version, gpubox_time_map, hdu_size) =
-            examine_gpubox_files(&gpuboxes)?;
 
         // from MWA_Tools/CONV2UVFITS/convutils.h
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
@@ -263,10 +254,60 @@ impl mwalibContext {
         let mwa_longitude_radians: f64 = dms_to_degrees(116, 40, 14.93485).to_radians(); // 116d40m14.93485s
         let mwa_altitude_metres: f64 = 377.827;
 
-        // Populate our array of timesteps. We can unwrap here because the
-        // `gpubox_time_map` can't be empty, as we assert that gpubox files must
-        // be present at the start of this function.
-        let timesteps = mwalibTimeStep::populate_timesteps(&gpubox_time_map).unwrap();
+        let integration_time_milliseconds: u64 = {
+            let it: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "INTTIME")?;
+            (it * 1000.) as _
+        };
+        let quack_time_duration_milliseconds: u64 = {
+            let qt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")?;
+            (qt * 1000.).round() as _
+        };
+        let good_time_unix_milliseconds: u64 = {
+            let gt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GOODTIME")?;
+            (gt * 1000.).round() as _
+        };
+
+        let (mut gpubox_batches, num_gpubox_files, corr_version, gpubox_time_map, hdu_size, timesteps) =
+        // Do gpubox stuff only if we have gpubox files.
+            if !gpuboxes.is_empty() {
+                let (gpubox_batches, num_gpubox_files, corr_version, gpubox_time_map, hdu_size) = examine_gpubox_files(&gpuboxes)?;
+                // We can unwrap here because the `gpubox_time_map` can't be empty if
+                // `gpuboxes` isn't empty.
+                let timesteps = mwalibTimeStep::populate_timesteps(&gpubox_time_map).unwrap();
+                (gpubox_batches, num_gpubox_files, corr_version, gpubox_time_map, hdu_size, timesteps)
+            } else {
+                // If there are no gpubox files, then we need to use metafits info.
+                let nscans: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "NSCANS")?;
+                let timesteps: Vec<mwalibTimeStep> = (0..nscans)
+                    .into_iter()
+                    .map(|i| {
+                        let time = good_time_unix_milliseconds + i * integration_time_milliseconds;
+                        mwalibTimeStep::new(time)
+                    })
+                    .collect();
+
+                // Make a fake `gpubox_time_map`.
+                let channels: Vec<usize> = {
+                    let s: String = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "CHANSEL")?;
+                    s.replace(&['\'', '&'][..], "")
+                        .split(',')
+                        .map(|s| s.parse::<usize>().unwrap() + 1)
+                        .collect()
+                };
+
+                let mut gpubox_time_map = BTreeMap::new();
+                for (i, time) in timesteps.iter().enumerate() {
+                    for channel in &channels {
+                        gpubox_time_map
+                            .entry(time.unix_time_ms)
+                            .or_insert_with(BTreeMap::new)
+                            .entry(*channel)
+                            .or_insert((0, i));
+                    }
+                }
+
+                (vec![], 0, CorrelatorVersion::Legacy, gpubox_time_map, 0, timesteps)
+            };
         let num_timesteps = timesteps.len();
 
         // Create a vector of rf_input structs from the metafits
@@ -305,11 +346,6 @@ impl mwalibContext {
         // auto-correlations.
         let num_baselines = (num_antennas / 2) * (num_antennas + 1);
 
-        let integration_time_milliseconds: u64 = {
-            let it: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "INTTIME")?;
-            (it * 1000.) as _
-        };
-
         // observation bandwidth (read from metafits in MHz)
         let metafits_observation_bandwidth_hz: u32 = {
             let bw: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")?;
@@ -339,7 +375,7 @@ impl mwalibContext {
             (coarse_channel_width_hz / fine_channel_width_hz) as usize;
 
         // We have enough information to validate HDU matches metafits
-        {
+        if !gpuboxes.is_empty() {
             let coarse_channel = coarse_channels[0].gpubox_number;
             let (batch_index, _) = gpubox_time_map[&timesteps[0].unix_time_ms][&coarse_channel];
 
@@ -387,15 +423,6 @@ impl mwalibContext {
         let scheduled_start_gpstime_milliseconds: u64 = obsid as u64 * 1000;
         let scheduled_end_gpstime_milliseconds: u64 =
             scheduled_start_gpstime_milliseconds + scheduled_duration_milliseconds;
-
-        let quack_time_duration_milliseconds: u64 = {
-            let qt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")?;
-            (qt * 1000.).round() as _
-        };
-        let good_time_unix_milliseconds: u64 = {
-            let gt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GOODTIME")?;
-            (gt * 1000.).round() as _
-        };
 
         let scheduled_start_unix_time_milliseconds: u64 =
             good_time_unix_milliseconds - quack_time_duration_milliseconds;
@@ -690,7 +717,7 @@ impl mwalibContext {
         &mut self,
         timestep_index: usize,
         coarse_channel_index: usize,
-    ) -> Result<Vec<f32>, FitsError> {
+    ) -> Result<Vec<f32>, GpuboxError> {
         // Output buffer for read in data
         let output_buffer: Vec<f32>;
 
@@ -714,6 +741,9 @@ impl mwalibContext {
         let (batch_index, hdu_index) =
             self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
 
+        if self.gpubox_batches.is_empty() {
+            return Err(GpuboxError::NoGpuboxes);
+        }
         let mut fptr =
             &mut self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].fptr;
         let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
@@ -757,7 +787,7 @@ impl mwalibContext {
         &mut self,
         timestep_index: usize,
         coarse_channel_index: usize,
-    ) -> Result<Vec<f32>, FitsError> {
+    ) -> Result<Vec<f32>, GpuboxError> {
         // Output buffer for read in data
         let output_buffer: Vec<f32>;
 
@@ -775,6 +805,9 @@ impl mwalibContext {
         let (batch_index, hdu_index) =
             self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
 
+        if self.gpubox_batches.is_empty() {
+            return Err(GpuboxError::NoGpuboxes);
+        }
         let mut fptr =
             &mut self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].fptr;
         let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
@@ -995,8 +1028,10 @@ mod tests {
 
         // No gpubox files provided
         let context = mwalibContext::new(&metafits_filename, &gpuboxfiles);
+        assert!(context.is_ok());
+        let context = context.unwrap();
 
-        assert!(context.is_err());
+        assert!(context.gpubox_batches.is_empty());
     }
 
     #[test]
