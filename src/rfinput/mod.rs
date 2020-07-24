@@ -391,7 +391,7 @@ fn read_cell_array(
             0 => {
                 // Re-assemble the raw array into a Rust Vector.
                 let v = std::slice::from_raw_parts(array_ptr, n_elem as usize);
-                Ok(v.into_iter().map(|v| *v as _).collect())
+                Ok(v.iter().map(|v| *v as _).collect())
             }
             _ => Err(RfinputError::CellArray {
                 fits_filename: metafits_fptr.filename.clone(),

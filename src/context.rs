@@ -267,19 +267,18 @@ impl mwalibContext {
             (gt * 1000.).round() as _
         };
 
-        let (mut gpubox_batches, num_gpubox_files, corr_version, gpubox_time_map, hdu_size, timesteps) =
+        let (mut gpubox_info, timesteps) =
         // Do gpubox stuff only if we have gpubox files.
             if !gpuboxes.is_empty() {
-                let (gpubox_batches, num_gpubox_files, corr_version, gpubox_time_map, hdu_size) = examine_gpubox_files(&gpuboxes)?;
+                let gpubox_info = examine_gpubox_files(&gpuboxes)?;
                 // We can unwrap here because the `gpubox_time_map` can't be empty if
                 // `gpuboxes` isn't empty.
-                let timesteps = mwalibTimeStep::populate_timesteps(&gpubox_time_map).unwrap();
-                (gpubox_batches, num_gpubox_files, corr_version, gpubox_time_map, hdu_size, timesteps)
+                let timesteps = mwalibTimeStep::populate_timesteps(&gpubox_info.time_map).unwrap();
+                (gpubox_info, timesteps)
             } else {
                 // If there are no gpubox files, then we need to use metafits info.
                 let nscans: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "NSCANS")?;
                 let timesteps: Vec<mwalibTimeStep> = (0..nscans)
-                    .into_iter()
                     .map(|i| {
                         let time = good_time_unix_milliseconds + i * integration_time_milliseconds;
                         mwalibTimeStep::new(time)
@@ -306,7 +305,12 @@ impl mwalibContext {
                     }
                 }
 
-                (vec![], 0, CorrelatorVersion::Legacy, gpubox_time_map, 0, timesteps)
+                (GpuboxInfo {
+                    batches: vec![],
+                    corr_format: CorrelatorVersion::Legacy,
+                    time_map: gpubox_time_map,
+                    hdu_size: 0
+                }, timesteps)
             };
         let num_timesteps = timesteps.len();
 
@@ -357,9 +361,9 @@ impl mwalibContext {
             coarse_channel::mwalibCoarseChannel::populate_coarse_channels(
                 &mut metafits_fptr,
                 &metafits_hdu,
-                corr_version,
+                gpubox_info.corr_format,
                 metafits_observation_bandwidth_hz,
-                &gpubox_time_map,
+                &gpubox_info.time_map,
             )?;
         let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
 
@@ -377,12 +381,13 @@ impl mwalibContext {
         // We have enough information to validate HDU matches metafits
         if !gpuboxes.is_empty() {
             let coarse_channel = coarse_channels[0].gpubox_number;
-            let (batch_index, _) = gpubox_time_map[&timesteps[0].unix_time_ms][&coarse_channel];
+            let (batch_index, _) =
+                gpubox_info.time_map[&timesteps[0].unix_time_ms][&coarse_channel];
 
-            let mut fptr = &mut gpubox_batches[batch_index].gpubox_files[0].fptr;
+            let mut fptr = &mut gpubox_info.batches[batch_index].gpubox_files[0].fptr;
 
             mwalibContext::validate_first_hdu(
-                corr_version,
+                gpubox_info.corr_format,
                 num_fine_channels_per_coarse,
                 num_baselines,
                 num_visibility_pols,
@@ -394,7 +399,7 @@ impl mwalibContext {
         // Start= start of first timestep
         // End  = start of last timestep + integration time
         let (start_unix_time_milliseconds, end_unix_time_milliseconds, duration_milliseconds) = {
-            let o = determine_obs_times(&gpubox_time_map, integration_time_milliseconds)?;
+            let o = determine_obs_times(&gpubox_info.time_map, integration_time_milliseconds)?;
             (o.start_millisec, o.end_millisec, o.duration_millisec)
         };
 
@@ -480,14 +485,13 @@ impl mwalibContext {
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?;
         // Prepare the conversion array to convert legacy correlator format into mwax format
         // or just leave it empty if we're in any other format
-        let legacy_conversion_table: Vec<mwalibLegacyConversionBaseline> = if corr_version
-            == CorrelatorVersion::OldLegacy
-            || corr_version == CorrelatorVersion::Legacy
-        {
-            convert::generate_conversion_array(&mut rf_inputs)
-        } else {
-            Vec::new()
-        };
+        let legacy_conversion_table: Vec<mwalibLegacyConversionBaseline> =
+            match gpubox_info.corr_format {
+                CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
+                    convert::generate_conversion_array(&mut rf_inputs)
+                }
+                _ => Vec::new(),
+            };
 
         // Sort the rf_inputs back into the correct output order
         rf_inputs.sort_by_key(|k| k.subfile_order);
@@ -497,7 +501,7 @@ impl mwalibContext {
             mwa_latitude_radians,
             mwa_longitude_radians,
             mwa_altitude_metres,
-            corr_version,
+            corr_version: gpubox_info.corr_format,
             obsid,
             scheduled_start_unix_time_milliseconds,
             scheduled_end_unix_time_milliseconds,
@@ -557,11 +561,11 @@ impl mwalibContext {
                 .to_str()
                 .expect("Metafits filename is not UTF-8 compliant")
                 .to_string(),
-            gpubox_batches,
-            gpubox_time_map,
-            num_gpubox_files,
-            num_timestep_coarse_channel_bytes: hdu_size * 4,
-            num_timestep_coarse_channel_floats: hdu_size,
+            gpubox_batches: gpubox_info.batches,
+            gpubox_time_map: gpubox_info.time_map,
+            num_gpubox_files: gpuboxes.len(),
+            num_timestep_coarse_channel_bytes: gpubox_info.hdu_size * 4,
+            num_timestep_coarse_channel_floats: gpubox_info.hdu_size,
             legacy_conversion_table,
         })
     }

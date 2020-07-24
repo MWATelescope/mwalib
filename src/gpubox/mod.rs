@@ -169,6 +169,25 @@ fn convert_temp_gpuboxes(
     Ok(gpubox_batches)
 }
 
+/// A type alias for a horrible type:
+/// `BTreeMap<u64, BTreeMap<usize, (usize, usize)>>`
+///
+/// The outer-most keys are UNIX times in milliseconds, which correspond to the
+/// unique times available to HDU files in supplied gpubox files. Each of these
+/// keys is associated with a tree; the keys of these trees are the gpubox
+/// coarse-channel numbers, which then refer to gpubox batch numbers and HDU
+/// indices.
+pub type GpuboxTimeMap = BTreeMap<u64, BTreeMap<usize, (usize, usize)>>;
+
+/// A little struct to help us not get confused when dealing with the returned
+/// values from complex functions.
+pub struct GpuboxInfo {
+    pub batches: Vec<GPUBoxBatch>,
+    pub corr_format: CorrelatorVersion,
+    pub time_map: GpuboxTimeMap,
+    pub hdu_size: usize,
+}
+
 /// This function unpacks the metadata associated with input gpubox files. The
 /// input filenames are grouped into into batches. A "gpubox batch" refers to
 /// the number XX in a gpubox filename
@@ -205,27 +224,17 @@ fn convert_temp_gpuboxes(
 ///
 pub fn examine_gpubox_files<T: AsRef<Path>>(
     gpubox_filenames: &[T],
-) -> Result<
-    (
-        Vec<GPUBoxBatch>,
-        usize,
-        CorrelatorVersion,
-        BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
-        usize,
-    ),
-    GpuboxError,
-> {
-    let (temp_gpuboxes, corr_format, num_gpubox_files, _) =
-        determine_gpubox_batches(gpubox_filenames)?;
+) -> Result<GpuboxInfo, GpuboxError> {
+    let (temp_gpuboxes, corr_format, _) = determine_gpubox_batches(gpubox_filenames)?;
 
-    let gpubox_time_map = create_time_map(&temp_gpuboxes, corr_format)?;
+    let time_map = create_time_map(&temp_gpuboxes, corr_format)?;
 
-    let mut gpubox_batches = convert_temp_gpuboxes(temp_gpuboxes)?;
+    let mut batches = convert_temp_gpuboxes(temp_gpuboxes)?;
 
     // Determine the size of each gpubox's image on HDU 1. mwalib will throw an
     // error if this size is not consistent for all gpubox files.
     let mut hdu_size: Option<usize> = None;
-    for b in &mut gpubox_batches {
+    for b in &mut batches {
         for g in &mut b.gpubox_files {
             let hdu = fits_open_hdu!(&mut g.fptr, 1)?;
             let this_size = get_hdu_image_size!(&mut g.fptr, &hdu)?.iter().product();
@@ -242,13 +251,12 @@ pub fn examine_gpubox_files<T: AsRef<Path>>(
 
     // `determine_gpubox_batches` fails if no gpubox files are supplied, so it
     // is safe to unwrap hdu_size.
-    Ok((
-        gpubox_batches,
-        num_gpubox_files,
+    Ok(GpuboxInfo {
+        batches,
         corr_format,
-        gpubox_time_map,
-        hdu_size.unwrap(),
-    ))
+        time_map,
+        hdu_size: hdu_size.unwrap(),
+    })
 }
 
 /// Group input gpubox files into batches. A "gpubox batch" refers to the number
@@ -282,11 +290,10 @@ pub fn examine_gpubox_files<T: AsRef<Path>>(
 ///
 fn determine_gpubox_batches<T: AsRef<Path>>(
     gpubox_filenames: &[T],
-) -> Result<(Vec<TempGPUBoxFile>, CorrelatorVersion, usize, usize), GpuboxError> {
+) -> Result<(Vec<TempGPUBoxFile>, CorrelatorVersion, usize), GpuboxError> {
     if gpubox_filenames.is_empty() {
         return Err(GpuboxError::NoGpuboxes);
     }
-    let num_gpubox_files = gpubox_filenames.len();
     let mut format = None;
     let mut temp_gpuboxes: Vec<TempGPUBoxFile> = Vec::with_capacity(gpubox_filenames.len());
 
@@ -389,12 +396,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
     // number, then channel identifier.
     temp_gpuboxes.sort_unstable_by_key(|g| (g.batch_number, g.channel_identifier));
 
-    Ok((
-        temp_gpuboxes,
-        format.unwrap(),
-        num_gpubox_files,
-        batches_and_files.len(),
-    ))
+    Ok((temp_gpuboxes, format.unwrap(), batches_and_files.len()))
 }
 
 /// Given a FITS file pointer and HDU, determine the time in units of
@@ -549,11 +551,11 @@ pub fn validate_gpubox_metadata_obs_id(
     };
 
     if gpu_obs_id != metafits_obsid {
-        return Err(GpuboxError::ObsidMismatch {
+        Err(GpuboxError::ObsidMismatch {
             obsid: metafits_obsid,
             gpubox_filename: gpubox_filename.to_string(),
             gpubox_obsid: gpu_obs_id,
-        });
+        })
     } else {
         Ok(())
     }
@@ -578,7 +580,7 @@ pub fn validate_gpubox_metadata_obs_id(
 fn create_time_map(
     gpuboxes: &[TempGPUBoxFile],
     correlator_version: CorrelatorVersion,
-) -> Result<BTreeMap<u64, BTreeMap<usize, (usize, usize)>>, GpuboxError> {
+) -> Result<GpuboxTimeMap, GpuboxError> {
     // Ugly hack to open up all the HDUs of the gpubox files in parallel. We
     // can't do this over the `GPUBoxBatch` or `GPUBoxFile` structs because they
     // contain the `FitsFile` struct, which does not implement the `Send`
@@ -606,7 +608,7 @@ fn create_time_map(
             }
 
             // Get the UNIX times from each of the HDUs of this `FitsFile`.
-            map_unix_times_to_hdus(&mut fptr, correlator_version).map_err(|e| GpuboxError::from(e))
+            map_unix_times_to_hdus(&mut fptr, correlator_version).map_err(GpuboxError::from)
         })
         .collect::<Vec<Result<BTreeMap<u64, usize>, GpuboxError>>>();
 
@@ -711,9 +713,8 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (temp_gpuboxes, corr_format, num_gpubox_files, num_batches) = result.unwrap();
+        let (temp_gpuboxes, corr_format, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
-        assert_eq!(num_gpubox_files, 3);
         assert_eq!(num_batches, 3);
 
         let expected_gpuboxes = vec![
@@ -746,9 +747,8 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files, num_batches) = result.unwrap();
+        let (gpubox_batches, corr_format, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
-        assert_eq!(num_gpubox_files, 3);
         assert_eq!(num_batches, 3);
         let expected_batches = vec![
             TempGPUBoxFile {
@@ -783,9 +783,8 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files, num_batches) = result.unwrap();
+        let (gpubox_batches, corr_format, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
-        assert_eq!(num_gpubox_files, 6);
         assert_eq!(num_batches, 3);
 
         let expected_batches = vec![
@@ -836,9 +835,8 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files, num_batches) = result.unwrap();
+        let (gpubox_batches, corr_format, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
-        assert_eq!(num_gpubox_files, 6);
         assert_eq!(num_batches, 3);
 
         let expected_batches = vec![
@@ -932,9 +930,8 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files, num_batches) = result.unwrap();
+        let (gpubox_batches, corr_format, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::OldLegacy);
-        assert_eq!(num_gpubox_files, 3);
         assert_eq!(num_batches, 1);
 
         let expected_batches = vec![
@@ -968,9 +965,8 @@ mod tests {
         ];
         let result = determine_gpubox_batches(&files);
         assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_gpubox_files, num_batches) = result.unwrap();
+        let (gpubox_batches, corr_format, num_batches) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::V2);
-        assert_eq!(num_gpubox_files, 4);
         assert_eq!(num_batches, 2);
 
         let expected_batches = vec![

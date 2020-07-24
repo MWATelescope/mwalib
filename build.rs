@@ -11,11 +11,10 @@ fn main() {
     // AND
     // 2. libcfitsio.a needs to have been built with the following ./configure statement:
     //    ./configure --disable-curl --prefix=/usr/local --enable-reentrant
-    match env::var("MWALIB_LINK_STATIC_CFITSIO") {
-        Ok(val) => match val.as_str() {
+    if let Ok(val) = env::var("MWALIB_LINK_STATIC_CFITSIO") {
+        match val.as_str() {
             "0" => (),
             _ => println!("cargo:rustc-link-lib=static=cfitsio"),
-        },
-        Err(_) => (),
+        }
     }
 }
