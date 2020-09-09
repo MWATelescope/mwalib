@@ -186,6 +186,8 @@ pub struct mwalibContext {
     pub observation_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,
+    /// The value of the FREQCENT key in the metafits file, but in Hz.
+    pub metafits_centre_freq_hz: u32,
     /// Number of fine channels in each coarse channel
     pub num_fine_channels_per_coarse: usize,
     /// Filename of the metafits we were given
@@ -374,6 +376,13 @@ impl mwalibContext {
             (fc * 1000.).round() as _
         };
 
+        // Fine-channel resolution. The FINECHAN value in the metafits is in units
+        // of kHz - make it Hz.
+        let metafits_centre_freq_hz: u32 = {
+            let cf: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FREQCENT")?;
+            (cf * 1e6).round() as _
+        };
+
         // Determine the number of fine channels per coarse channel.
         let num_fine_channels_per_coarse =
             (coarse_channel_width_hz / fine_channel_width_hz) as usize;
@@ -497,16 +506,15 @@ impl mwalibContext {
         rf_inputs.sort_by_key(|k| k.subfile_order);
 
         Ok(mwalibContext {
-            coax_v_factor,
             mwa_latitude_radians,
             mwa_longitude_radians,
             mwa_altitude_metres,
-            corr_version: gpubox_info.corr_format,
+            coax_v_factor,
             obsid,
-            scheduled_start_unix_time_milliseconds,
-            scheduled_end_unix_time_milliseconds,
             scheduled_start_gpstime_milliseconds,
             scheduled_end_gpstime_milliseconds,
+            scheduled_start_unix_time_milliseconds,
+            scheduled_end_unix_time_milliseconds,
             scheduled_start_utc,
             scheduled_end_utc,
             scheduled_start_mjd,
@@ -524,17 +532,18 @@ impl mwalibContext {
             jupiter_distance_degrees,
             lst_degrees,
             hour_angle_string,
-            receivers,
-            delays,
             grid_name,
             grid_number,
             creator,
             project_id,
             observation_name,
             mode,
+            receivers,
+            delays,
             global_analogue_attenuation_db,
             quack_time_duration_milliseconds,
             good_time_unix_milliseconds,
+            corr_version: gpubox_info.corr_format,
             start_unix_time_milliseconds,
             end_unix_time_milliseconds,
             duration_milliseconds,
@@ -546,16 +555,17 @@ impl mwalibContext {
             baselines,
             num_rf_inputs,
             rf_inputs,
-            integration_time_milliseconds,
             num_antenna_pols,
             num_visibility_pols,
             visibility_pols,
-            num_fine_channels_per_coarse,
             num_coarse_channels,
             coarse_channels,
-            coarse_channel_width_hz,
+            integration_time_milliseconds,
             fine_channel_width_hz,
             observation_bandwidth_hz,
+            coarse_channel_width_hz,
+            metafits_centre_freq_hz,
+            num_fine_channels_per_coarse,
             metafits_filename: metafits
                 .as_ref()
                 .to_str()
@@ -563,9 +573,9 @@ impl mwalibContext {
                 .to_string(),
             gpubox_batches: gpubox_info.batches,
             gpubox_time_map: gpubox_info.time_map,
-            num_gpubox_files: gpuboxes.len(),
             num_timestep_coarse_channel_bytes: gpubox_info.hdu_size * 4,
             num_timestep_coarse_channel_floats: gpubox_info.hdu_size,
+            num_gpubox_files: gpuboxes.len(),
             legacy_conversion_table,
         })
     }
@@ -928,6 +938,7 @@ impl fmt::Display for mwalibContext {
     observation bandwidth:    {obw} MHz,
     num coarse channels,      {n_coarse},
     coarse channels:          {coarse:?},
+    metafits FREQCENT key:    {freqcent} MHz,
 
     Correlator Mode:
     Mode:                     {mode},
@@ -1008,6 +1019,7 @@ impl fmt::Display for mwalibContext {
             obw = self.observation_bandwidth_hz as f64 / 1e6,
             n_coarse = self.num_coarse_channels,
             coarse = self.coarse_channels,
+            freqcent = self.metafits_centre_freq_hz as f64 / 1e6,
             mode = self.mode,
             fcw = self.fine_channel_width_hz as f64 / 1e3,
             int_time = self.integration_time_milliseconds as f64 / 1e3,
