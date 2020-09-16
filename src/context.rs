@@ -15,7 +15,6 @@ use crate::baseline::*;
 use crate::coarse_channel::*;
 use crate::convert::*;
 use crate::gpubox::*;
-use crate::misc::*;
 use crate::rfinput::*;
 use crate::timestep::*;
 use crate::visibility_pol::*;
@@ -251,10 +250,6 @@ impl mwalibContext {
         // from MWA_Tools/CONV2UVFITS/convutils.h
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
         let coax_v_factor: f64 = 1.204;
-
-        let mwa_latitude_radians: f64 = dms_to_degrees(-26, 42, 11.94986).to_radians(); // -26d42m11.94986s
-        let mwa_longitude_radians: f64 = dms_to_degrees(116, 40, 14.93485).to_radians(); // 116d40m14.93485s
-        let mwa_altitude_metres: f64 = 377.827;
 
         let integration_time_milliseconds: u64 = {
             let it: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "INTTIME")?;
@@ -506,9 +501,9 @@ impl mwalibContext {
         rf_inputs.sort_by_key(|k| k.subfile_order);
 
         Ok(mwalibContext {
-            mwa_latitude_radians,
-            mwa_longitude_radians,
-            mwa_altitude_metres,
+            mwa_latitude_radians: MWA_LATITUDE_RADIANS,
+            mwa_longitude_radians: MWA_LONGITUDE_RADIANS,
+            mwa_altitude_metres: MWA_ALTITUDE_METRES,
             coax_v_factor,
             obsid,
             scheduled_start_gpstime_milliseconds,
