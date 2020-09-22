@@ -1,5 +1,4 @@
 use criterion::*;
-use fitsio::*;
 
 use mwalib::*;
 
