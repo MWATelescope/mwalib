@@ -77,8 +77,8 @@ You can build mwalib from source:
 
     `cargo build --release`
 
-- MWALIB_LINK_STATIC_CFITSIO environment variable
-    If this environment variable exists and is set to a non-zero value, rustc will statically link libcfitsio. If the environment variable does not exist or is 0, rustc will dynamically link libcfitsio. This is an attempt to give developers the choice of having a static or dynamic link of the fits library to ease the build and deploy process.
+- Statically-linking cfitsio
+    If any of the MWALIB_LINK_STATIC_CFITSIO, STATIC_CFITSIO or PKG_CONFIG_ALL_STATIC environment variables exist and are set to a non-zero value, rustc will statically link libcfitsio. The default is to dynamically link libcfitsio. This is an attempt to give developers the choice of having a static or dynamic link of the fits library to ease the build and deploy process.
 
 - Use the dynamic-shared and/or static objects in the `target/release` directory
 

@@ -32,3 +32,7 @@ pub use context::{mwalibContext, CorrelatorVersion};
 pub use error::MwalibError;
 pub use fits_read::*;
 pub use rfinput::*;
+
+// So that callers don't use a different version of fitsio, export them here.
+pub use fitsio;
+pub use fitsio_sys;
