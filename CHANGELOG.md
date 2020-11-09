@@ -1,10 +1,24 @@
 # Change Log
 Changes in each release are listed below.
 
-## 0.3.2 25-June-2020 (Pre-release)
+## 0.4.3 09-Nov-2020 (Pre-release)
+* Expose the fitsio and fitsio-sys crates used: This allows callers to use whatever version of fitsio and fitsio-sys that is used by mwalib, in turn ensuring that other dependent libraries aren't using different versions of these crates. And, along with the other change to this crate, means that statically-linking cfitsio from other crates is simpler.
+* The `infer_static` function introduced to build.rs is a workaround for pkg-config-rs being too restrictive when static linking (rust-lang/pkg-config-rs#102). Basically, if we decide to statically link, we emit a message to cargo, and it'll work. Hopefully this hack can be removed in the future when pkg-config-rs is a little more liberal.
+* No longer keep fits files open unless we are actually reading them. Fixes #7.
+* Expose MWA coordinates as library constants.
+* Added the reading of FREQCENT key from the metafits file to mwalibContext.
+* Sort the order of the struct members going into a new mwalibContext.
+* Fix a bunch of clippy lints. Also fix up the benchmarking code.
+* Allow passing no gpubox files (i.e. mwalib will read only the metafits file) when creating an mwalibContext instance.
+* Read digital gains and dipole delays from metafits. (Currently unavailable via FFI).
+* Specify Rfinput polarisation as an enum instead of a string. 
+* Overhaul the error handling in mwalib, and change the API traits.
+* Fixed cargo tarpaulin decorators to use new format.
+
+## 0.3.2 25-Jun-2020 (Pre-release)
 * libmwalib.so now has statically linked libcfitsio library as cfitsio's ABI keeps changing making linking difficult for users.
 
-## 0.3.1 08-June-2020 (Pre-release)
+## 0.3.1 08-Jun-2020 (Pre-release)
 * Bugfix: Fixed panic when all 24 coarse channels are using receiver channel numbers >128.
 * Added more inline documentation for mwalib.h.
 * Improved the output, by making it more complete, when displaying the contents of the context object.

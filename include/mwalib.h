@@ -4,6 +4,21 @@
 #include <stdlib.h>
 
 /**
+ * The MWA's altitude in metres.
+ */
+#define MWA_ALTITUDE_METRES 377.827
+
+/**
+ * The MWA's latitude on Earth in radians. This is -26d42m11.94986s.
+ */
+#define MWA_LATITUDE_RADIANS -0.4660608448386394
+
+/**
+ * The MWA's longitude on Earth in radians. This is 116d40m14.93485s.
+ */
+#define MWA_LONGITUDE_RADIANS 2.0362898668561042
+
+/**
  * Enum for all of the known variants of file format based on Correlator version
  *
  */
