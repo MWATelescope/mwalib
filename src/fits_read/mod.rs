@@ -636,24 +636,24 @@ mod tests {
 
             // Verify that using the normal `fitsio` gives the wrong result, unless
             // the type is an i64.
-            let foo_i32 = hdu.read_key::<i32>(fptr, "foo");
-            let foo_i64 = hdu.read_key::<i64>(fptr, "foo");
-            assert!(foo_i32.is_ok());
-            assert!(foo_i64.is_ok());
-            assert_eq!(foo_i32.unwrap(), 1);
-            assert_eq!(foo_i64.unwrap(), 10);
+            let fits_value_i32 = hdu.read_key::<i32>(fptr, "FOO");
+            let fits_value_i64 = hdu.read_key::<i64>(fptr, "FOO");
+            assert!(fits_value_i32.is_ok());
+            assert!(fits_value_i64.is_ok());
+            assert_eq!(fits_value_i32.unwrap(), 1);
+            assert_eq!(fits_value_i64.unwrap(), 10);
 
-            // Despite writing to "foo", the key is written as "FOO".
-            let foo_i64 = hdu.read_key::<i64>(fptr, "FOO");
-            assert!(foo_i64.is_ok());
-            assert_eq!(foo_i64.unwrap(), 10);
+            // Despite writing to "fits_value", the key is written as "FOO".
+            let fits_value_i64 = hdu.read_key::<i64>(fptr, "FOO");
+            assert!(fits_value_i64.is_ok());
+            assert_eq!(fits_value_i64.unwrap(), 10);
 
-            let foo_u8: Result<u8, _> = get_required_fits_key!(fptr, &hdu, "foo");
-            let foo_i8: Result<i8, _> = get_required_fits_key!(fptr, &hdu, "foo");
-            assert!(foo_u8.is_ok());
-            assert!(foo_i8.is_ok());
-            assert_eq!(foo_u8.unwrap(), 10);
-            assert_eq!(foo_i8.unwrap(), 10);
+            let fits_value_u8: Result<u8, _> = get_required_fits_key!(fptr, &hdu, "foo");
+            let fits_value_i8: Result<i8, _> = get_required_fits_key!(fptr, &hdu, "foo");
+            assert!(fits_value_u8.is_ok());
+            assert!(fits_value_i8.is_ok());
+            assert_eq!(fits_value_u8.unwrap(), 10);
+            assert_eq!(fits_value_i8.unwrap(), 10);
 
             // Can't parse the negative number into a unsigned int.
             let bar_u8: Result<u8, _> = get_required_fits_key!(fptr, &hdu, "bar");
@@ -671,9 +671,9 @@ mod tests {
             let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
 
             // Failure to get a key that doesn't exist is OK if we're using the optional variant.
-            let foo: Result<Option<u8>, _> = get_optional_fits_key!(fptr, &hdu, "foo");
-            assert!(foo.is_ok());
-            assert!(foo.unwrap().is_none());
+            let fits_value: Result<Option<u8>, _> = get_optional_fits_key!(fptr, &hdu, "foo");
+            assert!(fits_value.is_ok());
+            assert!(fits_value.unwrap().is_none());
 
             // Key types must be i64 to get any sort of sanity.
             hdu.write_key(fptr, "foo", 10i64)
@@ -683,24 +683,24 @@ mod tests {
 
             // Verify that using the normal `fitsio` gives the wrong result, unless
             // the type is an i64.
-            let foo_i32 = hdu.read_key::<i32>(fptr, "foo");
-            let foo_i64 = hdu.read_key::<i64>(fptr, "foo");
-            assert!(foo_i32.is_ok());
-            assert!(foo_i64.is_ok());
-            assert_eq!(foo_i32.unwrap(), 1);
-            assert_eq!(foo_i64.unwrap(), 10);
+            let fits_value_i32 = hdu.read_key::<i32>(fptr, "FOO");
+            let fits_value_i64 = hdu.read_key::<i64>(fptr, "FOO");
+            assert!(fits_value_i32.is_ok());
+            assert!(fits_value_i64.is_ok());
+            assert_eq!(fits_value_i32.unwrap(), 1);
+            assert_eq!(fits_value_i64.unwrap(), 10);
 
             // Despite writing to "foo", the key is written as "FOO".
-            let foo_i64 = hdu.read_key::<i64>(fptr, "FOO");
-            assert!(foo_i64.is_ok());
-            assert_eq!(foo_i64.unwrap(), 10);
+            let fits_value_i64 = hdu.read_key::<i64>(fptr, "FOO");
+            assert!(fits_value_i64.is_ok());
+            assert_eq!(fits_value_i64.unwrap(), 10);
 
-            let foo_u8: Result<Option<u8>, _> = get_optional_fits_key!(fptr, &hdu, "foo");
-            let foo_i8: Result<Option<i8>, _> = get_optional_fits_key!(fptr, &hdu, "foo");
-            assert!(foo_u8.is_ok());
-            assert!(foo_i8.is_ok());
-            assert_eq!(foo_u8.unwrap(), Some(10));
-            assert_eq!(foo_i8.unwrap(), Some(10));
+            let fits_value_u8: Result<Option<u8>, _> = get_optional_fits_key!(fptr, &hdu, "foo");
+            let fits_value_i8: Result<Option<i8>, _> = get_optional_fits_key!(fptr, &hdu, "foo");
+            assert!(fits_value_u8.is_ok());
+            assert!(fits_value_i8.is_ok());
+            assert_eq!(fits_value_u8.unwrap(), Some(10));
+            assert_eq!(fits_value_i8.unwrap(), Some(10));
 
             // Can't parse the negative number into a unsigned int.
             let bar_u8: Result<u8, _> = get_required_fits_key!(fptr, &hdu, "bar");
@@ -719,18 +719,19 @@ mod tests {
 
             // Failure to get a key that doesn't exist.
             let does_not_exist: Result<String, FitsError> =
-                get_required_fits_key!(fptr, &hdu, "foo");
+                get_required_fits_key!(fptr, &hdu, "fits_value");
             assert!(does_not_exist.is_err());
 
             // Add a test string
-            hdu.write_key(fptr, "foo", "hello")
-                .expect("Couldn't write key 'foo'");
+            hdu.write_key(fptr, "fits_value", "hello")
+                .expect("Couldn't write key 'fits_value'");
 
-            // Read foo back in
-            let foo_string: String = get_required_fits_key!(fptr, &hdu, "foo").unwrap();
+            // Read fits_value back in
+            let fits_value_string: String =
+                get_required_fits_key!(fptr, &hdu, "fits_value").unwrap();
 
-            // Despite writing to "foo", the key is written as "FOO".
-            assert_eq!(foo_string, "hello");
+            // Despite writing to "fits_value", the key is written as "FOO".
+            assert_eq!(fits_value_string, "hello");
         });
     }
 
@@ -742,22 +743,22 @@ mod tests {
 
             // No Failure to get a key that doesn't exist.
             let does_not_exist: Result<Option<String>, FitsError> =
-                get_optional_fits_key!(fptr, &hdu, "foo");
+                get_optional_fits_key!(fptr, &hdu, "fits_value");
 
             assert!(does_not_exist.is_ok());
             assert!(does_not_exist.unwrap().is_none());
 
             // Add a test string
-            hdu.write_key(fptr, "foo", "hello")
-                .expect("Couldn't write key 'foo'");
+            hdu.write_key(fptr, "fits_value", "hello")
+                .expect("Couldn't write key 'fits_value'");
 
-            // Read foo back in
-            let foo_string: Result<Option<String>, FitsError> =
-                get_optional_fits_key!(fptr, &hdu, "foo");
+            // Read fits_value back in
+            let fits_value_string: Result<Option<String>, FitsError> =
+                get_optional_fits_key!(fptr, &hdu, "fits_value");
 
-            // Despite writing to "foo", the key is written as "FOO".
-            assert!(foo_string.is_ok());
-            assert_eq!(foo_string.unwrap().unwrap(), "hello");
+            // Despite writing to "fits_value", the key is written as "FOO".
+            assert!(fits_value_string.is_ok());
+            assert_eq!(fits_value_string.unwrap().unwrap(), "hello");
         });
     }
 
@@ -788,18 +789,18 @@ mod tests {
                 );
             }
 
-            let (status, foo_str) = unsafe { get_fits_long_string(fptr.as_raw(), "foo") };
+            let (status, fits_value_str) = unsafe { get_fits_long_string(fptr.as_raw(), "FOO") };
             assert_eq!(status, 0);
-            assert_eq!(foo_str, complete_string);
+            assert_eq!(fits_value_str, complete_string);
 
             // Try out the `fitsio` read key.
             let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-            let fitsio_str = hdu.read_key::<String>(fptr, "foo");
+            let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
             assert!(fitsio_str.is_ok());
             assert_eq!(fitsio_str.unwrap(), first_string);
 
             // A repeated read just returns the first string again.
-            let fitsio_str = hdu.read_key::<String>(fptr, "foo");
+            let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
             assert!(fitsio_str.is_ok());
             assert_eq!(fitsio_str.unwrap(), first_string);
         });
@@ -815,8 +816,8 @@ mod tests {
             // with CONTINUE statements. We have to do it for ourselves.
             unsafe {
                 let fptr_ffi = fptr.as_raw();
-                let keyword_ffi = CString::new("foo")
-                    .expect("get_fits_long_string: CString::new() failed for 'foo'");
+                let keyword_ffi = CString::new("fits_value")
+                    .expect("get_fits_long_string: CString::new() failed for 'fits_value'");
                 let value_ffi = CString::new(complete_string)
                     .expect("get_fits_long_string: CString::new() failed for 'complete_string'");
                 let mut status = 0;
@@ -830,7 +831,7 @@ mod tests {
                 );
             }
 
-            let (status, _) = unsafe { get_fits_long_string(fptr.as_raw(), "NOTfoo") };
+            let (status, _) = unsafe { get_fits_long_string(fptr.as_raw(), "NOTfits_value") };
             assert_ne!(status, 0);
         });
     }

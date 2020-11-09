@@ -264,7 +264,7 @@ impl mwalibContext {
             (gt * 1000.).round() as _
         };
 
-        let (mut gpubox_info, timesteps) =
+        let (gpubox_info, timesteps) =
         // Do gpubox stuff only if we have gpubox files.
             if !gpuboxes.is_empty() {
                 let gpubox_info = examine_gpubox_files(&gpuboxes)?;
@@ -388,7 +388,7 @@ impl mwalibContext {
             let (batch_index, _) =
                 gpubox_info.time_map[&timesteps[0].unix_time_ms][&coarse_channel];
 
-            let mut fptr = &mut gpubox_info.batches[batch_index].gpubox_files[0].fptr;
+            let mut fptr = fits_open!(&gpubox_info.batches[batch_index].gpubox_files[0].filename)?;
 
             mwalibContext::validate_first_hdu(
                 gpubox_info.corr_format,
@@ -753,8 +753,9 @@ impl mwalibContext {
         if self.gpubox_batches.is_empty() {
             return Err(GpuboxError::NoGpuboxes);
         }
-        let mut fptr =
-            &mut self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].fptr;
+        let mut fptr = fits_open!(
+            &self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].filename
+        )?;
         let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
         output_buffer = get_fits_image!(&mut fptr, &hdu)?;
         // If legacy correlator, then convert the HDU into the correct output format
@@ -817,8 +818,9 @@ impl mwalibContext {
         if self.gpubox_batches.is_empty() {
             return Err(GpuboxError::NoGpuboxes);
         }
-        let mut fptr =
-            &mut self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].fptr;
+        let mut fptr = fits_open!(
+            &self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].filename
+        )?;
         let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
         output_buffer = get_fits_image!(&mut fptr, &hdu)?;
         // If legacy correlator, then convert the HDU into the correct output format
@@ -1372,14 +1374,15 @@ mod tests {
         //
         // Open a context and load in a test metafits and gpubox file
         let gpuboxfiles = vec![filename];
-        let mut context = mwalibContext::new(&metafits_filename, &gpuboxfiles)
+        let context = mwalibContext::new(&metafits_filename, &gpuboxfiles)
             .expect("Failed to create mwalibContext");
 
         let coarse_channel = context.coarse_channels[0].gpubox_number;
         let (batch_index, _) =
             context.gpubox_time_map[&context.timesteps[0].unix_time_ms][&coarse_channel];
 
-        let mut fptr = &mut context.gpubox_batches[batch_index].gpubox_files[0].fptr;
+        let mut fptr =
+            fits_open!(&context.gpubox_batches[batch_index].gpubox_files[0].filename).unwrap();
 
         let result_valid = mwalibContext::validate_first_hdu(
             context.corr_version,

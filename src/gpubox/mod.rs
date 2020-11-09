@@ -59,8 +59,6 @@ pub struct GPUBoxFile {
     pub filename: String,
     /// channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
     pub channel_identifier: usize,
-    /// Pointer to fits file
-    pub fptr: FitsFile,
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -147,11 +145,9 @@ fn convert_temp_gpuboxes(
     }
 
     for temp_g in temp_gpuboxes.into_iter() {
-        let fptr = fits_open!(&temp_g.filename)?;
         let g = GPUBoxFile {
             filename: temp_g.filename.to_string(),
             channel_identifier: temp_g.channel_identifier,
-            fptr,
         };
         gpubox_batches[temp_g.batch_number].gpubox_files.push(g);
     }
@@ -236,8 +232,10 @@ pub fn examine_gpubox_files<T: AsRef<Path>>(
     let mut hdu_size: Option<usize> = None;
     for b in &mut batches {
         for g in &mut b.gpubox_files {
-            let hdu = fits_open_hdu!(&mut g.fptr, 1)?;
-            let this_size = get_hdu_image_size!(&mut g.fptr, &hdu)?.iter().product();
+            let mut fptr = fits_open!(&g.filename)?;
+
+            let hdu = fits_open_hdu!(&mut fptr, 1)?;
+            let this_size = get_hdu_image_size!(&mut fptr, &hdu)?.iter().product();
             match hdu_size {
                 None => hdu_size = Some(this_size),
                 Some(s) => {
