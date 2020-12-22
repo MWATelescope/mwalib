@@ -5,6 +5,7 @@
 /*!
 The main interface to MWA data.
  */
+use std::f64::consts::FRAC_PI_2;
 use std::fmt;
 
 use chrono::{DateTime, Duration, FixedOffset};
@@ -92,10 +93,18 @@ pub struct MetafitsContext {
     pub ra_phase_center_degrees: Option<f64>,
     /// DEC phase centre
     pub dec_phase_center_degrees: Option<f64>,
-    /// AZIMUTH
+    /// AZIMUTH of the pointing centre in degrees
     pub azimuth_degrees: f64,
-    /// ALTITUDE
+    /// ALTITUDE (a.k.a. elevation) of the pointing centre in degrees
     pub altitude_degrees: f64,
+    /// Zenith angle of the pointing centre in degrees
+    pub zenith_angle_degrees: f64,
+    /// AZIMUTH of the pointing centre in radians
+    pub azimuth_radians: f64,
+    /// ALTITUDE (a.k.a. elevation) of the pointing centre in radians
+    pub altitude_radians: f64,
+    /// Zenith angle of the pointing centre in radians
+    pub zenith_angle_radians: f64,
     /// Altitude of Sun
     pub sun_altitude_degrees: f64,
     /// Distance from pointing center to Sun
@@ -106,6 +115,8 @@ pub struct MetafitsContext {
     pub jupiter_distance_degrees: f64,
     /// Local Sidereal Time
     pub lst_degrees: f64,
+    /// Local Sidereal Time in radians
+    pub lst_radians: f64,
     /// Hour Angle of pointing center (as a string)
     pub hour_angle_string: String,
     /// GRIDNAME
@@ -123,7 +134,7 @@ pub struct MetafitsContext {
     /// RECVRS    // Array of receiver numbers (this tells us how many receivers too)
     pub receivers: Vec<usize>,
     /// DELAYS    // Array of delays
-    pub delays: Vec<usize>,
+    pub delays: Vec<u32>,
     /// ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
     /// Seconds of bad data after observation starts
@@ -249,6 +260,7 @@ impl MetafitsContext {
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "AZIMUTH")?;
         let altitude_degrees: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ALTITUDE")?;
+        let zenith_angle_degrees: f64 = FRAC_PI_2 - altitude_degrees;
         let sun_altitude_degrees: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "SUN-ALT")?;
         let sun_distance_degrees: f64 =
@@ -278,7 +290,7 @@ impl MetafitsContext {
         let delays_string: String =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "DELAYS")?;
 
-        let delays: Vec<usize> = delays_string
+        let delays: Vec<u32> = delays_string
             .replace(&['\'', '&'][..], "")
             .split(',')
             .map(|s| s.parse().unwrap())
@@ -303,11 +315,11 @@ impl MetafitsContext {
 
         let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
         Ok(MetafitsContext {
+            obsid,
             mwa_latitude_radians: MWA_LATITUDE_RADIANS,
             mwa_longitude_radians: MWA_LONGITUDE_RADIANS,
             mwa_altitude_metres: MWA_ALTITUDE_METRES,
             coax_v_factor,
-            obsid,
             scheduled_start_gpstime_milliseconds,
             scheduled_end_gpstime_milliseconds,
             scheduled_start_unix_time_milliseconds,
@@ -323,11 +335,16 @@ impl MetafitsContext {
             dec_phase_center_degrees,
             azimuth_degrees,
             altitude_degrees,
+            zenith_angle_degrees,
+            azimuth_radians: azimuth_degrees.to_radians(),
+            altitude_radians: altitude_degrees.to_radians(),
+            zenith_angle_radians: zenith_angle_degrees.to_radians(),
             sun_altitude_degrees,
             sun_distance_degrees,
             moon_distance_degrees,
             jupiter_distance_degrees,
             lst_degrees,
+            lst_radians: lst_degrees.to_radians(),
             hour_angle_string,
             grid_name,
             grid_number,
@@ -345,9 +362,9 @@ impl MetafitsContext {
             num_rf_inputs,
             rf_inputs,
             num_antenna_pols,
-            coarse_channel_width_hz,
             num_coarse_channels,
             observation_bandwidth_hz,
+            coarse_channel_width_hz,
             metafits_centre_freq_hz,
             metafits_filename: metafits
                 .as_ref()

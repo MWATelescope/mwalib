@@ -106,38 +106,45 @@ impl fmt::Display for Pol {
 /// Structure to hold one row of the metafits tiledata table
 struct RFInputMetafitsTableRow {
     /// This is the ordinal index of the rf_input in the metafits file
-    pub input: u32,
+    input: u32,
     /// This is the antenna number.
     /// Nominally this is the field we sort by to get the desired output order of antenna.
     /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
     /// e.g. 0...N-1
-    pub antenna: u32,
+    antenna: u32,
     /// Numeric part of tile_name for the antenna. Each pol has the same value
     /// e.g. tile_name "tile011" has a tile_id of 11
-    pub tile_id: u32,
+    tile_id: u32,
     /// Human readable name of the antenna
     /// X and Y have the same name
-    pub tile_name: String,
+    tile_name: String,
     /// Polarisation - X or Y
-    pub pol: Pol,
+    pol: Pol,
     /// Electrical length in metres for this antenna and polarisation to the receiver
-    pub length_string: String,
+    length_string: String,
     /// Antenna position North from the array centre (metres)
-    pub north_m: f64,
+    north_m: f64,
     /// Antenna position East from the array centre (metres)
-    pub east_m: f64,
+    east_m: f64,
     /// Antenna height from the array centre (metres)
-    pub height_m: f64,
+    height_m: f64,
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
-    pub flag: i32,
+    flag: i32,
     /// Digital gains
-    pub gains: Vec<i16>,
+    digital_gains: Vec<u32>,
     /// Dipole delays
-    pub delays: Vec<i16>,
+    dipole_delays: Vec<u32>,
+    /// Dipole gains.
+    ///
+    /// These are either 1 or 0 (on or off), depending on the dipole delay; a
+    /// dipole delay of 32 corresponds to "dead dipole", so the dipole gain of 0
+    /// reflects that. All other dipoles are assumed to be "live". The values
+    /// are made floats for easy use in beam code.
+    dipole_gains: Vec<f64>,
     /// Receiver number
-    pub rx: u32,
+    rx: u32,
     /// Receiver slot number
-    pub slot: u32,
+    slot: u32,
 }
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
@@ -173,9 +180,16 @@ pub struct RFInput {
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flagged: bool,
     /// Digital gains
-    pub gains: Vec<i16>,
+    pub digital_gains: Vec<u32>,
+    /// Dipole gains.
+    ///
+    /// These are either 1 or 0 (on or off), depending on the dipole delay; a
+    /// dipole delay of 32 corresponds to "dead dipole", so the dipole gain of 0
+    /// reflects that. All other dipoles are assumed to be "live". The values
+    /// are made floats for easy use in beam code.
+    pub dipole_gains: Vec<f64>,
     /// Dipole delays
-    pub delays: Vec<i16>,
+    pub dipole_delays: Vec<u32>,
     /// Receiver number
     pub receiver_number: u32,
     /// Receiver slot number
@@ -229,14 +243,14 @@ impl RFInput {
         let east_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "East", row)?;
         let height_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Height", row)?;
         let flag = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flag", row)?;
-        let gains = read_cell_array(
+        let digital_gains = read_cell_array(
             metafits_fptr,
             metafits_tile_table_hdu,
             "Gains",
             row as i64,
             24,
         )?;
-        let delays = read_cell_array(
+        let dipole_delays = read_cell_array(
             metafits_fptr,
             metafits_tile_table_hdu,
             "Delays",
@@ -245,6 +259,11 @@ impl RFInput {
         )?;
         let rx = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Rx", row)?;
         let slot = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Slot", row)?;
+
+        let dipole_gains = dipole_delays
+            .iter()
+            .map(|&delay| if delay == 32 { 0.0 } else { 1.0 })
+            .collect();
 
         Ok(RFInputMetafitsTableRow {
             input,
@@ -257,8 +276,9 @@ impl RFInput {
             east_m,
             height_m,
             flag,
-            gains,
-            delays,
+            digital_gains,
+            dipole_gains,
+            dipole_delays,
             rx,
             slot,
         })
@@ -319,8 +339,9 @@ impl RFInput {
                 vcs_order,
                 subfile_order,
                 flagged: metafits_row.flag == 1,
-                gains: metafits_row.gains,
-                delays: metafits_row.delays,
+                digital_gains: metafits_row.digital_gains,
+                dipole_gains: metafits_row.dipole_gains,
+                dipole_delays: metafits_row.dipole_delays,
                 receiver_number: metafits_row.rx,
                 receiver_slot_number: metafits_row.slot,
             })
@@ -355,7 +376,7 @@ fn read_cell_array(
     col_name: &str,
     row: i64,
     n_elem: i64,
-) -> Result<Vec<i16>, RfinputError> {
+) -> Result<Vec<u32>, RfinputError> {
     unsafe {
         // With the column name, get the column number.
         let mut status = 0;
@@ -486,9 +507,17 @@ mod tests {
 
         let delays = read_cell_array(&mut fptr, &hdu, "Delays", 0, 16);
         assert!(delays.is_ok());
+        assert_eq!(&delays.unwrap(), &[0; 16]);
 
-        let gains = read_cell_array(&mut fptr, &hdu, "Gains", 0, 24);
-        assert!(gains.is_ok());
+        let digital_gains = read_cell_array(&mut fptr, &hdu, "Gains", 0, 24);
+        assert!(digital_gains.is_ok());
+        assert_eq!(
+            digital_gains.unwrap(),
+            &[
+                74, 73, 73, 72, 71, 70, 68, 67, 66, 65, 65, 65, 66, 66, 65, 65, 64, 64, 64, 65, 65,
+                66, 67, 68,
+            ]
+        );
 
         let asdf = read_cell_array(&mut fptr, &hdu, "NotReal", 0, 24);
         assert!(asdf.is_err());
@@ -607,14 +636,14 @@ mod tests {
         ));
         assert_eq!(rfinput[0].flagged, true);
         assert_eq!(
-            rfinput[0].gains,
+            rfinput[0].digital_gains,
             vec![
                 74, 73, 73, 72, 71, 70, 68, 67, 66, 65, 65, 65, 66, 66, 65, 65, 64, 64, 64, 65, 65,
                 66, 67, 68
             ]
         );
         assert_eq!(
-            rfinput[0].delays,
+            rfinput[0].dipole_delays,
             vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         );
         assert_eq!(rfinput[0].receiver_number, 10);
