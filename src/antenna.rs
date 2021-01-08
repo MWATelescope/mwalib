@@ -115,6 +115,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 1,
+            receiver_slot_number: 0
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -132,6 +134,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 1,
+            receiver_slot_number: 1
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -149,6 +153,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 2,
+            receiver_slot_number: 0
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -166,6 +172,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 2,
+            receiver_slot_number: 1
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -183,6 +191,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 3,
+            receiver_slot_number: 0
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -200,6 +210,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 3,
+            receiver_slot_number: 1
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -217,6 +229,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 4,
+            receiver_slot_number: 0
         });
 
         rf_inputs.push(mwalibRFInput {
@@ -234,6 +248,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 4,
+            receiver_slot_number: 1
         });
 
         // Call populate
@@ -247,6 +263,6 @@ mod tests {
         assert_eq!(antennas[1].tile_name, "Tile102");
         assert_eq!(antennas[2].tile_name, "Tile103");
         assert_eq!(antennas[2].x_pol.input, 4);
-        assert_eq!(antennas[3].tile_id, 104);
+        assert_eq!(antennas[3].tile_id, 104);        
     }
 }

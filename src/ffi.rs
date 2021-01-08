@@ -805,6 +805,10 @@ pub struct mwalibRFInput {
     pub subfile_order: u32,
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flagged: bool,
+    /// Receiver number
+    pub receiver_number: u32,
+    /// Receiver slot number
+    pub receiver_slot_number: u32
 }
 
 /// This returns a struct containing the requested antenna
@@ -865,6 +869,8 @@ pub unsafe extern "C" fn mwalibRFInput_get(
             vcs_order: context.rf_inputs[rf_input_index].vcs_order,
             subfile_order: context.rf_inputs[rf_input_index].subfile_order,
             flagged: context.rf_inputs[rf_input_index].flagged,
+            receiver_number: context.rf_inputs[rf_input_index].receiver_number,
+            receiver_slot_number: context.rf_inputs[rf_input_index].receiver_slot_number
         };
 
         Box::into_raw(Box::new(out_antenna))

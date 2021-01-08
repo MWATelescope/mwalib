@@ -136,6 +136,10 @@ struct mwalibRFInputMetafitsTableRow {
     pub gains: Vec<i16>,
     /// Dipole delays
     pub delays: Vec<i16>,
+    /// Receiver number
+    pub rx: u32,
+    /// Receiver slot number
+    pub slot: u32
 }
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
@@ -175,6 +179,10 @@ pub struct mwalibRFInput {
     pub gains: Vec<i16>,
     /// Dipole delays
     pub delays: Vec<i16>,
+    /// Receiver number
+    pub receiver_number: u32,
+    /// Receiver slot number
+    pub receiver_slot_number: u32
 }
 
 impl mwalibRFInput {
@@ -238,6 +246,8 @@ impl mwalibRFInput {
             row as i64,
             16,
         )?;
+        let rx = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Rx", row)?;
+        let slot = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Slot", row)?;
 
         Ok(mwalibRFInputMetafitsTableRow {
             input,
@@ -252,6 +262,8 @@ impl mwalibRFInput {
             flag,
             gains,
             delays,
+            rx,
+            slot
         })
     }
 
@@ -312,6 +324,8 @@ impl mwalibRFInput {
                 flagged: metafits_row.flag == 1,
                 gains: metafits_row.gains,
                 delays: metafits_row.delays,
+                receiver_number: metafits_row.rx,
+                receiver_slot_number: metafits_row.slot
             })
         }
         Ok(rf_inputs)

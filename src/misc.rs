@@ -270,6 +270,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 1,
+            receiver_slot_number: 0
         };
 
         let dummy_rf_input_y = mwalibRFInput {
@@ -287,6 +289,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 1,
+            receiver_slot_number: 1
         };
 
         ants.push(mwalibAntenna {
@@ -423,6 +427,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 1,
+            receiver_slot_number: 0
         };
 
         let dummy_rf_input_y = mwalibRFInput {
@@ -440,6 +446,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 1,
+            receiver_slot_number: 1
         };
 
         ants.push(mwalibAntenna {
@@ -488,6 +496,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 1,
+            receiver_slot_number: 0
         };
 
         let dummy_rf_input_y = mwalibRFInput {
@@ -505,6 +515,8 @@ mod tests {
             flagged: false,
             delays: vec![],
             gains: vec![],
+            receiver_number: 1,
+            receiver_slot_number: 1
         };
 
         ants.push(mwalibAntenna {
