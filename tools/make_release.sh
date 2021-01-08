@@ -20,5 +20,5 @@ cp ../CHANGELOG.md release/.
 cp ../include/mwalib.h release/include/.
 cd release
 echo "Taring files..."
-tar -czvf libmwalib-0.4.3-linux_x86_64.tar.gz lib/libmwalib.a lib/libmwalib.so include/mwalib.h LICENSE LICENSE-cfitsio CHANGELOG.md
+tar -czvf libmwalib-0.4.4-linux_x86_64.tar.gz lib/libmwalib.a lib/libmwalib.so include/mwalib.h LICENSE LICENSE-cfitsio CHANGELOG.md
 echo "Release complete!"
