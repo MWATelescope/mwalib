@@ -10,15 +10,14 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 /// This is a struct for our timesteps
-#[allow(non_camel_case_types)]
 #[derive(Clone)]
-pub struct mwalibTimeStep {
+pub struct TimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,
 }
 
-impl mwalibTimeStep {
-    /// Creates a new, populated mwalibTimeStep struct
+impl TimeStep {
+    /// Creates a new, populated TimeStep struct
     ///
     /// # Arguments
     ///
@@ -27,13 +26,13 @@ impl mwalibTimeStep {
     ///
     /// # Returns
     ///
-    /// * A populated mwalibTimeStep struct
+    /// * A populated TimeStep struct
     ///
     pub fn new(unix_time_ms: u64) -> Self {
-        mwalibTimeStep { unix_time_ms }
+        TimeStep { unix_time_ms }
     }
 
-    /// Creates a new, populated vector of mwalibTimeStep structs
+    /// Creates a new, populated vector of TimeStep structs
     ///
     /// # Arguments
     ///
@@ -43,7 +42,7 @@ impl mwalibTimeStep {
     ///
     /// # Returns
     ///
-    /// * A populated vector of mwalibTimeStep structs inside an Option. Only
+    /// * A populated vector of TimeStep structs inside an Option. Only
     ///   timesteps *common to all* gpubox files are included. If the Option has
     ///   a value of None, then `gpubox_time_map` is empty.
     ///
@@ -59,7 +58,7 @@ impl mwalibTimeStep {
         // `gpubox_time_map`.
         let num_gpubox_files: usize = gpubox_time_map.iter().map(|(_, m)| m.len()).max().unwrap();
         // Now we find all keys with lengths equal to `num_gpubox_files`.
-        let mut timesteps: Vec<mwalibTimeStep> = vec![];
+        let mut timesteps: Vec<TimeStep> = vec![];
         for (key, m) in gpubox_time_map.iter() {
             if m.len() == num_gpubox_files {
                 timesteps.push(Self::new(*key));
@@ -70,7 +69,7 @@ impl mwalibTimeStep {
     }
 }
 
-/// Implements fmt::Debug for mwalibTimeStep struct
+/// Implements fmt::Debug for TimeStep struct
 ///
 /// # Arguments
 ///
@@ -83,7 +82,7 @@ impl mwalibTimeStep {
 ///
 ///
 #[cfg(not(tarpaulin_include))]
-impl fmt::Debug for mwalibTimeStep {
+impl fmt::Debug for TimeStep {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "unix={:.3}", self.unix_time_ms as f64 / 1000.,)
     }
@@ -117,7 +116,7 @@ mod tests {
         }
 
         // Get a vector timesteps
-        let timesteps = mwalibTimeStep::populate_timesteps(&gpubox_time_map).unwrap();
+        let timesteps = TimeStep::populate_timesteps(&gpubox_time_map).unwrap();
 
         // Check
         assert_eq!(6, timesteps.len());
@@ -130,7 +129,7 @@ mod tests {
         // Create a dummy BTree GPUbox map
         let gpubox_time_map = BTreeMap::new();
         // Get a vector timesteps
-        let timesteps = mwalibTimeStep::populate_timesteps(&gpubox_time_map);
+        let timesteps = TimeStep::populate_timesteps(&gpubox_time_map);
 
         // Check
         assert!(timesteps.is_none());
@@ -140,10 +139,10 @@ mod tests {
     fn test_timestep_new() {
         // This test is a bit of a waste right now but it will be useful once
         // julian date and possibly UTC conversions are done in the new() method
-        let timestep = mwalibTimeStep {
+        let timestep = TimeStep {
             unix_time_ms: 1_234_567_890_123,
         };
-        let new_timestep = mwalibTimeStep::new(1_234_567_890_123);
+        let new_timestep = TimeStep::new(1_234_567_890_123);
 
         assert_eq!(timestep.unix_time_ms, new_timestep.unix_time_ms);
     }

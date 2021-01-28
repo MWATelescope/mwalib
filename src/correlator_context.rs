@@ -1,4 +1,4 @@
- // This Source Code Form is subject to the terms of the Mozilla Public
+// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
@@ -8,14 +8,11 @@ The main interface to MWA data.
 use std::collections::BTreeMap;
 use std::fmt;
 
-use chrono::{DateTime, Duration, FixedOffset};
-
-use crate::antenna::*;
 use crate::baseline::*;
 use crate::coarse_channel::*;
 use crate::convert::*;
 use crate::gpubox::*;
-use crate::rfinput::*;
+use crate::observation_context::*;
 use crate::timestep::*;
 use crate::visibility_pol::*;
 use crate::*;
@@ -60,87 +57,11 @@ impl fmt::Display for CorrelatorVersion {
     }
 }
 
-/// `mwalib` observation context. This is used to transport data out of gpubox
-/// files and display info on the observation.
+/// `mwalib` correlator observation context. This represents the basic metadata for a correlator observation.
 ///
-/// The name is not following the rust convention of camel case, to make it look
-/// more like a C library.
-#[allow(non_camel_case_types)]
-pub struct mwalibContext {
-    /// Latitude of centre point of MWA in raidans
-    pub mwa_latitude_radians: f64,
-    /// Longitude of centre point of MWA in raidans
-    pub mwa_longitude_radians: f64,
-    /// Altitude of centre poing of MWA in metres
-    pub mwa_altitude_metres: f64,
-    /// the velocity factor of electic fields in RG-6 like coax
-    pub coax_v_factor: f64,
-    /// Observation id
-    pub obsid: u32,
-    /// Scheduled start (gps time) of observation
-    pub scheduled_start_gpstime_milliseconds: u64,
-    /// Scheduled end (gps time) of observation
-    pub scheduled_end_gpstime_milliseconds: u64,
-    /// Scheduled start (UNIX time) of observation
-    pub scheduled_start_unix_time_milliseconds: u64,
-    /// Scheduled end (UNIX time) of observation
-    pub scheduled_end_unix_time_milliseconds: u64,
-    /// Scheduled start (UTC) of observation
-    pub scheduled_start_utc: DateTime<FixedOffset>,
-    /// Scheduled end (UTC) of observation
-    pub scheduled_end_utc: DateTime<FixedOffset>,
-    /// Scheduled start (MJD) of observation
-    pub scheduled_start_mjd: f64,
-    /// Scheduled end (MJD) of observation
-    pub scheduled_end_mjd: f64,
-    /// Scheduled duration of observation
-    pub scheduled_duration_milliseconds: u64,
-    /// RA tile pointing
-    pub ra_tile_pointing_degrees: f64,
-    /// DEC tile pointing
-    pub dec_tile_pointing_degrees: f64,
-    /// RA phase centre
-    pub ra_phase_center_degrees: Option<f64>,
-    /// DEC phase centre
-    pub dec_phase_center_degrees: Option<f64>,
-    /// AZIMUTH
-    pub azimuth_degrees: f64,
-    /// ALTITUDE
-    pub altitude_degrees: f64,
-    /// Altitude of Sun
-    pub sun_altitude_degrees: f64,
-    /// Distance from pointing center to Sun
-    pub sun_distance_degrees: f64,
-    /// Distance from pointing center to the Moon
-    pub moon_distance_degrees: f64,
-    /// Distance from pointing center to Jupiter
-    pub jupiter_distance_degrees: f64,
-    /// Local Sidereal Time
-    pub lst_degrees: f64,
-    /// Hour Angle of pointing center (as a string)
-    pub hour_angle_string: String,
-    /// GRIDNAME
-    pub grid_name: String,
-    /// GRIDNUM
-    pub grid_number: i32,
-    /// CREATOR
-    pub creator: String,
-    /// PROJECT
-    pub project_id: String,
-    /// Observation name
-    pub observation_name: String,
-    /// MWA observation mode
-    pub mode: String,
-    /// RECVRS    // Array of receiver numbers (this tells us how many receivers too)
-    pub receivers: Vec<usize>,
-    /// DELAYS    // Array of delays
-    pub delays: Vec<usize>,
-    /// ATTEN_DB  // global analogue attenuation, in dB
-    pub global_analogue_attenuation_db: f64,
-    /// Seconds of bad data after observation starts
-    pub quack_time_duration_milliseconds: u64,
-    /// OBSID+QUACKTIM as Unix timestamp (first good timestep)
-    pub good_time_unix_milliseconds: u64,
+pub struct CorrelatorContext {
+    /// Observation Metadata
+    pub observation_context: ObservationContext,
     /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
     /// The proper start of the observation (the time that is common to all
@@ -154,43 +75,29 @@ pub struct mwalibContext {
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
     /// This is an array of all timesteps we have data for
-    pub timesteps: Vec<mwalibTimeStep>,
-    /// Total number of antennas (tiles) in the array
-    pub num_antennas: usize,
-    /// We also have just the antennas
-    pub antennas: Vec<mwalibAntenna>,
+    pub timesteps: Vec<TimeStep>,
     /// Number of baselines stored. This is autos plus cross correlations
     pub num_baselines: usize,
     /// Baslines
-    pub baselines: Vec<mwalibBaseline>,
-    /// Total number of rf_inputs (tiles * 2 pols X&Y)
-    pub num_rf_inputs: usize,
-    /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
-    pub rf_inputs: Vec<mwalibRFInput>,
-    /// Number of antenna pols. e.g. X and Y
-    pub num_antenna_pols: usize,
+    pub baselines: Vec<Baseline>,
     /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
     pub num_visibility_pols: usize,
     /// Visibility polarisations
-    pub visibility_pols: Vec<mwalibVisibilityPol>,
+    pub visibility_pols: Vec<VisibilityPol>,
+    /// Correlator mode dump time
+    pub integration_time_milliseconds: u64,
     /// Number of coarse channels after we've validated the input gpubox files
     pub num_coarse_channels: usize,
     /// Vector of coarse channel structs
-    pub coarse_channels: Vec<mwalibCoarseChannel>,
-    /// Correlator mode dump time
-    pub integration_time_milliseconds: u64,
-    /// Correlator fine_channel_resolution
-    pub fine_channel_width_hz: u32,
+    pub coarse_channels: Vec<CoarseChannel>,
     /// Total bandwidth of observation (of the coarse channels we have)
     pub observation_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,
-    /// The value of the FREQCENT key in the metafits file, but in Hz.
-    pub metafits_centre_freq_hz: u32,
+    /// Correlator fine_channel_resolution
+    pub fine_channel_width_hz: u32,
     /// Number of fine channels in each coarse channel
     pub num_fine_channels_per_coarse: usize,
-    /// Filename of the metafits we were given
-    pub metafits_filename: String,
 
     /// `gpubox_batches` *must* be sorted appropriately. See
     /// `gpubox::determine_gpubox_batches`. The order of the filenames
@@ -214,10 +121,10 @@ pub struct mwalibContext {
     /// This is the number of gpubox files *per batch*.
     pub num_gpubox_files: usize,
     /// A conversion table to optimise reading of legacy MWA HDUs
-    pub legacy_conversion_table: Vec<mwalibLegacyConversionBaseline>,
+    pub legacy_conversion_table: Vec<LegacyConversionBaseline>,
 }
 
-impl mwalibContext {
+impl CorrelatorContext {
     /// From a path to a metafits file and paths to gpubox files, create an `mwalibContext`.
     ///
     /// The traits on the input parameters allow flexibility to input types.
@@ -238,30 +145,16 @@ impl mwalibContext {
         metafits: &T,
         gpuboxes: &[T],
     ) -> Result<Self, MwalibError> {
-        // Pull out observation details. Save the metafits HDU for faster
-        // accesses.
+        let observation_context = ObservationContext::new(metafits)?;
+
+        // Re-open metafits file
         let mut metafits_fptr = fits_open!(&metafits)?;
         let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
-        let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1)?;
 
-        // Populate obsid from the metafits
-        let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
-
-        // from MWA_Tools/CONV2UVFITS/convutils.h
-        // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
-        let coax_v_factor: f64 = 1.204;
-
+        // We need to get the correlator integration time
         let integration_time_milliseconds: u64 = {
             let it: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "INTTIME")?;
             (it * 1000.) as _
-        };
-        let quack_time_duration_milliseconds: u64 = {
-            let qt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")?;
-            (qt * 1000.).round() as _
-        };
-        let good_time_unix_milliseconds: u64 = {
-            let gt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GOODTIME")?;
-            (gt * 1000.).round() as _
         };
 
         let (gpubox_info, timesteps) =
@@ -270,15 +163,15 @@ impl mwalibContext {
                 let gpubox_info = examine_gpubox_files(&gpuboxes)?;
                 // We can unwrap here because the `gpubox_time_map` can't be empty if
                 // `gpuboxes` isn't empty.
-                let timesteps = mwalibTimeStep::populate_timesteps(&gpubox_info.time_map).unwrap();
+                let timesteps = TimeStep::populate_timesteps(&gpubox_info.time_map).unwrap();
                 (gpubox_info, timesteps)
             } else {
                 // If there are no gpubox files, then we need to use metafits info.
                 let nscans: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "NSCANS")?;
-                let timesteps: Vec<mwalibTimeStep> = (0..nscans)
+                let timesteps: Vec<TimeStep> = (0..nscans)
                     .map(|i| {
-                        let time = good_time_unix_milliseconds + i * integration_time_milliseconds;
-                        mwalibTimeStep::new(time)
+                        let time = observation_context.good_time_unix_milliseconds + i * integration_time_milliseconds;
+                        TimeStep::new(time)
                     })
                     .collect();
 
@@ -311,41 +204,17 @@ impl mwalibContext {
             };
         let num_timesteps = timesteps.len();
 
-        // Create a vector of rf_input structs from the metafits
-        let num_rf_inputs: usize =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "NINPUTS")?;
-
-        // There are twice as many inputs as
-        // there are antennas; halve that value.
-        let num_antennas = num_rf_inputs / 2;
-
-        // Create a vector of rf_input structs from the metafits
-        let mut rf_inputs: Vec<mwalibRFInput> = mwalibRFInput::populate_rf_inputs(
-            num_rf_inputs,
-            &mut metafits_fptr,
-            metafits_tile_table_hdu,
-            coax_v_factor,
-        )?;
-
-        // Sort the rf_inputs back into the correct output order
-        rf_inputs.sort_by_key(|k| k.subfile_order);
-
-        // Now populate the antennas (note they need to be sorted by subfile_order)
-        let antennas: Vec<mwalibAntenna> = mwalibAntenna::populate_antennas(&rf_inputs);
-
         // Populate baselines
-        let baselines = mwalibBaseline::populate_baselines(num_antennas);
-
-        // Always assume that MWA antennas have 2 pols
-        let num_antenna_pols = 2;
+        let baselines = Baseline::populate_baselines(observation_context.num_antennas);
 
         // Populate the pols that come out of the correlator
-        let visibility_pols = mwalibVisibilityPol::populate_visibility_pols();
+        let visibility_pols = VisibilityPol::populate_visibility_pols();
         let num_visibility_pols = visibility_pols.len();
 
         // `num_baselines` is the number of cross-correlations + the number of
         // auto-correlations.
-        let num_baselines = (num_antennas / 2) * (num_antennas + 1);
+        let num_baselines =
+            (observation_context.num_antennas / 2) * (observation_context.num_antennas + 1);
 
         // observation bandwidth (read from metafits in MHz)
         let metafits_observation_bandwidth_hz: u32 = {
@@ -355,13 +224,14 @@ impl mwalibContext {
 
         // Populate coarse channels
         let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
-            coarse_channel::mwalibCoarseChannel::populate_coarse_channels(
+            coarse_channel::CoarseChannel::populate_coarse_channels(
                 &mut metafits_fptr,
                 &metafits_hdu,
                 gpubox_info.corr_format,
                 metafits_observation_bandwidth_hz,
                 &gpubox_info.time_map,
             )?;
+
         let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
 
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
@@ -370,14 +240,6 @@ impl mwalibContext {
             let fc: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FINECHAN")?;
             (fc * 1000.).round() as _
         };
-
-        // Fine-channel resolution. The FINECHAN value in the metafits is in units
-        // of kHz - make it Hz.
-        let metafits_centre_freq_hz: u32 = {
-            let cf: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FREQCENT")?;
-            (cf * 1e6).round() as _
-        };
-
         // Determine the number of fine channels per coarse channel.
         let num_fine_channels_per_coarse =
             (coarse_channel_width_hz / fine_channel_width_hz) as usize;
@@ -390,7 +252,7 @@ impl mwalibContext {
 
             let mut fptr = fits_open!(&gpubox_info.batches[batch_index].gpubox_files[0].filename)?;
 
-            mwalibContext::validate_first_hdu(
+            CorrelatorContext::validate_first_hdu(
                 gpubox_info.corr_format,
                 num_fine_channels_per_coarse,
                 num_baselines,
@@ -407,150 +269,25 @@ impl mwalibContext {
             (o.start_millisec, o.end_millisec, o.duration_millisec)
         };
 
-        // populate lots of useful metadata
-        let scheduled_start_utc_string: String =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "DATE-OBS")?;
-
-        let scheduled_start_utc_string_with_offset: String = scheduled_start_utc_string + "+00:00";
-
-        let scheduled_start_utc =
-            DateTime::parse_from_rfc3339(&scheduled_start_utc_string_with_offset)
-                .expect("Unable to parse DATE-OBS into a date time");
-        let scheduled_start_mjd: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MJD")?;
-        let scheduled_duration_milliseconds: u64 = {
-            let ex: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "EXPOSURE")?;
-            ex * 1000
-        };
-        let scheduled_end_utc =
-            scheduled_start_utc + Duration::milliseconds(scheduled_duration_milliseconds as i64);
-
-        // To increment the mjd we need to fractional proportion of the day that the duration represents
-        let scheduled_end_mjd =
-            scheduled_start_mjd + (scheduled_duration_milliseconds as f64 / 1000. / 86400.);
-
-        let scheduled_start_gpstime_milliseconds: u64 = obsid as u64 * 1000;
-        let scheduled_end_gpstime_milliseconds: u64 =
-            scheduled_start_gpstime_milliseconds + scheduled_duration_milliseconds;
-
-        let scheduled_start_unix_time_milliseconds: u64 =
-            good_time_unix_milliseconds - quack_time_duration_milliseconds;
-        let scheduled_end_unix_time_milliseconds: u64 =
-            scheduled_start_unix_time_milliseconds + scheduled_duration_milliseconds;
-
-        let ra_tile_pointing_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "RA")?;
-        let dec_tile_pointing_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "DEC")?;
-        let ra_phase_center_degrees: Option<f64> =
-            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "RAPHASE")?;
-        let dec_phase_center_degrees: Option<f64> =
-            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DECPHASE")?;
-        let azimuth_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "AZIMUTH")?;
-        let altitude_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ALTITUDE")?;
-        let sun_altitude_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "SUN-ALT")?;
-        let sun_distance_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "SUN-DIST")?;
-        let moon_distance_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MOONDIST")?;
-        let jupiter_distance_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "JUP-DIST")?;
-        let lst_degrees: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "LST")?;
-        let hour_angle_string = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "HA")?;
-        let grid_name = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNAME")?;
-        let grid_number = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")?;
-        let creator = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "CREATOR")?;
-        let project_id = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "PROJECT")?;
-        let observation_name =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FILENAME")?;
-        let mode = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MODE")?;
-        let receivers_string: String =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "RECVRS")?;
-
-        let receivers: Vec<usize> = receivers_string
-            .replace(&['\'', '&'][..], "")
-            .split(',')
-            .map(|s| s.parse().unwrap())
-            .collect();
-
-        let delays_string: String =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "DELAYS")?;
-
-        let delays: Vec<usize> = delays_string
-            .replace(&['\'', '&'][..], "")
-            .split(',')
-            .map(|s| s.parse().unwrap())
-            .collect();
-
-        let global_analogue_attenuation_db: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?;
         // Prepare the conversion array to convert legacy correlator format into mwax format
         // or just leave it empty if we're in any other format
-        let legacy_conversion_table: Vec<mwalibLegacyConversionBaseline> =
-            match gpubox_info.corr_format {
-                CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
-                    convert::generate_conversion_array(&mut rf_inputs)
-                }
-                _ => Vec::new(),
-            };
+        let legacy_conversion_table: Vec<LegacyConversionBaseline> = match gpubox_info.corr_format {
+            CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
+                convert::generate_conversion_array(&mut observation_context.rf_inputs.clone())
+            }
+            _ => Vec::new(),
+        };
 
-        // Sort the rf_inputs back into the correct output order
-        rf_inputs.sort_by_key(|k| k.subfile_order);
-
-        Ok(mwalibContext {
-            mwa_latitude_radians: MWA_LATITUDE_RADIANS,
-            mwa_longitude_radians: MWA_LONGITUDE_RADIANS,
-            mwa_altitude_metres: MWA_ALTITUDE_METRES,
-            coax_v_factor,
-            obsid,
-            scheduled_start_gpstime_milliseconds,
-            scheduled_end_gpstime_milliseconds,
-            scheduled_start_unix_time_milliseconds,
-            scheduled_end_unix_time_milliseconds,
-            scheduled_start_utc,
-            scheduled_end_utc,
-            scheduled_start_mjd,
-            scheduled_end_mjd,
-            scheduled_duration_milliseconds,
-            ra_tile_pointing_degrees,
-            dec_tile_pointing_degrees,
-            ra_phase_center_degrees,
-            dec_phase_center_degrees,
-            azimuth_degrees,
-            altitude_degrees,
-            sun_altitude_degrees,
-            sun_distance_degrees,
-            moon_distance_degrees,
-            jupiter_distance_degrees,
-            lst_degrees,
-            hour_angle_string,
-            grid_name,
-            grid_number,
-            creator,
-            project_id,
-            observation_name,
-            mode,
-            receivers,
-            delays,
-            global_analogue_attenuation_db,
-            quack_time_duration_milliseconds,
-            good_time_unix_milliseconds,
+        Ok(CorrelatorContext {
+            observation_context,
             corr_version: gpubox_info.corr_format,
             start_unix_time_milliseconds,
             end_unix_time_milliseconds,
             duration_milliseconds,
             num_timesteps,
             timesteps,
-            num_antennas,
-            antennas,
             num_baselines,
             baselines,
-            num_rf_inputs,
-            rf_inputs,
-            num_antenna_pols,
             num_visibility_pols,
             visibility_pols,
             num_coarse_channels,
@@ -559,13 +296,7 @@ impl mwalibContext {
             fine_channel_width_hz,
             observation_bandwidth_hz,
             coarse_channel_width_hz,
-            metafits_centre_freq_hz,
             num_fine_channels_per_coarse,
-            metafits_filename: metafits
-                .as_ref()
-                .to_str()
-                .expect("Metafits filename is not UTF-8 compliant")
-                .to_string(),
             gpubox_batches: gpubox_info.batches,
             gpubox_time_map: gpubox_info.time_map,
             num_timestep_coarse_channel_bytes: gpubox_info.hdu_size * 4,
@@ -850,7 +581,7 @@ impl mwalibContext {
     }
 }
 
-/// Implements fmt::Display for mwalibContext struct
+/// Implements fmt::Display for CorrelatorContext struct
 ///
 /// # Arguments
 ///
@@ -863,82 +594,37 @@ impl mwalibContext {
 ///
 ///
 #[cfg(not(tarpaulin_include))]
-impl fmt::Display for mwalibContext {
+impl fmt::Display for CorrelatorContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // `size` is the number of floats (self.gpubox_hdu_size) multiplied by 4
         // bytes per float, divided by 1024^2 to get MiB.
         let size = (self.num_timestep_coarse_channel_floats * 4) as f64 / (1024 * 1024) as f64;
         writeln!(
             f,
-            r#"mwalibContext (
+            r#"CorrelatorContext (
+    Observation Context:      {obs_context}
     Correlator version:       {corr_ver},
 
-    MWA latitude:             {mwa_lat} degrees,
-    MWA longitude:            {mwa_lon} degrees
-    MWA altitude:             {mwa_alt} m,
-
-    obsid:                    {obsid},
-
-    Creator:                  {creator},
-    Project ID:               {project_id},
-    Observation Name:         {obs_name},
-    Receivers:                {receivers:?},
-    Delays:                   {delays:?},
-    Global attenuation:       {atten} dB,
-
-    Scheduled start (UNIX)    {sched_start_unix},
-    Scheduled end (UNIX)      {sched_end_unix},
-    Scheduled start (GPS)     {sched_start_gps},
-    Scheduled end (GPS)       {sched_end_gps},
-    Scheduled start (utc)     {sched_start_utc},
-    Scheduled end (utc)       {sched_end_utc},
-    Scheduled start (MJD)     {sched_start_mjd},
-    Scheduled end (MJD)       {sched_end_mjd},
-    Scheduled duration        {sched_duration} s,
     Actual UNIX start time:   {start_unix},
     Actual UNIX end time:     {end_unix},
     Actual duration:          {duration} s,
-    Quack time:               {quack_duration} s,
-    Good UNIX start time:     {good_time},
-
-    R.A. (tile_pointing):     {rtpc} degrees,
-    Dec. (tile_pointing):     {dtpc} degrees,
-    R.A. (phase center):      {rppc},
-    Dec. (phase center):      {dppc},
-    Azimuth:                  {az} degrees,
-    Altitude:                 {alt} degrees,
-    Sun altitude:             {sun_alt} degrees,
-    Sun distance:             {sun_dis} degrees,
-    Moon distance:            {moon_dis} degrees,
-    Jupiter distance:         {jup_dis} degrees,
-    LST:                      {lst} degrees,
-    Hour angle:               {ha} degrees,
-    Grid name:                {grid},
-    Grid number:              {grid_n},
 
     num timesteps:            {n_timesteps},
     timesteps:                {timesteps:?},
-
-    num antennas:             {n_ants},
-    antennas:                 {ants:?},
-    rf_inputs:                {rfs:?},
 
     num baselines:            {n_bls},
     baselines:                {bl01} v {bl02} to {bll1} v {bll2}
     num auto-correlations:    {n_ants},
     num cross-correlations:   {n_ccs},
 
-    num antenna pols:         {n_aps},
     num visibility pols:      {n_vps},
     visibility pols:          {vp0}, {vp1}, {vp2}, {vp3},
 
     observation bandwidth:    {obw} MHz,
     num coarse channels,      {n_coarse},
     coarse channels:          {coarse:?},
-    metafits FREQCENT key:    {freqcent} MHz,
 
     Correlator Mode:
-    Mode:                     {mode},
     fine channel resolution:  {fcw} kHz,
     integration time:         {int_time:.2} s
     num fine channels/coarse: {nfcpc},
@@ -946,68 +632,22 @@ impl fmt::Display for mwalibContext {
     gpubox HDU size:          {hdu_size} MiB,
     Memory usage per scan:    {scan_size} MiB,
 
-    metafits filename:        {meta},
     gpubox batches:           {batches:#?},
 )"#,
+            obs_context = self.observation_context,
             corr_ver = self.corr_version,
-            mwa_lat = self.mwa_latitude_radians.to_degrees(),
-            mwa_lon = self.mwa_longitude_radians.to_degrees(),
-            mwa_alt = self.mwa_altitude_metres,
-            obsid = self.obsid,
-            creator = self.creator,
-            project_id = self.project_id,
-            obs_name = self.observation_name,
-            receivers = self.receivers,
-            delays = self.delays,
-            atten = self.global_analogue_attenuation_db,
-            sched_start_unix = self.scheduled_start_unix_time_milliseconds as f64 / 1e3,
-            sched_end_unix = self.scheduled_end_unix_time_milliseconds as f64 / 1e3,
-            sched_start_gps = self.scheduled_start_gpstime_milliseconds as f64 / 1e3,
-            sched_end_gps = self.scheduled_end_gpstime_milliseconds as f64 / 1e3,
-            sched_start_utc = self.scheduled_start_utc,
-            sched_end_utc = self.scheduled_end_utc,
-            sched_start_mjd = self.scheduled_start_mjd,
-            sched_end_mjd = self.scheduled_end_mjd,
-            sched_duration = self.scheduled_duration_milliseconds as f64 / 1e3,
             start_unix = self.start_unix_time_milliseconds as f64 / 1e3,
             end_unix = self.end_unix_time_milliseconds as f64 / 1e3,
             duration = self.duration_milliseconds as f64 / 1e3,
-            quack_duration = self.quack_time_duration_milliseconds as f64 / 1e3,
-            good_time = self.good_time_unix_milliseconds as f64 / 1e3,
-            rtpc = self.ra_tile_pointing_degrees,
-            dtpc = self.dec_tile_pointing_degrees,
-            rppc = if let Some(rppc) = self.ra_phase_center_degrees {
-                format!("{} degrees", rppc)
-            } else {
-                "N/A".to_string()
-            },
-            dppc = if let Some(dppc) = self.dec_phase_center_degrees {
-                format!("{} degrees", dppc)
-            } else {
-                "N/A".to_string()
-            },
-            az = self.azimuth_degrees,
-            alt = self.altitude_degrees,
-            sun_alt = self.sun_altitude_degrees,
-            sun_dis = self.sun_distance_degrees,
-            moon_dis = self.moon_distance_degrees,
-            jup_dis = self.jupiter_distance_degrees,
-            lst = self.lst_degrees,
-            ha = self.hour_angle_string,
-            grid = self.grid_name,
-            grid_n = self.grid_number,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,
-            n_ants = self.num_antennas,
-            ants = self.antennas,
-            rfs = self.rf_inputs,
             n_bls = self.num_baselines,
             bl01 = self.baselines[0].antenna1_index,
             bl02 = self.baselines[0].antenna2_index,
             bll1 = self.baselines[self.num_baselines - 1].antenna1_index,
             bll2 = self.baselines[self.num_baselines - 1].antenna2_index,
-            n_ccs = self.num_baselines - self.num_antennas,
-            n_aps = self.num_antenna_pols,
+            n_ants = self.observation_context.num_antennas,
+            n_ccs = self.num_baselines - self.observation_context.num_antennas,
             n_vps = self.num_visibility_pols,
             vp0 = self.visibility_pols[0].polarisation,
             vp1 = self.visibility_pols[1].polarisation,
@@ -1016,14 +656,11 @@ impl fmt::Display for mwalibContext {
             obw = self.observation_bandwidth_hz as f64 / 1e6,
             n_coarse = self.num_coarse_channels,
             coarse = self.coarse_channels,
-            freqcent = self.metafits_centre_freq_hz as f64 / 1e6,
-            mode = self.mode,
             fcw = self.fine_channel_width_hz as f64 / 1e3,
             int_time = self.integration_time_milliseconds as f64 / 1e3,
             nfcpc = self.num_fine_channels_per_coarse,
             hdu_size = size,
             scan_size = size * self.num_gpubox_files as f64,
-            meta = self.metafits_filename,
             batches = self.gpubox_batches,
         )
     }
@@ -1040,7 +677,7 @@ mod tests {
         let gpuboxfiles = Vec::new();
 
         // No gpubox files provided
-        let context = mwalibContext::new(&metafits_filename, &gpuboxfiles);
+        let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles);
         assert!(context.is_ok());
         let context = context.unwrap();
 
@@ -1055,7 +692,7 @@ mod tests {
         let gpuboxfiles = vec![filename];
 
         // No gpubox files provided
-        let context = mwalibContext::new(&metafits_filename, &gpuboxfiles);
+        let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles);
 
         assert!(context.is_err());
     }
@@ -1073,76 +710,12 @@ mod tests {
         //
         // Open a context and load in a test metafits and gpubox file
         let gpuboxfiles = vec![filename];
-        let context = mwalibContext::new(&metafits_filename, &gpuboxfiles)
+        let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles)
             .expect("Failed to create mwalibContext");
 
         // Test the properties of the context object match what we expect
         // Correlator version:       v1 Legacy,
         assert_eq!(context.corr_version, CorrelatorVersion::Legacy);
-
-        // MWA latitude:             -26.703319405555554 degrees,
-        assert!(approx_eq!(
-            f64,
-            context.mwa_latitude_radians.to_degrees(),
-            -26.703_319_405_555_554,
-            F64Margin::default()
-        ));
-        // MWA longitude:            116.67081523611111 degrees
-        assert!(approx_eq!(
-            f64,
-            context.mwa_longitude_radians.to_degrees(),
-            116.670_815_236_111_11,
-            F64Margin::default()
-        ));
-        // MWA altitude:             377.827 m,
-        assert!(approx_eq!(
-            f64,
-            context.mwa_altitude_metres,
-            377.827,
-            F64Margin::default()
-        ));
-
-        // obsid:                    1101503312,
-        assert_eq!(context.obsid, 1_101_503_312);
-
-        // Creator:                  Randall,
-        assert_eq!(context.creator, "Randall");
-
-        // Project ID:               G0009,
-        assert_eq!(context.project_id, "G0009");
-
-        // Observation Name:         FDS_DEC-26.7_121,
-        assert_eq!(context.observation_name, "FDS_DEC-26.7_121");
-
-        // Receivers:                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-        assert_eq!(context.receivers.len(), 16);
-        assert_eq!(context.receivers[0], 1);
-        assert_eq!(context.receivers[15], 16);
-
-        // Delays:                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        assert_eq!(context.delays.len(), 16);
-        assert_eq!(context.delays[0], 0);
-        assert_eq!(context.delays[15], 0);
-
-        // Global attenuation:       1 dB,
-        assert_eq!(context.global_analogue_attenuation_db as i16, 1);
-
-        // Scheduled start (utc)     2014-12-01 21:08:16 +00:00,
-        assert_eq!(
-            context.scheduled_start_utc,
-            DateTime::parse_from_rfc3339("2014-12-01T21:08:16+00:00").unwrap()
-        );
-
-        // Scheduled start (MJD)     56992.88074074074,
-        assert!(approx_eq!(
-            f64,
-            context.scheduled_start_mjd,
-            56_992.880_740_740_74,
-            F64Margin::default()
-        ));
-
-        // Scheduled duration        112 s,
-        assert_eq!(context.scheduled_duration_milliseconds, 112_000);
 
         // Actual UNIX start time:   1417468096,
         assert_eq!(context.start_unix_time_milliseconds, 1_417_468_096_000);
@@ -1153,122 +726,14 @@ mod tests {
         // Actual duration:          2 s,
         assert_eq!(context.duration_milliseconds, 2000);
 
-        // Quack time:               2 s,
-        assert_eq!(context.quack_time_duration_milliseconds, 2000);
-
-        // Good UNIX start time:     1417468098,
-        assert_eq!(context.good_time_unix_milliseconds, 1_417_468_098_000);
-
-        // R.A. (tile_pointing):     144.2107504850443 degrees,
-        assert!(approx_eq!(
-            f64,
-            context.ra_tile_pointing_degrees,
-            144.210_750_485_044_3,
-            F64Margin::default()
-        ));
-
-        // Dec. (tile_pointing):     -26.63403125476213 degrees,
-        assert!(approx_eq!(
-            f64,
-            context.dec_tile_pointing_degrees,
-            -26.634_031_254_762_13,
-            F64Margin::default()
-        ));
-
-        // R.A. (phase center):      None degrees,
-        assert!(context.ra_phase_center_degrees.is_none());
-
-        // Dec. (phase center):      None degrees,
-        assert!(context.dec_phase_center_degrees.is_none());
-
-        // Azimuth:                  0 degrees,
-        assert!(approx_eq!(
-            f64,
-            context.azimuth_degrees,
-            0.,
-            F64Margin::default()
-        ));
-
-        // Altitude:                 90 degrees,
-        assert!(approx_eq!(
-            f64,
-            context.altitude_degrees,
-            90.,
-            F64Margin::default()
-        ));
-
-        // Sun altitude:             -1.53222775573148 degrees,
-        assert!(approx_eq!(
-            f64,
-            context.sun_altitude_degrees,
-            -1.532_227_755_731_48,
-            F64Margin::default()
-        ));
-
-        // Sun distance:             91.5322277557315 degrees,
-        assert!(approx_eq!(
-            f64,
-            context.sun_distance_degrees,
-            91.532_227_755_731_5,
-            F64Margin::default()
-        ));
-
-        // Moon distance:            131.880015235607 degrees,
-        assert!(approx_eq!(
-            f64,
-            context.moon_distance_degrees,
-            131.880_015_235_607,
-            F64Margin::default()
-        ));
-
-        // Jupiter distance:         41.401684338269 degrees,
-        assert!(approx_eq!(
-            f64,
-            context.jupiter_distance_degrees,
-            41.401_684_338_269,
-            F64Margin::default()
-        ));
-
-        // LST:                      144.381251875516 degrees,
-        assert!(approx_eq!(
-            f64,
-            context.lst_degrees,
-            144.381_251_875_516,
-            F64Margin::default()
-        ));
-
-        // Hour angle:               -00:00:00.00 degrees,
-        // Grid name:                sweet,
-        assert_eq!(context.grid_name, "sweet");
-
-        // Grid number:              0,
-        assert_eq!(context.grid_number, 0);
-
         // num timesteps:            1,
         assert_eq!(context.num_timesteps, 1);
 
         // timesteps:                [unix=1417468096.000],
         assert_eq!(context.timesteps[0].unix_time_ms, 1_417_468_096_000);
 
-        // num antennas:             128,
-        assert_eq!(context.num_antennas, 128);
-
-        // antennas:                 [Tile011, Tile012, ... Tile167, Tile168],
-        assert_eq!(context.antennas[0].tile_name, "Tile011");
-        assert_eq!(context.antennas[127].tile_name, "Tile168");
-
-        // rf_inputs:                [Tile011X, Tile011Y, ... Tile168X, Tile168Y],
-        assert_eq!(context.num_rf_inputs, 256);
-        assert_eq!(context.rf_inputs[0].pol, Pol::X);
-        assert_eq!(context.rf_inputs[0].tile_name, "Tile011");
-        assert_eq!(context.rf_inputs[255].pol, Pol::Y);
-        assert_eq!(context.rf_inputs[255].tile_name, "Tile168");
-
         // num baselines:            8256,
         assert_eq!(context.num_baselines, 8256);
-
-        // num antenna pols:         2,
-        assert_eq!(context.num_antenna_pols, 2);
 
         // num visibility pols:      4,
         assert_eq!(context.num_visibility_pols, 4);
@@ -1285,9 +750,6 @@ mod tests {
         assert_eq!(context.coarse_channels[0].channel_centre_hz, 139_520_000);
 
         // Correlator Mode:
-        // Mode:                     HW_LFILES,
-        assert_eq!(context.mode, "HW_LFILES");
-
         // fine channel resolution:  10 kHz,
         assert_eq!(context.fine_channel_width_hz, 10_000);
 
@@ -1330,8 +792,8 @@ mod tests {
         //
         // Open a context and load in a test metafits and gpubox file
         let gpuboxfiles = vec![mwax_filename];
-        let mut context = mwalibContext::new(&mwax_metafits_filename, &gpuboxfiles)
-            .expect("Failed to create mwalibContext");
+        let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+            .expect("Failed to create CorrelatorContext");
 
         // Read and convert first HDU by baseline
         let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
@@ -1374,8 +836,8 @@ mod tests {
         //
         // Open a context and load in a test metafits and gpubox file
         let gpuboxfiles = vec![filename];
-        let context = mwalibContext::new(&metafits_filename, &gpuboxfiles)
-            .expect("Failed to create mwalibContext");
+        let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles)
+            .expect("Failed to create CorrelatorContext");
 
         let coarse_channel = context.coarse_channels[0].gpubox_number;
         let (batch_index, _) =
@@ -1384,7 +846,7 @@ mod tests {
         let mut fptr =
             fits_open!(&context.gpubox_batches[batch_index].gpubox_files[0].filename).unwrap();
 
-        let result_valid = mwalibContext::validate_first_hdu(
+        let result_valid = CorrelatorContext::validate_first_hdu(
             context.corr_version,
             context.num_fine_channels_per_coarse,
             context.num_baselines,
@@ -1392,7 +854,7 @@ mod tests {
             &mut fptr,
         );
 
-        let result_invalid1 = mwalibContext::validate_first_hdu(
+        let result_invalid1 = CorrelatorContext::validate_first_hdu(
             context.corr_version,
             context.num_fine_channels_per_coarse + 1,
             context.num_baselines,
@@ -1400,7 +862,7 @@ mod tests {
             &mut fptr,
         );
 
-        let result_invalid2 = mwalibContext::validate_first_hdu(
+        let result_invalid2 = CorrelatorContext::validate_first_hdu(
             context.corr_version,
             context.num_fine_channels_per_coarse,
             context.num_baselines + 1,
@@ -1408,7 +870,7 @@ mod tests {
             &mut fptr,
         );
 
-        let result_invalid3 = mwalibContext::validate_first_hdu(
+        let result_invalid3 = CorrelatorContext::validate_first_hdu(
             context.corr_version,
             context.num_fine_channels_per_coarse,
             context.num_baselines,

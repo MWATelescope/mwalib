@@ -25,9 +25,12 @@ struct Opt {
 #[cfg(not(tarpaulin_include))]
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
-    let mut context = mwalibContext::new(&opts.metafits, &opts.files)?;
+    let mut context = CorrelatorContext::new(&opts.metafits, &opts.files)?;
 
-    context.rf_inputs.sort_by_key(|k| k.subfile_order);
+    context
+        .observation_context
+        .rf_inputs
+        .sort_by_key(|k| k.subfile_order);
 
     println!("{}", context);
 

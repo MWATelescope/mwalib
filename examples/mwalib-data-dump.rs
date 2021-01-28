@@ -57,7 +57,7 @@ fn dump_data<T: AsRef<std::path::Path>>(
 ) -> Result<(), anyhow::Error> {
     let mut dump_file = File::create(dump_filename)?;
     println!("Dumping data via mwalib...");
-    let mut context = mwalibContext::new(metafits, files)?;
+    let mut context = CorrelatorContext::new(metafits, files)?;
     let coarse_channel_array = context.coarse_channels.clone();
     let timestep_array = context.timesteps.clone();
 
@@ -66,9 +66,15 @@ fn dump_data<T: AsRef<std::path::Path>>(
     let floats_per_finechan = context.num_visibility_pols * 2;
     let floats_per_baseline = context.num_fine_channels_per_coarse * floats_per_finechan;
 
-    let (ant1, ant2) = misc::get_antennas_from_baseline(baseline, context.num_antennas).unwrap();
-    let ant1_name: String = context.antennas[ant1].tile_name.to_string();
-    let ant2_name: String = context.antennas[ant2].tile_name.to_string();
+    let (ant1, ant2) =
+        misc::get_antennas_from_baseline(baseline, context.observation_context.num_antennas)
+            .unwrap();
+    let ant1_name: String = context.observation_context.antennas[ant1]
+        .tile_name
+        .to_string();
+    let ant2_name: String = context.observation_context.antennas[ant2]
+        .tile_name
+        .to_string();
 
     let baseline_index = baseline * floats_per_baseline;
 

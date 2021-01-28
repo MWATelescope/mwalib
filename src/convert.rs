@@ -32,8 +32,7 @@ fn fine_pfb_reorder(input: usize) -> usize {
 }
 
 /// Structure for storing where in the input visibilities to get the specified baseline when converting
-#[allow(non_camel_case_types)]
-pub struct mwalibLegacyConversionBaseline {
+pub struct LegacyConversionBaseline {
     pub baseline: usize,    // baseline index
     pub ant1: usize,        // antenna1 index
     pub ant2: usize,        // antenna2 index
@@ -47,19 +46,22 @@ pub struct mwalibLegacyConversionBaseline {
     pub yy_conjugate: bool, // if true, we need to conjugate this visibility
 }
 
-impl mwalibLegacyConversionBaseline {
-    /// Create a new populated mwalibLegacyConversionBaseline which represents the conversion table
+impl LegacyConversionBaseline {
+    /// Create a new populated
+    ///LegacyConversionBaseline which represents the conversion table
     /// to work out where in the input data we should pull data from, for the given baseline/ant1/ant2.
     ///
     ///
     /// # Arguments
     ///
-    /// See `mwalibLegacyConversionBaseline` struct.
+    /// See `
+    ///LegacyConversionBaseline` struct.
     ///
     ///
     /// # Returns
     ///
-    /// * Returns a Result containing a populated mwalibLegacyConversionBaseline if Ok.
+    /// * Returns a Result containing a populated
+    ///LegacyConversionBaseline if Ok.
     ///
     pub fn new(
         baseline: usize,
@@ -99,7 +101,7 @@ impl mwalibLegacyConversionBaseline {
 ///
 ///
 #[cfg(not(tarpaulin_include))]
-impl fmt::Debug for mwalibLegacyConversionBaseline {
+impl fmt::Debug for LegacyConversionBaseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -116,7 +118,8 @@ impl fmt::Debug for mwalibLegacyConversionBaseline {
 }
 
 /// Generates a full matrix mapping pfb inputs to MWAX format. Used to generate conversion table
-/// which is vector of `mwalibLegacyConversionBaseline` structs.
+/// which is vector of `
+///LegacyConversionBaseline` structs.
 ///
 ///
 /// # Arguments
@@ -192,17 +195,16 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
 ///
 /// # Arguments
 ///
-/// * `rf_inputs` - A vector containing all of the `mwalibRFInput`s from the metafits.
+/// * `rf_inputs` - A vector containing all of the `RFInput`s from the metafits.
 ///
 ///
 /// # Returns
 ///
-/// * A Vector of `mwalibLegacyConversionBaseline`s which tell us, for a specific output baseline, where in the input HDU
+/// * A Vector of `
+///LegacyConversionBaseline`s which tell us, for a specific output baseline, where in the input HDU
 /// to get data from (and whether it needs to be conjugated).
 ///
-pub fn generate_conversion_array(
-    rf_inputs: &mut Vec<mwalibRFInput>,
-) -> Vec<mwalibLegacyConversionBaseline> {
+pub fn generate_conversion_array(rf_inputs: &mut Vec<RFInput>) -> Vec<LegacyConversionBaseline> {
     // Sort the rf_inputs by "Input / metafits" order
     rf_inputs.sort_by(|a, b| a.input.cmp(&b.input));
 
@@ -227,7 +229,7 @@ pub fn generate_conversion_array(
     // Create an output vector so we can lookup where to get data from the legacy HDU, given a baseline/ant1/ant2
     let baseline_count = get_baseline_count(128);
 
-    let mut conversion_table: Vec<mwalibLegacyConversionBaseline> =
+    let mut conversion_table: Vec<LegacyConversionBaseline> =
         Vec::with_capacity(baseline_count as usize);
 
     // Our row tile and column tile.  Now 2 pols each so only 128 in legacy obs
@@ -241,7 +243,7 @@ pub fn generate_conversion_array(
             yx = full_matrix[(row_tile * 2 + 1) << 8 | (col_tile * 2)] * 2;
             yy = full_matrix[(row_tile * 2 + 1) << 8 | (col_tile * 2 + 1)] * 2;
 
-            conversion_table.push(mwalibLegacyConversionBaseline::new(
+            conversion_table.push(LegacyConversionBaseline::new(
                 baseline, row_tile, col_tile, xx, xy, yx, yy,
             ));
 
@@ -266,7 +268,8 @@ pub fn generate_conversion_array(
 /// [time][baseline][freq][pol] in a standard triangle of 0,0 .. 0,N 1,1..1,N baseline order.
 /// # Arguments
 ///
-/// * `conversion_table` - A vector containing all of the `mwalibLegacyConversionBaseline`s we have pre-calculated.
+/// * `conversion_table` - A vector containing all of the `
+///LegacyConversionBaseline`s we have pre-calculated.
 ///
 /// * `input_buffer` - Float vector read from legacy MWA HDUs.
 ///
@@ -283,7 +286,7 @@ pub fn generate_conversion_array(
 /// Better error handling by returning a Result with associated Errors. Right now it just panics.
 ///
 pub fn convert_legacy_hdu_to_mwax_baseline_order(
-    conversion_table: &[mwalibLegacyConversionBaseline],
+    conversion_table: &[LegacyConversionBaseline],
     input_buffer: &[f32],
     output_buffer: &mut [f32],
     num_fine_channels: usize,
@@ -365,7 +368,8 @@ pub fn convert_legacy_hdu_to_mwax_baseline_order(
 /// [time][freq][baseline][pol] in a standard triangle of 0,0 .. 0,N 1,1..1,N baseline order.
 /// # Arguments
 ///
-/// * `conversion_table` - A vector containing all of the `mwalibLegacyConversionBaseline`s we have pre-calculated.
+/// * `conversion_table` - A vector containing all of the `
+///LegacyConversionBaseline`s we have pre-calculated.
 ///
 /// * `input_buffer` - Float vector read from legacy MWA HDUs.
 ///
@@ -382,7 +386,7 @@ pub fn convert_legacy_hdu_to_mwax_baseline_order(
 /// Better error handling by returning a Result with associated Errors. Right now it just panics.
 ///
 pub fn convert_legacy_hdu_to_mwax_frequency_order(
-    conversion_table: &[mwalibLegacyConversionBaseline],
+    conversion_table: &[LegacyConversionBaseline],
     input_buffer: &[f32],
     output_buffer: &mut [f32],
     num_fine_channels: usize,
@@ -624,8 +628,8 @@ mod tests {
         let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
         let gpuboxfiles =
             vec!["test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits"];
-        let mut context =
-            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+        let mut context = CorrelatorContext::new(&metafits, &gpuboxfiles)
+            .expect("Failed to create CorrelatorContext");
 
         // Read and convert first HDU
         let mwalib_hdu: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
@@ -768,8 +772,8 @@ mod tests {
         let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
         let gpuboxfiles =
             vec!["test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits"];
-        let mut context =
-            mwalibContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+        let mut context = CorrelatorContext::new(&metafits, &gpuboxfiles)
+            .expect("Failed to create mwalibContext");
 
         // Read and convert first HDU
         let mwalib_hdu: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
@@ -939,7 +943,7 @@ mod tests {
         //
         // Open a context and load in a test metafits and gpubox file
         let gpuboxfiles = vec![mwax_filename];
-        let mut context = mwalibContext::new(&mwax_metafits_filename, &gpuboxfiles)
+        let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
             .expect("Failed to create mwalibContext");
 
         // Read and convert first HDU

@@ -104,9 +104,8 @@ impl fmt::Display for Pol {
     }
 }
 
-#[allow(non_camel_case_types)]
 /// Structure to hold one row of the metafits tiledata table
-struct mwalibRFInputMetafitsTableRow {
+struct RFInputMetafitsTableRow {
     /// This is the ordinal index of the rf_input in the metafits file
     pub input: u32,
     /// This is the antenna number.
@@ -139,13 +138,12 @@ struct mwalibRFInputMetafitsTableRow {
     /// Receiver number
     pub rx: u32,
     /// Receiver slot number
-    pub slot: u32
+    pub slot: u32,
 }
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
-#[allow(non_camel_case_types)]
 #[derive(Clone)]
-pub struct mwalibRFInput {
+pub struct RFInput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
     /// This is the antenna number.
@@ -182,10 +180,10 @@ pub struct mwalibRFInput {
     /// Receiver number
     pub receiver_number: u32,
     /// Receiver slot number
-    pub receiver_slot_number: u32
+    pub receiver_slot_number: u32,
 }
 
-impl mwalibRFInput {
+impl RFInput {
     /// This method just reads a row from the metafits tiledata table to create a new, populated mwalibCoarseChannel struct
     ///
     /// # Arguments
@@ -199,13 +197,13 @@ impl mwalibRFInput {
     ///
     /// # Returns
     ///
-    /// * An Result containing a populated vector of mwalibRFInputMetafitsTableRow structss or an Error
+    /// * An Result containing a populated vector of RFInputMetafitsTableRow structss or an Error
     ///
     fn read_metafits_values(
         metafits_fptr: &mut fitsio::FitsFile,
         metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
         row: usize,
-    ) -> Result<mwalibRFInputMetafitsTableRow, RfinputError> {
+    ) -> Result<RFInputMetafitsTableRow, RfinputError> {
         let input = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Input", row)?;
         let antenna = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Antenna", row)?;
         let tile_id = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Tile", row)?;
@@ -249,7 +247,7 @@ impl mwalibRFInput {
         let rx = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Rx", row)?;
         let slot = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Slot", row)?;
 
-        Ok(mwalibRFInputMetafitsTableRow {
+        Ok(RFInputMetafitsTableRow {
             input,
             antenna,
             tile_id,
@@ -263,7 +261,7 @@ impl mwalibRFInput {
             gains,
             delays,
             rx,
-            slot
+            slot,
         })
     }
 
@@ -284,7 +282,7 @@ impl mwalibRFInput {
     ///
     /// # Returns
     ///
-    /// * An Result containing a populated vector of mwalibRFInputMetafitsTableRow structss or an Error
+    /// * An Result containing a populated vector of RFInputMetafitsTableRow structss or an Error
     ///
     pub fn populate_rf_inputs(
         num_inputs: usize,
@@ -325,7 +323,7 @@ impl mwalibRFInput {
                 gains: metafits_row.gains,
                 delays: metafits_row.delays,
                 receiver_number: metafits_row.rx,
-                receiver_slot_number: metafits_row.slot
+                receiver_slot_number: metafits_row.slot,
             })
         }
         Ok(rf_inputs)
@@ -417,7 +415,7 @@ fn read_cell_array(
     }
 }
 
-/// Implements fmt::Debug for mwalibRFInput struct
+/// Implements fmt::Debug for RFInput struct
 ///
 /// # Arguments
 ///
@@ -430,7 +428,7 @@ fn read_cell_array(
 ///
 ///
 #[cfg(not(tarpaulin_include))]
-impl fmt::Debug for mwalibRFInput {
+impl fmt::Debug for RFInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.tile_name, self.pol)
     }
@@ -506,9 +504,8 @@ mod tests {
         let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
 
         // Get values from row 1
-        let row: mwalibRFInputMetafitsTableRow =
-            mwalibRFInput::read_metafits_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0)
-                .unwrap();
+        let row: RFInputMetafitsTableRow =
+            RFInput::read_metafits_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0).unwrap();
         assert_eq!(row.input, 0);
         assert_eq!(row.antenna, 75);
         assert_eq!(row.tile_id, 104);
@@ -560,7 +557,7 @@ mod tests {
 
             // Get values from row 1
             let metafits_result =
-                mwalibRFInput::read_metafits_values(metafits_fptr, &metafits_tile_table_hdu, 0);
+                RFInput::read_metafits_values(metafits_fptr, &metafits_tile_table_hdu, 0);
 
             assert_eq!(metafits_result.is_err(), true);
         });

@@ -9,17 +9,17 @@ use crate::misc;
 use std::fmt;
 
 /// This is a struct for our baselines, so callers know the antenna ordering
-#[allow(non_camel_case_types)]
 #[derive(Clone)]
-pub struct mwalibBaseline {
+pub struct Baseline {
     /// Index in the mwalibContext.antenna array for antenna1 for this baseline
     pub antenna1_index: usize,
     /// Index in the mwalibContext.antenna array for antenna2 for this baseline
     pub antenna2_index: usize,
 }
 
-impl mwalibBaseline {
-    /// Creates a new, populated mwalibBaseline struct
+impl Baseline {
+    /// Creates a new, populated
+    ///Baseline struct
     ///
     /// # Arguments
     ///
@@ -28,12 +28,13 @@ impl mwalibBaseline {
     ///
     /// # Returns
     ///
-    /// * A populated mwalibBaseline struct
+    /// * A populated
+    ///Baseline struct
     ///    
     pub fn populate_baselines(num_antennas: usize) -> Vec<Self> {
         let num_baselines = misc::get_baseline_count(num_antennas);
-        let mut bls: Vec<mwalibBaseline> = vec![
-            mwalibBaseline {
+        let mut bls: Vec<Baseline> = vec![
+            Baseline {
                 antenna1_index: 0,
                 antenna2_index: 0
             };
@@ -54,7 +55,8 @@ impl mwalibBaseline {
     }
 }
 
-/// Implements fmt::Debug for mwalibBaseline struct
+/// Implements fmt::Debug for
+///Baseline struct
 ///
 /// # Arguments
 ///
@@ -67,7 +69,7 @@ impl mwalibBaseline {
 ///
 ///
 #[cfg(not(tarpaulin_include))]
-impl fmt::Debug for mwalibBaseline {
+impl fmt::Debug for Baseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{},{}", self.antenna1_index, self.antenna2_index,)
     }
@@ -80,7 +82,7 @@ mod tests {
     #[test]
     fn test_populate_baselines() {
         let num_antennas = 128;
-        let bls = mwalibBaseline::populate_baselines(num_antennas);
+        let bls = Baseline::populate_baselines(num_antennas);
 
         assert_eq!(bls.len(), 8256);
 

@@ -129,7 +129,7 @@ pub unsafe extern "C" fn mwalibContext_get(
     gpubox_count: size_t,
     error_message: *mut u8,
     error_message_length: size_t,
-) -> *mut mwalibContext {
+) -> *mut CorrelatorContext {
     let m = CStr::from_ptr(metafits).to_str().unwrap().to_string();
     let gpubox_slice = slice::from_raw_parts(gpuboxes, gpubox_count);
     let mut gpubox_files = Vec::with_capacity(gpubox_count);
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn mwalibContext_get(
         let s = CStr::from_ptr(*g).to_str().unwrap();
         gpubox_files.push(s.to_string())
     }
-    let context = match mwalibContext::new(&m, &gpubox_files) {
+    let context = match CorrelatorContext::new(&m, &gpubox_files) {
         Ok(c) => c,
         Err(e) => {
             set_error_message(&format!("{}", e), error_message, error_message_length);
@@ -165,7 +165,7 @@ pub unsafe extern "C" fn mwalibContext_get(
 /// * context_ptr must not have already been freed.
 #[no_mangle]
 #[cfg(not(tarpaulin_include))]
-pub unsafe extern "C" fn mwalibContext_free(context_ptr: *mut mwalibContext) {
+pub unsafe extern "C" fn mwalibContext_free(context_ptr: *mut ObservationContext) {
     if context_ptr.is_null() {
         return;
     }
@@ -194,7 +194,7 @@ pub unsafe extern "C" fn mwalibContext_free(context_ptr: *mut mwalibContext) {
 /// * context_ptr must contain an mwalibContext object already populated via mwalibContext_new
 #[no_mangle]
 pub unsafe extern "C" fn mwalibContext_display(
-    context_ptr: *const mwalibContext,
+    context_ptr: *const ObservationContext,
     error_message: *mut u8,
     error_message_length: size_t,
 ) -> i32 {
@@ -246,7 +246,7 @@ pub unsafe extern "C" fn mwalibContext_display(
 /// * Caller *must* call mwalibContext_free_read_buffer function to release the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibContext_read_by_baseline(
-    context_ptr: *mut mwalibContext,
+    context_ptr: *mut CorrelatorContext,
     timestep_index: usize,
     coarse_channel_index: usize,
     buffer_ptr: *mut c_float,
@@ -334,7 +334,7 @@ pub unsafe extern "C" fn mwalibContext_read_by_baseline(
 /// * Caller *must* call mwalibContext_free_read_buffer function to release the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibContext_read_by_frequency(
-    context_ptr: *mut mwalibContext,
+    context_ptr: *mut CorrelatorContext,
     timestep_index: usize,
     coarse_channel_index: usize,
     buffer_ptr: *mut c_float,
@@ -560,7 +560,7 @@ pub struct mwalibMetadata {
 /// * Caller must call mwalibMetadata_free once finished, to free the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibMetadata_get(
-    context_ptr: *mut mwalibContext,
+    context_ptr: *mut CorrelatorContext,
     error_message: *mut u8,
     error_message_length: size_t,
 ) -> *mut mwalibMetadata {
@@ -574,66 +574,72 @@ pub unsafe extern "C" fn mwalibMetadata_get(
     }
     let context = &*context_ptr;
     let out_context = mwalibMetadata {
-        obsid: context.obsid,
+        obsid: context.observation_context.obsid,
         corr_version: context.corr_version,
-        mwa_latitude_radians: context.mwa_latitude_radians,
-        mwa_longitude_radians: context.mwa_longitude_radians,
-        mwa_altitude_metres: context.mwa_altitude_metres,
-        coax_v_factor: context.coax_v_factor,
-        global_analogue_attenuation_db: context.global_analogue_attenuation_db,
-        ra_tile_pointing_degrees: context.ra_tile_pointing_degrees,
-        dec_tile_pointing_degrees: context.dec_tile_pointing_degrees,
-        ra_phase_center_degrees: match context.ra_phase_center_degrees {
+        mwa_latitude_radians: context.observation_context.mwa_latitude_radians,
+        mwa_longitude_radians: context.observation_context.mwa_longitude_radians,
+        mwa_altitude_metres: context.observation_context.mwa_altitude_metres,
+        coax_v_factor: context.observation_context.coax_v_factor,
+        global_analogue_attenuation_db: context.observation_context.global_analogue_attenuation_db,
+        ra_tile_pointing_degrees: context.observation_context.ra_tile_pointing_degrees,
+        dec_tile_pointing_degrees: context.observation_context.dec_tile_pointing_degrees,
+        ra_phase_center_degrees: match context.observation_context.ra_phase_center_degrees {
             Some(v) => v,
             None => 0.,
         },
-        dec_phase_center_degrees: match context.dec_phase_center_degrees {
+        dec_phase_center_degrees: match context.observation_context.dec_phase_center_degrees {
             Some(v) => v,
             None => 0.,
         },
-        azimuth_degrees: context.azimuth_degrees,
-        altitude_degrees: context.altitude_degrees,
-        sun_altitude_degrees: context.sun_altitude_degrees,
-        sun_distance_degrees: context.sun_distance_degrees,
-        moon_distance_degrees: context.moon_distance_degrees,
-        jupiter_distance_degrees: context.jupiter_distance_degrees,
-        lst_degrees: context.lst_degrees,
-        hour_angle_string: CString::new(String::from(&context.hour_angle_string))
+        azimuth_degrees: context.observation_context.azimuth_degrees,
+        altitude_degrees: context.observation_context.altitude_degrees,
+        sun_altitude_degrees: context.observation_context.sun_altitude_degrees,
+        sun_distance_degrees: context.observation_context.sun_distance_degrees,
+        moon_distance_degrees: context.observation_context.moon_distance_degrees,
+        jupiter_distance_degrees: context.observation_context.jupiter_distance_degrees,
+        lst_degrees: context.observation_context.lst_degrees,
+        hour_angle_string: CString::new(String::from(
+            &context.observation_context.hour_angle_string,
+        ))
+        .unwrap()
+        .into_raw(),
+        grid_name: CString::new(String::from(&context.observation_context.grid_name))
             .unwrap()
             .into_raw(),
-        grid_name: CString::new(String::from(&context.grid_name))
+        grid_number: context.observation_context.grid_number,
+        creator: CString::new(String::from(&context.observation_context.creator))
             .unwrap()
             .into_raw(),
-        grid_number: context.grid_number,
-        creator: CString::new(String::from(&context.creator))
+        project_id: CString::new(String::from(&context.observation_context.project_id))
             .unwrap()
             .into_raw(),
-        project_id: CString::new(String::from(&context.project_id))
+        observation_name: CString::new(String::from(&context.observation_context.observation_name))
             .unwrap()
             .into_raw(),
-        observation_name: CString::new(String::from(&context.observation_name))
+        mode: CString::new(String::from(&context.observation_context.mode))
             .unwrap()
             .into_raw(),
-        mode: CString::new(String::from(&context.mode))
-            .unwrap()
-            .into_raw(),
-        scheduled_start_utc: context.scheduled_start_utc.timestamp(),
-        scheduled_end_utc: context.scheduled_end_utc.timestamp(),
-        scheduled_start_mjd: context.scheduled_start_mjd,
-        scheduled_end_mjd: context.scheduled_end_mjd,
-        scheduled_duration_milliseconds: context.scheduled_duration_milliseconds,
+        scheduled_start_utc: context.observation_context.scheduled_start_utc.timestamp(),
+        scheduled_end_utc: context.observation_context.scheduled_end_utc.timestamp(),
+        scheduled_start_mjd: context.observation_context.scheduled_start_mjd,
+        scheduled_end_mjd: context.observation_context.scheduled_end_mjd,
+        scheduled_duration_milliseconds: context
+            .observation_context
+            .scheduled_duration_milliseconds,
         scheduled_start_unix_time_milliseconds: context.start_unix_time_milliseconds,
         scheduled_end_unix_time_milliseconds: context.end_unix_time_milliseconds,
         start_unix_time_milliseconds: context.start_unix_time_milliseconds,
         end_unix_time_milliseconds: context.end_unix_time_milliseconds,
         duration_milliseconds: context.duration_milliseconds,
-        quack_time_duration_milliseconds: context.quack_time_duration_milliseconds,
-        good_time_unix_milliseconds: context.good_time_unix_milliseconds,
+        quack_time_duration_milliseconds: context
+            .observation_context
+            .quack_time_duration_milliseconds,
+        good_time_unix_milliseconds: context.observation_context.good_time_unix_milliseconds,
         num_timesteps: context.num_timesteps,
-        num_antennas: context.num_antennas,
+        num_antennas: context.observation_context.num_antennas,
         num_baselines: context.num_baselines,
-        num_rf_inputs: context.num_rf_inputs,
-        num_antenna_pols: context.num_antenna_pols,
+        num_rf_inputs: context.observation_context.num_rf_inputs,
+        num_antenna_pols: context.observation_context.num_antenna_pols,
         num_visibility_pols: context.num_visibility_pols,
         num_coarse_channels: context.num_coarse_channels,
         integration_time_milliseconds: context.integration_time_milliseconds,
@@ -709,7 +715,7 @@ pub struct mwalibBaseline {
 /// * Caller must call mwalibBaseline_free once finished, to free the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibBaseline_get(
-    context_ptr: *mut mwalibContext,
+    context_ptr: *mut CorrelatorContext,
     baseline_index: size_t,
     error_message: *mut u8,
     error_message_length: size_t,
@@ -808,7 +814,7 @@ pub struct mwalibRFInput {
     /// Receiver number
     pub receiver_number: u32,
     /// Receiver slot number
-    pub receiver_slot_number: u32
+    pub receiver_slot_number: u32,
 }
 
 /// This returns a struct containing the requested antenna
@@ -836,7 +842,7 @@ pub struct mwalibRFInput {
 /// * Caller must call mwalibRFInput_free once finished, to free the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibRFInput_get(
-    context_ptr: *mut mwalibContext,
+    context_ptr: *mut CorrelatorContext,
     rf_input_index: size_t,
     error_message: *mut u8,
     error_message_length: size_t,
@@ -851,26 +857,34 @@ pub unsafe extern "C" fn mwalibRFInput_get(
     }
     let context = &*context_ptr;
 
-    if rf_input_index < context.num_rf_inputs {
+    if rf_input_index < context.observation_context.num_rf_inputs {
         let out_antenna = mwalibRFInput {
-            input: context.rf_inputs[rf_input_index].input,
-            antenna: context.rf_inputs[rf_input_index].antenna,
-            tile_id: context.rf_inputs[rf_input_index].tile_id,
-            tile_name: CString::new(String::from(&context.rf_inputs[rf_input_index].tile_name))
-                .unwrap()
-                .into_raw(),
-            pol: CString::new(context.rf_inputs[rf_input_index].pol.to_string())
-                .unwrap()
-                .into_raw(),
-            electrical_length_m: context.rf_inputs[rf_input_index].electrical_length_m,
-            north_m: context.rf_inputs[rf_input_index].north_m,
-            east_m: context.rf_inputs[rf_input_index].east_m,
-            height_m: context.rf_inputs[rf_input_index].height_m,
-            vcs_order: context.rf_inputs[rf_input_index].vcs_order,
-            subfile_order: context.rf_inputs[rf_input_index].subfile_order,
-            flagged: context.rf_inputs[rf_input_index].flagged,
-            receiver_number: context.rf_inputs[rf_input_index].receiver_number,
-            receiver_slot_number: context.rf_inputs[rf_input_index].receiver_slot_number
+            input: context.observation_context.rf_inputs[rf_input_index].input,
+            antenna: context.observation_context.rf_inputs[rf_input_index].antenna,
+            tile_id: context.observation_context.rf_inputs[rf_input_index].tile_id,
+            tile_name: CString::new(String::from(
+                &context.observation_context.rf_inputs[rf_input_index].tile_name,
+            ))
+            .unwrap()
+            .into_raw(),
+            pol: CString::new(
+                context.observation_context.rf_inputs[rf_input_index]
+                    .pol
+                    .to_string(),
+            )
+            .unwrap()
+            .into_raw(),
+            electrical_length_m: context.observation_context.rf_inputs[rf_input_index]
+                .electrical_length_m,
+            north_m: context.observation_context.rf_inputs[rf_input_index].north_m,
+            east_m: context.observation_context.rf_inputs[rf_input_index].east_m,
+            height_m: context.observation_context.rf_inputs[rf_input_index].height_m,
+            vcs_order: context.observation_context.rf_inputs[rf_input_index].vcs_order,
+            subfile_order: context.observation_context.rf_inputs[rf_input_index].subfile_order,
+            flagged: context.observation_context.rf_inputs[rf_input_index].flagged,
+            receiver_number: context.observation_context.rf_inputs[rf_input_index].receiver_number,
+            receiver_slot_number: context.observation_context.rf_inputs[rf_input_index]
+                .receiver_slot_number,
         };
 
         Box::into_raw(Box::new(out_antenna))
@@ -878,11 +892,15 @@ pub unsafe extern "C" fn mwalibRFInput_get(
         set_error_message(
             &format!(
                 "mwalibRFInput_get() ERROR: rf_input index must be between 0 ({}{}) and {} ({}{}).",
-                context.rf_inputs[0].tile_name,
-                context.rf_inputs[0].pol,
-                context.num_rf_inputs - 1,
-                context.rf_inputs[context.num_rf_inputs - 1].tile_name,
-                context.rf_inputs[context.num_rf_inputs - 1].pol
+                context.observation_context.rf_inputs[0].tile_name,
+                context.observation_context.rf_inputs[0].pol,
+                context.observation_context.num_rf_inputs - 1,
+                context.observation_context.rf_inputs
+                    [context.observation_context.num_rf_inputs - 1]
+                    .tile_name,
+                context.observation_context.rf_inputs
+                    [context.observation_context.num_rf_inputs - 1]
+                    .pol
             ),
             error_message,
             error_message_length,
@@ -966,7 +984,7 @@ pub struct mwalibCoarseChannel {
 /// * Caller must call mwalibCoarseChannel_free once finished, to free the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibCoarseChannel_get(
-    context_ptr: *mut mwalibContext,
+    context_ptr: *mut CorrelatorContext,
     coarse_channel_index: size_t,
     error_message: *mut u8,
     error_message_length: size_t,
@@ -1073,7 +1091,7 @@ pub struct mwalibAntenna {
 /// * Caller must call mwalibAntenna_free once finished, to free the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibAntenna_get(
-    context_ptr: *mut mwalibContext,
+    context_ptr: *mut CorrelatorContext,
     antenna_index: size_t,
     error_message: *mut u8,
     error_message_length: size_t,
@@ -1088,13 +1106,15 @@ pub unsafe extern "C" fn mwalibAntenna_get(
     }
     let context = &*context_ptr;
 
-    if antenna_index < context.num_antennas {
+    if antenna_index < context.observation_context.num_antennas {
         let out_antenna = mwalibAntenna {
-            antenna: context.antennas[antenna_index].antenna,
-            tile_id: context.antennas[antenna_index].tile_id,
-            tile_name: CString::new(String::from(&context.antennas[antenna_index].tile_name))
-                .unwrap()
-                .into_raw(),
+            antenna: context.observation_context.antennas[antenna_index].antenna,
+            tile_id: context.observation_context.antennas[antenna_index].tile_id,
+            tile_name: CString::new(String::from(
+                &context.observation_context.antennas[antenna_index].tile_name,
+            ))
+            .unwrap()
+            .into_raw(),
         };
 
         Box::into_raw(Box::new(out_antenna))
@@ -1102,9 +1122,10 @@ pub unsafe extern "C" fn mwalibAntenna_get(
         set_error_message(
             &format!(
                 "mwalibAntenna_get() ERROR: antenna index must be between 0 ({}) and {} ({}).",
-                context.antennas[0].tile_name,
-                context.num_antennas - 1,
-                context.antennas[context.num_antennas - 1].tile_name
+                context.observation_context.antennas[0].tile_name,
+                context.observation_context.num_antennas - 1,
+                context.observation_context.antennas[context.observation_context.num_antennas - 1]
+                    .tile_name
             ),
             error_message,
             error_message_length,
@@ -1176,7 +1197,7 @@ pub struct mwalibTimeStep {
 /// * Caller must call mwalibTimeStep_free once finished, to free the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibTimeStep_get(
-    context_ptr: *mut mwalibContext,
+    context_ptr: *mut CorrelatorContext,
     timestep_index: size_t,
     error_message: *mut u8,
     error_message_length: size_t,
@@ -1270,7 +1291,7 @@ pub struct mwalibVisibilityPol {
 /// * Caller must call mwalibVisibilityPol_free once finished, to free the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalibVisibilityPol_get(
-    context_ptr: *mut mwalibContext,
+    context_ptr: *mut CorrelatorContext,
     visibility_pol_index: size_t,
     error_message: *mut u8,
     error_message_length: size_t,

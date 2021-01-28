@@ -184,7 +184,7 @@ pub fn get_baseline_from_antennas(
 ///
 /// * `antenna2` - Tile name of antenna2
 ///
-/// * `antennas` - A vector of mwalibAntenna structs.
+/// * `antennas` - A vector of Antenna structs.
 ///
 ///
 /// # Returns
@@ -194,7 +194,7 @@ pub fn get_baseline_from_antennas(
 pub fn get_baseline_from_antenna_names(
     antenna1_tile_name: String,
     antenna2_tile_name: String,
-    antennas: &[antenna::mwalibAntenna],
+    antennas: &[antenna::Antenna],
 ) -> usize {
     let mut baseline_index = 0;
 
@@ -252,10 +252,10 @@ mod tests {
     #[test]
     fn test_get_baseline_from_antenna_names1() {
         // Create a small antenna vector
-        let mut ants: Vec<mwalibAntenna> = Vec::new();
+        let mut ants: Vec<Antenna> = Vec::new();
 
         // We need a dummy rf inputs
-        let dummy_rf_input_x = mwalibRFInput {
+        let dummy_rf_input_x = RFInput {
             input: 0,
             antenna: 0,
             tile_id: 0,
@@ -271,10 +271,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 1,
-            receiver_slot_number: 0
+            receiver_slot_number: 0,
         };
 
-        let dummy_rf_input_y = mwalibRFInput {
+        let dummy_rf_input_y = RFInput {
             input: 1,
             antenna: 0,
             tile_id: 1,
@@ -290,10 +290,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 1,
-            receiver_slot_number: 1
+            receiver_slot_number: 1,
         };
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 101,
             tile_id: 101,
             tile_name: String::from("tile101"),
@@ -301,7 +301,7 @@ mod tests {
             y_pol: dummy_rf_input_y.clone(),
         });
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 102,
             tile_id: 102,
             tile_name: String::from("tile102"),
@@ -309,7 +309,7 @@ mod tests {
             y_pol: dummy_rf_input_y.clone(),
         });
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 103,
             tile_id: 103,
             tile_name: String::from("tile103"),
@@ -317,7 +317,7 @@ mod tests {
             y_pol: dummy_rf_input_y.clone(),
         });
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 104,
             tile_id: 104,
             tile_name: String::from("tile104"),
@@ -325,7 +325,7 @@ mod tests {
             y_pol: dummy_rf_input_y.clone(),
         });
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 105,
             tile_id: 105,
             tile_name: String::from("tile105"),
@@ -333,7 +333,7 @@ mod tests {
             y_pol: dummy_rf_input_y.clone(),
         });
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 106,
             tile_id: 106,
             tile_name: String::from("tile106"),
@@ -341,7 +341,7 @@ mod tests {
             y_pol: dummy_rf_input_y.clone(),
         });
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 107,
             tile_id: 107,
             tile_name: String::from("tile107"),
@@ -349,7 +349,7 @@ mod tests {
             y_pol: dummy_rf_input_y.clone(),
         });
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 108,
             tile_id: 108,
             tile_name: String::from("tile108"),
@@ -409,10 +409,10 @@ mod tests {
     #[should_panic]
     fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         // Create a small antenna vector
-        let mut ants: Vec<mwalibAntenna> = Vec::new();
+        let mut ants: Vec<Antenna> = Vec::new();
 
         // We need a dummy rf inputs
-        let dummy_rf_input_x = mwalibRFInput {
+        let dummy_rf_input_x = RFInput {
             input: 0,
             antenna: 0,
             tile_id: 0,
@@ -428,10 +428,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 1,
-            receiver_slot_number: 0
+            receiver_slot_number: 0,
         };
 
-        let dummy_rf_input_y = mwalibRFInput {
+        let dummy_rf_input_y = RFInput {
             input: 1,
             antenna: 0,
             tile_id: 1,
@@ -447,10 +447,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 1,
-            receiver_slot_number: 1
+            receiver_slot_number: 1,
         };
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 101,
             tile_id: 101,
             tile_name: String::from("tile101"),
@@ -458,7 +458,7 @@ mod tests {
             y_pol: dummy_rf_input_y.clone(),
         });
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 102,
             tile_id: 102,
             tile_name: String::from("tile102"),
@@ -478,10 +478,10 @@ mod tests {
     #[should_panic]
     fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         // Create a small antenna vector
-        let mut ants: Vec<mwalibAntenna> = Vec::new();
+        let mut ants: Vec<Antenna> = Vec::new();
 
         // We need a dummy rf inputs
-        let dummy_rf_input_x = mwalibRFInput {
+        let dummy_rf_input_x = RFInput {
             input: 0,
             antenna: 0,
             tile_id: 0,
@@ -497,10 +497,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 1,
-            receiver_slot_number: 0
+            receiver_slot_number: 0,
         };
 
-        let dummy_rf_input_y = mwalibRFInput {
+        let dummy_rf_input_y = RFInput {
             input: 1,
             antenna: 0,
             tile_id: 1,
@@ -516,10 +516,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 1,
-            receiver_slot_number: 1
+            receiver_slot_number: 1,
         };
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 101,
             tile_id: 101,
             tile_name: String::from("tile101"),
@@ -527,7 +527,7 @@ mod tests {
             y_pol: dummy_rf_input_y.clone(),
         });
 
-        ants.push(mwalibAntenna {
+        ants.push(Antenna {
             antenna: 102,
             tile_id: 102,
             tile_name: String::from("tile102"),

@@ -9,15 +9,14 @@ Structs and helper methods for visibility polarisations metadata
 use std::fmt;
 
 /// This is a struct for our visibility polarisations
-#[allow(non_camel_case_types)]
 #[derive(Clone)]
-pub struct mwalibVisibilityPol {
+pub struct VisibilityPol {
     /// Polarisation (e.g. "XX" or "XY" or "YX" or "YY")
     pub polarisation: String,
 }
 
-impl mwalibVisibilityPol {
-    /// Creates a new, populated vector of mwalibVisibilityPol structs
+impl VisibilityPol {
+    /// Creates a new, populated vector of VisibilityPol structs
     ///
     /// # Arguments
     ///        
@@ -27,17 +26,17 @@ impl mwalibVisibilityPol {
     /// * A populated vector of visibility polarisations for the MWA
     ///
     pub fn populate_visibility_pols() -> Vec<Self> {
-        let mut pols: Vec<mwalibVisibilityPol> = Vec::with_capacity(4);
-        pols.push(mwalibVisibilityPol {
+        let mut pols: Vec<VisibilityPol> = Vec::with_capacity(4);
+        pols.push(VisibilityPol {
             polarisation: String::from("XX"),
         });
-        pols.push(mwalibVisibilityPol {
+        pols.push(VisibilityPol {
             polarisation: String::from("XY"),
         });
-        pols.push(mwalibVisibilityPol {
+        pols.push(VisibilityPol {
             polarisation: String::from("YX"),
         });
-        pols.push(mwalibVisibilityPol {
+        pols.push(VisibilityPol {
             polarisation: String::from("YY"),
         });
 
@@ -45,7 +44,7 @@ impl mwalibVisibilityPol {
     }
 }
 
-/// Implements fmt::Debug for mwalibVisibilityPol struct
+/// Implements fmt::Debug for VisibilityPol struct
 ///
 /// # Arguments
 ///
@@ -58,7 +57,7 @@ impl mwalibVisibilityPol {
 ///
 ///
 #[cfg(not(tarpaulin_include))]
-impl fmt::Debug for mwalibVisibilityPol {
+impl fmt::Debug for VisibilityPol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "pol={}", self.polarisation,)
     }
@@ -70,7 +69,7 @@ mod tests {
 
     #[test]
     fn test_visibility_pol_populate() {
-        let vp = mwalibVisibilityPol::populate_visibility_pols();
+        let vp = VisibilityPol::populate_visibility_pols();
 
         assert_eq!(vp[0].polarisation, "XX");
         assert_eq!(vp[1].polarisation, "XY");

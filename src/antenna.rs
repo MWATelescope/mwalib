@@ -9,9 +9,8 @@ use crate::rfinput::*;
 use std::fmt;
 
 // Structure for storing MWA antennas (tiles without polarisation) information from the metafits file
-#[allow(non_camel_case_types)]
 #[derive(Clone)]
-pub struct mwalibAntenna {
+pub struct Antenna {
     /// This is the antenna number.
     /// Nominally this is the field we sort by to get the desired output order of antenna.
     /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
@@ -24,13 +23,13 @@ pub struct mwalibAntenna {
     /// X and Y have the same name
     pub tile_name: String,
     /// Reference to the X pol rf_input
-    pub x_pol: mwalibRFInput,
+    pub x_pol: RFInput,
     /// Reference to the Y pol rf_input
-    pub y_pol: mwalibRFInput,
+    pub y_pol: RFInput,
 }
 
-impl mwalibAntenna {
-    /// Creates a new, populated mwalibAntenna struct
+impl Antenna {
+    /// Creates a new, populated Antenna struct
     ///
     /// # Arguments
     ///
@@ -41,9 +40,9 @@ impl mwalibAntenna {
     ///
     /// # Returns
     ///
-    /// * An Result containing a populated mwalibAntenna struct or an Error
+    /// * An Result containing a populated Antenna struct or an Error
     ///
-    pub fn new(x_pol: &mwalibRFInput, y_pol: &mwalibRFInput) -> Self {
+    pub fn new(x_pol: &RFInput, y_pol: &RFInput) -> Self {
         Self {
             antenna: x_pol.antenna,
             tile_id: x_pol.tile_id,
@@ -53,7 +52,7 @@ impl mwalibAntenna {
         }
     }
 
-    /// Creates a populated vector of mwalibAntenna structs.
+    /// Creates a populated vector of Antenna structs.
     ///
     /// # Arguments
     ///
@@ -61,18 +60,18 @@ impl mwalibAntenna {
     ///
     /// # Returns
     ///
-    /// * A vector of populated mwalibAntenna structs.
+    /// * A vector of populated Antenna structs.
     ///
-    pub fn populate_antennas(rf_inputs: &[mwalibRFInput]) -> Vec<mwalibAntenna> {
-        let mut antennas: Vec<mwalibAntenna> = Vec::with_capacity(rf_inputs.len() / 2);
+    pub fn populate_antennas(rf_inputs: &[RFInput]) -> Vec<Antenna> {
+        let mut antennas: Vec<Antenna> = Vec::with_capacity(rf_inputs.len() / 2);
         for index in (0..rf_inputs.len()).step_by(2) {
-            antennas.push(mwalibAntenna::new(&rf_inputs[index], &rf_inputs[index + 1]));
+            antennas.push(Antenna::new(&rf_inputs[index], &rf_inputs[index + 1]));
         }
         antennas
     }
 }
 
-/// Implements fmt::Debug for mwalibAntenna struct
+/// Implements fmt::Debug for Antenna struct
 ///
 /// # Arguments
 ///
@@ -85,7 +84,7 @@ impl mwalibAntenna {
 ///
 ///
 #[cfg(not(tarpaulin_include))]
-impl fmt::Debug for mwalibAntenna {
+impl fmt::Debug for Antenna {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.tile_name)
     }
@@ -98,9 +97,9 @@ mod tests {
     #[test]
     fn test_populate_antennas() {
         // Create some rf_inputs
-        let mut rf_inputs: Vec<mwalibRFInput> = Vec::new();
+        let mut rf_inputs: Vec<RFInput> = Vec::new();
 
-        rf_inputs.push(mwalibRFInput {
+        rf_inputs.push(RFInput {
             input: 0,
             antenna: 101,
             tile_id: 101,
@@ -116,10 +115,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 1,
-            receiver_slot_number: 0
+            receiver_slot_number: 0,
         });
 
-        rf_inputs.push(mwalibRFInput {
+        rf_inputs.push(RFInput {
             input: 1,
             antenna: 101,
             tile_id: 101,
@@ -135,10 +134,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 1,
-            receiver_slot_number: 1
+            receiver_slot_number: 1,
         });
 
-        rf_inputs.push(mwalibRFInput {
+        rf_inputs.push(RFInput {
             input: 2,
             antenna: 102,
             tile_id: 102,
@@ -154,10 +153,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 2,
-            receiver_slot_number: 0
+            receiver_slot_number: 0,
         });
 
-        rf_inputs.push(mwalibRFInput {
+        rf_inputs.push(RFInput {
             input: 3,
             antenna: 102,
             tile_id: 102,
@@ -173,10 +172,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 2,
-            receiver_slot_number: 1
+            receiver_slot_number: 1,
         });
 
-        rf_inputs.push(mwalibRFInput {
+        rf_inputs.push(RFInput {
             input: 4,
             antenna: 103,
             tile_id: 103,
@@ -192,10 +191,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 3,
-            receiver_slot_number: 0
+            receiver_slot_number: 0,
         });
 
-        rf_inputs.push(mwalibRFInput {
+        rf_inputs.push(RFInput {
             input: 5,
             antenna: 103,
             tile_id: 103,
@@ -211,10 +210,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 3,
-            receiver_slot_number: 1
+            receiver_slot_number: 1,
         });
 
-        rf_inputs.push(mwalibRFInput {
+        rf_inputs.push(RFInput {
             input: 6,
             antenna: 104,
             tile_id: 104,
@@ -230,10 +229,10 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 4,
-            receiver_slot_number: 0
+            receiver_slot_number: 0,
         });
 
-        rf_inputs.push(mwalibRFInput {
+        rf_inputs.push(RFInput {
             input: 7,
             antenna: 104,
             tile_id: 104,
@@ -249,11 +248,11 @@ mod tests {
             delays: vec![],
             gains: vec![],
             receiver_number: 4,
-            receiver_slot_number: 1
+            receiver_slot_number: 1,
         });
 
         // Call populate
-        let antennas = mwalibAntenna::populate_antennas(&rf_inputs);
+        let antennas = Antenna::populate_antennas(&rf_inputs);
 
         // Check
         assert_eq!(antennas.len(), 4);
@@ -263,6 +262,6 @@ mod tests {
         assert_eq!(antennas[1].tile_name, "Tile102");
         assert_eq!(antennas[2].tile_name, "Tile103");
         assert_eq!(antennas[2].x_pol.input, 4);
-        assert_eq!(antennas[3].tile_id, 104);        
+        assert_eq!(antennas[3].tile_id, 104);
     }
 }

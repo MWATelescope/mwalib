@@ -10,9 +10,8 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 /// This is a struct for our coarse channels
-#[allow(non_camel_case_types)]
 #[derive(Clone, PartialEq)]
-pub struct mwalibCoarseChannel {
+pub struct CoarseChannel {
     /// Correlator channel is 0 indexed (0..N-1)
     pub correlator_channel_number: usize,
 
@@ -37,8 +36,9 @@ pub struct mwalibCoarseChannel {
     pub channel_end_hz: u32,
 }
 
-impl mwalibCoarseChannel {
-    /// Creates a new, populated mwalibCoarseChannel struct
+impl CoarseChannel {
+    /// Creates a new, populated
+    ///CoarseChannel struct
     ///
     /// # Arguments
     ///
@@ -53,7 +53,8 @@ impl mwalibCoarseChannel {
     ///
     /// # Returns
     ///
-    /// * An Result containing a populated mwalibCoarseChannel struct or an Error
+    /// * An Result containing a populated
+    ///CoarseChannel struct or an Error
     ///
     pub fn new(
         correlator_channel_number: usize,
@@ -93,7 +94,7 @@ impl mwalibCoarseChannel {
             .collect()
     }
 
-    /// This creates a populated vector mwalibCoarseChannel structs.
+    /// This creates a populated vector of CoarseChannel structs for a correlator observation.
     ///
     /// # Arguments
     ///
@@ -108,14 +109,15 @@ impl mwalibCoarseChannel {
     ///
     /// # Returns
     ///
-    /// * A tuple containing: A vector of mwalibCoarseChannel structs (limited to those are supplied by the client and are valid),
+    /// * A tuple containing: A vector of
+    ///CoarseChannel structs (limited to those are supplied by the client and are valid),
     ///                       The number of coarse channels that are supplied by the client and are valid,
     ///                       The width in Hz of each coarse channel
     ///
-    pub fn populate_coarse_channels(
+    pub fn populate_correlator_coarse_channels(
         metafits_fptr: &mut fitsio::FitsFile,
         hdu: &fitsio::hdu::FitsHdu,
-        corr_version: context::CorrelatorVersion,
+        corr_version: correlator_context::CorrelatorVersion,
         observation_bandwidth_hz: u32,
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
     ) -> Result<(Vec<Self>, usize, u32), FitsError> {
@@ -146,7 +148,8 @@ impl mwalibCoarseChannel {
     }
 
     /// Based on gpubox files provided, receiver channels & observation bandwidth from metafits, correlator version populate
-    /// valid, provided coarse channels as a vector of mwalibCoarseChannel structs.
+    /// valid, provided coarse channels as a vector of
+    ///CoarseChannel structs.
     ///
     /// # Arguments
     ///
@@ -163,12 +166,13 @@ impl mwalibCoarseChannel {
     ///
     /// # Returns
     ///
-    /// * A tuple containing: A vector of mwalibCoarseChannel structs (limited to those are supplied by the client and are valid),
+    /// * A tuple containing: A vector of
+    ///CoarseChannel structs (limited to those are supplied by the client and are valid),
     ///                       The number of coarse channels that are supplied by the client and are valid,
     ///                       The width in Hz of each coarse channel
     ///
     fn process_coarse_channels(
-        corr_version: context::CorrelatorVersion,
+        corr_version: correlator_context::CorrelatorVersion,
         observation_bandwidth_hz: u32,
         coarse_channel_vec: &[usize],
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
@@ -181,7 +185,7 @@ impl mwalibCoarseChannel {
         let coarse_channel_width_hz = observation_bandwidth_hz / num_coarse_channels as u32;
 
         // Initialise the coarse channel vector of structs
-        let mut coarse_channels: Vec<mwalibCoarseChannel> = Vec::new();
+        let mut coarse_channels: Vec<CoarseChannel> = Vec::new();
         let mut first_chan_index_over_128: Option<usize> = None;
         for (i, rec_channel_number) in coarse_channel_vec.iter().enumerate() {
             // Final Correlator channel number is 0 indexed. e.g. 0..N-1
@@ -212,7 +216,7 @@ impl mwalibCoarseChannel {
                     // the output vector.
                     if let Some((_, channel_map)) = gpubox_time_map.iter().next() {
                         if channel_map.contains_key(&gpubox_channel_number) {
-                            coarse_channels.push(mwalibCoarseChannel::new(
+                            coarse_channels.push(CoarseChannel::new(
                                 correlator_channel_number,
                                 *rec_channel_number,
                                 gpubox_channel_number,
@@ -226,7 +230,7 @@ impl mwalibCoarseChannel {
                     // the output vector.
                     if let Some((_, channel_map)) = gpubox_time_map.iter().next() {
                         if channel_map.contains_key(&rec_channel_number) {
-                            coarse_channels.push(mwalibCoarseChannel::new(
+                            coarse_channels.push(CoarseChannel::new(
                                 correlator_channel_number,
                                 *rec_channel_number,
                                 *rec_channel_number,
@@ -252,7 +256,8 @@ impl mwalibCoarseChannel {
     }
 }
 
-/// Implements fmt::Debug for mwalibCoarseChannel struct
+/// Implements fmt::Debug for
+///CoarseChannel struct
 ///
 /// # Arguments
 ///
@@ -265,7 +270,7 @@ impl mwalibCoarseChannel {
 ///
 ///
 #[cfg(not(tarpaulin_include))]
-impl fmt::Debug for mwalibCoarseChannel {
+impl fmt::Debug for CoarseChannel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -298,7 +303,7 @@ mod tests {
     fn test_get_metafits_coarse_channel_array() {
         assert_eq!(
             8,
-            mwalibCoarseChannel::get_metafits_coarse_channel_array("0,1,2,3,127,128,129,255").len()
+            CoarseChannel::get_metafits_coarse_channel_array("0,1,2,3,127,128,129,255").len()
         );
     }
 
@@ -321,7 +326,7 @@ mod tests {
 
         // Process coarse channels
         let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
-            mwalibCoarseChannel::process_coarse_channels(
+            CoarseChannel::process_coarse_channels(
                 CorrelatorVersion::Legacy,
                 1_280_000 * 4,
                 &metafits_channel_array,
@@ -353,7 +358,7 @@ mod tests {
 
         // Process coarse channels
         let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
-            mwalibCoarseChannel::process_coarse_channels(
+            CoarseChannel::process_coarse_channels(
                 CorrelatorVersion::Legacy,
                 1_280_000 * 5,
                 &metafits_channel_array,
@@ -398,7 +403,7 @@ mod tests {
 
         // Process coarse channels
         let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
-            mwalibCoarseChannel::process_coarse_channels(
+            CoarseChannel::process_coarse_channels(
                 CorrelatorVersion::Legacy,
                 1_280_000 * 4,
                 &metafits_channel_array,
@@ -430,7 +435,7 @@ mod tests {
 
         // Process coarse channels
         let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
-            mwalibCoarseChannel::process_coarse_channels(
+            CoarseChannel::process_coarse_channels(
                 CorrelatorVersion::V2,
                 1_280_000 * 5,
                 &metafits_channel_array,
@@ -466,7 +471,7 @@ mod tests {
 
         // Process coarse channels
         let (coarse_channel_array, coarse_channel_count, coarse_channel_width_hz) =
-            mwalibCoarseChannel::process_coarse_channels(
+            CoarseChannel::process_coarse_channels(
                 CorrelatorVersion::Legacy,
                 (channel_width * metafits_channel_array.len()) as u32,
                 &metafits_channel_array,

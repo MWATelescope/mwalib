@@ -8,13 +8,14 @@ Definitions for what we expose to the library
 pub mod antenna;
 pub mod baseline;
 pub mod coarse_channel;
-pub mod context;
 pub mod convert;
+pub mod correlator_context;
 pub mod error;
 pub mod ffi;
 pub mod fits_read;
 pub mod gpubox;
 pub mod misc;
+pub mod observation_context;
 pub mod rfinput;
 pub mod timestep;
 pub mod visibility_pol;
@@ -28,9 +29,10 @@ pub const MWA_ALTITUDE_METRES: f64 = 377.827;
 
 // Re-exports.
 pub use antenna::*;
-pub use context::{mwalibContext, CorrelatorVersion};
+pub use correlator_context::{CorrelatorContext, CorrelatorVersion};
 pub use error::MwalibError;
 pub use fits_read::*;
+pub use observation_context::ObservationContext;
 pub use rfinput::*;
 
 // So that callers don't use a different version of fitsio, export them here.
