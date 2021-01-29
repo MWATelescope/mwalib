@@ -14,8 +14,8 @@ pub mod error;
 pub mod ffi;
 pub mod fits_read;
 pub mod gpubox;
+pub mod metafits_context;
 pub mod misc;
-pub mod observation_context;
 pub mod rfinput;
 pub mod timestep;
 pub mod visibility_pol;
@@ -29,10 +29,10 @@ pub const MWA_ALTITUDE_METRES: f64 = 377.827;
 
 // Re-exports.
 pub use antenna::*;
-pub use correlator_context::{CorrelatorContext, CorrelatorVersion};
+pub use correlator_context::CorrelatorContext;
 pub use error::MwalibError;
 pub use fits_read::*;
-pub use observation_context::ObservationContext;
+pub use metafits_context::{CorrelatorVersion, MetafitsContext};
 pub use rfinput::*;
 
 // So that callers don't use a different version of fitsio, export them here.

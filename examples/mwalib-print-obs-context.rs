@@ -28,7 +28,7 @@ fn main() -> Result<(), anyhow::Error> {
     let mut context = CorrelatorContext::new(&opts.metafits, &opts.files)?;
 
     context
-        .observation_context
+        .metafits_context
         .rf_inputs
         .sort_by_key(|k| k.subfile_order);
 

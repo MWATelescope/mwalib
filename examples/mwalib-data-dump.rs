@@ -67,12 +67,11 @@ fn dump_data<T: AsRef<std::path::Path>>(
     let floats_per_baseline = context.num_fine_channels_per_coarse * floats_per_finechan;
 
     let (ant1, ant2) =
-        misc::get_antennas_from_baseline(baseline, context.observation_context.num_antennas)
-            .unwrap();
-    let ant1_name: String = context.observation_context.antennas[ant1]
+        misc::get_antennas_from_baseline(baseline, context.metafits_context.num_antennas).unwrap();
+    let ant1_name: String = context.metafits_context.antennas[ant1]
         .tile_name
         .to_string();
-    let ant2_name: String = context.observation_context.antennas[ant2]
+    let ant2_name: String = context.metafits_context.antennas[ant2]
         .tile_name
         .to_string();
 

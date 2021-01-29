@@ -117,7 +117,7 @@ impl CoarseChannel {
     pub fn populate_correlator_coarse_channels(
         metafits_fptr: &mut fitsio::FitsFile,
         hdu: &fitsio::hdu::FitsHdu,
-        corr_version: correlator_context::CorrelatorVersion,
+        corr_version: metafits_context::CorrelatorVersion,
         observation_bandwidth_hz: u32,
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
     ) -> Result<(Vec<Self>, usize, u32), FitsError> {
@@ -137,7 +137,7 @@ impl CoarseChannel {
                 corr_version,
                 observation_bandwidth_hz,
                 &coarse_channel_vec,
-                gpubox_time_map,
+                Some(gpubox_time_map),
             );
 
         Ok((
@@ -145,6 +145,45 @@ impl CoarseChannel {
             num_coarse_channels,
             coarse_channel_width_hz,
         ))
+    }
+
+    /// This creates a populated vector of CoarseChannel structs just from metafits provided information.
+    ///
+    /// # Arguments
+    ///
+    /// `metafits_fptr` - a reference to a metafits FitsFile object.
+    ///
+    /// `corr_version` - enum representing the version of the correlator this observation was created with.
+    ///
+    /// `observation_bandwidth_hz` - total bandwidth in Hz of the entire observation. If there are 24 x 1.28 MHz channels
+    ///                              this would be 30.72 MHz (30,720,000 Hz)        
+    ///
+    /// # Returns
+    ///
+    /// * A tuple containing: A vector of CoarseChannel structs,
+    ///                       The number of coarse channels in the observation,
+    ///                       The width in Hz of each coarse channel
+    ///
+    pub fn populate_metafits_coarse_channels(
+        metafits_fptr: &mut fitsio::FitsFile,
+        hdu: &fitsio::hdu::FitsHdu,
+        observation_bandwidth_hz: u32,
+    ) -> Result<(usize, u32), FitsError> {
+        // The coarse-channels string uses the FITS "CONTINUE" keywords. The
+        // fitsio library for rust does not (appear) to handle CONTINUE keywords
+        // at present, but the underlying fitsio-sys does, so we have to do FFI
+        // directly.
+        let coarse_channels_string =
+            get_required_fits_key_long_string!(metafits_fptr, hdu, "CHANNELS")?;
+
+        // Get the vector of coarse channels from the metafits
+        let coarse_channel_vec = Self::get_metafits_coarse_channel_array(&coarse_channels_string);
+
+        let num_coarse_channels = coarse_channel_vec.len();
+
+        let coarse_channel_width_hz = observation_bandwidth_hz / (num_coarse_channels as u32);
+
+        Ok((num_coarse_channels, coarse_channel_width_hz))
     }
 
     /// Based on gpubox files provided, receiver channels & observation bandwidth from metafits, correlator version populate
@@ -161,7 +200,7 @@ impl CoarseChannel {
     ///
     /// `coarse_channel_vec` - Vector of receiver channel numbers read from the metafits CHANNELS string value.
     ///
-    /// `gpubox_time_map` - BTreeMap detailing which timesteps exist and which gpuboxes and channels were provided by the client.
+    /// `gpubox_time_map` - Option<BTreeMap> detailing which timesteps exist and which gpuboxes and channels were provided by the client.
     ///
     ///
     /// # Returns
@@ -172,10 +211,10 @@ impl CoarseChannel {
     ///                       The width in Hz of each coarse channel
     ///
     fn process_coarse_channels(
-        corr_version: correlator_context::CorrelatorVersion,
+        corr_version: metafits_context::CorrelatorVersion,
         observation_bandwidth_hz: u32,
         coarse_channel_vec: &[usize],
-        gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
+        gpubox_time_map: Option<&BTreeMap<u64, BTreeMap<usize, (usize, usize)>>>,
     ) -> (Vec<Self>, usize, u32) {
         // How many coarse channels should there be (from the metafits)
         // NOTE: this will NOT always be equal to the number of gpubox files we get
@@ -205,7 +244,7 @@ impl CoarseChannel {
                     }
 
                     // Before we commit to adding this coarse channel, lets ensure that the client supplied the
-                    // gpubox file needed for it
+                    // gpubox file needed for it (if the gpu_time_map was supplied)
                     // Get the first node (which is the first timestep)
                     // Then see if a coarse channel exists based on gpubox number
                     // We add one since gpubox numbers are 1..N, while we will be recording
@@ -214,29 +253,49 @@ impl CoarseChannel {
 
                     // If we have the correlator channel number, then add it to
                     // the output vector.
-                    if let Some((_, channel_map)) = gpubox_time_map.iter().next() {
-                        if channel_map.contains_key(&gpubox_channel_number) {
-                            coarse_channels.push(CoarseChannel::new(
-                                correlator_channel_number,
-                                *rec_channel_number,
-                                gpubox_channel_number,
-                                coarse_channel_width_hz,
-                            ));
+                    match gpubox_time_map {
+                        Some(g) => {
+                            if let Some((_, channel_map)) = g.iter().next() {
+                                if channel_map.contains_key(&gpubox_channel_number) {
+                                    coarse_channels.push(CoarseChannel::new(
+                                        correlator_channel_number,
+                                        *rec_channel_number,
+                                        gpubox_channel_number,
+                                        coarse_channel_width_hz,
+                                    ))
+                                }
+                            }
                         }
+                        _ => coarse_channels.push(CoarseChannel::new(
+                            correlator_channel_number,
+                            *rec_channel_number,
+                            gpubox_channel_number,
+                            coarse_channel_width_hz,
+                        )),
                     }
                 }
                 CorrelatorVersion::V2 => {
                     // If we have the correlator channel number, then add it to
                     // the output vector.
-                    if let Some((_, channel_map)) = gpubox_time_map.iter().next() {
-                        if channel_map.contains_key(&rec_channel_number) {
-                            coarse_channels.push(CoarseChannel::new(
-                                correlator_channel_number,
-                                *rec_channel_number,
-                                *rec_channel_number,
-                                coarse_channel_width_hz,
-                            ));
+                    match gpubox_time_map {
+                        Some(g) => {
+                            if let Some((_, channel_map)) = g.iter().next() {
+                                if channel_map.contains_key(&rec_channel_number) {
+                                    coarse_channels.push(CoarseChannel::new(
+                                        correlator_channel_number,
+                                        *rec_channel_number,
+                                        *rec_channel_number,
+                                        coarse_channel_width_hz,
+                                    ))
+                                }
+                            }
                         }
+                        _ => coarse_channels.push(CoarseChannel::new(
+                            correlator_channel_number,
+                            *rec_channel_number,
+                            *rec_channel_number,
+                            coarse_channel_width_hz,
+                        )),
                     }
                 }
             }
@@ -330,7 +389,7 @@ mod tests {
                 CorrelatorVersion::Legacy,
                 1_280_000 * 4,
                 &metafits_channel_array,
-                &gpubox_time_map,
+                Some(&gpubox_time_map),
             );
         assert_eq!(coarse_channel_array.len(), 2);
         assert_eq!(coarse_channel_count, 2);
@@ -362,7 +421,7 @@ mod tests {
                 CorrelatorVersion::Legacy,
                 1_280_000 * 5,
                 &metafits_channel_array,
-                &gpubox_time_map,
+                Some(&gpubox_time_map),
             );
         assert_eq!(coarse_channel_array.len(), 5);
         assert_eq!(coarse_channel_count, 5);
@@ -407,7 +466,7 @@ mod tests {
                 CorrelatorVersion::Legacy,
                 1_280_000 * 4,
                 &metafits_channel_array,
-                &gpubox_time_map,
+                Some(&gpubox_time_map),
             );
         assert_eq!(coarse_channel_array.len(), 2);
         assert_eq!(coarse_channel_count, 2);
@@ -439,7 +498,7 @@ mod tests {
                 CorrelatorVersion::V2,
                 1_280_000 * 5,
                 &metafits_channel_array,
-                &gpubox_time_map,
+                Some(&gpubox_time_map),
             );
         assert_eq!(coarse_channel_array.len(), 5);
         assert_eq!(coarse_channel_count, 5);
@@ -475,7 +534,7 @@ mod tests {
                 CorrelatorVersion::Legacy,
                 (channel_width * metafits_channel_array.len()) as u32,
                 &metafits_channel_array,
-                &gpubox_time_map,
+                Some(&gpubox_time_map),
             );
         assert_eq!(coarse_channel_array.len(), 3);
         assert_eq!(coarse_channel_count, 3);

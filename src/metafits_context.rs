@@ -10,13 +10,53 @@ use std::fmt;
 use chrono::{DateTime, Duration, FixedOffset};
 
 use crate::antenna::*;
-use crate::coarse_channel::*;
 use crate::rfinput::*;
 use crate::*;
 
-/// `mwalib` observation context. This represents the basic metadata for the observation.
+/// Enum for all of the known variants of file format based on Correlator version
 ///
-pub struct ObservationContext {
+#[repr(C)]
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum CorrelatorVersion {
+    /// MWAX correlator (v2.0)
+    V2,
+    /// MWA correlator (v1.0), having data files with "gpubox" and batch numbers in their names.
+    Legacy,
+    /// MWA correlator (v1.0), having data files without any batch numbers.
+    OldLegacy,
+}
+
+/// Implements fmt::Display for CorrelatorVersion struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+#[cfg(not(tarpaulin_include))]
+impl fmt::Display for CorrelatorVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CorrelatorVersion::V2 => "v2 MWAX",
+                CorrelatorVersion::Legacy => "v1 Legacy",
+                CorrelatorVersion::OldLegacy => "v1 Legacy (no file indices)",
+            }
+        )
+    }
+}
+
+/// `mwalib` metafits context. This represents the basic metadata for the observation.
+///
+#[derive(Clone)]
+pub struct MetafitsContext {
     /// Observation id
     pub obsid: u32,
     /// Latitude of centre point of MWA in raidans
@@ -103,8 +143,6 @@ pub struct ObservationContext {
     pub num_antenna_pols: usize,
     /// Number of coarse channels after we've validated the input gpubox files
     pub num_coarse_channels: usize,
-    /// Vector of coarse channel structs
-    pub coarse_channels: Vec<CoarseChannel>,
     /// Total bandwidth of observation (of the coarse channels we have)
     pub observation_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
@@ -115,7 +153,7 @@ pub struct ObservationContext {
     pub metafits_filename: String,
 }
 
-impl ObservationContext {
+impl MetafitsContext {
     pub fn new<T: AsRef<std::path::Path>>(metafits: &T) -> Result<Self, MwalibError> {
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
@@ -250,7 +288,22 @@ impl ObservationContext {
         let global_analogue_attenuation_db: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?;
 
-        Ok(ObservationContext {
+        // observation bandwidth (read from metafits in MHz)
+        let metafits_observation_bandwidth_hz: u32 = {
+            let bw: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")?;
+            (bw * 1e6).round() as _
+        };
+
+        // Populate coarse channels
+        let (num_coarse_channels, coarse_channel_width_hz) =
+            coarse_channel::CoarseChannel::populate_metafits_coarse_channels(
+                &mut metafits_fptr,
+                &metafits_hdu,
+                metafits_observation_bandwidth_hz,
+            )?;
+
+        let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
+        Ok(MetafitsContext {
             mwa_latitude_radians: MWA_LATITUDE_RADIANS,
             mwa_longitude_radians: MWA_LONGITUDE_RADIANS,
             mwa_altitude_metres: MWA_ALTITUDE_METRES,
@@ -294,7 +347,6 @@ impl ObservationContext {
             rf_inputs,
             num_antenna_pols,
             coarse_channel_width_hz,
-            coarse_channels,
             num_coarse_channels,
             observation_bandwidth_hz,
             metafits_centre_freq_hz,
@@ -307,7 +359,7 @@ impl ObservationContext {
     }
 }
 
-/// Implements fmt::Display for ObservationContext struct
+/// Implements fmt::Display for MetafitsContext struct
 ///
 /// # Arguments
 ///
@@ -320,11 +372,11 @@ impl ObservationContext {
 ///
 ///
 #[cfg(not(tarpaulin_include))]
-impl fmt::Display for ObservationContext {
+impl fmt::Display for MetafitsContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            r#"ObservationContext (
+            r#"MetafitsContext (
     MWA latitude:             {mwa_lat} degrees,
     MWA longitude:            {mwa_lon} degrees
     MWA altitude:             {mwa_alt} m,
@@ -440,7 +492,7 @@ mod tests {
         let metafits_filename = "invalid.metafits";
 
         // No gpubox files provided
-        let context = ObservationContext::new(&metafits_filename);
+        let context = MetafitsContext::new(&metafits_filename);
 
         assert!(context.is_err());
     }
@@ -455,8 +507,8 @@ mod tests {
         // Read the observation using mwalib
         //
         // Open a context and load in a test metafits
-        let context = ObservationContext::new(&metafits_filename)
-            .expect("Failed to create ObservationContext");
+        let context =
+            MetafitsContext::new(&metafits_filename).expect("Failed to create MetafitsContext");
 
         // Test the properties of the context object match what we expect
 

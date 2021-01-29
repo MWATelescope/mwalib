@@ -30,42 +30,27 @@ int main(int argc, char *argv[])
     // Allocate buffer for any error messages
     char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
 
-    mwalibContext *context = mwalibContext_get(argv[1], gpuboxes, argc - 2, error_message, ERROR_MESSAGE_LEN);
+    // Create correlator context
+    CorrelatorContext *correlator_context = mwalib_correlator_context_new(argv[1], gpuboxes, argc - 2, error_message, ERROR_MESSAGE_LEN);
 
-    if (mwalibContext_display(context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    // Get correlator metadata
+    mwalibCorrelatorMetadata *corr_metadata = mwalib_correlator_metadata_get(correlator_context, error_message, ERROR_MESSAGE_LEN);
+
+    if (mwalib_correlator_context_display(correlator_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error displaying context info: %s\n", error_message);
         exit(-1);
     }
 
     // Example of using metadata struct
-    mwalibMetadata *metadata = mwalibMetadata_get(context, error_message, ERROR_MESSAGE_LEN);
-    printf("\nOutputting metadata\n");
+    mwalibMetafitsMetadata *metadata = mwalib_metafits_metadata_get(corr_metadata->metafits_context_ptr, error_message, ERROR_MESSAGE_LEN);
+    printf("\nOutputting metafits metadata\n");
     printf("===============================================================================\n");
     printf("obsid:                          %d\n", metadata->obsid);
-
-    switch (metadata->corr_version)
-    {
-    case V2:
-        printf("correlator version:             V2\n");
-        break;
-    case Legacy:
-        printf("correlator version:             Legacy\n");
-        break;
-    case OldLegacy:
-        printf("correlator version:             Old Legacy\n");
-        break;
-    default:
-        printf("correlator version:             Unknown\n");
-        break;
-    }
-
     printf("mwa_latitude:                   %f rad\n", metadata->mwa_latitude_radians);
     printf("mwa_longitude:                  %f rad\n", metadata->mwa_longitude_radians);
     printf("mwa_altitude:                   %f m\n", metadata->mwa_altitude_metres);
-
     printf("coax_v_factor:                  %f\n", metadata->coax_v_factor);
-
     printf("R.A. (tile pointing):           %f degrees\n", metadata->ra_tile_pointing_degrees);
     printf("Dec. (tile pointing):           %f degrees\n", metadata->dec_tile_pointing_degrees);
     printf("R.A. (phase centre):            %f degrees\n", metadata->ra_phase_center_degrees);
@@ -88,31 +73,16 @@ int main(int argc, char *argv[])
     printf("Scheduled start:                %ld UNIX timestamp\n", metadata->scheduled_start_utc);
     printf("Scheduled start:                %f MJD\n", metadata->scheduled_start_mjd);
     printf("Scheduled duration:             %ld ms\n", metadata->scheduled_duration_milliseconds);
-
-    printf("Start UNIX time:                %ld ms\n", metadata->start_unix_time_milliseconds);
-    printf("End UNIX time:                  %ld ms\n", metadata->end_unix_time_milliseconds);
-    printf("Duration:                       %ld ms\n", metadata->duration_milliseconds);
-
     printf("Quacktime:                      %ld ms\n", metadata->quack_time_duration_milliseconds);
     printf("Good UNIX time:                 %ld ms\n", metadata->good_time_unix_milliseconds);
-
-    printf("integration_time:               %ld ms\n", metadata->integration_time_milliseconds);
-    printf("num_timesteps:                  %ld\n", metadata->num_timesteps);
     printf("num_antennas:                   %ld\n", metadata->num_antennas);
-    printf("num_baselines:                  %ld\n", metadata->num_baselines);
     printf("num_antenna_pols:               %ld\n", metadata->num_antenna_pols);
-    printf("num_visibility_pols:            %ld\n", metadata->num_visibility_pols);
     printf("observation_bandwidth_hz:       %d\n", metadata->observation_bandwidth_hz);
     printf("coarse_channel_width_hz:        %d\n", metadata->coarse_channel_width_hz);
     printf("num_coarse_channels:            %ld\n", metadata->num_coarse_channels);
-    printf("num_fine_channels_per_coarse:   %ld\n", metadata->num_fine_channels_per_coarse);
-    printf("fine_channel_width_hz:          %d\n", metadata->fine_channel_width_hz);
-    printf("num_gpubox_files:               %ld\n", metadata->num_gpubox_files);
-    printf("timestep_coarse_channel_floats: %ld\n", metadata->num_timestep_coarse_channel_floats);
-    printf("timestep_coarse_channel_bytes:  %ld\n", metadata->num_timestep_coarse_channel_bytes);
 
     // Example of using timestep struct
-    mwalibTimeStep *ts0 = mwalibTimeStep_get(context, 0, error_message, ERROR_MESSAGE_LEN); // Should return first timestep
+    mwalibTimeStep *ts0 = mwalib_correlator_timestep_get(correlator_context, 0, error_message, ERROR_MESSAGE_LEN); // Should return first timestep
     if (ts0 != NULL)
     {
         printf("Timestep 0 is %lu\n", ts0->unix_time_ms / 1000);
@@ -123,7 +93,7 @@ int main(int argc, char *argv[])
     }
 
     // Example of using coarse channels
-    mwalibCoarseChannel *cc0 = mwalibCoarseChannel_get(context, 0, error_message, ERROR_MESSAGE_LEN);
+    mwalibCoarseChannel *cc0 = mwalib_correlator_coarse_channel_get(correlator_context, 0, error_message, ERROR_MESSAGE_LEN);
     if (cc0 != NULL)
     {
         printf("Coarse Channel 0 is %.2f MHz\n", (float)cc0->channel_centre_hz / 1000000.);
@@ -134,7 +104,7 @@ int main(int argc, char *argv[])
     }
 
     // Example of using antennas
-    mwalibAntenna *ant0 = mwalibAntenna_get(context, 0, error_message, ERROR_MESSAGE_LEN);
+    mwalibAntenna *ant0 = mwalib_antenna_get(corr_metadata->metafits_context_ptr, 0, error_message, ERROR_MESSAGE_LEN);
     if (ant0 != NULL)
     {
         printf("antenna 0 is %s\n", ant0->tile_name);
@@ -145,7 +115,7 @@ int main(int argc, char *argv[])
     }
 
     // Example of using rf_inputs
-    mwalibRFInput *rf0 = mwalibRFInput_get(context, 0, error_message, ERROR_MESSAGE_LEN);
+    mwalibRFInput *rf0 = mwalib_rfinput_get(corr_metadata->metafits_context_ptr, 0, error_message, ERROR_MESSAGE_LEN);
     if (rf0 != NULL)
     {
         printf("rf_input 0 is %s %s\n", rf0->tile_name, rf0->pol);
@@ -156,20 +126,20 @@ int main(int argc, char *argv[])
     }
 
     // Clean up coarse rf_inputs
-    mwalibRFInput_free(rf0);
+    mwalib_rfinput_free(rf0);
 
     // Clean up antennas
-    mwalibAntenna_free(ant0);
+    mwalib_antenna_free(ant0);
 
     // Clean up coarse channels
-    mwalibCoarseChannel_free(cc0);
+    mwalib_coarse_channel_free(cc0);
 
     // Clean up timesteps
-    mwalibTimeStep_free(ts0);
+    mwalib_timestep_free(ts0);
 
     // Clean up
-    mwalibMetadata_free(metadata);
-    mwalibContext_free(context);
+    mwalib_correlator_metadata_free(corr_metadata);
+    mwalib_correlator_context_free(correlator_context);
 
     free(gpuboxes);
     free(error_message);

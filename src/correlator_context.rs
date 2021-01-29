@@ -12,56 +12,17 @@ use crate::baseline::*;
 use crate::coarse_channel::*;
 use crate::convert::*;
 use crate::gpubox::*;
-use crate::observation_context::*;
+use crate::metafits_context::*;
 use crate::timestep::*;
 use crate::visibility_pol::*;
 use crate::*;
 
-/// Enum for all of the known variants of file format based on Correlator version
 ///
-#[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum CorrelatorVersion {
-    /// MWAX correlator (v2.0)
-    V2,
-    /// MWA correlator (v1.0), having data files with "gpubox" and batch numbers in their names.
-    Legacy,
-    /// MWA correlator (v1.0), having data files without any batch numbers.
-    OldLegacy,
-}
-
-/// Implements fmt::Display for CorrelatorVersion struct
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-#[cfg(not(tarpaulin_include))]
-impl fmt::Display for CorrelatorVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                CorrelatorVersion::V2 => "v2 MWAX",
-                CorrelatorVersion::Legacy => "v1 Legacy",
-                CorrelatorVersion::OldLegacy => "v1 Legacy (no file indices)",
-            }
-        )
-    }
-}
-
 /// `mwalib` correlator observation context. This represents the basic metadata for a correlator observation.
 ///
 pub struct CorrelatorContext {
     /// Observation Metadata
-    pub observation_context: ObservationContext,
+    pub metafits_context: MetafitsContext,
     /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
     /// The proper start of the observation (the time that is common to all
@@ -145,7 +106,7 @@ impl CorrelatorContext {
         metafits: &T,
         gpuboxes: &[T],
     ) -> Result<Self, MwalibError> {
-        let observation_context = ObservationContext::new(metafits)?;
+        let metafits_context = MetafitsContext::new(metafits)?;
 
         // Re-open metafits file
         let mut metafits_fptr = fits_open!(&metafits)?;
@@ -170,7 +131,7 @@ impl CorrelatorContext {
                 let nscans: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "NSCANS")?;
                 let timesteps: Vec<TimeStep> = (0..nscans)
                     .map(|i| {
-                        let time = observation_context.good_time_unix_milliseconds + i * integration_time_milliseconds;
+                        let time = metafits_context.good_time_unix_milliseconds + i * integration_time_milliseconds;
                         TimeStep::new(time)
                     })
                     .collect();
@@ -205,7 +166,7 @@ impl CorrelatorContext {
         let num_timesteps = timesteps.len();
 
         // Populate baselines
-        let baselines = Baseline::populate_baselines(observation_context.num_antennas);
+        let baselines = Baseline::populate_baselines(metafits_context.num_antennas);
 
         // Populate the pols that come out of the correlator
         let visibility_pols = VisibilityPol::populate_visibility_pols();
@@ -214,7 +175,7 @@ impl CorrelatorContext {
         // `num_baselines` is the number of cross-correlations + the number of
         // auto-correlations.
         let num_baselines =
-            (observation_context.num_antennas / 2) * (observation_context.num_antennas + 1);
+            (metafits_context.num_antennas / 2) * (metafits_context.num_antennas + 1);
 
         // observation bandwidth (read from metafits in MHz)
         let metafits_observation_bandwidth_hz: u32 = {
@@ -224,7 +185,7 @@ impl CorrelatorContext {
 
         // Populate coarse channels
         let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
-            coarse_channel::CoarseChannel::populate_coarse_channels(
+            coarse_channel::CoarseChannel::populate_correlator_coarse_channels(
                 &mut metafits_fptr,
                 &metafits_hdu,
                 gpubox_info.corr_format,
@@ -273,13 +234,13 @@ impl CorrelatorContext {
         // or just leave it empty if we're in any other format
         let legacy_conversion_table: Vec<LegacyConversionBaseline> = match gpubox_info.corr_format {
             CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
-                convert::generate_conversion_array(&mut observation_context.rf_inputs.clone())
+                convert::generate_conversion_array(&mut metafits_context.rf_inputs.clone())
             }
             _ => Vec::new(),
         };
 
         Ok(CorrelatorContext {
-            observation_context,
+            metafits_context,
             corr_version: gpubox_info.corr_format,
             start_unix_time_milliseconds,
             end_unix_time_milliseconds,
@@ -634,7 +595,7 @@ impl fmt::Display for CorrelatorContext {
 
     gpubox batches:           {batches:#?},
 )"#,
-            obs_context = self.observation_context,
+            obs_context = self.metafits_context,
             corr_ver = self.corr_version,
             start_unix = self.start_unix_time_milliseconds as f64 / 1e3,
             end_unix = self.end_unix_time_milliseconds as f64 / 1e3,
@@ -646,8 +607,8 @@ impl fmt::Display for CorrelatorContext {
             bl02 = self.baselines[0].antenna2_index,
             bll1 = self.baselines[self.num_baselines - 1].antenna1_index,
             bll2 = self.baselines[self.num_baselines - 1].antenna2_index,
-            n_ants = self.observation_context.num_antennas,
-            n_ccs = self.num_baselines - self.observation_context.num_antennas,
+            n_ants = self.metafits_context.num_antennas,
+            n_ccs = self.num_baselines - self.metafits_context.num_antennas,
             n_vps = self.num_visibility_pols,
             vp0 = self.visibility_pols[0].polarisation,
             vp1 = self.visibility_pols[1].polarisation,
