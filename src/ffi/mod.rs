@@ -101,6 +101,30 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
     0
 }
 
+/// Boxes for FFI a rust-allocated array of T.
+///
+///
+/// # Arguments
+///
+/// * `v` - Rust vector of T's
+///
+///
+/// # Returns
+///
+/// * a raw pointer to the array of T's
+///
+fn array_to_ffi_boxed_slice<T>(v: Vec<T>) -> *mut T
+{
+    // Going from Vec<_> to Box<[_]> just drops the (extra) `capacity`
+    let boxed_slice: Box<[T]> = v.into_boxed_slice();    
+    let fat_ptr: *mut [T] =
+        Box::into_raw(boxed_slice)
+    ;
+    let slim_ptr: *mut T = fat_ptr as _;
+    
+    slim_ptr
+}
+
 /// Create and return a pointer to an `MetafitsContext` struct given only a metafits file
 ///
 /// # Arguments
@@ -974,7 +998,7 @@ pub struct mwalibBaseline {
     pub antenna2_index: usize,
 }
 
-/// This returns a struct containing the requested baseline
+/// This passes a pointer to an array of baseline
 ///
 /// # Arguments
 ///
@@ -1047,7 +1071,9 @@ pub unsafe extern "C" fn mwalib_baseline_get(
 ///
 /// # Arguments
 ///
-/// * `baseline_ptr` - pointer to an already populated `mwalibBaseline` object
+/// * `baselines_ptr` - pointer to an already populated `mwalibBaseline` array
+/// 
+/// * `len` - number of elements in the pointed to array
 ///
 ///
 /// # Returns
@@ -1056,16 +1082,23 @@ pub unsafe extern "C" fn mwalib_baseline_get(
 ///
 ///
 /// # Safety
-/// * This must be called once caller is finished with the `mwalibBaseline` object
-/// * `baseline_ptr` must point to a populated `mwalibBaseline` object from the `mwalib_baseline_get` function.
+/// * This must be called once caller is finished with the `mwalibBaseline` array
+/// * `baseline_ptr` must point to a populated `mwalibBaseline` array from the `mwalib_baselines_get` function.
 /// * `baseline_ptr` must not have already been freed.
 #[no_mangle]
 #[cfg(not(tarpaulin_include))]
-pub unsafe extern "C" fn mwalib_baseline_free(baseline_ptr: *mut mwalibBaseline) -> i32 {
-    if baseline_ptr.is_null() {
+pub unsafe extern "C" fn mwalib_baseline_free(baselines_ptr: *mut mwalibBaseline, len: usize) -> i32 {
+    if baselines_ptr.is_null() {
         return 0;
     }
-    drop(Box::from_raw(baseline_ptr));
+    
+    // Extract a slice from the pointer
+    let slice: &mut [mwalibBaseline] =
+        slice::from_raw_parts_mut(baselines_ptr, len)
+    ;    
+
+    // Free the memory for the slice
+    drop(Box::from_raw(slice)); 
 
     // Return success
     0
@@ -1109,7 +1142,7 @@ pub struct mwalibRFInput {
     pub receiver_slot_number: u32,
 }
 
-/// This returns a struct containing the requested antenna given a metafits context OR correlator context
+/// This passes a pointer to an array of antenna given a metafits context OR correlator context
 ///
 /// # Arguments
 ///
@@ -1225,7 +1258,9 @@ pub unsafe extern "C" fn mwalib_rfinput_get(
 ///
 /// # Arguments
 ///
-/// * `rf_input_ptr` - pointer to an already populated `mwalibRFInput` object
+/// * `rf_inputs_ptr` - pointer to an already populated `mwalibRFInput` object
+/// 
+/// * `len` - number of elements in the pointed to array
 ///
 ///
 /// # Returns
@@ -1234,21 +1269,29 @@ pub unsafe extern "C" fn mwalib_rfinput_get(
 ///
 ///
 /// # Safety
-/// * This must be called once caller is finished with the `mwalibRFInput` object
-/// * `rf_input_ptr` must point to a populated `mwalibRFInput` object from the `mwalib_rfinput_get` function.
+/// * This must be called once caller is finished with the `mwalibRFInput` array
+/// * `rf_input_ptr` must point to a populated `mwalibRFInput` array from the `mwalib_rfinputs_get` function.
 /// * `rf_input_ptr` must not have already been freed.
 #[no_mangle]
 #[cfg(not(tarpaulin_include))]
-pub unsafe extern "C" fn mwalib_rfinput_free(rf_input_ptr: *mut mwalibRFInput) -> i32 {
-    if rf_input_ptr.is_null() {
+pub unsafe extern "C" fn mwalib_rfinput_free(rf_inputs_ptr: *mut mwalibRFInput, len: usize) -> i32 {
+    if rf_inputs_ptr.is_null() {
         return 0;
     }
-    // Materialise object, so rust will drop it when it hits out of scope
-    let rf_input = Box::from_raw(rf_input_ptr);
+    
+    // Extract a slice from the pointer
+    let slice: &mut [mwalibRFInput] =
+        slice::from_raw_parts_mut(rf_inputs_ptr, len)
+    ;
+    
+    // Now for each item we need to free anything on the heap
+    for i in slice.into_iter() {
+        drop(Box::from_raw(i.tile_name));
+        drop(Box::from_raw(i.pol));
+    }
 
-    // Also materialise the tile_name string
-    CString::from_raw(rf_input.tile_name);
-    CString::from_raw(rf_input.pol);
+    // Free the memory for the slice
+    drop(Box::from_raw(slice));    
 
     // Return success
     0
@@ -1275,7 +1318,7 @@ pub struct mwalibCoarseChannel {
     pub channel_end_hz: u32,
 }
 
-/// This returns a struct containing the requested correlator coarse channel
+/// This passes a pointer to an array of correlator coarse channel
 ///
 /// # Arguments
 ///
@@ -1351,7 +1394,9 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channel_get(
 ///
 /// # Arguments
 ///
-/// * `coarse_channel_ptr` - pointer to an already populated `mwalibCoarseChannel` object
+/// * `coarse_channels_ptr` - pointer to an already populated `mwalibCoarseChannel` array
+/// 
+/// * `len` - number of elements in the pointed to array
 ///
 ///
 /// # Returns
@@ -1360,16 +1405,23 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channel_get(
 ///
 ///
 /// # Safety
-/// * This must be called once caller is finished with the `mwalibCoarseChannel` object
-/// * `coarse_channel_ptr` must point to a populated `mwalibCoarseChannel` object from the `mwalib_correlator_coarse_channel_get` function.
+/// * This must be called once caller is finished with the `mwalibCoarseChannel` array
+/// * `coarse_channel_ptr` must point to a populated `mwalibCoarseChannel` array from the `mwalib_correlator_coarse_channels_get` function.
 /// * `coarse_channel_ptr` must not have already been freed.
 #[no_mangle]
 #[cfg(not(tarpaulin_include))]
-pub unsafe extern "C" fn mwalib_coarse_channel_free(coarse_channel_ptr: *mut mwalibCoarseChannel) -> i32 {
-    if coarse_channel_ptr.is_null() {
+pub unsafe extern "C" fn mwalib_coarse_channel_free(coarse_channels_ptr: *mut mwalibCoarseChannel, len: usize) -> i32 {
+    if coarse_channels_ptr.is_null() {
         return 0;
     }
-    drop(Box::from_raw(coarse_channel_ptr));
+    
+    // Extract a slice from the pointer
+    let slice: &mut [mwalibCoarseChannel] =
+        slice::from_raw_parts_mut(coarse_channels_ptr, len)
+    ;
+    
+    // Free the memory for the slice
+    drop(Box::from_raw(slice));
 
     // Return success
     0
@@ -1391,7 +1443,7 @@ pub struct mwalibAntenna {
     pub tile_name: *mut libc::c_char,
 }
 
-/// This passes back a struct containing the requested antenna given a metafits OR correlator context.
+/// This passes back an array of structs containing all antennas given a metafits OR correlator context.
 ///
 /// # Arguments
 ///
@@ -1399,9 +1451,7 @@ pub struct mwalibAntenna {
 ///
 /// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr`)
 /// 
-/// * `antenna_index` - item in the antenna array to return. This must be be between 0 and num_antennas - 1.
-/// 
-/// * `out_antenna_ptr` - A Rust-owned populated `mwalibAntenna` struct. Free with `mwalib_antenna_free`.
+/// * `out_antennas_ptr` - A Rust-owned populated array of `mwalibAntenna` struct. Free with `mwalib_antennas_free`.
 ///
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
@@ -1418,11 +1468,10 @@ pub struct mwalibAntenna {
 /// * `metafits_context_ptr` must point to a populated MetafitsContext object from the `mwalib_metafits_context_new` function.
 /// * Caller must call `mwalib_antenna_free` once finished, to free the rust memory.
 #[no_mangle]
-pub unsafe extern "C" fn mwalib_antenna_get(
+pub unsafe extern "C" fn mwalib_antennas_get(
     metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
-    antenna_index: size_t,
-    out_antenna_ptr: &mut *mut mwalibAntenna,
+    out_antennas_ptr: &mut *mut mwalibAntenna,
     error_message: *mut u8,
     error_message_length: size_t,
 ) -> i32 {
@@ -1459,41 +1508,34 @@ pub unsafe extern "C" fn mwalib_antenna_get(
         }
     };    
 
-    if antenna_index < context.num_antennas {
-        let out_antenna = mwalibAntenna {
-            antenna: context.antennas[antenna_index].antenna,
-            tile_id: context.antennas[antenna_index].tile_id,
-            tile_name: CString::new(String::from(&context.antennas[antenna_index].tile_name))
+    let mut item_vec: Vec<mwalibAntenna> = Vec::new();
+
+    for item in context.antennas.iter() {
+        let out_item = mwalibAntenna {
+            antenna: item.antenna,
+            tile_id: item.tile_id,
+            tile_name: CString::new(String::from(&item.tile_name))
                 .unwrap()
                 .into_raw(),
-        };
+        };     
 
-        *out_antenna_ptr = Box::into_raw(Box::new(out_antenna));
-
-        // Return success
-        0
-    } else {
-        set_error_message(
-            &format!(
-                "mwalib_antenna_get() ERROR: antenna index must be between 0 ({}) and {} ({}).",
-                context.antennas[0].tile_name,
-                context.num_antennas - 1,
-                context.antennas[context.num_antennas - 1].tile_name
-            ),
-            error_message,
-            error_message_length,
-        );
-
-        return 1;
+        item_vec.push(out_item);
     }
+    
+    *out_antennas_ptr = array_to_ffi_boxed_slice(item_vec);
+
+    // Return success
+    0    
 }
 
-/// Free a previously-allocated `mwalibAntenna` struct.
+/// Free a previously-allocated `mwalibAntenna` array of structs.
 ///
 /// # Arguments
 ///
-/// * `antenna_ptr` - pointer to an already populated `mwalibAntenna` object
+/// * `antennas_ptr` - pointer to an already populated `mwalibAntenna` array
 ///
+/// * `len` - number of elements in the pointed to array
+/// 
 ///
 /// # Returns
 ///
@@ -1501,21 +1543,28 @@ pub unsafe extern "C" fn mwalib_antenna_get(
 ///
 ///
 /// # Safety
-/// * This must be called once caller is finished with the `mwalibAntenna` object
-/// * `antenna_ptr` must point to a populated `mwalibAntenna` object from the `mwalib_antenna_get` function.
+/// * This must be called once caller is finished with the `mwalibAntenna` array
+/// * `antenna_ptr` must point to a populated `mwalibAntenna` array from the `mwalib_antennas_get` function.
 /// * `antenna_ptr` must not have already been freed.
 #[no_mangle]
 #[cfg(not(tarpaulin_include))]
-pub unsafe extern "C" fn mwalib_antenna_free(antenna_ptr: *mut mwalibAntenna) -> i32 {
-    if antenna_ptr.is_null() {
+pub unsafe extern "C" fn mwalib_antennas_free(antennas_ptr: *mut mwalibAntenna, len: usize) -> i32 {
+    if antennas_ptr.is_null() {
         return 0;
     }
 
-    // Materialise object, so rust will drop it when it hits out of scope
-    let antenna = Box::from_raw(antenna_ptr);
+    // Extract a slice from the pointer
+    let slice: &mut [mwalibAntenna] =
+        slice::from_raw_parts_mut(antennas_ptr, len)
+    ;
+    
+    // Now for each item we need to free anything on the heap
+    for i in slice.into_iter() {
+        drop(Box::from_raw(i.tile_name));
+    }
 
-    // Also materialise the tile_name string
-    CString::from_raw(antenna.tile_name);
+    // Free the memory for the slice
+    drop(Box::from_raw(slice));
 
     // Return success 
     0
@@ -1530,15 +1579,13 @@ pub struct mwalibTimeStep {
     pub unix_time_ms: u64,
 }
 
-/// This returns a struct containing the requested timestep
+/// This passes a pointer to an array of timesteps
 ///
 /// # Arguments
 ///
 /// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
 ///
-/// * `timestep_index` - item in the timestep array to return. This must be be between 0 and num_timesteps - 1.
-///
-/// * `out_timestep_ptr` - A Rust-owned populated `mwalibTimeStep` struct. Free with `mwalib_timestep_free`.
+/// * `out_timesteps_ptr` - A Rust-owned populated `mwalibTimeStep` struct. Free with `mwalib_timestep_free`.
 /// 
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
@@ -1555,16 +1602,15 @@ pub struct mwalibTimeStep {
 /// * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
 /// * Caller must call `mwalib_timestep_free` once finished, to free the rust memory.
 #[no_mangle]
-pub unsafe extern "C" fn mwalib_correlator_timestep_get(
-    correlator_context_ptr: *mut CorrelatorContext,
-    timestep_index: size_t,
-    out_timestep_ptr: &mut *mut mwalibTimeStep,
+pub unsafe extern "C" fn mwalib_correlator_timesteps_get(
+    correlator_context_ptr: *mut CorrelatorContext,    
+    out_timesteps_ptr: &mut *mut mwalibTimeStep,
     error_message: *mut u8,
     error_message_length: size_t,
 ) -> i32 {
     if correlator_context_ptr.is_null() {
         set_error_message(
-            "mwalib_correlator_timestep_get() ERROR: null pointer for correlator_context_ptr passed in",
+            "mwalib_correlator_timesteps_get() ERROR: null pointer for correlator_context_ptr passed in",
             error_message,
             error_message_length,
         );
@@ -1572,37 +1618,30 @@ pub unsafe extern "C" fn mwalib_correlator_timestep_get(
     }
     let context = &*correlator_context_ptr;
 
-    if timestep_index < context.num_timesteps {
-        let out_timestep = mwalibTimeStep {
-            unix_time_ms: context.timesteps[timestep_index].unix_time_ms,
-        };
+    let mut item_vec: Vec<mwalibTimeStep> = Vec::new();
 
-        *out_timestep_ptr = Box::into_raw(Box::new(out_timestep));
+    for item in context.timesteps.iter() {
+        let out_item = mwalibTimeStep {
+            unix_time_ms: item.unix_time_ms,
+        };     
 
-        // Return success
-        0
-    } else {
-        set_error_message(
-            &format!(
-                "mwalib_correlator_timestep_get() ERROR: timestep index must be between 0 ({}) and {} ({}).",
-                context.timesteps[0].unix_time_ms as f32 / 1000.,
-                context.num_timesteps - 1,
-                context.timesteps[context.num_timesteps - 1].unix_time_ms as f32 / 1000.,
-            ),
-            error_message,
-            error_message_length,
-        );
-
-        return 1;
+        item_vec.push(out_item);
     }
+    
+    *out_timesteps_ptr = array_to_ffi_boxed_slice(item_vec);
+
+    // Return success
+    0    
 }
 
 /// Free a previously-allocated `mwalibTimeStep` struct.
 ///
 /// # Arguments
 ///
-/// * `timestep_ptr` - pointer to an already populated `mwalibTimeStep` object
+/// * `timesteps_ptr` - pointer to an already populated `mwalibTimeStep` array
 ///
+/// * `len` - number of elements in the pointed to array
+/// 
 ///
 /// # Returns
 ///
@@ -1610,16 +1649,23 @@ pub unsafe extern "C" fn mwalib_correlator_timestep_get(
 ///
 ///
 /// # Safety
-/// * This must be called once caller is finished with the `mwalibTimeStep` object
-/// * `timestep_ptr` must point to a populated `mwalibTimeStep` object from the `mwalib_correlator_timestep_get` function.
+/// * This must be called once caller is finished with the `mwalibTimeStep` array
+/// * `timestep_ptr` must point to a populated `mwalibTimeStep` array from the `mwalib_correlator_timesteps_get` function.
 /// * `timestep_ptr` must not have already been freed.
 #[no_mangle]
 #[cfg(not(tarpaulin_include))]
-pub unsafe extern "C" fn mwalib_timestep_free(timestep_ptr: *mut mwalibTimeStep) -> i32 {
-    if timestep_ptr.is_null() {
+pub unsafe extern "C" fn mwalib_timesteps_free(timesteps_ptr: *mut mwalibTimeStep, len: usize) -> i32 {
+    if timesteps_ptr.is_null() {
         return 0;
     }
-    drop(Box::from_raw(timestep_ptr));
+    
+    // Extract a slice from the pointer
+    let slice: &mut [mwalibTimeStep] =
+        slice::from_raw_parts_mut(timesteps_ptr, len)
+    ;
+        
+    // Free the memory for the slice
+    drop(Box::from_raw(slice));
 
     // Return success
     0
@@ -1634,15 +1680,13 @@ pub struct mwalibVisibilityPol {
     pub polarisation: *mut libc::c_char,
 }
 
-/// This returns a struct containing the requested visibility polarisation
+/// This passes back a pointer to an array of all visibility polarisations
 ///
 /// # Arguments
 ///
 /// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
 ///
-/// * `visibility_pol_index` - item in the visibility pol array to return. This must be be between 0 and num_visibility_pols - 1.
-///
-/// * `out_visibility_pol_ptr` - A Rust-owned populated `mwalibVisibilityPol` struct. Free with `mwalib_visibility_pol_free`.
+/// * `out_visibility_pol_ptr` - A Rust-owned populated array of `mwalibVisibilityPol` structs. Free with `mwalib_visibility_pols_free`.
 /// 
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
@@ -1657,60 +1701,51 @@ pub struct mwalibVisibilityPol {
 /// # Safety
 /// * `error_message` *must* point to an already allocated char* buffer for any error messages.
 /// * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
-/// * Caller must call `mwalib_visibility_pol_free` once finished, to free the rust memory.
+/// * Caller must call `mwalib_visibility_pols_free` once finished, to free the rust memory.
 #[no_mangle]
-pub unsafe extern "C" fn mwalib_correlator_visibility_pol_get(
-    correlator_context_ptr: *mut CorrelatorContext,
-    visibility_pol_index: size_t,
-    out_visibility_pol_ptr: &mut *mut mwalibVisibilityPol,
+pub unsafe extern "C" fn mwalib_correlator_visibility_pols_get(
+    correlator_context_ptr: *mut CorrelatorContext,    
+    out_visibility_pols_ptr: *mut *mut mwalibVisibilityPol,
     error_message: *mut u8,
     error_message_length: size_t,
 ) -> i32 {
     if correlator_context_ptr.is_null() {
         set_error_message(
-            "mwalib_correlator_visibility_pol_get() ERROR: null pointer for correlator_context_ptr passed in",
+            "mwalib_correlator_visibility_pols_get() ERROR: null pointer for correlator_context_ptr passed in",
             error_message,
             error_message_length,
         );
         return 1;
     }
     let context = &*correlator_context_ptr;
+    
+    let mut item_vec: Vec<mwalibVisibilityPol> = Vec::new();
 
-    if visibility_pol_index < context.num_visibility_pols {
+    for item in context.visibility_pols.iter() {
         let out_visibility_pol = mwalibVisibilityPol {
             polarisation: CString::new(String::from(
-                &context.visibility_pols[visibility_pol_index].polarisation,
+                &item.polarisation,
             ))
             .unwrap()
             .into_raw(),
-        };
+        };     
 
-        *out_visibility_pol_ptr = Box::into_raw(Box::new(out_visibility_pol));
-
-        // Return success
-        0
-    } else {
-        set_error_message(
-            &format!(
-                "mwalib_correlator_visibility_pol_get() ERROR: visibility_pol_index index must be between 0 ({}) and {} ({}).",
-                context.visibility_pols[0].polarisation,
-                context.num_visibility_pols - 1,
-                context.visibility_pols[context.num_visibility_pols - 1].polarisation,
-            ),
-            error_message,
-            error_message_length,
-        );
-       
-        return 1;
+        item_vec.push(out_visibility_pol);
     }
+
+    *out_visibility_pols_ptr = array_to_ffi_boxed_slice(item_vec);
+
+    // Return success
+    0
 }
 
-/// Free a previously-allocated `mwalibVisibilityPol` struct.
+/// Free a previously-allocated `mwalibVisibilityPol` array of structs.
 ///
 /// # Arguments
 ///
-/// * `visibility_pol_ptr` - pointer to an already populated `mwalibVisibilityPol` object
+/// * `visibility_pols_ptr` - pointer to an already populated `mwalibVisibilityPol` array
 ///
+/// * `len` - number of elements in the pointed to array
 ///
 /// # Returns
 ///
@@ -1718,16 +1753,29 @@ pub unsafe extern "C" fn mwalib_correlator_visibility_pol_get(
 ///
 ///
 /// # Safety
-/// * This must be called once caller is finished with the `mwalibVisibilityPol` object
-/// * `visibility_pol_ptr` must point to a populated `mwalibVisibilityPol` object from the `mwalib_correlator_visibility_pol_get` function.
-/// * `visibility_pol_ptr` must not have already been freed.
+/// * This must be called once caller is finished with the `mwalibVisibilityPol` array
+/// * `visibility_pols_ptr` must point to a populated `mwalibVisibilityPol` array from the `mwalib_correlator_visibility_pols_get` function.
+/// * `visibility_pols_ptr` must not have already been freed.
 #[no_mangle]
 #[cfg(not(tarpaulin_include))]
-pub unsafe extern "C" fn mwalib_visibility_pol_free(visibility_pol_ptr: *mut mwalibVisibilityPol) -> i32 {
-    if visibility_pol_ptr.is_null() {
+pub unsafe extern "C" fn mwalib_visibility_pols_free(visibility_pols_ptr: *mut mwalibVisibilityPol, len: usize) -> i32 {
+    // Just return 0 if the pointer is already null
+    if visibility_pols_ptr.is_null() {
         return 0;
     }
-    drop(Box::from_raw(visibility_pol_ptr));
+        
+    // Extract a slice from the pointer
+    let slice: &mut [mwalibVisibilityPol] =
+        slice::from_raw_parts_mut(visibility_pols_ptr, len)
+    ;
+    
+    // Now for each item we need to free anything on the heap
+    for i in slice.into_iter() {
+        drop(Box::from_raw(i.polarisation));
+    }
+
+    // Free the memory for the slice
+    drop(Box::from_raw(slice));
 
     // Return success
     0
