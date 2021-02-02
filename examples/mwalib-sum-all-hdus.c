@@ -8,7 +8,7 @@
 
 #define ERROR_MESSAGE_LEN 1024
 
-void do_sum(int mode, mwalibContext *context, long num_floats, int num_timesteps, int num_coarse_channels)
+void do_sum(int mode, CorrelatorContext *context, long num_floats, int num_timesteps, int num_coarse_channels)
 {
     // Allocate buffer for any error messages
     char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
@@ -17,15 +17,15 @@ void do_sum(int mode, mwalibContext *context, long num_floats, int num_timesteps
     float *buffer_ptr = data_buffer; // Keep data_buffer pointing to the start of the buffer so we can free it later
     double sum = 0;
 
-    int32_t (*sum_func)(mwalibContext *, uintptr_t, uintptr_t, float *, size_t, uint8_t *, size_t);
+    int32_t (*sum_func)(CorrelatorContext *, uintptr_t, uintptr_t, float *, size_t, const char *, size_t);
 
     switch (mode)
     {
     case 1:
-        sum_func = mwalibContext_read_by_baseline;
+        sum_func = mwalib_correlator_context_read_by_baseline;
         break;
     case 2:
-        sum_func = mwalibContext_read_by_frequency;
+        sum_func = mwalib_correlator_context_read_by_frequency;
         break;
     default:
         exit(-1);
@@ -60,7 +60,7 @@ void do_sum(int mode, mwalibContext *context, long num_floats, int num_timesteps
         }
     }
 
-    printf("Total sum: %f\n", sum);
+    printf("Total sum using mode %d: %f\n", mode, sum);
     free(data_buffer);
     free(error_message);
 }
@@ -85,25 +85,44 @@ int main(int argc, char *argv[])
     // Allocate buffer for any error messages
     char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
 
-    mwalibContext *context = mwalibContext_get(argv[1], gpuboxes, argc - 2, error_message, ERROR_MESSAGE_LEN);
+    CorrelatorContext *corr_context = NULL;
 
-    mwalibMetadata *metadata = mwalibMetadata_get(context, error_message, ERROR_MESSAGE_LEN);
+    if (mwalib_correlator_context_new(argv[1], gpuboxes, argc - 2, &corr_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    {
+        printf("Error creating correlator context: %s\n", error_message);
+        exit(-1);
+    }
 
-    int num_timesteps = metadata->num_timesteps;
-    int num_coarse_channels = metadata->num_coarse_channels;
-    int num_vis_pols = metadata->num_visibility_pols;
-    int num_fine_channels = metadata->num_fine_channels_per_coarse;
-    int num_baselines = metadata->num_baselines;
-    long num_floats = metadata->num_timestep_coarse_channel_floats;
+    // Print summary of correlator context
+    if (mwalib_correlator_context_display(corr_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    {
+        printf("Error displaying correlator context summary: %s\n", error_message);
+        exit(-1);
+    }
+
+    mwalibCorrelatorMetadata *corr_metadata = NULL;
+
+    if (mwalib_correlator_metadata_get(corr_context, &corr_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    {
+        printf("Error getting correlator metadata: %s\n", error_message);
+        exit(-1);
+    }
+
+    int num_timesteps = corr_metadata->num_timesteps;
+    int num_coarse_channels = corr_metadata->num_coarse_channels;
+    int num_vis_pols = corr_metadata->num_visibility_pols;
+    int num_fine_channels = corr_metadata->num_fine_channels_per_coarse;
+    int num_baselines = corr_metadata->num_baselines;
+    long num_floats = corr_metadata->num_timestep_coarse_channel_floats;
 
     // Now sum by baseline
-    do_sum(1, context, num_floats, num_timesteps, num_coarse_channels);
+    do_sum(1, corr_context, num_floats, num_timesteps, num_coarse_channels);
 
     // Now sum by freq
-    do_sum(2, context, num_floats, num_timesteps, num_coarse_channels);
+    do_sum(2, corr_context, num_floats, num_timesteps, num_coarse_channels);
 
-    mwalibMetadata_free(metadata);
-    mwalibContext_free(context);
+    mwalib_correlator_metadata_free(corr_metadata);
+    mwalib_correlator_context_free(corr_context);
     free(gpuboxes);
     free(error_message);
 

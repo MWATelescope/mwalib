@@ -1,4 +1,4 @@
-use super::*;    
+use super::*;
 
 #[test]
 //
@@ -21,15 +21,15 @@ fn test_mwalib_metafits_context_new_valid() {
     // This tests for a valid metafitscontext
     let error_message =
         CString::new("                                                            ").unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut u8;
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
     let error_len: size_t = 60;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
-    let metafits_file_ptr = metafits_file.as_ptr();    
+    let metafits_file_ptr = metafits_file.as_ptr();
 
-    unsafe {         
-        // Create a MetafitsContext     
+    unsafe {
+        // Create a MetafitsContext
         let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
         let retval = mwalib_metafits_context_new(
             metafits_file_ptr,
@@ -57,23 +57,22 @@ fn test_mwalib_correlator_context_new_valid() {
     // This tests for a valid correlator context
     let error_message =
         CString::new("                                                            ").unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut u8;
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
     let error_len: size_t = 60;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
     let metafits_file_ptr = metafits_file.as_ptr();
 
-    let gpubox_file = CString::new(
-        "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
-    )
-    .unwrap();
+    let gpubox_file =
+        CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
+            .unwrap();
     let mut gpubox_files: Vec<*const c_char> = Vec::new();
     gpubox_files.push(gpubox_file.as_ptr());
     let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
 
-    unsafe {         
-        // Create a CorrelatorContext     
+    unsafe {
+        // Create a CorrelatorContext
         let mut correlator_context_ptr: *mut CorrelatorContext = std::ptr::null_mut();
         let retval = mwalib_correlator_context_new(
             metafits_file_ptr,
@@ -102,15 +101,15 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
 
     let error_message =
         CString::new("                                                            ").unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut u8;
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
     let error_len: size_t = 60;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
-    let metafits_file_ptr = metafits_file.as_ptr();    
+    let metafits_file_ptr = metafits_file.as_ptr();
 
-    unsafe {         
-        // Create a MetafitsContext     
+    unsafe {
+        // Create a MetafitsContext
         let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
         let mut retval = mwalib_metafits_context_new(
             metafits_file_ptr,
@@ -154,23 +153,22 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
     // This tests for a valid metafits metadata returned given a correlator context
     let error_message =
         CString::new("                                                            ").unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut u8;
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
     let error_len: size_t = 60;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
     let metafits_file_ptr = metafits_file.as_ptr();
 
-    let gpubox_file = CString::new(
-        "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
-    )
-    .unwrap();
+    let gpubox_file =
+        CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
+            .unwrap();
     let mut gpubox_files: Vec<*const c_char> = Vec::new();
     gpubox_files.push(gpubox_file.as_ptr());
     let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
 
-    unsafe {         
-        // Create a CorrelatorContext     
+    unsafe {
+        // Create a CorrelatorContext
         let mut correlator_context_ptr: *mut CorrelatorContext = std::ptr::null_mut();
         let mut retval = mwalib_correlator_context_new(
             metafits_file_ptr,
@@ -178,7 +176,7 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
             1,
             &mut correlator_context_ptr,
             error_message_ptr,
-            60,
+            error_len,
         );
 
         // Check return value of mwalib_correlator_context_new
@@ -190,7 +188,7 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
 
         // Populate a mwalibMetafitsMetadata struct
         let mut metafits_metadata_ptr: &mut *mut mwalibMetafitsMetadata = &mut std::ptr::null_mut();
-        retval = mwalib_metafits_metadata_get(            
+        retval = mwalib_metafits_metadata_get(
             std::ptr::null_mut(),
             correlator_context_ptr,
             &mut metafits_metadata_ptr,
@@ -214,23 +212,22 @@ fn test_mwalib_correlator_metadata_get_valid() {
     // This tests for a valid correlator metadata
     let error_message =
         CString::new("                                                            ").unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut u8;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
     let error_len: size_t = 60;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
     let metafits_file_ptr = metafits_file.as_ptr();
 
-    let gpubox_file = CString::new(
-        "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
-    )
-    .unwrap();
+    let gpubox_file =
+        CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
+            .unwrap();
     let mut gpubox_files: Vec<*const c_char> = Vec::new();
     gpubox_files.push(gpubox_file.as_ptr());
     let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
 
-    unsafe {         
-        // Create a CorrelatorContext     
+    unsafe {
+        // Create a CorrelatorContext
         let mut correlator_context_ptr: *mut CorrelatorContext = std::ptr::null_mut();
         let mut retval = mwalib_correlator_context_new(
             metafits_file_ptr,
@@ -249,8 +246,9 @@ fn test_mwalib_correlator_metadata_get_valid() {
         assert!(context_ptr.is_some());
 
         // Populate a mwalibCorrelatorMetadata struct
-        let mut correlator_metadata_ptr: &mut *mut mwalibCorrelatorMetadata = &mut std::ptr::null_mut();
-        retval = mwalib_correlator_metadata_get(                        
+        let mut correlator_metadata_ptr: &mut *mut mwalibCorrelatorMetadata =
+            &mut std::ptr::null_mut();
+        retval = mwalib_correlator_metadata_get(
             correlator_context_ptr,
             &mut correlator_metadata_ptr,
             error_message_ptr,

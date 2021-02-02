@@ -13,30 +13,31 @@ import ctypes as ct
 ERROR_MESSAGE_LEN = 1024
 
 
-class MwalibContextS(ct.Structure):
+class CorrelatorContextS(ct.Structure):
     pass
 
 
 prefix = {"win32": ""}.get(sys.platform, "lib")
 extension = {"darwin": ".dylib", "win32": ".dll"}.get(sys.platform, ".so")
-path_to_mwalib = "../target/release/" + prefix + "mwalib" + extension
-mwalib = ct.cdll.LoadLibrary(path_to_mwalib)
+mwalib_filename = prefix + "mwalib" + extension
+mwalib = ct.cdll.LoadLibrary(mwalib_filename)
 
-mwalib.mwalibContext_get.argtypes = \
+mwalib.mwalib_correlator_context_new.argtypes = \
     (ct.c_char_p,              # metafits
      ct.POINTER(ct.c_char_p),  # gpuboxes
      ct.c_size_t,              # gpubox count
+     ct.POINTER(ct.POINTER(CorrelatorContextS)), # Pointer to pointer to CorrelatorContext
      ct.c_char_p,              # error message
      ct.c_size_t)              # length of error message
-mwalib.mwalibContext_get.restype = ct.POINTER(MwalibContextS)
+mwalib.mwalib_correlator_context_new.restype = ct.c_uint32
 
-mwalib.mwalibContext_free.argtypes = (ct.POINTER(MwalibContextS), )
+mwalib.mwalib_correlator_context_free.argtypes = (ct.POINTER(CorrelatorContextS), )
 
-mwalib.mwalibContext_display.argtypes = (ct.POINTER(MwalibContextS), )
-mwalib.mwalibContext_display.restype = ct.c_uint32
+mwalib.mwalib_correlator_context_display.argtypes = (ct.POINTER(CorrelatorContextS), )
+mwalib.mwalib_correlator_context_display.restype = ct.c_uint32
 
 
-class MWAlibContext:
+class CorrelatorContext:
     def __init__(self, metafits, gpuboxes):
         # Encode all inputs as UTF-8.
         m = ct.c_char_p(metafits.encode("utf-8"))
@@ -47,26 +48,25 @@ class MWAlibContext:
             encoded.append(ct.c_char_p(g.encode("utf-8")))
         seq = ct.c_char_p * len(encoded)
         g = seq(*encoded)
-        error_message = " ".encode("utf-8") * ERROR_MESSAGE_LEN
-        self.obj = mwalib.mwalibContext_get(
-            m, g, len(encoded), error_message, ERROR_MESSAGE_LEN)
+        error_message: bytes = " ".encode("utf-8") * ERROR_MESSAGE_LEN
 
-        if not self.obj:
-            print(
-                f"Error creating context: {error_message.decode('utf-8').rstrip()}")
+        self.correlator_context = ct.POINTER(CorrelatorContextS)()
+
+        if mwalib.mwalib_correlator_context_new(m, g, len(encoded), ct.byref(self.correlator_context), error_message, ERROR_MESSAGE_LEN) != 0:
+            print(f"Error creating context: {error_message.decode('utf-8').rstrip()}")
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        mwalib.mwalibContext_free(self.obj)
+        mwalib.mwalib_correlator_context_free(self.correlator_context)
 
     def display(self):
         error_message = " ".encode("utf-8") * ERROR_MESSAGE_LEN
 
-        if mwalib.mwalibContext_display(self.obj, error_message, ERROR_MESSAGE_LEN) != 0:
+        if mwalib.mwalib_correlator_context_display(self.correlator_context, error_message, ERROR_MESSAGE_LEN) != 0:
             print(
-                f"Error calling mwalibContext_display(): {error_message.decode('utf-8').rstrip()}")
+                f"Error calling mwalib_correlator_context_display(): {error_message.decode('utf-8').rstrip()}")
             exit(1)
 
 
@@ -78,5 +78,5 @@ if __name__ == "__main__":
                         help="Paths to the gpubox files.")
     args = parser.parse_args()
 
-    with MWAlibContext(args.metafits, args.gpuboxes) as context:
+    with CorrelatorContext(args.metafits, args.gpuboxes) as context:
         context.display()

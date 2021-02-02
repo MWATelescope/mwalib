@@ -11,79 +11,50 @@
 import sys
 import argparse
 import ctypes as ct
-import array
 import numpy as np
 import numpy.ctypeslib as npct
 
 ERROR_MESSAGE_LEN = 1024
 
-class MwalibContextS(ct.Structure):
+class CorrelatorContextS(ct.Structure):
     pass
-
-
-class MwalibMetadata(ct.Structure):
-    _fields_ = [('obsid', ct.c_uint32),
-                ('corr_version', ct.c_uint32),
-                ('coax_v_factor', ct.c_double),
-                ('start_unix_time_milliseconds', ct.c_uint64),
-                ('end_unix_time_milliseconds', ct.c_uint64),
-                ('duration_milliseconds', ct.c_uint64),
-                ('num_timesteps', ct.c_size_t),
-                ('num_antennas', ct.c_size_t),
-                ('num_baselines', ct.c_size_t),
-                ('num_rf_inputs', ct.c_size_t),
-                ('num_antenna_pols', ct.c_size_t),
-                ('num_visibility_pols', ct.c_size_t),
-                ('num_coarse_channels', ct.c_size_t),
-                ('integration_time_milliseconds', ct.c_uint64),
-                ('fine_channel_width_hz', ct.c_uint32),
-                ('observation_bandwidth_hz', ct.c_uint32),
-                ('coarse_channel_width_hz', ct.c_uint32),
-                ('num_fine_channels_per_coarse', ct.c_size_t),
-                ('timestep_coarse_channel_bytes', ct.c_size_t),
-                ('timestep_coarse_channel_floats', ct.c_size_t),
-                ('num_gpubox_files', ct.c_size_t)
-                ]
 
 
 prefix = {"win32": ""}.get(sys.platform, "lib")
 extension = {"darwin": ".dylib", "win32": ".dll"}.get(sys.platform, ".so")
-path_to_mwalib = "../target/release/" + prefix + "mwalib" + extension
-mwalib = ct.cdll.LoadLibrary(path_to_mwalib)
+mwalib_filename = prefix + "mwalib" + extension
+mwalib = ct.cdll.LoadLibrary(mwalib_filename)
 
-mwalib.mwalibContext_get.argtypes = \
+mwalib.mwalib_correlator_context_new.argtypes = \
     (ct.c_char_p,              # metafits
      ct.POINTER(ct.c_char_p),  # gpuboxes
      ct.c_size_t,              # gpubox count
+     ct.POINTER(ct.POINTER(CorrelatorContextS)), # Pointer to pointer to CorrelatorContext
      ct.c_char_p,              # error message
      ct.c_size_t)              # length of error message
-mwalib.mwalibContext_get.restype = ct.POINTER(MwalibContextS)
+mwalib.mwalib_correlator_context_new.restype = ct.c_uint32
 
-mwalib.mwalibContext_free.argtypes = (ct.POINTER(MwalibContextS),)
+mwalib.mwalib_correlator_context_free.argtypes = (ct.POINTER(CorrelatorContextS), )
 
-mwalib.mwalibContext_read_by_baseline.argtypes = \
-    (ct.POINTER(MwalibContextS), # context
+mwalib.mwalib_correlator_context_read_by_baseline.argtypes = \
+    (ct.POINTER(CorrelatorContextS), # context
      ct.c_size_t,                # input timestep_index
      ct.c_size_t,                # input coarse_channel_index
      ct.POINTER(ct.c_float),     # buffer_ptr
-     ct.c_size_t)                # buffer_len
-mwalib.mwalibContext_read_by_baseline.restype = ct.c_int32
+     ct.c_size_t,                # buffer_len
+     ct.c_char_p,                # error message
+     ct.c_size_t)                # length of error message
+mwalib.mwalib_correlator_context_read_by_baseline.restype = ct.c_int32
 
-mwalib.mwalibContext_read_by_frequency.argtypes = \
-    (ct.POINTER(MwalibContextS), # context
+mwalib.mwalib_correlator_context_read_by_frequency.argtypes = \
+    (ct.POINTER(CorrelatorContextS), # context
      ct.c_size_t,                # input timestep_index
      ct.c_size_t,                # input coarse_channel_index
      ct.POINTER(ct.c_float),     # buffer_ptr
-     ct.c_size_t)                # buffer_len
-mwalib.mwalibContext_read_by_frequency.restype = ct.c_int32
-
-mwalib.mwalibMetadata_get.argtypes = \
-    (ct.POINTER(MwalibContextS),  # context_ptr
-     ct.c_char_p,                 # error message
-     ct.c_size_t)                 # length of error message
-mwalib.mwalibMetadata_get.restype = ct.c_void_p
-
-mwalib.mwalibMetadata_free.argtypes = (ct.c_void_p,)
+     ct.c_size_t,                # buffer_len
+     ct.c_char_p,               # error message
+     ct.c_size_t)               # length of error message
+mwalib.mwalib_correlator_context_read_by_frequency.restype = ct.c_int32
 
 
 class MWAlibContext:
@@ -97,30 +68,23 @@ class MWAlibContext:
             encoded.append(ct.c_char_p(g.encode("utf-8")))
         seq = ct.c_char_p * len(encoded)
         g = seq(*encoded)
-        error_message = " ".encode("utf-8") * ERROR_MESSAGE_LEN
-        self.context = mwalib.mwalibContext_get(m, g, len(encoded), error_message, ERROR_MESSAGE_LEN)
+        error_message: bytes = " ".encode("utf-8") * ERROR_MESSAGE_LEN
 
-        if not self.context:
+        self.correlator_context = ct.POINTER(CorrelatorContextS)()
+
+        if mwalib.mwalib_correlator_context_new(m, g, len(encoded), ct.byref(self.correlator_context), error_message, ERROR_MESSAGE_LEN) != 0:
             print(f"Error creating context: {error_message.decode('utf-8').rstrip()}")
-            exit(-1)
 
-        # Now populate the metadata
-        self.metadata = MwalibMetadata.from_address(mwalib.mwalibMetadata_get(self.context,
-                                                                              error_message,
-                                                                              ERROR_MESSAGE_LEN))
-
-        if not self.metadata:
-            print(f"Error creating metadata object: {error_message.decode('utf-8').rstrip()}")
-            exit(-1)
-
-        self.num_timesteps = self.metadata.num_timesteps
-        self.num_floats = self.metadata.timestep_coarse_channel_floats
+        # for now we will hard code this
+        # TODO fix this once we have metadata population
+        self.num_timesteps = 1
+        self.num_floats = 8256 * 128 * 4 * 2
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        mwalib.mwalibContext_free(self.context)
+        mwalib.mwalib_correlator_context_free(self.correlator_context)
 
     def read_by_baseline(self, timestep_index, coarse_channel_index):
         error_message = " ".encode("utf-8") * ERROR_MESSAGE_LEN
@@ -128,13 +92,13 @@ class MWAlibContext:
         float_buffer_type = ct.c_float * self.num_floats
         buffer = float_buffer_type()
 
-        if mwalib.mwalibContext_read_by_baseline(self.context, ct.c_size_t(timestep_index),
+        if mwalib.mwalib_correlator_context_read_by_baseline(self.correlator_context, ct.c_size_t(timestep_index),
                                                  ct.c_size_t(coarse_channel_index),
                                                  buffer, self.num_floats,
                                                  error_message, ERROR_MESSAGE_LEN) != 0:
             raise Exception(f"Error reading data: {error_message.decode('utf-8').rstrip()}")
         else:
-            return npct.as_array(buffer, shape=(num_floats,))
+            return npct.as_array(buffer, shape=(self.num_floats,))
 
     def read_by_frequency(self, timestep_index, coarse_channel_index):
         error_message = " ".encode("utf-8") * ERROR_MESSAGE_LEN
@@ -142,13 +106,13 @@ class MWAlibContext:
         float_buffer_type = ct.c_float * self.num_floats
         buffer = float_buffer_type()
 
-        if mwalib.mwalibContext_read_by_baseline(self.context, ct.c_size_t(timestep_index),
+        if mwalib.mwalib_correlator_context_read_by_baseline(self.correlator_context, ct.c_size_t(timestep_index),
                                                  ct.c_size_t(coarse_channel_index),
                                                  buffer, self.num_floats,
                                                  error_message, ERROR_MESSAGE_LEN) != 0:
             raise Exception(f"Error reading data: {error_message.decode('utf-8').rstrip()}")
         else:
-            return npct.as_array(buffer, shape=(num_floats,))
+            return npct.as_array(buffer, shape=(self.num_floats,))
 
 
 if __name__ == "__main__":
@@ -167,12 +131,13 @@ if __name__ == "__main__":
         num_fine_channels = 128
         num_baselines = 8256
         num_vis_pols = 4
-        num_floats = num_baselines * \
-            num_fine_channels * num_vis_pols * 2
+        #num_floats = num_baselines * \
+        #    num_fine_channels * num_vis_pols * 2
 
         sum = 0.0
 
         if args.sum_by_bl:
+            sum = 0
             print("Summing by baseline...")
             for timestep_index in range(0, num_timesteps):
                 this_sum = 0
@@ -203,6 +168,7 @@ if __name__ == "__main__":
             print("Total sum: {}".format(sum))
 
         if args.sum_by_freq:
+            sum = 0
             print("Summing by frequency...")
 
             for timestep_index in range(0, num_timesteps):

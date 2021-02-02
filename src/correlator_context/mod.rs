@@ -560,41 +560,42 @@ impl fmt::Display for CorrelatorContext {
         // `size` is the number of floats (self.gpubox_hdu_size) multiplied by 4
         // bytes per float, divided by 1024^2 to get MiB.
         let size = (self.num_timestep_coarse_channel_floats * 4) as f64 / (1024 * 1024) as f64;
+
         writeln!(
             f,
             r#"CorrelatorContext (
-    Observation Context:      {obs_context}
-    Correlator version:       {corr_ver},
+            Observation Context:      {obs_context}
+            Correlator version:       {corr_ver},
 
-    Actual UNIX start time:   {start_unix},
-    Actual UNIX end time:     {end_unix},
-    Actual duration:          {duration} s,
+            Actual UNIX start time:   {start_unix},
+            Actual UNIX end time:     {end_unix},
+            Actual duration:          {duration} s,
 
-    num timesteps:            {n_timesteps},
-    timesteps:                {timesteps:?},
+            num timesteps:            {n_timesteps},
+            timesteps:                {timesteps:?},
 
-    num baselines:            {n_bls},
-    baselines:                {bl01} v {bl02} to {bll1} v {bll2}
-    num auto-correlations:    {n_ants},
-    num cross-correlations:   {n_ccs},
+            num baselines:            {n_bls},
+            baselines:                {bl01} v {bl02} to {bll1} v {bll2}
+            num auto-correlations:    {n_ants},
+            num cross-correlations:   {n_ccs},
 
-    num visibility pols:      {n_vps},
-    visibility pols:          {vp0}, {vp1}, {vp2}, {vp3},
+            num visibility pols:      {n_vps},
+            visibility pols:          {vp0}, {vp1}, {vp2}, {vp3},
 
-    observation bandwidth:    {obw} MHz,
-    num coarse channels,      {n_coarse},
-    coarse channels:          {coarse:?},
+            observation bandwidth:    {obw} MHz,
+            num coarse channels,      {n_coarse},
+            coarse channels:          {coarse:?},
 
-    Correlator Mode:
-    fine channel resolution:  {fcw} kHz,
-    integration time:         {int_time:.2} s
-    num fine channels/coarse: {nfcpc},
+            Correlator Mode:
+            fine channel resolution:  {fcw} kHz,
+            integration time:         {int_time:.2} s
+            num fine channels/coarse: {nfcpc},
 
-    gpubox HDU size:          {hdu_size} MiB,
-    Memory usage per scan:    {scan_size} MiB,
+            gpubox HDU size:          {hdu_size} MiB,
+            Memory usage per scan:    {scan_size} MiB,
 
-    gpubox batches:           {batches:#?},
-)"#,
+            gpubox batches:           {batches:#?},
+        )"#,
             obs_context = self.metafits_context,
             corr_ver = self.corr_version,
             start_unix = self.start_unix_time_milliseconds as f64 / 1e3,
