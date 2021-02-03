@@ -72,8 +72,12 @@ int main(int argc, char *argv[])
 
     // Example of using antennas
     mwalibAntenna *ants = NULL;
-    if (mwalib_antennas_get(metafits_context, NULL, &ants, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    size_t nants = 0;
+
+    if (mwalib_antennas_get(metafits_context, NULL, &ants, &nants, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
+        printf("%lu antennas returned\n", nants);
+
         for (int i = 0; i < metafits_metadata->num_antennas; i++)
         {
             printf("antenna %d is %s\n", i, ants[i].tile_name);
@@ -89,8 +93,12 @@ int main(int argc, char *argv[])
 
     // Example of using baselines
     mwalibBaseline *bls = NULL;
-    if (mwalib_correlator_baselines_get(correlator_context, &bls, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    size_t nbls = 0;
+
+    if (mwalib_correlator_baselines_get(correlator_context, &bls, &nbls, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
+        printf("%lu baselines returned\n", nbls);
+
         for (int i = 0; i < corr_metadata->num_baselines; i++)
         {
             printf("Baseline %d is ant %lu vs ant %lu\n", i, bls[i].antenna1_index, bls[i].antenna2_index);
@@ -106,8 +114,12 @@ int main(int argc, char *argv[])
 
     // Example of using coarse channels
     mwalibCoarseChannel *ccs = NULL;
-    if (mwalib_correlator_coarse_channels_get(correlator_context, &ccs, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    size_t nccs = 0;
+
+    if (mwalib_correlator_coarse_channels_get(correlator_context, &ccs, &nccs, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
+        printf("%lu Coarse Channels returned\n", nccs);
+
         for (int i = 0; i < corr_metadata->num_coarse_channels; i++)
         {
             printf("Coarse Channel %d is %.2f MHz\n", i, (float)ccs[i].channel_centre_hz / 1000000.);
@@ -123,8 +135,12 @@ int main(int argc, char *argv[])
 
     // Example of using rf_inputs
     mwalibRFInput *rfs = NULL;
-    if (mwalib_rfinputs_get(NULL, correlator_context, &rfs, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    size_t nrfs = 0;
+
+    if (mwalib_rfinputs_get(NULL, correlator_context, &rfs, &nrfs, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
+        printf("%lu rf_inputs returned\n", nrfs);
+
         for (int i = 0; i < metafits_metadata->num_rf_inputs; i++)
         {
             printf("rf_input %d is %s %s\n", i, rfs[i].tile_name, rfs[i].pol);
@@ -140,8 +156,12 @@ int main(int argc, char *argv[])
 
     // Example of using timestep struct
     mwalibTimeStep *ts = NULL;
-    if (mwalib_correlator_timesteps_get(correlator_context, &ts, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    size_t nts = 0;
+
+    if (mwalib_correlator_timesteps_get(correlator_context, &ts, &nts, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
+        printf("%lu timesteps returned\n", nts);
+
         for (int i = 0; i < corr_metadata->num_timesteps; i++)
         {
             printf("Timestep %d is %.2f\n", i, ts[i].unix_time_ms / 1000.);
@@ -157,8 +177,12 @@ int main(int argc, char *argv[])
 
     // Example of using visibility pols
     mwalibVisibilityPol *vis_pol_array = NULL;
-    if (mwalib_correlator_visibility_pols_get(correlator_context, &vis_pol_array, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    size_t nvps = 0;
+
+    if (mwalib_correlator_visibility_pols_get(correlator_context, &vis_pol_array, &nvps, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
+        printf("%lu visibility pols returned\n", nvps);
+
         for (int i = 0; i < corr_metadata->num_visibility_pols; i++)
         {
             printf("mwalibVisibilityPols %d is %s\n", i, vis_pol_array[i].polarisation);

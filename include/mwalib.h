@@ -289,6 +289,29 @@ typedef struct mwalibCorrelatorMetadata {
 } mwalibCorrelatorMetadata;
 
 /**
+ * Representation in C of an `mwalibAntenna` struct
+ */
+typedef struct mwalibAntenna {
+  /**
+   * This is the antenna number.
+   * Nominally this is the field we sort by to get the desired output order of antenna.
+   * X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
+   * e.g. 0...N-1
+   */
+  uint32_t antenna;
+  /**
+   * Numeric part of tile_name for the antenna. Each pol has the same value
+   * e.g. tile_name "tile011" hsa tile_id of 11
+   */
+  uint32_t tile_id;
+  /**
+   * Human readable name of the antenna
+   * X and Y have the same name
+   */
+  char *tile_name;
+} mwalibAntenna;
+
+/**
  *
  * C Representation of a `mwalibBaseline` struct
  *
@@ -303,6 +326,42 @@ typedef struct mwalibBaseline {
    */
   uintptr_t antenna2_index;
 } mwalibBaseline;
+
+/**
+ * Representation in C of an `mwalibCoarseChannel` struct
+ */
+typedef struct mwalibCoarseChannel {
+  /**
+   * Correlator channel is 0 indexed (0..N-1)
+   */
+  uintptr_t correlator_channel_number;
+  /**
+   * Receiver channel is 0-255 in the RRI recivers
+   */
+  uintptr_t receiver_channel_number;
+  /**
+   * gpubox channel number
+   * Legacy e.g. obsid_datetime_gpuboxXX_00
+   * v2     e.g. obsid_datetime_gpuboxXXX_00
+   */
+  uintptr_t gpubox_number;
+  /**
+   * Width of a coarse channel in Hz
+   */
+  uint32_t channel_width_hz;
+  /**
+   * Starting frequency of coarse channel in Hz
+   */
+  uint32_t channel_start_hz;
+  /**
+   * Centre frequency of coarse channel in Hz
+   */
+  uint32_t channel_centre_hz;
+  /**
+   * Ending frequency of coarse channel in Hz
+   */
+  uint32_t channel_end_hz;
+} mwalibCoarseChannel;
 
 /**
  * Representation in C of an `mwalibRFInput` struct
@@ -370,65 +429,6 @@ typedef struct mwalibRFInput {
    */
   uint32_t receiver_slot_number;
 } mwalibRFInput;
-
-/**
- * Representation in C of an `mwalibCoarseChannel` struct
- */
-typedef struct mwalibCoarseChannel {
-  /**
-   * Correlator channel is 0 indexed (0..N-1)
-   */
-  uintptr_t correlator_channel_number;
-  /**
-   * Receiver channel is 0-255 in the RRI recivers
-   */
-  uintptr_t receiver_channel_number;
-  /**
-   * gpubox channel number
-   * Legacy e.g. obsid_datetime_gpuboxXX_00
-   * v2     e.g. obsid_datetime_gpuboxXXX_00
-   */
-  uintptr_t gpubox_number;
-  /**
-   * Width of a coarse channel in Hz
-   */
-  uint32_t channel_width_hz;
-  /**
-   * Starting frequency of coarse channel in Hz
-   */
-  uint32_t channel_start_hz;
-  /**
-   * Centre frequency of coarse channel in Hz
-   */
-  uint32_t channel_centre_hz;
-  /**
-   * Ending frequency of coarse channel in Hz
-   */
-  uint32_t channel_end_hz;
-} mwalibCoarseChannel;
-
-/**
- * Representation in C of an `mwalibAntenna` struct
- */
-typedef struct mwalibAntenna {
-  /**
-   * This is the antenna number.
-   * Nominally this is the field we sort by to get the desired output order of antenna.
-   * X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
-   * e.g. 0...N-1
-   */
-  uint32_t antenna;
-  /**
-   * Numeric part of tile_name for the antenna. Each pol has the same value
-   * e.g. tile_name "tile011" hsa tile_id of 11
-   */
-  uint32_t tile_id;
-  /**
-   * Human readable name of the antenna
-   * X and Y have the same name
-   */
-  char *tile_name;
-} mwalibAntenna;
 
 /**
  *
@@ -818,165 +818,6 @@ int32_t mwalib_correlator_metadata_get(struct CorrelatorContext *correlator_cont
 int32_t mwalib_correlator_metadata_free(struct mwalibCorrelatorMetadata *correlator_metadata_ptr);
 
 /**
- * This passes a pointer to an array of baselines
- *
- * # Arguments
- *
- * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
- *
- * * `out_baselines_ptr` - populated, array of rust-owned baseline structs. Free with `mwalib_baselines_free`.
- *
- * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
- *
- * * `error_message_length` - length of error_message char* buffer.
- *
- *
- * # Returns
- *
- * 0 on success, non-zero on failure
- *
- *
- * # Safety
- * * `error_message` *must* point to an already allocated char* buffer for any error messages.
- * * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
- * * Caller must call `mwalib_baselines_free` once finished, to free the rust memory.
- */
-int32_t mwalib_correlator_baselines_get(struct CorrelatorContext *correlator_context_ptr,
-                                        struct mwalibBaseline **out_baselines_ptr,
-                                        const char *error_message,
-                                        size_t error_message_length);
-
-/**
- * Free a previously-allocated `mwalibBaseline` struct.
- *
- * # Arguments
- *
- * * `baselines_ptr` - pointer to an already populated `mwalibBaseline` array
- *
- * * `len` - number of elements in the pointed to array
- *
- *
- * # Returns
- *
- * * 0 on success, non-zero on failure
- *
- *
- * # Safety
- * * This must be called once caller is finished with the `mwalibBaseline` array
- * * `baseline_ptr` must point to a populated `mwalibBaseline` array from the `mwalib_baselines_get` function.
- * * `baseline_ptr` must not have already been freed.
- */
-int32_t mwalib_baselines_free(struct mwalibBaseline *baselines_ptr,
-                              uintptr_t len);
-
-/**
- * This passes a pointer to an array of antenna given a metafits context OR correlator context
- *
- * # Arguments
- *
- * * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr`)
- *
- * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr`)
- *
- * * `out_rfinputs_ptr` - A Rust-owned populated `mwalibRFInput` array of structs. Free with `mwalib_rfinputs_free`.
- *
- * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
- *
- * * `error_message_length` - length of error_message char* buffer.
- *
- *
- * # Returns
- *
- * * 0 on success, non-zero on failure
- *
- *
- * # Safety
- * * `error_message` *must* point to an already allocated char* buffer for any error messages.
- * * `metafits_context_ptr` must point to a populated `MetafitsContext` object from the `mwalib_metafits_context_new` function.
- * * Caller must call `mwalib_rfinputs_free` once finished, to free the rust memory.
- */
-int32_t mwalib_rfinputs_get(struct MetafitsContext *metafits_context_ptr,
-                            struct CorrelatorContext *correlator_context_ptr,
-                            struct mwalibRFInput **out_rfinputs_ptr,
-                            const char *error_message,
-                            size_t error_message_length);
-
-/**
- * Free a previously-allocated `mwalibRFInput` struct.
- *
- * # Arguments
- *
- * * `rf_inputs_ptr` - pointer to an already populated `mwalibRFInput` object
- *
- * * `len` - number of elements in the pointed to array
- *
- *
- * # Returns
- *
- * * 0 on success, non-zero on failure
- *
- *
- * # Safety
- * * This must be called once caller is finished with the `mwalibRFInput` array
- * * `rf_input_ptr` must point to a populated `mwalibRFInput` array from the `mwalib_rfinputs_get` function.
- * * `rf_input_ptr` must not have already been freed.
- */
-int32_t mwalib_rfinputs_free(struct mwalibRFInput *rf_inputs_ptr,
-                             uintptr_t len);
-
-/**
- * This passes a pointer to an array of correlator coarse channel
- *
- * # Arguments
- *
- * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
- *
- * * `out_coarse_channels_ptr` - A Rust-owned populated `mwalibCoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
- *
- * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
- *
- * * `error_message_length` - length of error_message char* buffer.
- *
- *
- * # Returns
- *
- * * 0 on success, non-zero on failure
- *
- *
- * # Safety
- * * `error_message` *must* point to an already allocated char* buffer for any error messages.
- * * `correlator_context_ptr` must point to a populated `mwalibCorrelatorContext` object from the `mwalib_correlator_context_new` function.
- * * Caller must call `mwalib_coarse_channels_free` once finished, to free the rust memory.
- */
-int32_t mwalib_correlator_coarse_channels_get(struct CorrelatorContext *correlator_context_ptr,
-                                              struct mwalibCoarseChannel **out_coarse_channels_ptr,
-                                              const char *error_message,
-                                              size_t error_message_length);
-
-/**
- * Free a previously-allocated `mwalibCoarseChannel` struct.
- *
- * # Arguments
- *
- * * `coarse_channels_ptr` - pointer to an already populated `mwalibCoarseChannel` array
- *
- * * `len` - number of elements in the pointed to array
- *
- *
- * # Returns
- *
- * * 0 on success, non-zero on failure
- *
- *
- * # Safety
- * * This must be called once caller is finished with the `mwalibCoarseChannel` array
- * * `coarse_channel_ptr` must point to a populated `mwalibCoarseChannel` array from the `mwalib_correlator_coarse_channels_get` function.
- * * `coarse_channel_ptr` must not have already been freed.
- */
-int32_t mwalib_coarse_channels_free(struct mwalibCoarseChannel *coarse_channels_ptr,
-                                    uintptr_t len);
-
-/**
  * This passes back an array of structs containing all antennas given a metafits OR correlator context.
  *
  * # Arguments
@@ -986,6 +827,8 @@ int32_t mwalib_coarse_channels_free(struct mwalibCoarseChannel *coarse_channels_
  * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr`)
  *
  * * `out_antennas_ptr` - A Rust-owned populated array of `mwalibAntenna` struct. Free with `mwalib_antennas_free`.
+ *
+ * * `out_antennas_len` - Antennas array length.
  *
  * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
  *
@@ -1005,6 +848,7 @@ int32_t mwalib_coarse_channels_free(struct mwalibCoarseChannel *coarse_channels_
 int32_t mwalib_antennas_get(struct MetafitsContext *metafits_context_ptr,
                             struct CorrelatorContext *correlator_context_ptr,
                             struct mwalibAntenna **out_antennas_ptr,
+                            uintptr_t *out_antennas_len,
                             const char *error_message,
                             size_t error_message_length);
 
@@ -1015,7 +859,7 @@ int32_t mwalib_antennas_get(struct MetafitsContext *metafits_context_ptr,
  *
  * * `antennas_ptr` - pointer to an already populated `mwalibAntenna` array
  *
- * * `len` - number of elements in the pointed to array
+ * * `antennas_len` - number of elements in the pointed to array
  *
  *
  * # Returns
@@ -1029,7 +873,175 @@ int32_t mwalib_antennas_get(struct MetafitsContext *metafits_context_ptr,
  * * `antenna_ptr` must not have already been freed.
  */
 int32_t mwalib_antennas_free(struct mwalibAntenna *antennas_ptr,
-                             uintptr_t len);
+                             uintptr_t antennas_len);
+
+/**
+ * This passes a pointer to an array of baselines
+ *
+ * # Arguments
+ *
+ * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
+ *
+ * * `out_baselines_ptr` - populated, array of rust-owned baseline structs. Free with `mwalib_baselines_free`.
+ *
+ * * `out_baselines_len` - baseline array length.
+ *
+ * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+ *
+ * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * `error_message` *must* point to an already allocated char* buffer for any error messages.
+ * * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
+ * * Caller must call `mwalib_baselines_free` once finished, to free the rust memory.
+ */
+int32_t mwalib_correlator_baselines_get(struct CorrelatorContext *correlator_context_ptr,
+                                        struct mwalibBaseline **out_baselines_ptr,
+                                        uintptr_t *out_baselines_len,
+                                        const char *error_message,
+                                        size_t error_message_length);
+
+/**
+ * Free a previously-allocated `mwalibBaseline` struct.
+ *
+ * # Arguments
+ *
+ * * `baselines_ptr` - pointer to an already populated `mwalibBaseline` array
+ *
+ * * `baselines_len` - number of elements in the pointed to array
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * This must be called once caller is finished with the `mwalibBaseline` array
+ * * `baseline_ptr` must point to a populated `mwalibBaseline` array from the `mwalib_baselines_get` function.
+ * * `baseline_ptr` must not have already been freed.
+ */
+int32_t mwalib_baselines_free(struct mwalibBaseline *baselines_ptr,
+                              uintptr_t baselines_len);
+
+/**
+ * This passes a pointer to an array of correlator coarse channel
+ *
+ * # Arguments
+ *
+ * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
+ *
+ * * `out_coarse_channels_ptr` - A Rust-owned populated `mwalibCoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
+ *
+ * * `out_coarse_channels_len` - Coarse channel array length.
+ *
+ * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+ *
+ * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * `error_message` *must* point to an already allocated char* buffer for any error messages.
+ * * `correlator_context_ptr` must point to a populated `mwalibCorrelatorContext` object from the `mwalib_correlator_context_new` function.
+ * * Caller must call `mwalib_coarse_channels_free` once finished, to free the rust memory.
+ */
+int32_t mwalib_correlator_coarse_channels_get(struct CorrelatorContext *correlator_context_ptr,
+                                              struct mwalibCoarseChannel **out_coarse_channels_ptr,
+                                              uintptr_t *out_coarse_channels_len,
+                                              const char *error_message,
+                                              size_t error_message_length);
+
+/**
+ * Free a previously-allocated `mwalibCoarseChannel` struct.
+ *
+ * # Arguments
+ *
+ * * `coarse_channels_ptr` - pointer to an already populated `mwalibCoarseChannel` array
+ *
+ * * `coarse_channels_len` - number of elements in the pointed to array
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * This must be called once caller is finished with the `mwalibCoarseChannel` array
+ * * `coarse_channel_ptr` must point to a populated `mwalibCoarseChannel` array from the `mwalib_correlator_coarse_channels_get` function.
+ * * `coarse_channel_ptr` must not have already been freed.
+ */
+int32_t mwalib_coarse_channels_free(struct mwalibCoarseChannel *coarse_channels_ptr,
+                                    uintptr_t coarse_channels_len);
+
+/**
+ * This passes a pointer to an array of antenna given a metafits context OR correlator context
+ *
+ * # Arguments
+ *
+ * * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr`)
+ *
+ * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr`)
+ *
+ * * `out_rfinputs_ptr` - A Rust-owned populated `mwalibRFInput` array of structs. Free with `mwalib_rfinputs_free`.
+ *
+ * * `out_rfinputs_len` - rfinputs array length.
+ *
+ * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+ *
+ * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * `error_message` *must* point to an already allocated char* buffer for any error messages.
+ * * `metafits_context_ptr` must point to a populated `MetafitsContext` object from the `mwalib_metafits_context_new` function.
+ * * Caller must call `mwalib_rfinputs_free` once finished, to free the rust memory.
+ */
+int32_t mwalib_rfinputs_get(struct MetafitsContext *metafits_context_ptr,
+                            struct CorrelatorContext *correlator_context_ptr,
+                            struct mwalibRFInput **out_rfinputs_ptr,
+                            uintptr_t *out_rfinputs_len,
+                            const char *error_message,
+                            size_t error_message_length);
+
+/**
+ * Free a previously-allocated `mwalibRFInput` struct.
+ *
+ * # Arguments
+ *
+ * * `rf_inputs_ptr` - pointer to an already populated `mwalibRFInput` object
+ *
+ * * `rf_inputs_len` - number of elements in the pointed to array
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * This must be called once caller is finished with the `mwalibRFInput` array
+ * * `rf_input_ptr` must point to a populated `mwalibRFInput` array from the `mwalib_rfinputs_get` function.
+ * * `rf_input_ptr` must not have already been freed.
+ */
+int32_t mwalib_rfinputs_free(struct mwalibRFInput *rf_inputs_ptr,
+                             uintptr_t rf_inputs_len);
 
 /**
  * This passes a pointer to an array of timesteps
@@ -1039,6 +1051,8 @@ int32_t mwalib_antennas_free(struct mwalibAntenna *antennas_ptr,
  * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
  *
  * * `out_timesteps_ptr` - A Rust-owned populated `mwalibTimeStep` struct. Free with `mwalib_timestep_free`.
+ *
+ * * `out_timesteps_len` - Timesteps array length.
  *
  * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
  *
@@ -1057,6 +1071,7 @@ int32_t mwalib_antennas_free(struct mwalibAntenna *antennas_ptr,
  */
 int32_t mwalib_correlator_timesteps_get(struct CorrelatorContext *correlator_context_ptr,
                                         struct mwalibTimeStep **out_timesteps_ptr,
+                                        uintptr_t *out_timesteps_pols_len,
                                         const char *error_message,
                                         size_t error_message_length);
 
@@ -1067,7 +1082,7 @@ int32_t mwalib_correlator_timesteps_get(struct CorrelatorContext *correlator_con
  *
  * * `timesteps_ptr` - pointer to an already populated `mwalibTimeStep` array
  *
- * * `len` - number of elements in the pointed to array
+ * * `timesteps_len` - number of elements in the pointed to array
  *
  *
  * # Returns
@@ -1081,7 +1096,7 @@ int32_t mwalib_correlator_timesteps_get(struct CorrelatorContext *correlator_con
  * * `timestep_ptr` must not have already been freed.
  */
 int32_t mwalib_timesteps_free(struct mwalibTimeStep *timesteps_ptr,
-                              uintptr_t len);
+                              uintptr_t timesteps_len);
 
 /**
  * This passes back a pointer to an array of all visibility polarisations
@@ -1090,7 +1105,9 @@ int32_t mwalib_timesteps_free(struct mwalibTimeStep *timesteps_ptr,
  *
  * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
  *
- * * `out_visibility_pol_ptr` - A Rust-owned populated array of `mwalibVisibilityPol` structs. Free with `mwalib_visibility_pols_free`.
+ * * `out_visibility_pols_ptr` - A Rust-owned populated array of `mwalibVisibilityPol` structs. Free with `mwalib_visibility_pols_free`.
+ *
+ * * `out_visibility_pols_len` - Visibility Pols array length.
  *
  * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
  *
@@ -1109,6 +1126,7 @@ int32_t mwalib_timesteps_free(struct mwalibTimeStep *timesteps_ptr,
  */
 int32_t mwalib_correlator_visibility_pols_get(struct CorrelatorContext *correlator_context_ptr,
                                               struct mwalibVisibilityPol **out_visibility_pols_ptr,
+                                              uintptr_t *out_visibility_pols_len,
                                               const char *error_message,
                                               size_t error_message_length);
 
@@ -1119,7 +1137,7 @@ int32_t mwalib_correlator_visibility_pols_get(struct CorrelatorContext *correlat
  *
  * * `visibility_pols_ptr` - pointer to an already populated `mwalibVisibilityPol` array
  *
- * * `len` - number of elements in the pointed to array
+ * * `visibility_pols_len` - number of elements in the pointed to array
  *
  * # Returns
  *
@@ -1132,4 +1150,4 @@ int32_t mwalib_correlator_visibility_pols_get(struct CorrelatorContext *correlat
  * * `visibility_pols_ptr` must not have already been freed.
  */
 int32_t mwalib_visibility_pols_free(struct mwalibVisibilityPol *visibility_pols_ptr,
-                                    uintptr_t len);
+                                    uintptr_t visibility_pols_len);
