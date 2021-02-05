@@ -8,46 +8,36 @@ The main interface to MWA data.
 use std::collections::BTreeMap;
 use std::fmt;
 
-use crate::baseline::*;
 use crate::coarse_channel::*;
-use crate::convert::*;
-use crate::gpubox_files::*;
+use crate::error::*;
 use crate::metafits_context::*;
 use crate::timestep::*;
-use crate::visibility_pol::*;
+use crate::voltage_files::*;
 use crate::*;
 
 ///
-/// `mwalib` correlator observation context. This represents the basic metadata for a correlator observation.
+/// `mwalib` voltage captue system (VCS) observation context. This represents the basic metadata for a voltage capture observation.
 ///
-pub struct CorrelatorContext {
+pub struct VoltageContext {
     /// Observation Metadata
     pub metafits_context: MetafitsContext,
     /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
     /// The proper start of the observation (the time that is common to all
-    /// provided gpubox files).
+    /// provided voltage files).
     pub start_unix_time_milliseconds: u64,
-    /// `end_unix_time_milliseconds` is the actual end time of the observation
-    /// i.e. start time of last common timestep plus integration time.
+    /// `end_unix_time_milliseconds` is the actual end time of the observation    
+    /// i.e. start time of last common timestep plus length of a voltage file (1 sec for MWA Legacy, 8 secs for MWAX).
     pub end_unix_time_milliseconds: u64,
-    /// Total duration of observation (based on gpubox files)
+    /// Total duration of observation (based on voltage files)
     pub duration_milliseconds: u64,
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
     /// This is an array of all timesteps we have data for
     pub timesteps: Vec<TimeStep>,
-    /// Number of baselines stored. This is autos plus cross correlations
-    pub num_baselines: usize,
-    /// Baslines
-    pub baselines: Vec<Baseline>,
-    /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
-    pub num_visibility_pols: usize,
-    /// Visibility polarisations
-    pub visibility_pols: Vec<VisibilityPol>,
-    /// Correlator mode dump time
-    pub integration_time_milliseconds: u64,
-    /// Number of coarse channels after we've validated the input gpubox files
+    /// Duration of each voltage sample
+    pub sample_time_milliseconds: u64,
+    /// Number of coarse channels after we've validated the input voltage files
     pub num_coarse_channels: usize,
     /// Vector of coarse channel structs
     pub coarse_channels: Vec<CoarseChannel>,
@@ -55,38 +45,36 @@ pub struct CorrelatorContext {
     pub observation_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,
-    /// Correlator fine_channel_resolution
+    /// Volatge fine_channel_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. 1)
     pub fine_channel_width_hz: u32,
     /// Number of fine channels in each coarse channel
     pub num_fine_channels_per_coarse: usize,
 
-    /// `gpubox_batches` *must* be sorted appropriately. See
-    /// `gpubox::determine_gpubox_batches`. The order of the filenames
-    /// corresponds directly to other gpubox-related objects
-    /// (e.g. `gpubox_hdu_limits`). Structured:
-    /// `gpubox_batches[batch][filename]`.
-    pub gpubox_batches: Vec<GPUBoxBatch>,
+    /// `voltage_batches` *must* be sorted appropriately. See
+    /// `voltage::determine_voltage_batches`. The order of the filenames
+    /// corresponds directly to other voltage-related objects
+    /// (e.g. `voltage_hdu_limits`). Structured:
+    /// `voltage_batches[batch][filename]`.
+    pub voltage_batches: Vec<VoltageFileBatch>,
 
-    /// We assume as little as possible about the data layout in the gpubox
-    /// files; here, a `BTreeMap` contains each unique UNIX time from every
-    /// gpubox, which is associated with another `BTreeMap`, associating each
-    /// gpubox number with a gpubox batch number and HDU index. The gpubox
+    /// We assume as little as possible about the data layout in the voltage
+    /// files; here, a `BTreeMap` contains each unique GPS time from every
+    /// voltage file, which is associated with another `BTreeMap`, associating each
+    /// voltage number with a voltage batch number and HDU index. The voltage
     /// number, batch number and HDU index are everything needed to find the
-    /// correct HDU out of all gpubox files.
-    pub gpubox_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
+    /// correct HDU out of all voltage files.
+    pub voltage_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
 
-    /// The number of bytes taken up by a scan/timestep in each gpubox file.
+    /// The number of bytes taken up by a scan/timestep in each voltage file.
     pub num_timestep_coarse_channel_bytes: usize,
-    /// The number of floats in each gpubox HDU.
+    /// The number of floats in each voltage HDU.
     pub num_timestep_coarse_channel_floats: usize,
-    /// This is the number of gpubox files *per batch*.
-    pub num_gpubox_files: usize,
-    /// A conversion table to optimise reading of legacy MWA HDUs
-    pub legacy_conversion_table: Vec<LegacyConversionBaseline>,
+    /// This is the number of voltage files *per batch*.
+    pub num_voltage_files: usize,
 }
 
-impl CorrelatorContext {
-    /// From a path to a metafits file and paths to gpubox files, create an `CorrelatorContext`.
+impl VoltageContext {
+    /// From a path to a metafits file and paths to voltage files, create an `VoltageContext`.
     ///
     /// The traits on the input parameters allow flexibility to input types.
     ///
@@ -94,7 +82,7 @@ impl CorrelatorContext {
     ///
     /// * `metafits` - filename of metafits file as a path or string.
     ///
-    /// * `gpuboxes` - slice of filenames of gpubox files as paths or strings.
+    /// * `voltages` - slice of filenames of voltage files as paths or strings.
     ///
     ///
     /// # Returns
@@ -104,7 +92,7 @@ impl CorrelatorContext {
     ///
     pub fn new<T: AsRef<std::path::Path>>(
         metafits_filename: &T,
-        gpubox_filenames: &[T],
+        voltage_filenames: &[T],
     ) -> Result<Self, MwalibError> {
         let metafits_context = MetafitsContext::new(metafits_filename)?;
 
@@ -112,70 +100,39 @@ impl CorrelatorContext {
         let mut metafits_fptr = fits_open!(&metafits_filename)?;
         let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
 
-        // We need to get the correlator integration time
-        let integration_time_milliseconds: u64 = {
-            let it: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "INTTIME")?;
-            (it * 1000.) as _
+        // Do voltage stuff only if we have voltage files.
+        if voltage_filenames.is_empty() {
+            return Err(MwalibError::Voltage(VoltageFileError::NoVoltageFiles));
+        }
+        let voltage_info = examine_voltage_files(&metafits_context, &voltage_filenames)?;
+        // Populate the start and end times of the observation.
+        // Start= start of first timestep
+        // End  = start of last timestep + integration time
+        let (
+            start_gps_time_milliseconds,
+            end_gps_time_milliseconds,
+            duration_seconds,
+            timestep_interval_milliseconds,
+        ) = {
+            let o = determine_obs_times(&voltage_info.time_map, voltage_info.corr_format)?;
+            (
+                o.start_gps_time_milliseconds,
+                o.end_gps_time_milliseconds,
+                o.duration_seconds,
+                o.timestep_interval_milliseconds,
+            )
         };
 
-        let (gpubox_info, timesteps) =
-        // Do gpubox stuff only if we have gpubox files.
-            if !gpubox_filenames.is_empty() {
-                let gpubox_info = examine_gpubox_files(&gpubox_filenames)?;
-                // We can unwrap here because the `gpubox_time_map` can't be empty if
-                // `gpuboxes` isn't empty.
-                let timesteps = TimeStep::populate_correlator_timesteps(&gpubox_info.time_map).unwrap();
-                (gpubox_info, timesteps)
-            } else {
-                // If there are no gpubox files, then we need to use metafits info.
-                let nscans: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "NSCANS")?;
-                let timesteps: Vec<TimeStep> = (0..nscans)
-                    .map(|i| {
-                        let time = metafits_context.good_time_unix_milliseconds + i * integration_time_milliseconds;
-                        TimeStep::new(time, 0)
-                    })
-                    .collect();
-
-                // Make a fake `gpubox_time_map`.
-                let channels: Vec<usize> = {
-                    let s: String = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "CHANSEL")?;
-                    s.replace(&['\'', '&'][..], "")
-                        .split(',')
-                        .map(|s| s.parse::<usize>().unwrap() + 1)
-                        .collect()
-                };
-
-                let mut gpubox_time_map = BTreeMap::new();
-                for (i, time) in timesteps.iter().enumerate() {
-                    for channel in &channels {
-                        gpubox_time_map
-                            .entry(time.unix_time_ms)
-                            .or_insert_with(BTreeMap::new)
-                            .entry(*channel)
-                            .or_insert((0, i));
-                    }
-                }
-
-                (GpuboxInfo {
-                    batches: vec![],
-                    corr_format: CorrelatorVersion::Legacy,
-                    time_map: gpubox_time_map,
-                    hdu_size: 0
-                }, timesteps)
-            };
+        // We can unwrap here because the `voltage_time_map` can't be empty if
+        // `voltages` isn't empty.
+        let timesteps = TimeStep::populate_voltage_timesteps(
+            start_gps_time_milliseconds,
+            end_gps_time_milliseconds,
+            timestep_interval_milliseconds,
+        )
+        .unwrap();
+        // Get number of timesteps
         let num_timesteps = timesteps.len();
-
-        // Populate baselines
-        let baselines = Baseline::populate_baselines(metafits_context.num_antennas);
-
-        // Populate the pols that come out of the correlator
-        let visibility_pols = VisibilityPol::populate_visibility_pols();
-        let num_visibility_pols = visibility_pols.len();
-
-        // `num_baselines` is the number of cross-correlations + the number of
-        // auto-correlations.
-        let num_baselines =
-            (metafits_context.num_antennas / 2) * (metafits_context.num_antennas + 1);
 
         // observation bandwidth (read from metafits in MHz)
         let metafits_observation_bandwidth_hz: u32 = {
@@ -183,97 +140,69 @@ impl CorrelatorContext {
             (bw * 1e6).round() as _
         };
 
-        // Populate coarse channels
-        let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
-            coarse_channel::CoarseChannel::populate_correlator_coarse_channels(
-                &mut metafits_fptr,
-                &metafits_hdu,
-                gpubox_info.corr_format,
-                metafits_observation_bandwidth_hz,
-                &gpubox_info.time_map,
-            )?;
-
-        let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
-
-        // Fine-channel resolution. The FINECHAN value in the metafits is in units
-        // of kHz - make it Hz.
-        let fine_channel_width_hz: u32 = {
-            let fc: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FINECHAN")?;
-            (fc * 1000.).round() as _
+        // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1 Hz
+        let fine_channel_width_hz: u32 = match voltage_info.corr_format {
+            CorrelatorVersion::Legacy => 10_000,
+            CorrelatorVersion::OldLegacy => 10_000,
+            CorrelatorVersion::V2 => 1,
         };
         // Determine the number of fine channels per coarse channel.
         let num_fine_channels_per_coarse =
             (coarse_channel_width_hz / fine_channel_width_hz) as usize;
 
-        // We have enough information to validate HDU matches metafits
-        if !gpubox_filenames.is_empty() {
-            let coarse_channel = coarse_channels[0].gpubox_number;
-            let (batch_index, _) =
-                gpubox_info.time_map[&timesteps[0].unix_time_ms][&coarse_channel];
-
-            let mut fptr = fits_open!(&gpubox_info.batches[batch_index].gpubox_files[0].filename)?;
-
-            CorrelatorContext::validate_first_hdu(
-                gpubox_info.corr_format,
-                num_fine_channels_per_coarse,
-                num_baselines,
-                num_visibility_pols,
-                &mut fptr,
+        // Populate coarse channels
+        let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
+            coarse_channel::CoarseChannel::populate_correlator_coarse_channels(
+                &mut metafits_fptr,
+                &metafits_hdu,
+                voltage_info.corr_format,
+                metafits_observation_bandwidth_hz,
+                &voltage_info.time_map,
             )?;
-        }
 
-        // Populate the start and end times of the observation.
-        // Start= start of first timestep
-        // End  = start of last timestep + integration time
-        let (start_unix_time_milliseconds, end_unix_time_milliseconds, duration_milliseconds) = {
-            let o = determine_obs_times(&gpubox_info.time_map, integration_time_milliseconds)?;
-            (o.start_millisec, o.end_millisec, o.duration_millisec)
-        };
+        let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
 
-        // Prepare the conversion array to convert legacy correlator format into mwax format
-        // or just leave it empty if we're in any other format
-        let legacy_conversion_table: Vec<LegacyConversionBaseline> = match gpubox_info.corr_format {
-            CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
-                convert::generate_conversion_array(&mut metafits_context.rf_inputs.clone())
-            }
-            _ => Vec::new(),
-        };
+        // We have enough information to validate file headers matches metafits
+        let coarse_channel = coarse_channels[0].receiver_channel_number;
+        let (batch_index, _) = voltage_info.time_map[&timesteps[0].unix_time_ms][&coarse_channel];
 
-        Ok(CorrelatorContext {
+        let mut fptr = fits_open!(&voltage_info.batches[batch_index].voltage_files[0].filename)?;
+
+        VoltageContext::validate_first_hdu(
+            voltage_info.corr_format,
+            num_fine_channels_per_coarse,
+            num_baselines,
+            num_visibility_pols,
+            &mut fptr,
+        )?;
+        Ok(VoltageContext {
             metafits_context,
-            corr_version: gpubox_info.corr_format,
+            corr_version: voltage_info.corr_format,
             start_unix_time_milliseconds,
             end_unix_time_milliseconds,
             duration_milliseconds,
             num_timesteps,
             timesteps,
-            num_baselines,
-            baselines,
-            num_visibility_pols,
-            visibility_pols,
             num_coarse_channels,
             coarse_channels,
-            integration_time_milliseconds,
             fine_channel_width_hz,
             observation_bandwidth_hz,
             coarse_channel_width_hz,
             num_fine_channels_per_coarse,
-            gpubox_batches: gpubox_info.batches,
-            gpubox_time_map: gpubox_info.time_map,
-            num_timestep_coarse_channel_bytes: gpubox_info.hdu_size * 4,
-            num_timestep_coarse_channel_floats: gpubox_info.hdu_size,
-            num_gpubox_files: gpubox_filenames.len(),
-            legacy_conversion_table,
+            voltage_batches: voltage_info.batches,
+            voltage_time_map: voltage_info.time_map,
+            num_voltage_files: voltages.len(),
         })
     }
 
-    /// Validates the first HDU of a gpubox file against metafits metadata
+    /*
+    /// Validates the PSRDADA header of a voltage file against metafits metadata
     ///
     /// In this case we call `validate_hdu_axes()`
     ///
     /// # Arguments
     ///
-    /// * `corr_version` - Correlator version of this gpubox file.
+    /// * `corr_version` - Correlator version of this voltage file.
     ///
     /// * `metafits_fine_channels_per_coarse` - the number of fine chan per coarse as calculated using info from metafits.
     ///
@@ -281,7 +210,7 @@ impl CorrelatorContext {
     ///
     /// * `visibility_pols` - the number of pols produced by the correlator (always 4 for MWA)
     ///
-    /// * `gpubox_fptr` - FITSFile pointer to an MWA GPUbox file
+    /// * `voltage_fptr` - FITSFile pointer to an MWA GPUbox file
     ///
     /// # Returns
     ///
@@ -293,11 +222,11 @@ impl CorrelatorContext {
         metafits_fine_channels_per_coarse: usize,
         metafits_baselines: usize,
         visibility_pols: usize,
-        gpubox_fptr: &mut fitsio::FitsFile,
+        voltage_fptr: &mut fitsio::FitsFile,
     ) -> Result<(), GpuboxError> {
-        // Get NAXIS1 and NAXIS2 from a gpubox file first image HDU
-        let hdu = fits_open_hdu!(gpubox_fptr, 1)?;
-        let dimensions = get_hdu_image_size!(gpubox_fptr, &hdu)?;
+        // Get NAXIS1 and NAXIS2 from a voltage file first image HDU
+        let hdu = fits_open_hdu!(voltage_fptr, 1)?;
+        let dimensions = get_hdu_image_size!(voltage_fptr, &hdu)?;
         let naxis1 = dimensions[1];
         let naxis2 = dimensions[0];
 
@@ -311,13 +240,13 @@ impl CorrelatorContext {
         )
     }
 
-    /// Validates the first HDU of a gpubox file against metafits metadata
+    /// Validates the first HDU of a voltage file against metafits metadata
     ///
     /// In this case we check that NAXIS1 = the correct value and NAXIS2 = the correct value calculated from the metafits
     ///
     /// # Arguments
     ///
-    /// * `corr_version` - Correlator version of this gpubox file.
+    /// * `corr_version` - Correlator version of this voltage file.
     ///
     /// * `metafits_fine_channels_per_coarse` - the number of fine chan per coarse as calculated using info from metafits.
     ///
@@ -442,11 +371,11 @@ impl CorrelatorContext {
         let (batch_index, hdu_index) =
             self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
 
-        if self.gpubox_batches.is_empty() {
+        if self.voltage_batches.is_empty() {
             return Err(GpuboxError::NoGpuboxes);
         }
         let mut fptr = fits_open!(
-            &self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].filename
+            &self.voltage_batches[batch_index].gpubox_files[coarse_channel_index].filename
         )?;
         let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
         output_buffer = get_fits_image!(&mut fptr, &hdu)?;
@@ -507,11 +436,11 @@ impl CorrelatorContext {
         let (batch_index, hdu_index) =
             self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
 
-        if self.gpubox_batches.is_empty() {
+        if self.voltage_batches.is_empty() {
             return Err(GpuboxError::NoGpuboxes);
         }
         let mut fptr = fits_open!(
-            &self.gpubox_batches[batch_index].gpubox_files[coarse_channel_index].filename
+            &self.voltage_batches[batch_index].gpubox_files[coarse_channel_index].filename
         )?;
         let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
         output_buffer = get_fits_image!(&mut fptr, &hdu)?;
@@ -539,10 +468,10 @@ impl CorrelatorContext {
 
             Ok(temp_buffer)
         }
-    }
+    }*/
 }
 
-/// Implements fmt::Display for CorrelatorContext struct
+/// Implements fmt::Display for VoltageContext struct
 ///
 /// # Arguments
 ///
@@ -555,7 +484,7 @@ impl CorrelatorContext {
 ///
 ///
 #[cfg(not(tarpaulin_include))]
-impl fmt::Display for CorrelatorContext {
+impl fmt::Display for VoltageContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // `size` is the number of floats (self.gpubox_hdu_size) multiplied by 4
         // bytes per float, divided by 1024^2 to get MiB.
@@ -563,7 +492,7 @@ impl fmt::Display for CorrelatorContext {
 
         writeln!(
             f,
-            r#"CorrelatorContext (
+            r#"VoltageContext (
             Metafits Context:         {metafits_context}
             Correlator version:       {corr_ver},
 
@@ -574,27 +503,16 @@ impl fmt::Display for CorrelatorContext {
             num timesteps:            {n_timesteps},
             timesteps:                {timesteps:?},
 
-            num baselines:            {n_bls},
-            baselines:                {bl01} v {bl02} to {bll1} v {bll2}
-            num auto-correlations:    {n_ants},
-            num cross-correlations:   {n_ccs},
-
-            num visibility pols:      {n_vps},
-            visibility pols:          {vp0}, {vp1}, {vp2}, {vp3},
+            num antennas:             {n_ants},
 
             observation bandwidth:    {obw} MHz,
             num coarse channels,      {n_coarse},
             coarse channels:          {coarse:?},
 
-            Correlator Mode:
-            fine channel resolution:  {fcw} kHz,
-            integration time:         {int_time:.2} s
+            fine channel resolution:  {fcw} Hz,
             num fine channels/coarse: {nfcpc},
-
-            gpubox HDU size:          {hdu_size} MiB,
-            Memory usage per scan:    {scan_size} MiB,
-
-            gpubox batches:           {batches:#?},
+            
+            voltage batches:          batches:#?,
         )"#,
             metafits_context = self.metafits_context,
             corr_ver = self.corr_version,
@@ -603,27 +521,13 @@ impl fmt::Display for CorrelatorContext {
             duration = self.duration_milliseconds as f64 / 1e3,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,
-            n_bls = self.num_baselines,
-            bl01 = self.baselines[0].antenna1_index,
-            bl02 = self.baselines[0].antenna2_index,
-            bll1 = self.baselines[self.num_baselines - 1].antenna1_index,
-            bll2 = self.baselines[self.num_baselines - 1].antenna2_index,
             n_ants = self.metafits_context.num_antennas,
-            n_ccs = self.num_baselines - self.metafits_context.num_antennas,
-            n_vps = self.num_visibility_pols,
-            vp0 = self.visibility_pols[0].polarisation,
-            vp1 = self.visibility_pols[1].polarisation,
-            vp2 = self.visibility_pols[2].polarisation,
-            vp3 = self.visibility_pols[3].polarisation,
             obw = self.observation_bandwidth_hz as f64 / 1e6,
             n_coarse = self.num_coarse_channels,
             coarse = self.coarse_channels,
             fcw = self.fine_channel_width_hz as f64 / 1e3,
-            int_time = self.integration_time_milliseconds as f64 / 1e3,
             nfcpc = self.num_fine_channels_per_coarse,
-            hdu_size = size,
-            scan_size = size * self.num_gpubox_files as f64,
-            batches = self.gpubox_batches,
+            //batches = self.voltage_batches,
         )
     }
 }
@@ -631,21 +535,23 @@ impl fmt::Display for CorrelatorContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use float_cmp::*;
+    //use float_cmp::*;
 
     #[test]
-    fn test_context_new_missing_gpubox_files() {
+    fn test_context_new_missing_voltage_files() {
         let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
-        let gpuboxfiles = Vec::new();
+        let voltagefiles = Vec::new();
 
         // No gpubox files provided
-        let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles);
+        let context = VoltageContext::new(&metafits_filename, &voltagefiles);
         assert!(context.is_ok());
         let context = context.unwrap();
 
-        assert!(context.gpubox_batches.is_empty());
+        assert!(context.voltage_batches.is_empty());
     }
+}
 
+/*
     #[test]
     fn test_context_new_invalid_metafits() {
         let metafits_filename = "invalid.metafits";
@@ -654,10 +560,12 @@ mod tests {
         let gpuboxfiles = vec![filename];
 
         // No gpubox files provided
-        let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles);
+        let context = VoltageContext::new(&metafits_filename, &gpuboxfiles);
 
         assert!(context.is_err());
     }
+}*/
+/*
 
     #[test]
     #[allow(clippy::cognitive_complexity)]
@@ -672,7 +580,7 @@ mod tests {
         //
         // Open a context and load in a test metafits and gpubox file
         let gpuboxfiles = vec![filename];
-        let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles)
+        let context = VoltageContext::new(&metafits_filename, &gpuboxfiles)
             .expect("Failed to create mwalibContext");
 
         // Test the properties of the context object match what we expect
@@ -754,8 +662,8 @@ mod tests {
         //
         // Open a context and load in a test metafits and gpubox file
         let gpuboxfiles = vec![mwax_filename];
-        let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
-            .expect("Failed to create CorrelatorContext");
+        let mut context = VoltageContext::new(&mwax_metafits_filename, &gpuboxfiles)
+            .expect("Failed to create VoltageContext");
 
         // Read and convert first HDU by baseline
         let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
@@ -798,17 +706,17 @@ mod tests {
         //
         // Open a context and load in a test metafits and gpubox file
         let gpuboxfiles = vec![filename];
-        let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles)
-            .expect("Failed to create CorrelatorContext");
+        let context = VoltageContext::new(&metafits_filename, &gpuboxfiles)
+            .expect("Failed to create VoltageContext");
 
         let coarse_channel = context.coarse_channels[0].gpubox_number;
         let (batch_index, _) =
             context.gpubox_time_map[&context.timesteps[0].unix_time_ms][&coarse_channel];
 
         let mut fptr =
-            fits_open!(&context.gpubox_batches[batch_index].gpubox_files[0].filename).unwrap();
+            fits_open!(&context.voltage_batches[batch_index].gpubox_files[0].filename).unwrap();
 
-        let result_valid = CorrelatorContext::validate_first_hdu(
+        let result_valid = VoltageContext::validate_first_hdu(
             context.corr_version,
             context.num_fine_channels_per_coarse,
             context.num_baselines,
@@ -816,7 +724,7 @@ mod tests {
             &mut fptr,
         );
 
-        let result_invalid1 = CorrelatorContext::validate_first_hdu(
+        let result_invalid1 = VoltageContext::validate_first_hdu(
             context.corr_version,
             context.num_fine_channels_per_coarse + 1,
             context.num_baselines,
@@ -824,7 +732,7 @@ mod tests {
             &mut fptr,
         );
 
-        let result_invalid2 = CorrelatorContext::validate_first_hdu(
+        let result_invalid2 = VoltageContext::validate_first_hdu(
             context.corr_version,
             context.num_fine_channels_per_coarse,
             context.num_baselines + 1,
@@ -832,7 +740,7 @@ mod tests {
             &mut fptr,
         );
 
-        let result_invalid3 = CorrelatorContext::validate_first_hdu(
+        let result_invalid3 = VoltageContext::validate_first_hdu(
             context.corr_version,
             context.num_fine_channels_per_coarse,
             context.num_baselines,
@@ -850,3 +758,4 @@ mod tests {
         assert!(result_invalid3.is_err());
     }
 }
+*/

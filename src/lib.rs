@@ -8,17 +8,19 @@ Definitions for what we expose to the library
 pub mod antenna;
 pub mod baseline;
 pub mod coarse_channel;
-pub mod convert;
+mod convert;
 pub mod correlator_context;
 pub mod error;
-pub mod ffi;
-pub mod fits_read;
-pub mod gpubox;
+mod ffi;
+mod fits_read;
+pub mod gpubox_files;
 pub mod metafits_context;
 pub mod misc;
 pub mod rfinput;
 pub mod timestep;
 pub mod visibility_pol;
+pub mod voltage_context;
+pub mod voltage_files;
 
 /// The MWA's latitude on Earth in radians. This is -26d42m11.94986s.
 pub const MWA_LATITUDE_RADIANS: f64 = -0.4660608448386394;
@@ -34,6 +36,7 @@ pub use error::MwalibError;
 pub use fits_read::*;
 pub use metafits_context::{CorrelatorVersion, MetafitsContext};
 pub use rfinput::*;
+pub use voltage_context::VoltageContext;
 
 // So that callers don't use a different version of fitsio, export them here.
 pub use fitsio;

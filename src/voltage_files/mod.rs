@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 /*!
-Functions for organising and checking the consistency of gpubox files.
+Functions for organising and checking the consistency of voltage files.
 */
 
 pub mod error;
@@ -12,57 +12,58 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::path::Path;
 
-use fitsio::{hdu::FitsHdu, FitsFile};
-use rayon::prelude::*;
 use regex::Regex;
 
 use crate::*;
-pub use error::GpuboxError;
+pub use error::VoltageFileError;
 
 #[derive(Debug)]
 pub struct ObsTimes {
-    pub start_millisec: u64, // Start= start of first timestep
-    pub end_millisec: u64,   // End  = start of last timestep + integration time
-    pub duration_millisec: u64,
+    pub start_gps_time_milliseconds: u64, // Start= start of first timestep
+    pub end_gps_time_milliseconds: u64,   // End  = start of last timestep + interval time
+    pub duration_seconds: u64,
+    pub timestep_interval_milliseconds: u64, // number of milliseconds between each timestep
 }
 
-/// This represents one group of gpubox files with the same "batch" identitifer.
-/// e.g. obsid_datetime_chan_batch
-pub struct GPUBoxBatch {
-    pub batch_number: usize,           // 00,01,02..n
-    pub gpubox_files: Vec<GPUBoxFile>, // Vector storing the details of each gpubox file in this batch
+/// This represents one group of voltage files with the same "batch" identitifer (gps time).
+/// e.g.
+/// MWA Legacy: obsid_gpstime_datetime_chan
+/// MWAX      : obsid_gpstime_datetime_chan
+pub struct VoltageFileBatch {
+    pub gps_time: usize,                 // 1234567890
+    pub voltage_files: Vec<VoltageFile>, // Vector storing the details of each voltage file in this batch
 }
 
-impl GPUBoxBatch {
-    pub fn new(batch_number: usize) -> Self {
+impl VoltageFileBatch {
+    pub fn new(gps_time: usize) -> Self {
         Self {
-            batch_number,
-            gpubox_files: vec![],
+            gps_time,
+            voltage_files: vec![],
         }
     }
 }
 
 #[cfg(not(tarpaulin_include))]
-impl fmt::Debug for GPUBoxBatch {
+impl fmt::Debug for VoltageFileBatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "batch_number={} gpubox_files={:?}",
-            self.batch_number, self.gpubox_files,
+            "gps_time={} voltage_files={:?}",
+            self.gps_time, self.voltage_files,
         )
     }
 }
 
-/// This represents one gpubox file
-pub struct GPUBoxFile {
-    /// Filename of gpubox file
+/// This represents one voltage file
+pub struct VoltageFile {
+    /// Filename of voltage file
     pub filename: String,
-    /// channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
+    /// channel number (receiver channel number 001..255)
     pub channel_identifier: usize,
 }
 
 #[cfg(not(tarpaulin_include))]
-impl fmt::Debug for GPUBoxFile {
+impl fmt::Debug for VoltageFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -72,306 +73,229 @@ impl fmt::Debug for GPUBoxFile {
     }
 }
 
-impl std::cmp::PartialEq for GPUBoxBatch {
+impl std::cmp::PartialEq for VoltageFileBatch {
     fn eq(&self, other: &Self) -> bool {
-        self.batch_number == other.batch_number && self.gpubox_files == other.gpubox_files
+        self.gps_time == other.gps_time && self.voltage_files == other.voltage_files
     }
 }
 
-impl std::cmp::PartialEq for GPUBoxFile {
+impl std::cmp::PartialEq for VoltageFile {
     fn eq(&self, other: &Self) -> bool {
         self.filename == other.filename && self.channel_identifier == other.channel_identifier
     }
 }
 
-/// A temporary representation of a gpubox file
+/// A temporary representation of a voltage file
 #[derive(Clone, Debug)]
-struct TempGPUBoxFile<'a> {
+struct TempVoltageFile<'a> {
     /// Filename of gpubox file
     filename: &'a str,
+    /// obsid
+    obs_id: usize,
     /// Channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
     channel_identifier: usize,
-    /// Batch number (00,01,02..n)
-    batch_number: usize,
+    /// GPS time (aka Batch number)
+    gps_time: usize,
 }
 
-impl<'a> std::cmp::PartialEq for TempGPUBoxFile<'a> {
+impl<'a> std::cmp::PartialEq for TempVoltageFile<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.filename == other.filename
+            && self.obs_id == other.obs_id
             && self.channel_identifier == other.channel_identifier
-            && self.batch_number == other.batch_number
+            && self.gps_time == other.gps_time
     }
 }
 
 lazy_static::lazy_static! {
-    static ref RE_MWAX: Regex =
-        Regex::new(r"\d{10}_\d{8}(.)?\d{6}_ch(?P<channel>\d{3})_(?P<batch>\d{3}).fits").unwrap();
-    static ref RE_LEGACY_BATCH: Regex =
-        Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2})_(?P<batch>\d{2}).fits").unwrap();
-    static ref RE_OLD_LEGACY_FORMAT: Regex =
-        Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2}).fits").unwrap();
-    static ref RE_BAND: Regex = Regex::new(r"\d{10}_\d{14}_(ch|gpubox)(?P<band>\d+)").unwrap();
+    // 1234567890_1234567890_123.sub
+    // obsid        subobsid  chan
+    static ref RE_MWAX_VCS: Regex =
+        Regex::new(r"(?P<obs_id>\d{10})_(?P<gpstime>\d{10})_(?P<channel>\d{1,3})\.sub").unwrap();
+    // 1234567890_1234567890_123.dat
+    // obsid        subobsid  chan
+    static ref RE_LEGACY_VCS_RECOMBINED: Regex =
+        Regex::new(r"(?P<obs_id>\d{10})_(?P<gpstime>\d{10})_ch(?P<channel>\d{1,3})\.dat").unwrap();
 }
 
-/// Convert `Vec<TempGPUBoxFile>` to `Vec<GPUBoxBatch>`. This requires the fits
-/// files to actually be present, as `GPUBoxFile`s need an open fits file
-/// handle.
+/// Convert `Vec<TempVoltageFile>` to `Vec<VoltageFileBatch>`. This requires the voltage
+/// files to actually be present.
 ///
 /// Fail if
 ///
 /// * no files were supplied;
-/// * the fits files specified by the `TempGPUBoxFile`s can't be opened.
+/// * the files specified by the `TempVoltageFile`s can't be opened.
 ///
 ///
 /// # Arguments
 ///
-/// * `temp_gpuboxes` - A vector of `TempGPUBoxFile` to be converted.
+/// * `temp_voltage_files` - A vector of `TempVoltageFile` to be converted.
 ///
 ///
 /// # Returns
 ///
-/// * A Result containing a vector of `GPUBoxBatch`.
+/// * A Result containing a vector of `VoltageFileBatch`.
 ///
 ///
-fn convert_temp_gpuboxes(
-    temp_gpuboxes: Vec<TempGPUBoxFile>,
-) -> Result<Vec<GPUBoxBatch>, FitsError> {
+fn convert_temp_voltage_files(
+    temp_voltage_files: Vec<TempVoltageFile>,
+) -> Result<Vec<VoltageFileBatch>, VoltageFileError> {
     // unwrap is safe as a check is performed above to ensure that there are
     // some files present.
-    let num_batches = temp_gpuboxes.iter().map(|g| g.batch_number).max().unwrap() + 1;
-    let mut gpubox_batches: Vec<GPUBoxBatch> = Vec::with_capacity(num_batches);
+    let num_batches = temp_voltage_files.iter().map(|g| g.gps_time).max().unwrap() + 1;
+    let mut voltage_file_batches: Vec<VoltageFileBatch> = Vec::with_capacity(num_batches);
     for b in 0..num_batches {
-        gpubox_batches.push(GPUBoxBatch::new(b));
+        voltage_file_batches.push(VoltageFileBatch::new(b));
     }
 
-    for temp_g in temp_gpuboxes.into_iter() {
-        let g = GPUBoxFile {
-            filename: temp_g.filename.to_string(),
-            channel_identifier: temp_g.channel_identifier,
+    for temp_v in temp_voltage_files.into_iter() {
+        let v = VoltageFile {
+            filename: temp_v.filename.to_string(),
+            channel_identifier: temp_v.channel_identifier,
         };
-        gpubox_batches[temp_g.batch_number].gpubox_files.push(g);
+        voltage_file_batches[temp_v.gps_time].voltage_files.push(v);
     }
 
     // Ensure the output is properly sorted - each batch is sorted by
     // channel_identifier.
-    for v in &mut gpubox_batches {
-        v.gpubox_files
+    for v in &mut voltage_file_batches {
+        v.voltage_files
             .sort_unstable_by(|a, b| a.channel_identifier.cmp(&b.channel_identifier));
     }
 
     // Sort the batches by batch number
-    gpubox_batches.sort_by_key(|b| b.batch_number);
+    voltage_file_batches.sort_by_key(|b| b.gps_time);
 
-    Ok(gpubox_batches)
+    Ok(voltage_file_batches)
 }
 
 /// A type alias for a horrible type:
 /// `BTreeMap<u64, BTreeMap<usize, (usize, usize)>>`
 ///
-/// The outer-most keys are UNIX times in milliseconds, which correspond to the
-/// unique times available to HDU files in supplied gpubox files. Each of these
-/// keys is associated with a tree; the keys of these trees are the gpubox
-/// coarse-channel numbers, which then refer to gpubox batch numbers and HDU
-/// indices.
-pub type GpuboxTimeMap = BTreeMap<u64, BTreeMap<usize, (usize, usize)>>;
+/// The outer-most keys are GPS seconds, which correspond to the
+/// unique times in supplied voltage files. Each of these
+/// keys is associated with a tree; the keys of these trees are the
+/// coarse-channel numbers, which then refer to the filename.
+pub type VoltageFileTimeMap = BTreeMap<usize, BTreeMap<usize, String>>;
 
 /// A little struct to help us not get confused when dealing with the returned
 /// values from complex functions.
-pub struct GpuboxInfo {
-    pub batches: Vec<GPUBoxBatch>,
+pub struct VoltageFileInfo {
+    pub gpstime_batches: Vec<VoltageFileBatch>,
     pub corr_format: CorrelatorVersion,
-    pub time_map: GpuboxTimeMap,
-    pub hdu_size: usize,
+    pub time_map: VoltageFileTimeMap,
+    pub file_size: u64,
 }
 
-/// This function unpacks the metadata associated with input gpubox files. The
-/// input filenames are grouped into into batches. A "gpubox batch" refers to
-/// the number XX in a gpubox filename
-/// (e.g. `1065880128_20131015134930_gpubox01_XX.fits`). Some older files might
-/// have a "batchless" format
-/// (e.g. `1065880128_20131015134930_gpubox01.fits`). These details are
-/// reflected in the returned `CorrelatorVersion`.
-///
-/// Fail if
-///
-/// * no files were supplied;
-/// * there is a mixture of the types of gpubox files supplied (e.g. different
-///   correlator versions);
-/// * a gpubox filename's structure could not be identified;
-/// * the gpubox batch numbers are not contiguous;
-/// * the number of files in each batch is not equal;
-/// * MWAX gpubox files don't have a CORR_VER key in HDU 0, or it is not equal
-///   to 2;
-/// * the amount of data in each HDU is not equal.
-///
-///
-/// # Arguments
-///
-/// * `gpubox_filenames` - A vector or slice of strings or references to strings
-///                        containing all of the gpubox filenames provided by the client.
-///
-///
-/// # Returns
-///
-/// * A Result containing a vector of GPUBoxBatch structs, the MWA Correlator
-///   version, the UNIX times paired with gpubox HDU numbers, and the amount of
-///   data in each HDU.
-///
-///
-pub fn examine_gpubox_files<T: AsRef<Path>>(
-    gpubox_filenames: &[T],
-) -> Result<GpuboxInfo, GpuboxError> {
-    let (temp_gpuboxes, corr_format, _) = determine_gpubox_batches(gpubox_filenames)?;
-
-    let time_map = create_time_map(&temp_gpuboxes, corr_format)?;
-
-    let mut batches = convert_temp_gpuboxes(temp_gpuboxes)?;
-
-    // Determine the size of each gpubox's image on HDU 1. mwalib will throw an
-    // error if this size is not consistent for all gpubox files.
-    let mut hdu_size: Option<usize> = None;
-    for b in &mut batches {
-        for g in &mut b.gpubox_files {
-            let mut fptr = fits_open!(&g.filename)?;
-
-            let hdu = fits_open_hdu!(&mut fptr, 1)?;
-            let this_size = get_hdu_image_size!(&mut fptr, &hdu)?.iter().product();
-            match hdu_size {
-                None => hdu_size = Some(this_size),
-                Some(s) => {
-                    if s != this_size {
-                        return Err(GpuboxError::UnequalHduSizes);
-                    }
-                }
-            }
-        }
-    }
-
-    // `determine_gpubox_batches` fails if no gpubox files are supplied, so it
-    // is safe to unwrap hdu_size.
-    Ok(GpuboxInfo {
-        batches,
-        corr_format,
-        time_map,
-        hdu_size: hdu_size.unwrap(),
-    })
-}
-
-/// Group input gpubox files into batches. A "gpubox batch" refers to the number
-/// XX in a gpubox filename
-/// (e.g. `1065880128_20131015134930_gpubox01_XX.fits`). Some older files might
-/// have a "batchless" format (e.g. `1065880128_20131015134930_gpubox01.fits`).
+/// Group input voltage files into gpstime_batches. A "voltage batch" refers to the sub_obs_id
+/// in a voltage filename (second 10 digit number in filename).
+/// (e.g. `1065880128_XXXXXXXXXX_123.sub`). Older / Legacy VCS files
+/// have a similar format (e.g. `1065880128_XXXXXXXXXX_ch123.dat`).
 ///
 ///
 /// Fail if
 ///
 /// * no files were supplied;
-/// * there is a mixture of the types of gpubox files supplied (e.g. different correlator
+/// * there is a mixture of the types of voltage files supplied (e.g. different correlator
 ///   versions);
-/// * a gpubox filename's structure could not be identified;
-/// * the gpubox batch numbers are not contiguous;
-/// * the number of files in each batch is not equal;
+/// * a voltage filename's structure could not be identified;
+/// * the gpstime batch numbers are not contiguous;
+/// * the number of files in each gpstime batch is not equal;
 ///
 ///
 /// # Arguments
 ///
-/// * `gpubox_filenames` - A vector or slice of strings or references to strings containing
-///                        all of the gpubox filenames provided by the client.
+/// * `voltage_filenames` - A vector or slice of strings or references to strings containing
+///                        all of the voltage filenames provided by the client.
 ///
 ///
 /// # Returns
 ///
-/// * A Result containing a vector of `TempGPUBoxFile` structs as well as a
-///   `CorrelatorVersion`, the number of GPUBoxes supplied, and the number of
-///   gpubox batches.
+/// * A Result containing a vector of `TempVoltageFile` structs as well as a
+///   `CorrelatorVersion`, the number of voltage files supplied, and the number of
+///   gps time batches.
 ///
 ///
-fn determine_gpubox_batches<T: AsRef<Path>>(
-    gpubox_filenames: &[T],
-) -> Result<(Vec<TempGPUBoxFile>, CorrelatorVersion, usize), GpuboxError> {
-    if gpubox_filenames.is_empty() {
-        return Err(GpuboxError::NoGpuboxes);
+fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
+    voltage_filenames: &[T],
+    metafits_obs_id: usize,
+) -> Result<(Vec<TempVoltageFile>, CorrelatorVersion, usize), VoltageFileError> {
+    if voltage_filenames.is_empty() {
+        return Err(VoltageFileError::NoVoltageFiles);
     }
     let mut format = None;
-    let mut temp_gpuboxes: Vec<TempGPUBoxFile> = Vec::with_capacity(gpubox_filenames.len());
+    let mut temp_voltage_files: Vec<TempVoltageFile> = Vec::with_capacity(voltage_filenames.len());
 
-    for g_path in gpubox_filenames {
+    for v_path in voltage_filenames {
         // So that we can pass along useful error messages, convert the input
         // filename type to a string slice. This will fail if the filename is
-        // not UTF-8 compliant, but, I don't think cfitsio will work in that
-        // case anyway.
-        let g = g_path
+        // not UTF-8 compliant.
+        let v = v_path
             .as_ref()
             .to_str()
-            .expect("gpubox filename is not UTF-8 compliant");
-        match RE_MWAX.captures(g) {
-            Some(caps) => {
-                // Check if we've already matched any files as being the old
-                // format. If so, then we've got a mix, and we should exit
-                // early.
-                match format {
-                    None => format = Some(CorrelatorVersion::V2),
-                    Some(CorrelatorVersion::V2) => (),
-                    _ => return Err(GpuboxError::Mixture),
-                }
+            .expect("Voltage filename is not UTF-8 compliant");
 
-                // The following unwraps are safe, because the regex wouldn't
-                // work if they couldn't be parsed into ints.
-                temp_gpuboxes.push(TempGPUBoxFile {
-                    filename: g,
-                    channel_identifier: caps["channel"].parse().unwrap(),
-                    batch_number: caps["batch"].parse().unwrap(),
-                });
-            }
-
-            // Try to match the legacy format.
-            None => match RE_LEGACY_BATCH.captures(g) {
+        let new_temp_voltage_file: TempVoltageFile = {
+            match RE_MWAX_VCS.captures(v) {
                 Some(caps) => {
+                    // Check if we've already matched any files as being the old
+                    // format. If so, then we've got a mix, and we should exit
+                    // early.
                     match format {
-                        None => format = Some(CorrelatorVersion::Legacy),
-                        Some(CorrelatorVersion::Legacy) => (),
-                        _ => return Err(GpuboxError::Mixture),
+                        None => format = Some(CorrelatorVersion::V2),
+                        Some(CorrelatorVersion::V2) => (),
+                        _ => return Err(VoltageFileError::Mixture),
                     }
 
-                    temp_gpuboxes.push(TempGPUBoxFile {
-                        filename: g,
-                        channel_identifier: caps["band"].parse().unwrap(),
-                        batch_number: caps["batch"].parse().unwrap(),
-                    });
+                    // The following unwraps are safe, because the regex wouldn't
+                    // work if they couldn't be parsed into ints.
+                    TempVoltageFile {
+                        filename: v,
+                        obs_id: caps["obs_id"].parse().unwrap(),
+                        channel_identifier: caps["channel"].parse().unwrap(),
+                        gps_time: caps["gpstime"].parse().unwrap(),
+                    }
                 }
 
-                // Try to match the old legacy format.
-                None => match RE_OLD_LEGACY_FORMAT.captures(g) {
+                // Try to match the legacy format.
+                None => match RE_LEGACY_VCS_RECOMBINED.captures(v) {
                     Some(caps) => {
                         match format {
-                            None => format = Some(CorrelatorVersion::OldLegacy),
-                            Some(CorrelatorVersion::OldLegacy) => (),
-                            _ => return Err(GpuboxError::Mixture),
+                            None => format = Some(CorrelatorVersion::Legacy),
+                            Some(CorrelatorVersion::Legacy) => (),
+                            _ => return Err(VoltageFileError::Mixture),
                         }
 
-                        temp_gpuboxes.push(TempGPUBoxFile {
-                            filename: g,
-                            channel_identifier: caps["band"].parse().unwrap(),
-                            // There's only one batch.
-                            batch_number: 0,
-                        });
+                        TempVoltageFile {
+                            filename: v,
+                            obs_id: caps["obs_id"].parse().unwrap(),
+                            channel_identifier: caps["channel"].parse().unwrap(),
+                            gps_time: caps["gpstime"].parse().unwrap(),
+                        }
                     }
-                    None => return Err(GpuboxError::Unrecognised(g.to_string())),
+                    None => return Err(VoltageFileError::Unrecognised(v.to_string())),
                 },
-            },
+            }
+        };
+
+        // Does this file have the same obs_id in the filename as we have in the metafits?
+        if new_temp_voltage_file.obs_id == metafits_obs_id {
+            temp_voltage_files.push(new_temp_voltage_file);
+        } else {
+            return Err(VoltageFileError::MetafitsObsidMismatch);
         }
     }
 
     // Check batches are contiguous and have equal numbers of files.
     let mut batches_and_files: BTreeMap<usize, u8> = BTreeMap::new();
-    for gpubox in &temp_gpuboxes {
-        *batches_and_files.entry(gpubox.batch_number).or_insert(0) += 1;
+    for voltage_file in &temp_voltage_files {
+        *batches_and_files.entry(voltage_file.gps_time).or_insert(0) += 1;
     }
 
     let mut file_count: Option<u8> = None;
     for (i, (batch_num, num_files)) in batches_and_files.iter().enumerate() {
         if i != *batch_num {
-            return Err(GpuboxError::BatchMissing {
+            return Err(VoltageFileError::GpsTimeMissing {
                 expected: i,
                 got: *batch_num,
             });
@@ -381,7 +305,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
             None => file_count = Some(*num_files),
             Some(c) => {
                 if c != *num_files {
-                    return Err(GpuboxError::UnevenCountInBatches {
+                    return Err(VoltageFileError::UnevenChannelsForGpsTime {
                         expected: c,
                         got: *num_files,
                     });
@@ -392,238 +316,114 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
 
     // Ensure the output is properly sorted - each batch is sorted by batch
     // number, then channel identifier.
-    temp_gpuboxes.sort_unstable_by_key(|g| (g.batch_number, g.channel_identifier));
+    temp_voltage_files.sort_unstable_by_key(|v| (v.gps_time, v.channel_identifier));
 
-    Ok((temp_gpuboxes, format.unwrap(), batches_and_files.len()))
+    Ok((temp_voltage_files, format.unwrap(), batches_and_files.len()))
 }
 
-/// Given a FITS file pointer and HDU, determine the time in units of
-/// milliseconds.
+/// This function unpacks the metadata associated with input voltage files. The
+/// input filenames are grouped into into gps time batches. A "gpstime batch" refers to
+/// the sub_obs_id in a voltage filename
+/// (e.g. `1065880128_XXXXXXXXXX_123.sub`). Some older files might
+/// have a different format
+/// (e.g. `1065880128_XXXXXXXXXX_ch123.dat`). These details are
+/// reflected in the returned `CorrelatorVersion`.
+///
+/// Fail if
+///
+/// * no files were supplied;
+/// * there is a mixture of the types of voltage files supplied (e.g. different
+///   correlator versions);
+/// * a voltage filename's structure could not be identified;
+/// * the volatge gpstimes are not contiguous;
+/// * the number of files in each batch of gpstimes is not equal;
+/// * the amount of data in each file is not equal.
 ///
 ///
 /// # Arguments
 ///
-/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
+/// * `metafits_context`  - A reference to a populated metafits context we can use to verify voltage file metadata against.
 ///
-/// * `metafits_hdu_fptr` - A reference to the primary HDU in the metafits file
-///                         where we read keyword/value pairs.
+/// * `voltage_filenames` - A vector or slice of strings or references to strings
+///                         containing all of the voltage filenames provided by the client.
 ///
 ///
 /// # Returns
 ///
-/// * A Result containing the full start unix time (in milliseconds) or an error.
+/// * A Result containing a vector of VoltageBatch structs, the MWA Correlator
+///   version, the GPS times paired with filenames, and the amount of
+///   data in each HDU.
 ///
 ///
-pub fn determine_hdu_time(
-    gpubox_fptr: &mut FitsFile,
-    metafits_hdu_fptr: &FitsHdu,
-) -> Result<u64, FitsError> {
-    let start_unix_time: u64 = get_required_fits_key!(gpubox_fptr, metafits_hdu_fptr, "TIME")?;
-    let start_unix_millitime: u64 =
-        get_required_fits_key!(gpubox_fptr, metafits_hdu_fptr, "MILLITIM")?;
-    Ok((start_unix_time * 1000 + start_unix_millitime) as u64)
-}
+pub fn examine_voltage_files<T: AsRef<Path>>(
+    metafits_context: &MetafitsContext,
+    voltage_filenames: &[T],
+) -> Result<VoltageFileInfo, VoltageFileError> {
+    let (temp_voltage_files, corr_format, _) =
+        determine_voltage_file_gpstime_batches(voltage_filenames, metafits_context.obsid as usize)?;
 
-/// Iterate over each HDU of the given gpubox file, tracking which UNIX times
-/// are associated with which HDU numbers.
-///
-///
-/// # Arguments
-///
-/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
-///
-/// * `correlator_version` - enum telling us which correlator version the observation was created by.
-///
-///
-/// # Returns
-///
-/// * A BTree representing time and hdu index this gpubox file.
-///
-///
-pub fn map_unix_times_to_hdus(
-    gpubox_fptr: &mut FitsFile,
-    correlator_version: CorrelatorVersion,
-) -> Result<BTreeMap<u64, usize>, FitsError> {
-    let mut map = BTreeMap::new();
-    let last_hdu_index = gpubox_fptr.iter().count();
-    // The new correlator has a "weights" HDU in each alternating HDU. Skip
-    // those.
-    let step_size = if correlator_version == CorrelatorVersion::V2 {
-        2
-    } else {
-        1
-    };
-    // Ignore the first HDU in all gpubox files; it contains only a little
-    // metadata.
-    for hdu_index in (1..last_hdu_index).step_by(step_size) {
-        let hdu = fits_open_hdu!(gpubox_fptr, hdu_index)?;
-        let time = determine_hdu_time(gpubox_fptr, &hdu)?;
-        map.insert(time, hdu_index);
+    let time_map = create_time_map(&temp_voltage_files, corr_format)?;
+
+    let mut gpstime_batches = convert_temp_voltage_files(temp_voltage_files)?;
+
+    // Determine the size of each voltage file. mwalib will throw an
+    // error if this size is not consistent for all voltage files.
+    let mut voltage_file_size: Option<u64> = None;
+    for b in &mut gpstime_batches {
+        for v in &mut b.voltage_files {
+            let this_size = std::fs::metadata(&v.filename).unwrap().len();
+            match voltage_file_size {
+                None => voltage_file_size = Some(this_size),
+                Some(s) => {
+                    if s != this_size {
+                        return Err(VoltageFileError::UnequalFileSizes);
+                    }
+                }
+            }
+        }
     }
 
-    Ok(map)
-}
-
-/// Validate that the correlator version we worked out from the filename does not contradict
-/// the CORR_VER key from MWAX files or absence of that key for legacy correlator.
-///
-///
-/// # Arguments
-///
-/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
-///
-/// * `gpubox_primary_hdu` - The primary HDU of the gpubox file.
-///
-/// * `gpubox_filename` - The filename of the gpubox file being validated.
-///
-/// * `correlator_version` - enum telling us which correlator version the observation was created by.
-///
-///
-/// # Returns
-///
-/// * A Result containing `Ok` or an `MwalibError` if it fails validation.
-///
-///
-pub fn validate_gpubox_metadata_correlator_version(
-    gpubox_fptr: &mut FitsFile,
-    gpubox_primary_hdu: &FitsHdu,
-    gpubox_filename: &str,
-    correlator_version: CorrelatorVersion,
-) -> Result<(), GpuboxError> {
-    // New correlator files include a version - check that it is present.
-    // For pre v2, ensure the key isn't present
-    let gpu_corr_version: Option<u8> =
-        get_optional_fits_key!(gpubox_fptr, &gpubox_primary_hdu, "CORR_VER")?;
-
-    match correlator_version {
-        CorrelatorVersion::V2 => match gpu_corr_version {
-            None => Err(GpuboxError::MWAXCorrVerMissing(gpubox_filename.to_string())),
-            Some(gpu_corr_version_value) => match gpu_corr_version_value {
-                2 => Ok(()),
-                _ => Err(GpuboxError::MWAXCorrVerMismatch(
-                    gpubox_filename.to_string(),
-                )),
-            },
-        },
-
-        CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => match gpu_corr_version {
-            None => Ok(()),
-            Some(gpu_corr_version_value) => Err(GpuboxError::CorrVerMismatch {
-                gpubox_filename: gpubox_filename.to_string(),
-                gpu_corr_version_value,
-            }),
-        },
-    }
-}
-
-/// Validate that the obsid we got from the metafits does not contradict
-/// the GPSTIME key (obsid) from gpubox files.
-///
-///
-/// # Arguments
-///
-/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
-///
-/// * `gpubox_primary_hdu` - The primary HDU of the gpubox file.
-///
-/// * `gpubox_filename` - The filename of the gpubox file being validated.
-///
-/// * `metafits_obsid` - Obsid as determined by reading the metafits.
-///
-///
-/// # Returns
-///
-/// * A Result containing `Ok` or an `MwalibError` if it fails validation.
-///
-///
-pub fn validate_gpubox_metadata_obs_id(
-    gpubox_fptr: &mut FitsFile,
-    gpubox_primary_hdu: &FitsHdu,
-    gpubox_filename: &str,
-    metafits_obsid: u32,
-) -> Result<(), GpuboxError> {
-    // Get the OBSID- if not present, this is probably not an MWA fits file!
-    let gpu_obs_id: u32 = match get_required_fits_key!(gpubox_fptr, gpubox_primary_hdu, "OBSID") {
-        Ok(o) => o,
-        Err(_) => return Err(GpuboxError::MissingObsid(gpubox_filename.to_string())),
-    };
-
-    if gpu_obs_id != metafits_obsid {
-        Err(GpuboxError::ObsidMismatch {
-            obsid: metafits_obsid,
-            gpubox_filename: gpubox_filename.to_string(),
-            gpubox_obsid: gpu_obs_id,
-        })
-    } else {
-        Ok(())
-    }
+    // `determine_voltage_file_batches` fails if no voltage files are supplied, so it
+    // is safe to unwrap voltage_file_size.
+    Ok(VoltageFileInfo {
+        gpstime_batches,
+        corr_format,
+        time_map,
+        file_size: voltage_file_size.unwrap(),
+    })
 }
 
 /// Returns a BTree structure consisting of:
 /// BTree of timesteps. Each timestep is a BTree for a course channel.
-/// Each coarse channel then contains the batch number and hdu index.
+/// Each coarse channel then contains the filenames of voltage files.
 ///
 /// # Arguments
 ///
-/// * `gpubox_batches` - vector of structs describing each gpubox "batch"
+/// * `voltage_file_batches` - vector of structs describing each voltage "batch" of gpstimes
 ///
 /// * `correlator_version` - enum telling us which correlator version the observation was created by.
 ///
 ///
 /// # Returns
 ///
-/// * A Result containing the GPUBox Time Map or an error.
+/// * A Result containing the Voltage File Time Map or an error.
 ///
 ///
 fn create_time_map(
-    gpuboxes: &[TempGPUBoxFile],
+    voltage_file_batches: &[TempVoltageFile],
     correlator_version: CorrelatorVersion,
-) -> Result<GpuboxTimeMap, GpuboxError> {
-    // Ugly hack to open up all the HDUs of the gpubox files in parallel. We
-    // can't do this over the `GPUBoxBatch` or `GPUBoxFile` structs because they
-    // contain the `FitsFile` struct, which does not implement the `Send`
-    // trait. `ThreadsafeFitsFile` does contain this, but does not allow
-    // iteration. It seems like the smaller evil is to just iterate over the
-    // filenames here and get the relevant info out of the HDUs before things
-    // get too complicated elsewhere.
-
-    // In parallel, open up all the fits files and get their HDU times. rayon
-    // preserves the order of the input arguments, so there is no need to keep
-    // the temporary gpubox files along with their times. In any case, handling
-    // that would be difficult!
-    let maps = gpuboxes
-        .into_par_iter()
-        .map(|g| {
-            let mut fptr = fits_open!(&g.filename)?;
-            let hdu = fits_open_hdu!(&mut fptr, 0)?;
-
-            // New correlator files include a version - check that it is present.
-            if correlator_version == CorrelatorVersion::V2 {
-                let v: u8 = get_required_fits_key!(&mut fptr, &hdu, "CORR_VER")?;
-                if v != 2 {
-                    return Err(GpuboxError::MWAXCorrVerMismatch(g.filename.to_string()));
-                }
-            }
-
-            // Get the UNIX times from each of the HDUs of this `FitsFile`.
-            map_unix_times_to_hdus(&mut fptr, correlator_version).map_err(GpuboxError::from)
-        })
-        .collect::<Vec<Result<BTreeMap<u64, usize>, GpuboxError>>>();
-
-    // Collapse all of the gpubox time maps into a single map.
-    let mut gpubox_time_map = BTreeMap::new();
-    for (map_maybe_error, gpubox) in maps.into_iter().zip(gpuboxes.iter()) {
-        let map = map_maybe_error?;
-        for (time, hdu_index) in map {
-            gpubox_time_map
-                .entry(time)
-                .or_insert_with(BTreeMap::new)
-                .entry(gpubox.channel_identifier)
-                .or_insert((gpubox.batch_number, hdu_index));
-        }
+) -> Result<VoltageFileTimeMap, VoltageFileError> {
+    // create a map
+    let mut voltage_time_map = BTreeMap::new();
+    for voltage_file in voltage_file_batches.iter() {
+        voltage_time_map
+            .entry(voltage_file.gps_time)
+            .or_insert_with(BTreeMap::new)
+            .entry(voltage_file.channel_identifier)
+            .or_insert(voltage_file.filename.to_string());
     }
 
-    Ok(gpubox_time_map)
+    Ok(voltage_time_map)
 }
 
 /// Determine the proper start and end times of an observation. In this context,
@@ -661,81 +461,67 @@ fn create_time_map(
 ///
 ///
 pub fn determine_obs_times(
-    gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
-    integration_time_ms: u64,
-) -> Result<ObsTimes, GpuboxError> {
-    // Find the maximum number of gpubox files, and assume that this is the
-    // total number of input gpubox files.
-    let size = match gpubox_time_map.iter().map(|(_, submap)| submap.len()).max() {
-        Some(m) => m,
-        None => return Err(GpuboxError::EmptyBTreeMap),
+    voltage_time_map: &BTreeMap<usize, BTreeMap<usize, String>>,
+    correlator_version: CorrelatorVersion,
+) -> Result<ObsTimes, VoltageFileError> {
+    let timestep_interval_milliseconds: u64 = match correlator_version {
+        CorrelatorVersion::V2 => 8_000,
+        CorrelatorVersion::Legacy => 1_000,
     };
-
-    // Filter the first elements that don't satisfy `submap.len() == size`. The
-    // first and last of the submaps that satisfy this condition are the proper
-    // start and end of the observation.
-
-    let mut i = gpubox_time_map
-        .iter()
-        .filter(|(_, submap)| submap.len() == size);
-    // unwrap is safe because an empty map is checked above.
-    let proper_start_millisec = i.next().map(|(time, _)| *time).unwrap();
-    let proper_end_millisec = match i.last().map(|(time, _)| *time) {
-        Some(s) => s,
-        None => {
-            // Looks like we only have 1 hdu, so end
-            proper_start_millisec
-        }
-    } + integration_time_ms;
+    let proper_start_milliseconds: u64 = *voltage_time_map.iter().next().unwrap().0 as u64;
+    let proper_end_milliseconds: u64 = *voltage_time_map.iter().next_back().unwrap().0 as u64
+        + timestep_interval_milliseconds as u64;
 
     Ok(ObsTimes {
-        start_millisec: proper_start_millisec,
-        end_millisec: proper_end_millisec,
-        duration_millisec: proper_end_millisec - proper_start_millisec,
+        start_gps_time_milliseconds: proper_start_milliseconds,
+        end_gps_time_milliseconds: proper_end_milliseconds,
+        duration_seconds: (proper_end_milliseconds - proper_start_milliseconds) as u64,
+        timestep_interval_milliseconds,
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::misc::*;
-    use fitsio::images::{ImageDescription, ImageType};
-    use std::time::SystemTime;
 
     #[test]
-    fn test_determine_gpubox_batches_proper_format() {
+    fn test_determine_voltage_file_gpstime_batches_proper_format() {
         let files = vec![
-            "1065880128_20131015134930_gpubox20_01.fits",
-            "1065880128_20131015134930_gpubox01_00.fits",
-            "1065880128_20131015134930_gpubox15_02.fits",
+            "1065880128_1065880129_ch123.dat",
+            "1065880128_1065880128_ch121.dat",
+            "1065880128_1065880130_ch124.dat",
         ];
-        let result = determine_gpubox_batches(&files);
+        let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
         assert!(result.is_ok());
-        let (temp_gpuboxes, corr_format, num_batches) = result.unwrap();
+        let (temp_voltage_files, corr_format, num_gputimes) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
-        assert_eq!(num_batches, 3);
+        assert_eq!(num_gputimes, 3);
 
-        let expected_gpuboxes = vec![
-            TempGPUBoxFile {
-                filename: "1065880128_20131015134930_gpubox01_00.fits",
-                channel_identifier: 1,
-                batch_number: 0,
+        let expected_voltage_files = vec![
+            TempVoltageFile {
+                filename: "1065880128_1065880128_ch121.dat",
+                obs_id: 1065880128,
+                gps_time: 1065880128,
+                channel_identifier: 121,
             },
-            TempGPUBoxFile {
-                filename: "1065880128_20131015134930_gpubox20_01.fits",
-                channel_identifier: 20,
-                batch_number: 1,
+            TempVoltageFile {
+                filename: "1065880128_1065880129_ch123.dat",
+                obs_id: 1065880128,
+                gps_time: 1065880129,
+                channel_identifier: 123,
             },
-            TempGPUBoxFile {
-                filename: "1065880128_20131015134930_gpubox15_02.fits",
-                channel_identifier: 15,
-                batch_number: 2,
+            TempVoltageFile {
+                filename: "1065880128_1065880128_ch121.dat",
+                obs_id: 1065880128,
+                gps_time: 1065880128,
+                channel_identifier: 121,
             },
         ];
 
-        assert_eq!(temp_gpuboxes, expected_gpuboxes);
+        assert_eq!(temp_voltage_files, expected_voltage_files);
     }
-
+}
+/*
     #[test]
     fn test_determine_gpubox_batches_proper_format2() {
         let files = vec![
@@ -1311,3 +1097,4 @@ mod tests {
         );
     }
 }
+*/

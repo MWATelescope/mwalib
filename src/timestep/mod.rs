@@ -10,10 +10,14 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 /// This is a struct for our timesteps
+/// NOTE: correlator timesteps use unix time, voltage timesteps use gpstime
+/// TODO: convert from unix to gps and gps to unix. For now it's ok to leave the one you are not using as 0.
 #[derive(Clone)]
 pub struct TimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,
+    /// gps time (in milliseconds)
+    pub gps_time_milliseconds: u64,
 }
 
 impl TimeStep {
@@ -23,13 +27,18 @@ impl TimeStep {
     ///
     /// * `unix_time_ms` - The UNIX time for this timestep, in milliseconds
     ///
+    /// * `gps_time_milliseconds` - The gps time for this timestep, in milliseconds
+    ///
     ///
     /// # Returns
     ///
     /// * A populated TimeStep struct
     ///
-    pub fn new(unix_time_ms: u64) -> Self {
-        TimeStep { unix_time_ms }
+    pub fn new(unix_time_ms: u64, gps_time_milliseconds: u64) -> Self {
+        TimeStep {
+            unix_time_ms,
+            gps_time_milliseconds,
+        }
     }
 
     /// Creates a new, populated vector of TimeStep structs
@@ -46,7 +55,7 @@ impl TimeStep {
     ///   timesteps *common to all* gpubox files are included. If the Option has
     ///   a value of None, then `gpubox_time_map` is empty.
     ///
-    pub fn populate_timesteps(
+    pub fn populate_correlator_timesteps(
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
     ) -> Option<Vec<Self>> {
         if gpubox_time_map.is_empty() {
@@ -61,8 +70,35 @@ impl TimeStep {
         let mut timesteps: Vec<TimeStep> = vec![];
         for (key, m) in gpubox_time_map.iter() {
             if m.len() == num_gpubox_files {
-                timesteps.push(Self::new(*key));
+                timesteps.push(Self::new(*key, 0));
             }
+        }
+
+        Some(timesteps)
+    }
+
+    /// Creates a new, populated vector of TimeStep structs
+    ///
+    /// # Arguments
+    ///
+    /// * TODO: update params
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * A populated vector of TimeStep structs inside an Option. If the Option has
+    ///   a value of None, then `voltage_time_map` is empty.
+    ///
+    pub fn populate_voltage_timesteps(
+        start_gps_time_milliseconds: u64,
+        end_gps_time_milliseconds: u64,
+        timestep_interval_milliseconds: u64,
+    ) -> Option<Vec<Self>> {
+        let mut timesteps: Vec<TimeStep> = vec![];
+        for gps_time in (start_gps_time_milliseconds..end_gps_time_milliseconds)
+            .step_by(timestep_interval_milliseconds as usize)
+        {
+            timesteps.push(Self::new(0, gps_time));
         }
 
         Some(timesteps)
@@ -93,7 +129,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_populate_timesteps() {
+    fn test_populate_correlator_timesteps() {
         // Create a dummy BTree GPUbox map
         let mut gpubox_time_map = BTreeMap::new();
 
@@ -116,7 +152,7 @@ mod tests {
         }
 
         // Get a vector timesteps
-        let timesteps = TimeStep::populate_timesteps(&gpubox_time_map).unwrap();
+        let timesteps = TimeStep::populate_correlator_timesteps(&gpubox_time_map).unwrap();
 
         // Check
         assert_eq!(6, timesteps.len());
@@ -125,11 +161,11 @@ mod tests {
     }
 
     #[test]
-    fn test_populate_timesteps_none() {
+    fn test_populate_correlator_timesteps_none() {
         // Create a dummy BTree GPUbox map
         let gpubox_time_map = BTreeMap::new();
         // Get a vector timesteps
-        let timesteps = TimeStep::populate_timesteps(&gpubox_time_map);
+        let timesteps = TimeStep::populate_correlator_timesteps(&gpubox_time_map);
 
         // Check
         assert!(timesteps.is_none());
@@ -141,9 +177,14 @@ mod tests {
         // julian date and possibly UTC conversions are done in the new() method
         let timestep = TimeStep {
             unix_time_ms: 1_234_567_890_123,
+            gps_time_milliseconds: 0,
         };
-        let new_timestep = TimeStep::new(1_234_567_890_123);
+        let new_timestep = TimeStep::new(1_234_567_890_123, 0);
 
         assert_eq!(timestep.unix_time_ms, new_timestep.unix_time_ms);
+        assert_eq!(
+            timestep.gps_time_milliseconds,
+            new_timestep.gps_time_milliseconds
+        );
     }
 }

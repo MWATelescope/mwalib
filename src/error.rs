@@ -19,9 +19,13 @@ pub enum MwalibError {
 
     /// An error derived from `GpuboxError`.
     #[error("{0}")]
-    Gpubox(#[from] crate::gpubox::error::GpuboxError),
+    Gpubox(#[from] crate::gpubox_files::error::GpuboxError),
 
-    /// An error associated with parsing a string into another type.
+    /// An error derived from `VoltageFileError`.
+    #[error("{0}")]
+    Voltage(#[from] crate::voltage_files::error::VoltageFileError),
+
+    // An error associated with parsing a string into another type.
     #[error("{source_file}:{source_line}\nCouldn't parse {key} in {fits_filename} HDU {hdu_num}")]
     Parse {
         key: String,
