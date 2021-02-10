@@ -5,6 +5,8 @@
 /*!
 Structs and helper methods for coarse channel metadata
 */
+use crate::gpubox_files::GpuboxTimeMap;
+use crate::voltage_files::VoltageFileTimeMap;
 use crate::*;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -119,7 +121,7 @@ impl CoarseChannel {
         hdu: &fitsio::hdu::FitsHdu,
         corr_version: metafits_context::CorrelatorVersion,
         observation_bandwidth_hz: u32,
-        gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
+        gpubox_time_map: &GpuboxTimeMap,
     ) -> Result<(Vec<Self>, usize, u32), FitsError> {
         // The coarse-channels string uses the FITS "CONTINUE" keywords. The
         // fitsio library for rust does not (appear) to handle CONTINUE keywords
@@ -138,6 +140,61 @@ impl CoarseChannel {
                 observation_bandwidth_hz,
                 &coarse_channel_vec,
                 Some(gpubox_time_map),
+                None,
+            );
+
+        Ok((
+            coarse_channels,
+            num_coarse_channels,
+            coarse_channel_width_hz,
+        ))
+    }
+
+    /// This creates a populated vector of CoarseChannel structs for a voltage observation.
+    ///
+    /// # Arguments
+    ///
+    /// `metafits_fptr` - a reference to a metafits FitsFile object.
+    ///
+    /// `corr_version` - enum representing the version of the correlator this observation was created with.
+    ///
+    /// `observation_bandwidth_hz` - total bandwidth in Hz of the entire observation. If there are 24 x 1.28 MHz channels
+    ///                              this would be 30.72 MHz (30,720,000 Hz)
+    ///
+    /// `voltage_time_map` - BTreeMap detailing which timesteps exist and which voltage files and channels were provided by the client.
+    ///
+    /// # Returns
+    ///
+    /// * A tuple containing: A vector of
+    ///CoarseChannel structs (limited to those are supplied by the client and are valid),
+    ///                       The number of coarse channels that are supplied by the client and are valid,
+    ///                       The width in Hz of each coarse channel
+    ///
+    pub fn populate_voltage_coarse_channels(
+        metafits_fptr: &mut fitsio::FitsFile,
+        hdu: &fitsio::hdu::FitsHdu,
+        corr_version: metafits_context::CorrelatorVersion,
+        observation_bandwidth_hz: u32,
+        voltage_time_map: &VoltageFileTimeMap,
+    ) -> Result<(Vec<Self>, usize, u32), FitsError> {
+        // The coarse-channels string uses the FITS "CONTINUE" keywords. The
+        // fitsio library for rust does not (appear) to handle CONTINUE keywords
+        // at present, but the underlying fitsio-sys does, so we have to do FFI
+        // directly.
+        let coarse_channels_string =
+            get_required_fits_key_long_string!(metafits_fptr, hdu, "CHANNELS")?;
+
+        // Get the vector of coarse channels from the metafits
+        let coarse_channel_vec = Self::get_metafits_coarse_channel_array(&coarse_channels_string);
+
+        // Process the coarse channels, matching them to frequencies and which voltage are provided
+        let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
+            Self::process_coarse_channels(
+                corr_version,
+                observation_bandwidth_hz,
+                &coarse_channel_vec,
+                None,
+                Some(voltage_time_map),
             );
 
         Ok((
@@ -215,7 +272,13 @@ impl CoarseChannel {
         observation_bandwidth_hz: u32,
         coarse_channel_vec: &[usize],
         gpubox_time_map: Option<&BTreeMap<u64, BTreeMap<usize, (usize, usize)>>>,
+        voltage_time_map: Option<&BTreeMap<usize, BTreeMap<usize, String>>>,
     ) -> (Vec<Self>, usize, u32) {
+        // Ensure we dont have a gpubox time map AND a voltage time map
+        if gpubox_time_map.is_some() && voltage_time_map.is_some() {
+            // error TODO
+        }
+
         // How many coarse channels should there be (from the metafits)
         // NOTE: this will NOT always be equal to the number of gpubox files we get
         let mut num_coarse_channels = coarse_channel_vec.len();
@@ -266,12 +329,26 @@ impl CoarseChannel {
                                 }
                             }
                         }
-                        _ => coarse_channels.push(CoarseChannel::new(
-                            correlator_channel_number,
-                            *rec_channel_number,
-                            gpubox_channel_number,
-                            coarse_channel_width_hz,
-                        )),
+                        _ => match voltage_time_map {
+                            Some(v) => {
+                                if let Some((_, channel_map)) = v.iter().next() {
+                                    if channel_map.contains_key(&rec_channel_number) {
+                                        coarse_channels.push(CoarseChannel::new(
+                                            correlator_channel_number,
+                                            *rec_channel_number,
+                                            *rec_channel_number,
+                                            coarse_channel_width_hz,
+                                        ))
+                                    }
+                                }
+                            }
+                            _ => coarse_channels.push(CoarseChannel::new(
+                                correlator_channel_number,
+                                *rec_channel_number,
+                                gpubox_channel_number,
+                                coarse_channel_width_hz,
+                            )),
+                        },
                     }
                 }
                 CorrelatorVersion::V2 => {
@@ -290,12 +367,26 @@ impl CoarseChannel {
                                 }
                             }
                         }
-                        _ => coarse_channels.push(CoarseChannel::new(
-                            correlator_channel_number,
-                            *rec_channel_number,
-                            *rec_channel_number,
-                            coarse_channel_width_hz,
-                        )),
+                        _ => match voltage_time_map {
+                            Some(v) => {
+                                if let Some((_, channel_map)) = v.iter().next() {
+                                    if channel_map.contains_key(&rec_channel_number) {
+                                        coarse_channels.push(CoarseChannel::new(
+                                            correlator_channel_number,
+                                            *rec_channel_number,
+                                            *rec_channel_number,
+                                            coarse_channel_width_hz,
+                                        ))
+                                    }
+                                }
+                            }
+                            _ => coarse_channels.push(CoarseChannel::new(
+                                correlator_channel_number,
+                                *rec_channel_number,
+                                *rec_channel_number,
+                                coarse_channel_width_hz,
+                            )),
+                        },
                     }
                 }
             }
@@ -390,6 +481,7 @@ mod tests {
                 1_280_000 * 4,
                 &metafits_channel_array,
                 Some(&gpubox_time_map),
+                None,
             );
         assert_eq!(coarse_channel_array.len(), 2);
         assert_eq!(coarse_channel_count, 2);
@@ -422,6 +514,7 @@ mod tests {
                 1_280_000 * 5,
                 &metafits_channel_array,
                 Some(&gpubox_time_map),
+                None,
             );
         assert_eq!(coarse_channel_array.len(), 5);
         assert_eq!(coarse_channel_count, 5);
@@ -467,6 +560,7 @@ mod tests {
                 1_280_000 * 4,
                 &metafits_channel_array,
                 Some(&gpubox_time_map),
+                None,
             );
         assert_eq!(coarse_channel_array.len(), 2);
         assert_eq!(coarse_channel_count, 2);
@@ -499,6 +593,7 @@ mod tests {
                 1_280_000 * 5,
                 &metafits_channel_array,
                 Some(&gpubox_time_map),
+                None,
             );
         assert_eq!(coarse_channel_array.len(), 5);
         assert_eq!(coarse_channel_count, 5);
@@ -535,6 +630,7 @@ mod tests {
                 (channel_width * metafits_channel_array.len()) as u32,
                 &metafits_channel_array,
                 Some(&gpubox_time_map),
+                None,
             );
         assert_eq!(coarse_channel_array.len(), 3);
         assert_eq!(coarse_channel_count, 3);

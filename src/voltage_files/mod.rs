@@ -21,8 +21,8 @@ pub use error::VoltageFileError;
 pub struct ObsTimes {
     pub start_gps_time_milliseconds: u64, // Start= start of first timestep
     pub end_gps_time_milliseconds: u64,   // End  = start of last timestep + interval time
-    pub duration_seconds: u64,
-    pub timestep_interval_milliseconds: u64, // number of milliseconds between each timestep
+    pub duration_milliseconds: u64,
+    pub voltage_file_interval_milliseconds: u64, // number of milliseconds between each voltage file
 }
 
 /// This represents one group of voltage files with the same "batch" identitifer (gps time).
@@ -208,6 +208,8 @@ pub struct VoltageFileInfo {
 /// * `voltage_filenames` - A vector or slice of strings or references to strings containing
 ///                        all of the voltage filenames provided by the client.
 ///
+/// * `metafits_obs_id` - The obs_id of the observation from the metafits.
+///
 ///
 /// # Returns
 ///
@@ -293,13 +295,19 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
     }
 
     let mut file_count: Option<u8> = None;
-    for (i, (batch_num, num_files)) in batches_and_files.iter().enumerate() {
-        if i != *batch_num {
-            return Err(VoltageFileError::GpsTimeMissing {
-                expected: i,
-                got: *batch_num,
-            });
+    let mut prev_batch_num: usize = 0;
+    for (_, (batch_num, num_files)) in batches_and_files.iter().enumerate() {
+        // Check that the previous batch + 1 == the current batch number
+        // This is our contiguity check
+        if prev_batch_num != 0 {
+            if prev_batch_num + 1 != *batch_num {
+                return Err(VoltageFileError::GpsTimeMissing {
+                    expected: prev_batch_num + 1,
+                    got: *batch_num,
+                });
+            }
         }
+        prev_batch_num = *batch_num;
 
         match file_count {
             None => file_count = Some(*num_files),
@@ -362,7 +370,7 @@ pub fn examine_voltage_files<T: AsRef<Path>>(
     let (temp_voltage_files, corr_format, _) =
         determine_voltage_file_gpstime_batches(voltage_filenames, metafits_context.obsid as usize)?;
 
-    let time_map = create_time_map(&temp_voltage_files, corr_format)?;
+    let time_map = create_time_map(&temp_voltage_files)?;
 
     let mut gpstime_batches = convert_temp_voltage_files(temp_voltage_files)?;
 
@@ -411,7 +419,6 @@ pub fn examine_voltage_files<T: AsRef<Path>>(
 ///
 fn create_time_map(
     voltage_file_batches: &[TempVoltageFile],
-    correlator_version: CorrelatorVersion,
 ) -> Result<VoltageFileTimeMap, VoltageFileError> {
     // create a map
     let mut voltage_time_map = BTreeMap::new();
@@ -427,33 +434,15 @@ fn create_time_map(
 }
 
 /// Determine the proper start and end times of an observation. In this context,
-/// "proper" refers to a time that is common to all gpubox files. Because gpubox
-/// files may not all start and end at the same time, anything "dangling" is
-/// trimmed. e.g.
-///
-/// ```text
-/// time:     0123456789abcdef
-/// gpubox01: ################
-/// gpubox02:  ###############
-/// gpubox03: ################
-/// gpubox04:   ##############
-/// gpubox05: ###############
-/// gpubox06: ################
-/// ```
-///
-/// In this example, we start collecting data from time=2, and end at time=e,
-/// because these are the first and last places that all gpubox files have
-/// data. All dangling data is ignored.
-///
-/// See tests of this function or `obs_context.rs` for examples of constructing
-/// the input to this function.
+/// "proper" refers to a time that is common to all voltage files. Depending on
+/// the correlator version, the last timestep is incremented by either 1 or 8 seconds.
 ///
 ///
 /// # Arguments
 ///
-/// * `gpubox_time_map` - BTree structure containing the map of what gpubox files and timesteps we were supplied by the client.
+/// * `voltage_time_map` - BTree structure containing the map of what voltage files and timesteps we were supplied by the client.
 ///
-/// * `integration_time_ms` - Correlator dump time (so we know the gap between timesteps)
+/// * `correlator_version` - Correlator dump time (so we know the gap between timesteps)
 ///
 /// # Returns
 ///
@@ -461,22 +450,52 @@ fn create_time_map(
 ///
 ///
 pub fn determine_obs_times(
-    voltage_time_map: &BTreeMap<usize, BTreeMap<usize, String>>,
+    voltage_time_map: &VoltageFileTimeMap,
     correlator_version: CorrelatorVersion,
 ) -> Result<ObsTimes, VoltageFileError> {
-    let timestep_interval_milliseconds: u64 = match correlator_version {
+    let voltage_file_interval_milliseconds: u64 = match correlator_version {
         CorrelatorVersion::V2 => 8_000,
         CorrelatorVersion::Legacy => 1_000,
+        CorrelatorVersion::OldLegacy => 1_000,
     };
-    let proper_start_milliseconds: u64 = *voltage_time_map.iter().next().unwrap().0 as u64;
-    let proper_end_milliseconds: u64 = *voltage_time_map.iter().next_back().unwrap().0 as u64
-        + timestep_interval_milliseconds as u64;
+
+    // Find the maximum number of voltage files for a timestep, and assume that this is the
+    // total number of input voltage files.
+    let size = match voltage_time_map
+        .iter()
+        .map(|(_, submap)| submap.len())
+        .max()
+    {
+        Some(m) => m,
+        None => return Err(VoltageFileError::EmptyBTreeMap),
+    };
+
+    // Filter the first elements that don't satisfy `submap.len() == size`. The
+    // first and last of the submaps that satisfy this condition are the proper
+    // start and end of the observation.
+    let mut i = voltage_time_map
+        .iter()
+        .filter(|(_, submap)| submap.len() == size);
+
+    //let proper_start_milliseconds: u64 = *voltage_time_map.iter().next().unwrap().0 as u64;
+    //let proper_end_milliseconds: u64 = *voltage_time_map.iter().next_back().unwrap().0 as u64
+    //    + timestep_interval_milliseconds as u64;
+    let proper_start_gps_time: u64 = *i.next().unwrap().0 as u64;
+    let proper_end_gps_time: u64 = match i.last() {
+        Some(s) => *s.0 as u64,
+        None => {
+            // Looks like we only have 1 hdu, so end
+            proper_start_gps_time
+        }
+    };
 
     Ok(ObsTimes {
-        start_gps_time_milliseconds: proper_start_milliseconds,
-        end_gps_time_milliseconds: proper_end_milliseconds,
-        duration_seconds: (proper_end_milliseconds - proper_start_milliseconds) as u64,
-        timestep_interval_milliseconds,
+        start_gps_time_milliseconds: proper_start_gps_time * 1000,
+        end_gps_time_milliseconds: (proper_end_gps_time * 1000)
+            + voltage_file_interval_milliseconds,
+        duration_milliseconds: ((proper_end_gps_time - proper_start_gps_time) * 1000)
+            + voltage_file_interval_milliseconds,
+        voltage_file_interval_milliseconds,
     })
 }
 
@@ -485,443 +504,295 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_determine_voltage_file_gpstime_batches_proper_format() {
+    fn test_determine_voltage_file_unrecognised_files() {
         let files = vec![
-            "1065880128_1065880129_ch123.dat",
-            "1065880128_1065880128_ch121.dat",
-            "1065880128_1065880130_ch124.dat",
+            "1065880128_106588012_ch123.dat",
+            "106588012_1065880129_ch121.dat",
+            "1065880128_1065880128__ch121.dat",
+            "1065880128_1065880130_ch124.txt",
         ];
         let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
-        assert!(result.is_ok());
+
+        assert!(matches!(
+            result.unwrap_err(),
+            VoltageFileError::Unrecognised(_)
+        ));
+    }
+
+    #[test]
+    fn test_determine_voltage_file_gpstime_batches_proper_legacy_format() {
+        let files = vec![
+            "1065880128_1065880129_ch122.dat",
+            "1065880128_1065880129_ch21.dat",
+            "1065880128_1065880129_ch1.dat",
+            "1065880128_1065880128_ch21.dat",
+            "1065880128_1065880128_ch001.dat",
+            "1065880128_1065880128_ch122.dat",
+            "1065880128_1065880130_ch122.dat",
+            "1065880128_1065880130_ch021.dat",
+            "1065880128_1065880130_ch01.dat",
+        ];
+        let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
+        assert!(result.is_ok(), "{:?}", result.unwrap_err());
         let (temp_voltage_files, corr_format, num_gputimes) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(num_gputimes, 3);
 
         let expected_voltage_files = vec![
             TempVoltageFile {
-                filename: "1065880128_1065880128_ch121.dat",
+                filename: "1065880128_1065880128_ch001.dat",
                 obs_id: 1065880128,
                 gps_time: 1065880128,
-                channel_identifier: 121,
+                channel_identifier: 1,
             },
             TempVoltageFile {
-                filename: "1065880128_1065880129_ch123.dat",
+                filename: "1065880128_1065880128_ch21.dat",
+                obs_id: 1065880128,
+                gps_time: 1065880128,
+                channel_identifier: 21,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880128_ch122.dat",
+                obs_id: 1065880128,
+                gps_time: 1065880128,
+                channel_identifier: 122,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880129_ch1.dat",
                 obs_id: 1065880128,
                 gps_time: 1065880129,
-                channel_identifier: 123,
+                channel_identifier: 1,
             },
             TempVoltageFile {
-                filename: "1065880128_1065880128_ch121.dat",
+                filename: "1065880128_1065880129_ch21.dat",
                 obs_id: 1065880128,
-                gps_time: 1065880128,
-                channel_identifier: 121,
+                gps_time: 1065880129,
+                channel_identifier: 21,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880129_ch122.dat",
+                obs_id: 1065880128,
+                gps_time: 1065880129,
+                channel_identifier: 122,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880130_ch01.dat",
+                obs_id: 1065880128,
+                gps_time: 1065880130,
+                channel_identifier: 1,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880130_ch021.dat",
+                obs_id: 1065880128,
+                gps_time: 1065880130,
+                channel_identifier: 21,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880130_ch122.dat",
+                obs_id: 1065880128,
+                gps_time: 1065880130,
+                channel_identifier: 122,
             },
         ];
 
         assert_eq!(temp_voltage_files, expected_voltage_files);
     }
-}
-/*
+
     #[test]
-    fn test_determine_gpubox_batches_proper_format2() {
+    fn test_determine_voltage_file_gpstime_batches_proper_mwax_format() {
         let files = vec![
-            "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
-            "/home/gs/1065880128_20131015134930_gpubox20_01.fits",
-            "/var/cache/1065880128_20131015134930_gpubox15_02.fits",
+            "1065880128_1065880129_122.sub",
+            "1065880128_1065880129_21.sub",
+            "1065880128_1065880129_1.sub",
+            "1065880128_1065880128_21.sub",
+            "1065880128_1065880128_001.sub",
+            "1065880128_1065880128_122.sub",
+            "1065880128_1065880130_122.sub",
+            "1065880128_1065880130_021.sub",
+            "1065880128_1065880130_01.sub",
         ];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_batches) = result.unwrap();
-        assert_eq!(corr_format, CorrelatorVersion::Legacy);
-        assert_eq!(num_batches, 3);
-        let expected_batches = vec![
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
-                channel_identifier: 1,
-                batch_number: 0,
-            },
-            TempGPUBoxFile {
-                filename: "/home/gs/1065880128_20131015134930_gpubox20_01.fits",
-                channel_identifier: 20,
-                batch_number: 1,
-            },
-            TempGPUBoxFile {
-                filename: "/var/cache/1065880128_20131015134930_gpubox15_02.fits",
-                channel_identifier: 15,
-                batch_number: 2,
-            },
-        ];
-
-        assert_eq!(gpubox_batches, expected_batches);
-    }
-
-    #[test]
-    fn test_determine_gpubox_batches_proper_format3() {
-        let files = vec![
-            "/home/chj/1065880128_20131015134930_gpubox02_00.fits",
-            "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
-            "/home/chj/1065880128_20131015134930_gpubox20_01.fits",
-            "/home/chj/1065880128_20131015134930_gpubox19_01.fits",
-            "/home/chj/1065880128_20131015134930_gpubox14_02.fits",
-            "/home/chj/1065880128_20131015134930_gpubox15_02.fits",
-        ];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_batches) = result.unwrap();
-        assert_eq!(corr_format, CorrelatorVersion::Legacy);
-        assert_eq!(num_batches, 3);
-
-        let expected_batches = vec![
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
-                channel_identifier: 1,
-                batch_number: 0,
-            },
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134930_gpubox02_00.fits",
-                channel_identifier: 2,
-                batch_number: 0,
-            },
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134930_gpubox19_01.fits",
-                channel_identifier: 19,
-                batch_number: 1,
-            },
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134930_gpubox20_01.fits",
-                channel_identifier: 20,
-                batch_number: 1,
-            },
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134930_gpubox14_02.fits",
-                channel_identifier: 14,
-                batch_number: 2,
-            },
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134930_gpubox15_02.fits",
-                channel_identifier: 15,
-                batch_number: 2,
-            },
-        ];
-
-        assert_eq!(gpubox_batches, expected_batches);
-    }
-
-    #[test]
-    fn test_determine_gpubox_batches_proper_format4() {
-        let files = vec![
-            "/home/chj/1065880128_20131015134929_gpubox02_00.fits",
-            "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
-            "/home/chj/1065880128_20131015134929_gpubox20_01.fits",
-            "/home/chj/1065880128_20131015134930_gpubox19_01.fits",
-            "/home/chj/1065880128_20131015134931_gpubox14_02.fits",
-            "/home/chj/1065880128_20131015134930_gpubox15_02.fits",
-        ];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_batches) = result.unwrap();
-        assert_eq!(corr_format, CorrelatorVersion::Legacy);
-        assert_eq!(num_batches, 3);
-
-        let expected_batches = vec![
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
-                channel_identifier: 1,
-                batch_number: 0,
-            },
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134929_gpubox02_00.fits",
-                channel_identifier: 2,
-                batch_number: 0,
-            },
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134930_gpubox19_01.fits",
-                channel_identifier: 19,
-                batch_number: 1,
-            },
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134929_gpubox20_01.fits",
-                channel_identifier: 20,
-                batch_number: 1,
-            },
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134931_gpubox14_02.fits",
-                channel_identifier: 14,
-                batch_number: 2,
-            },
-            TempGPUBoxFile {
-                filename: "/home/chj/1065880128_20131015134930_gpubox15_02.fits",
-                channel_identifier: 15,
-                batch_number: 2,
-            },
-        ];
-
-        assert_eq!(gpubox_batches, expected_batches);
-    }
-
-    #[test]
-    fn test_determine_gpubox_batches_invalid_filename() {
-        let files = vec!["1065880128_20131015134930_gpubox0100.fits"];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_determine_gpubox_batches_invalid_filename2() {
-        let files = vec!["1065880128x_20131015134930_gpubox01_00.fits"];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_determine_gpubox_batches_invalid_filename3() {
-        let files = vec!["1065880128_920131015134930_gpubox01_00.fits"];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_determine_gpubox_batches_invalid_count() {
-        // There are no gpubox files for batch "01".
-        let files = vec![
-            "1065880128_20131015134930_gpubox01_00.fits",
-            "1065880128_20131015134930_gpubox15_02.fits",
-        ];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_determine_gpubox_batches_invalid_count2() {
-        // There are not enough gpubox files for batch "02".
-        let files = vec![
-            "1065880128_20131015134930_gpubox01_00.fits",
-            "1065880128_20131015134930_gpubox02_00.fits",
-            "1065880128_20131015134930_gpubox01_01.fits",
-            "1065880128_20131015134930_gpubox02_01.fits",
-            "1065880128_20131015134930_gpubox15_02.fits",
-        ];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_determine_gpubox_batches_old_format() {
-        let files = vec![
-            "1065880128_20131015134930_gpubox01.fits",
-            "1065880128_20131015134930_gpubox20.fits",
-            "1065880128_20131015134930_gpubox15.fits",
-        ];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_batches) = result.unwrap();
-        assert_eq!(corr_format, CorrelatorVersion::OldLegacy);
-        assert_eq!(num_batches, 1);
-
-        let expected_batches = vec![
-            TempGPUBoxFile {
-                filename: "1065880128_20131015134930_gpubox01.fits",
-                channel_identifier: 1,
-                batch_number: 0,
-            },
-            TempGPUBoxFile {
-                filename: "1065880128_20131015134930_gpubox15.fits",
-                channel_identifier: 15,
-                batch_number: 0,
-            },
-            TempGPUBoxFile {
-                filename: "1065880128_20131015134930_gpubox20.fits",
-                channel_identifier: 20,
-                batch_number: 0,
-            },
-        ];
-
-        assert_eq!(gpubox_batches, expected_batches);
-    }
-
-    #[test]
-    fn test_determine_gpubox_batches_new_format() {
-        let files = vec![
-            "1065880128_20131015134930_ch101_000.fits",
-            "1065880128_20131015134930_ch102_000.fits",
-            "1065880128_20131015135030_ch101_001.fits",
-            "1065880128_20131015135030_ch102_001.fits",
-        ];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_ok());
-        let (gpubox_batches, corr_format, num_batches) = result.unwrap();
+        let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
+        assert!(result.is_ok(), "{:?}", result.unwrap_err());
+        let (temp_voltage_files, corr_format, num_gputimes) = result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::V2);
-        assert_eq!(num_batches, 2);
+        assert_eq!(num_gputimes, 3);
 
-        let expected_batches = vec![
-            TempGPUBoxFile {
-                filename: "1065880128_20131015134930_ch101_000.fits",
-                channel_identifier: 101,
-                batch_number: 0,
+        let expected_voltage_files = vec![
+            TempVoltageFile {
+                filename: "1065880128_1065880128_001.sub",
+                obs_id: 1065880128,
+                gps_time: 1065880128,
+                channel_identifier: 1,
             },
-            TempGPUBoxFile {
-                filename: "1065880128_20131015134930_ch102_000.fits",
-                channel_identifier: 102,
-                batch_number: 0,
+            TempVoltageFile {
+                filename: "1065880128_1065880128_21.sub",
+                obs_id: 1065880128,
+                gps_time: 1065880128,
+                channel_identifier: 21,
             },
-            TempGPUBoxFile {
-                filename: "1065880128_20131015135030_ch101_001.fits",
-                channel_identifier: 101,
-                batch_number: 1,
+            TempVoltageFile {
+                filename: "1065880128_1065880128_122.sub",
+                obs_id: 1065880128,
+                gps_time: 1065880128,
+                channel_identifier: 122,
             },
-            TempGPUBoxFile {
-                filename: "1065880128_20131015135030_ch102_001.fits",
-                channel_identifier: 102,
-                batch_number: 1,
+            TempVoltageFile {
+                filename: "1065880128_1065880129_1.sub",
+                obs_id: 1065880128,
+                gps_time: 1065880129,
+                channel_identifier: 1,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880129_21.sub",
+                obs_id: 1065880128,
+                gps_time: 1065880129,
+                channel_identifier: 21,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880129_122.sub",
+                obs_id: 1065880128,
+                gps_time: 1065880129,
+                channel_identifier: 122,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880130_01.sub",
+                obs_id: 1065880128,
+                gps_time: 1065880130,
+                channel_identifier: 1,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880130_021.sub",
+                obs_id: 1065880128,
+                gps_time: 1065880130,
+                channel_identifier: 21,
+            },
+            TempVoltageFile {
+                filename: "1065880128_1065880130_122.sub",
+                obs_id: 1065880128,
+                gps_time: 1065880130,
+                channel_identifier: 122,
             },
         ];
 
-        assert_eq!(gpubox_batches, expected_batches);
+        assert_eq!(temp_voltage_files, expected_voltage_files);
     }
 
     #[test]
-    fn test_determine_gpubox_batches_mix() {
+    fn test_determine_voltage_file_gpstime_batches_channel_mismatch() {
         let files = vec![
-            "1065880128_20131015134930_gpubox01.fits",
-            "1065880128_20131015134930_gpubox15_01.fits",
+            "1065880128_1065880129_ch123.dat",
+            "1065880128_1065880129_ch121.dat",
+            "1065880128_1065880128_ch121.dat",
+            "1065880128_1065880130_ch124.dat",
         ];
-        let result = determine_gpubox_batches(&files);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_determine_hdu_time_test1() {
-        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-        with_new_temp_fits_file("determine_hdu_time_test1.fits", |fptr| {
-            let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-
-            // Write the TIME and MILLITIM keys. Key types must be i64 to get any
-            // sort of sanity.
-            hdu.write_key(fptr, "TIME", 1_434_494_061)
-                .expect("Couldn't write key 'TIME'");
-            hdu.write_key(fptr, "MILLITIM", 0)
-                .expect("Couldn't write key 'MILLITIM'");
-
-            let result = determine_hdu_time(fptr, &hdu);
-            assert!(result.is_ok());
-            assert_eq!(result.unwrap(), 1_434_494_061_000);
-        });
-    }
-
-    #[test]
-    fn test_determine_hdu_time_test2() {
-        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-        with_new_temp_fits_file("determine_hdu_time_test2.fits", |fptr| {
-            let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-
-            hdu.write_key(fptr, "TIME", 1_381_844_923)
-                .expect("Couldn't write key 'TIME'");
-            hdu.write_key(fptr, "MILLITIM", 500)
-                .expect("Couldn't write key 'MILLITIM'");
-
-            let result = determine_hdu_time(fptr, &hdu);
-            assert!(result.is_ok());
-            assert_eq!(result.unwrap(), 1_381_844_923_500);
-        });
-    }
-
-    #[test]
-    fn test_determine_hdu_time_test3() {
-        // Use the current UNIX time.
-        let current = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-            Err(e) => panic!("Something is wrong with time on your system: {}", e),
-            Ok(n) => n.as_secs(),
-        };
-
-        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-        with_new_temp_fits_file("determine_hdu_time_test3.fits", |fptr| {
-            let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-
-            hdu.write_key(fptr, "TIME", current)
-                .expect("Couldn't write key 'TIME'");
-            hdu.write_key(fptr, "MILLITIM", 500)
-                .expect("Couldn't write key 'MILLITIM'");
-
-            let result = determine_hdu_time(fptr, &hdu);
-            assert!(result.is_ok());
-            assert_eq!(result.unwrap(), current * 1000 + 500);
-        });
-    }
-
-    #[test]
-    fn test_map_unix_times_to_hdus_test() {
-        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-        with_new_temp_fits_file("map_unix_times_to_hdus_test.fits", |fptr| {
-            let times: Vec<(u64, u64)> =
-                vec![(1_381_844_923, 500), (1_381_844_924, 0), (1_381_844_950, 0)];
-            let mut expected = BTreeMap::new();
-            let image_description = ImageDescription {
-                data_type: ImageType::Float,
-                dimensions: &[100, 100],
-            };
-            for (i, (time, millitime)) in times.iter().enumerate() {
-                let hdu = fptr
-                    .create_image("EXTNAME".to_string(), &image_description)
-                    .expect("Couldn't create image");
-                hdu.write_key(fptr, "TIME", *time)
-                    .expect("Couldn't write key 'TIME'");
-                hdu.write_key(fptr, "MILLITIM", *millitime)
-                    .expect("Couldn't write key 'MILLITIM'");
-
-                expected.insert(time * 1000 + millitime, i + 1);
+        let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
+        assert!(matches!(
+            result.unwrap_err(),
+            VoltageFileError::UnevenChannelsForGpsTime {
+                expected: _,
+                got: _
             }
-
-            let result = map_unix_times_to_hdus(fptr, CorrelatorVersion::Legacy);
-            assert!(result.is_ok());
-            assert_eq!(result.unwrap(), expected);
-        });
+        ));
     }
 
     #[test]
-    fn test_determine_obs_times_test_many_timesteps() {
-        // Create two files, with mostly overlapping times, but also a little
-        // dangling at the start and end.
-        let common_times: Vec<u64> = vec![
-            1_381_844_923_500,
-            1_381_844_924_000,
-            1_381_844_924_500,
-            1_381_844_925_000,
-            1_381_844_925_500,
+    fn test_determine_voltage_file_correlator_version_mismatch() {
+        let files = vec![
+            "1065880128_1065880129_ch123.dat",
+            "1065880128_1065880129_121.sub",
+            "1065880128_1065880128_ch121.dat",
+            "1065880128_1065880130_ch124.dat",
         ];
-        let integration_time_ms = 500;
+        let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
+        assert!(matches!(result.unwrap_err(), VoltageFileError::Mixture));
+    }
 
-        let mut input = BTreeMap::new();
+    #[test]
+    fn test_determine_voltage_file_metafits_obs_id_mismatch() {
+        let files = vec![
+            "1065880128_1065880128_ch121.dat",
+            "1065880128_1065880129_ch121.dat",
+            "1065880128_1065880130_ch121.dat",
+        ];
+        let result = determine_voltage_file_gpstime_batches(&files, 1234567890);
+        assert!(matches!(
+            result.unwrap_err(),
+            VoltageFileError::MetafitsObsidMismatch
+        ));
+    }
+
+    #[test]
+    fn test_determine_voltage_file_gpstime_missing() {
+        let files = vec![
+            "1065880128_1065880128_ch121.dat",
+            "1065880128_1065880130_ch121.dat",
+        ];
+        let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
+        assert!(matches!(
+            result.unwrap_err(),
+            VoltageFileError::GpsTimeMissing { expected: _, got: _ }
+        ));
+    }
+
+    #[test]
+    fn test_determine_obs_times_test_many_timesteps_legacy() {
+        let common_times: Vec<u64> =
+            vec![1065880129, 1065880130, 1065880131, 1065880132, 1065880133];
+        let mut input = VoltageFileTimeMap::new();
+        // insert a "dangling time" at the beginning (1065880128) which is not a common timestep
         let mut new_time_tree = BTreeMap::new();
-        new_time_tree.insert(0, (0, 1));
-        input.insert(1_381_844_923_000, new_time_tree);
+        new_time_tree.insert(121, String::from("1065880128_1065880128_ch121.dat"));
+        input.insert(1065880128, new_time_tree);
 
-        for (i, time) in common_times.iter().enumerate() {
+        // Add the common times to the data structure
+        for time in common_times.iter() {
             let mut new_time_tree = BTreeMap::new();
-            // gpubox 0.
-            new_time_tree.insert(0, (0, i + 2));
-            // gpubox 1.
-            new_time_tree.insert(1, (0, i + 1));
-            input.insert(*time, new_time_tree);
+            new_time_tree.insert(121, format!("1065880128_{}_ch121.dat", time));
+            input.insert(*time as usize, new_time_tree);
+
+            let mut new_time_tree2 = BTreeMap::new();
+            new_time_tree2.insert(122, format!("1065880128_{}_ch122.dat", time));
+            input.insert(*time as usize, new_time_tree2);
         }
 
-        let mut new_time_tree = BTreeMap::new();
-        new_time_tree.insert(1, (0, common_times.len() + 1));
-        input.insert(1_381_844_926_000, new_time_tree);
+        // insert a "dangling time" at the end (1065880134) which is not a common timestep
+        new_time_tree = BTreeMap::new();
+        new_time_tree.insert(121, String::from("1065880128_1065880134_ch121.dat"));
+        input.insert(1065880134, new_time_tree);
 
-        let expected_start = *common_times.first().unwrap();
-        let expected_end = *common_times.last().unwrap() + integration_time_ms;
+        let expected_interval: u64 = 1000; // 1000 since we are Legacy
+        let expected_start: u64 = *common_times.first().unwrap() * 1000;
+        let expected_end: u64 = (*common_times.last().unwrap() + expected_interval) * 1000;
         // Duration = common end - common start + integration time
-        // == 1_381_844_925_500 - 1_381_844_923_500 + 500
-        let expected_duration = 2500;
+        // == 1065880133 - 1065880129 + 1000
+        let expected_duration = 5000;
 
-        let result = determine_obs_times(&input, integration_time_ms);
+        let result = determine_obs_times(&input, CorrelatorVersion::Legacy);
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.start_millisec, expected_start);
-        assert_eq!(result.end_millisec, expected_end);
-        assert_eq!(result.duration_millisec, expected_duration);
+        assert_eq!(
+            result.start_gps_time_milliseconds, expected_start,
+            "{:?}",
+            result
+        );
+        assert_eq!(
+            result.end_gps_time_milliseconds, expected_end,
+            "{:?}",
+            result
+        );
+        assert_eq!(
+            result.duration_milliseconds, expected_duration,
+            "{:?}",
+            result
+        );
+        assert_eq!(
+            result.voltage_file_interval_milliseconds, expected_interval,
+            "{:?}",
+            result
+        );
     }
-
+}
+/*
     #[test]
     fn test_determine_obs_times_test_one_timestep() {
         // Create two files, with 1 overlapping times, but also a little
@@ -961,140 +832,6 @@ mod tests {
         assert_eq!(result.start_millisec, expected_start);
         assert_eq!(result.end_millisec, expected_end);
         assert_eq!(result.duration_millisec, expected_duration);
-    }
-
-    #[test]
-    fn test_validate_gpubox_metadata_correlator_version() {
-        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-        with_new_temp_fits_file(
-            "test_validate_gpubox_metadata_correlator_version.fits",
-            |fptr| {
-                let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-
-                // This should succeed- LegacyOld should NOT have CORR_VER key
-                assert!(validate_gpubox_metadata_correlator_version(
-                    fptr,
-                    &hdu,
-                    &String::from("test_file.fits"),
-                    CorrelatorVersion::OldLegacy,
-                )
-                .is_ok());
-
-                // This should succeed- Legacy should NOT have CORR_VER key
-                assert!(validate_gpubox_metadata_correlator_version(
-                    fptr,
-                    &hdu,
-                    &String::from("test_file.fits"),
-                    CorrelatorVersion::Legacy,
-                )
-                .is_ok());
-
-                // This should fail- V2 needs CORR_VER key
-                assert!(validate_gpubox_metadata_correlator_version(
-                    fptr,
-                    &hdu,
-                    &String::from("test_file.fits"),
-                    CorrelatorVersion::V2,
-                )
-                .is_err());
-
-                // Now put in a corr version
-                hdu.write_key(fptr, "CORR_VER", 2)
-                    .expect("Couldn't write key 'CORR_VER'");
-
-                // This should succeed- V2 should have CORR_VER key
-                assert!(validate_gpubox_metadata_correlator_version(
-                    fptr,
-                    &hdu,
-                    &String::from("test_file.fits"),
-                    CorrelatorVersion::V2,
-                )
-                .is_ok());
-
-                // This should fail- OldLegacy should NOT have CORR_VER key
-                assert!(validate_gpubox_metadata_correlator_version(
-                    fptr,
-                    &hdu,
-                    &String::from("test_file.fits"),
-                    CorrelatorVersion::OldLegacy,
-                )
-                .is_err());
-
-                // This should fail- Legacy should NOT have CORR_VER key
-                assert!(validate_gpubox_metadata_correlator_version(
-                    fptr,
-                    &hdu,
-                    &String::from("test_file.fits"),
-                    CorrelatorVersion::Legacy,
-                )
-                .is_err());
-            },
-        );
-
-        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-        // This section tests CORR_VER where it is != 2
-        with_new_temp_fits_file(
-            "test_validate_gpubox_metadata_correlator_version.fits",
-            |fptr| {
-                let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-
-                // This should not succeed- CORR_VER key if it exists should be 2
-                // CORR_VER did not exist in OldLegacy or Legacy correlator
-                // Now put in a corr version
-                hdu.write_key(fptr, "CORR_VER", 1)
-                    .expect("Couldn't write key 'CORR_VER'");
-
-                assert!(validate_gpubox_metadata_correlator_version(
-                    fptr,
-                    &hdu,
-                    &String::from("test_file.fits"),
-                    CorrelatorVersion::V2,
-                )
-                .is_err());
-            },
-        );
-    }
-
-    #[test]
-    fn test_validate_gpubox_metadata_obsid() {
-        // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-        with_new_temp_fits_file(
-            "test_validate_gpubox_metadata_correlator_version.fits",
-            |fptr| {
-                let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-
-                // OBSID is not there, this should be an error
-                assert!(validate_gpubox_metadata_obs_id(
-                    fptr,
-                    &hdu,
-                    &String::from("test_file.fits"),
-                    1_234_567_890,
-                )
-                .is_err());
-
-                // Now add the key
-                hdu.write_key(fptr, "OBSID", 1_234_567_890)
-                    .expect("Couldn't write key 'OBSID'");
-
-                // OBSID is there, but does not match metafits- this should be an error
-                assert!(validate_gpubox_metadata_obs_id(
-                    fptr,
-                    &hdu,
-                    &String::from("test_file.fits"),
-                    2_345_678_901,
-                )
-                .is_err());
-
-                // OBSID is there, and it matches
-                assert!(validate_gpubox_metadata_obs_id(
-                    fptr,
-                    &hdu,
-                    &String::from("test_file.fits"),
-                    1_234_567_890,
-                )
-                .is_ok());
-            },
-        );
     }
 }
 */

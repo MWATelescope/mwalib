@@ -5,7 +5,6 @@
 /*!
 The main interface to MWA data.
  */
-use std::collections::BTreeMap;
 use std::fmt;
 
 use crate::coarse_channel::*;
@@ -18,6 +17,7 @@ use crate::*;
 ///
 /// `mwalib` voltage captue system (VCS) observation context. This represents the basic metadata for a voltage capture observation.
 ///
+#[derive(Debug)]
 pub struct VoltageContext {
     /// Observation Metadata
     pub metafits_context: MetafitsContext,
@@ -25,18 +25,16 @@ pub struct VoltageContext {
     pub corr_version: CorrelatorVersion,
     /// The proper start of the observation (the time that is common to all
     /// provided voltage files).
-    pub start_unix_time_milliseconds: u64,
-    /// `end_unix_time_milliseconds` is the actual end time of the observation    
+    pub start_gps_time_milliseconds: u64,
+    /// `end_gps_time_milliseconds` is the actual end time of the observation    
     /// i.e. start time of last common timestep plus length of a voltage file (1 sec for MWA Legacy, 8 secs for MWAX).
-    pub end_unix_time_milliseconds: u64,
+    pub end_gps_time_milliseconds: u64,
     /// Total duration of observation (based on voltage files)
     pub duration_milliseconds: u64,
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
     /// This is an array of all timesteps we have data for
     pub timesteps: Vec<TimeStep>,
-    /// Duration of each voltage sample
-    pub sample_time_milliseconds: u64,
     /// Number of coarse channels after we've validated the input voltage files
     pub num_coarse_channels: usize,
     /// Vector of coarse channel structs
@@ -63,12 +61,7 @@ pub struct VoltageContext {
     /// voltage number with a voltage batch number and HDU index. The voltage
     /// number, batch number and HDU index are everything needed to find the
     /// correct HDU out of all voltage files.
-    pub voltage_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
-
-    /// The number of bytes taken up by a scan/timestep in each voltage file.
-    pub num_timestep_coarse_channel_bytes: usize,
-    /// The number of floats in each voltage HDU.
-    pub num_timestep_coarse_channel_floats: usize,
+    pub voltage_time_map: VoltageFileTimeMap,
     /// This is the number of voltage files *per batch*.
     pub num_voltage_files: usize,
 }
@@ -111,15 +104,15 @@ impl VoltageContext {
         let (
             start_gps_time_milliseconds,
             end_gps_time_milliseconds,
-            duration_seconds,
-            timestep_interval_milliseconds,
+            duration_milliseconds,
+            voltage_file_interval_milliseconds,
         ) = {
             let o = determine_obs_times(&voltage_info.time_map, voltage_info.corr_format)?;
             (
                 o.start_gps_time_milliseconds,
                 o.end_gps_time_milliseconds,
-                o.duration_seconds,
-                o.timestep_interval_milliseconds,
+                o.duration_milliseconds,
+                o.voltage_file_interval_milliseconds,
             )
         };
 
@@ -128,7 +121,7 @@ impl VoltageContext {
         let timesteps = TimeStep::populate_voltage_timesteps(
             start_gps_time_milliseconds,
             end_gps_time_milliseconds,
-            timestep_interval_milliseconds,
+            voltage_file_interval_milliseconds,
         )
         .unwrap();
         // Get number of timesteps
@@ -140,19 +133,15 @@ impl VoltageContext {
             (bw * 1e6).round() as _
         };
 
-        // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1 Hz
+        // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1.28 MHz (unchannelised)
         let fine_channel_width_hz: u32 = match voltage_info.corr_format {
             CorrelatorVersion::Legacy => 10_000,
             CorrelatorVersion::OldLegacy => 10_000,
-            CorrelatorVersion::V2 => 1,
+            CorrelatorVersion::V2 => metafits_observation_bandwidth_hz,
         };
-        // Determine the number of fine channels per coarse channel.
-        let num_fine_channels_per_coarse =
-            (coarse_channel_width_hz / fine_channel_width_hz) as usize;
-
         // Populate coarse channels
         let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
-            coarse_channel::CoarseChannel::populate_correlator_coarse_channels(
+            coarse_channel::CoarseChannel::populate_voltage_coarse_channels(
                 &mut metafits_fptr,
                 &metafits_hdu,
                 voltage_info.corr_format,
@@ -160,26 +149,16 @@ impl VoltageContext {
                 &voltage_info.time_map,
             )?;
 
+        // Determine the number of fine channels per coarse channel.
+        let num_fine_channels_per_coarse =
+            (coarse_channel_width_hz / fine_channel_width_hz) as usize;
+
         let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
-
-        // We have enough information to validate file headers matches metafits
-        let coarse_channel = coarse_channels[0].receiver_channel_number;
-        let (batch_index, _) = voltage_info.time_map[&timesteps[0].unix_time_ms][&coarse_channel];
-
-        let mut fptr = fits_open!(&voltage_info.batches[batch_index].voltage_files[0].filename)?;
-
-        VoltageContext::validate_first_hdu(
-            voltage_info.corr_format,
-            num_fine_channels_per_coarse,
-            num_baselines,
-            num_visibility_pols,
-            &mut fptr,
-        )?;
         Ok(VoltageContext {
             metafits_context,
             corr_version: voltage_info.corr_format,
-            start_unix_time_milliseconds,
-            end_unix_time_milliseconds,
+            start_gps_time_milliseconds,
+            end_gps_time_milliseconds,
             duration_milliseconds,
             num_timesteps,
             timesteps,
@@ -189,9 +168,9 @@ impl VoltageContext {
             observation_bandwidth_hz,
             coarse_channel_width_hz,
             num_fine_channels_per_coarse,
-            voltage_batches: voltage_info.batches,
+            voltage_batches: voltage_info.gpstime_batches,
             voltage_time_map: voltage_info.time_map,
-            num_voltage_files: voltages.len(),
+            num_voltage_files: voltage_filenames.len(),
         })
     }
 
@@ -486,10 +465,6 @@ impl VoltageContext {
 #[cfg(not(tarpaulin_include))]
 impl fmt::Display for VoltageContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // `size` is the number of floats (self.gpubox_hdu_size) multiplied by 4
-        // bytes per float, divided by 1024^2 to get MiB.
-        let size = (self.num_timestep_coarse_channel_floats * 4) as f64 / (1024 * 1024) as f64;
-
         writeln!(
             f,
             r#"VoltageContext (
@@ -512,12 +487,12 @@ impl fmt::Display for VoltageContext {
             fine channel resolution:  {fcw} Hz,
             num fine channels/coarse: {nfcpc},
             
-            voltage batches:          batches:#?,
+            voltage batches:          {batches:#?},
         )"#,
             metafits_context = self.metafits_context,
             corr_ver = self.corr_version,
-            start_unix = self.start_unix_time_milliseconds as f64 / 1e3,
-            end_unix = self.end_unix_time_milliseconds as f64 / 1e3,
+            start_unix = self.start_gps_time_milliseconds as f64 / 1e3,
+            end_unix = self.end_gps_time_milliseconds as f64 / 1e3,
             duration = self.duration_milliseconds as f64 / 1e3,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,
@@ -527,7 +502,7 @@ impl fmt::Display for VoltageContext {
             coarse = self.coarse_channels,
             fcw = self.fine_channel_width_hz as f64 / 1e3,
             nfcpc = self.num_fine_channels_per_coarse,
-            //batches = self.voltage_batches,
+            batches = self.voltage_batches,
         )
     }
 }
@@ -544,10 +519,10 @@ mod tests {
 
         // No gpubox files provided
         let context = VoltageContext::new(&metafits_filename, &voltagefiles);
-        assert!(context.is_ok());
-        let context = context.unwrap();
-
-        assert!(context.voltage_batches.is_empty());
+        assert!(matches!(
+            context.unwrap_err(),
+            MwalibError::Voltage(VoltageFileError::NoVoltageFiles)
+        ));
     }
 }
 

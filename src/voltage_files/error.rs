@@ -22,7 +22,7 @@ pub enum VoltageFileError {
     #[error(r#"There are an uneven number of channel (files) across all of the gps times- expected {expected} got {got}"#)]
     UnevenChannelsForGpsTime { expected: u8, got: u8 },
 
-    #[error("Could not identify the voltage filename structure for {0:?}")]
+    #[error(r#"Could not identify the voltage filename structure for {0}"#)]
     Unrecognised(String),
 
     #[error("Failed to read OBSID from {0} - is this an MWA voltage file?")]

@@ -55,7 +55,7 @@ impl fmt::Display for CorrelatorVersion {
 
 /// `mwalib` metafits context. This represents the basic metadata for the observation.
 ///
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MetafitsContext {
     /// Observation id
     pub obsid: u32,
