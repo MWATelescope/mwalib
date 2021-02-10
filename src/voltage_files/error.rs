@@ -17,7 +17,7 @@ pub enum VoltageFileError {
     Mixture,
 
     #[error(r#"There are missing gps times- expected {expected} got {got}"#)]
-    GpsTimeMissing { expected: usize, got: usize },
+    GpsTimeMissing { expected: u64, got: u64 },
 
     #[error(r#"There are an uneven number of channel (files) across all of the gps times- expected {expected} got {got}"#)]
     UnevenChannelsForGpsTime { expected: u8, got: u8 },

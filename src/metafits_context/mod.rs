@@ -143,7 +143,7 @@ pub struct MetafitsContext {
     pub num_antenna_pols: usize,
     /// Number of coarse channels after we've validated the input gpubox files
     pub num_coarse_channels: usize,
-    /// Total bandwidth of observation (of the coarse channels we have)
+    /// Total bandwidth of observation
     pub observation_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,

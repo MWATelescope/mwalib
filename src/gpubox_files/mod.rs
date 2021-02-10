@@ -119,6 +119,25 @@ lazy_static::lazy_static! {
     static ref RE_BAND: Regex = Regex::new(r"\d{10}_\d{14}_(ch|gpubox)(?P<band>\d+)").unwrap();
 }
 
+/// A type alias for a horrible type:
+/// `BTreeMap<u64, BTreeMap<usize, (usize, usize)>>`
+///
+/// The outer-most keys are UNIX times in milliseconds, which correspond to the
+/// unique times available to HDU files in supplied gpubox files. Each of these
+/// keys is associated with a tree; the keys of these trees are the gpubox
+/// coarse-channel numbers, which then refer to gpubox batch numbers and HDU
+/// indices.
+pub type GpuboxTimeMap = BTreeMap<u64, BTreeMap<usize, (usize, usize)>>;
+
+/// A little struct to help us not get confused when dealing with the returned
+/// values from complex functions.
+pub struct GpuboxInfo {
+    pub batches: Vec<GPUBoxBatch>,
+    pub corr_format: CorrelatorVersion,
+    pub time_map: GpuboxTimeMap,
+    pub hdu_size: usize,
+}
+
 /// Convert `Vec<TempGPUBoxFile>` to `Vec<GPUBoxBatch>`. This requires the fits
 /// files to actually be present, as `GPUBoxFile`s need an open fits file
 /// handle.
@@ -169,25 +188,6 @@ fn convert_temp_gpuboxes(
     gpubox_batches.sort_by_key(|b| b.batch_number);
 
     Ok(gpubox_batches)
-}
-
-/// A type alias for a horrible type:
-/// `BTreeMap<u64, BTreeMap<usize, (usize, usize)>>`
-///
-/// The outer-most keys are UNIX times in milliseconds, which correspond to the
-/// unique times available to HDU files in supplied gpubox files. Each of these
-/// keys is associated with a tree; the keys of these trees are the gpubox
-/// coarse-channel numbers, which then refer to gpubox batch numbers and HDU
-/// indices.
-pub type GpuboxTimeMap = BTreeMap<u64, BTreeMap<usize, (usize, usize)>>;
-
-/// A little struct to help us not get confused when dealing with the returned
-/// values from complex functions.
-pub struct GpuboxInfo {
-    pub batches: Vec<GPUBoxBatch>,
-    pub corr_format: CorrelatorVersion,
-    pub time_map: GpuboxTimeMap,
-    pub hdu_size: usize,
 }
 
 /// This function unpacks the metadata associated with input gpubox files. The
@@ -666,7 +666,7 @@ fn create_time_map(
 ///
 ///
 pub fn determine_obs_times(
-    gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
+    gpubox_time_map: &GpuboxTimeMap,
     integration_time_ms: u64,
 ) -> Result<ObsTimes, GpuboxError> {
     // Find the maximum number of gpubox files, and assume that this is the

@@ -835,7 +835,7 @@ pub struct mwalibCorrelatorMetadata {
     /// Number of coarse channels
     pub num_coarse_channels: usize,
     /// Total bandwidth of observation (of the coarse channels we have)
-    pub observation_bandwidth_hz: u32,
+    pub bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,
     /// Correlator fine_channel_resolution
@@ -902,7 +902,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
         num_coarse_channels: context.num_coarse_channels,
         integration_time_milliseconds: context.integration_time_milliseconds,
         fine_channel_width_hz: context.fine_channel_width_hz,
-        observation_bandwidth_hz: context.observation_bandwidth_hz,
+        bandwidth_hz: context.bandwidth_hz,
         coarse_channel_width_hz: context.coarse_channel_width_hz,
         num_fine_channels_per_coarse: context.num_fine_channels_per_coarse,
         num_timestep_coarse_channel_bytes: context.num_timestep_coarse_channel_bytes,

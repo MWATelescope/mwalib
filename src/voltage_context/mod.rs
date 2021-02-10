@@ -40,10 +40,10 @@ pub struct VoltageContext {
     /// Vector of coarse channel structs
     pub coarse_channels: Vec<CoarseChannel>,
     /// Total bandwidth of observation (of the coarse channels we have)
-    pub observation_bandwidth_hz: u32,
+    pub bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,
-    /// Volatge fine_channel_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. 1)
+    /// Volatge fine_channel_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
     pub fine_channel_width_hz: u32,
     /// Number of fine channels in each coarse channel
     pub num_fine_channels_per_coarse: usize,
@@ -126,18 +126,11 @@ impl VoltageContext {
         .unwrap();
         // Get number of timesteps
         let num_timesteps = timesteps.len();
-
-        // observation bandwidth (read from metafits in MHz)
-        let metafits_observation_bandwidth_hz: u32 = {
-            let bw: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")?;
-            (bw * 1e6).round() as _
-        };
-
         // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1.28 MHz (unchannelised)
         let fine_channel_width_hz: u32 = match voltage_info.corr_format {
             CorrelatorVersion::Legacy => 10_000,
             CorrelatorVersion::OldLegacy => 10_000,
-            CorrelatorVersion::V2 => metafits_observation_bandwidth_hz,
+            CorrelatorVersion::V2 => metafits_context.observation_bandwidth_hz,
         };
         // Populate coarse channels
         let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
@@ -145,7 +138,7 @@ impl VoltageContext {
                 &mut metafits_fptr,
                 &metafits_hdu,
                 voltage_info.corr_format,
-                metafits_observation_bandwidth_hz,
+                metafits_context.observation_bandwidth_hz,
                 &voltage_info.time_map,
             )?;
 
@@ -153,7 +146,7 @@ impl VoltageContext {
         let num_fine_channels_per_coarse =
             (coarse_channel_width_hz / fine_channel_width_hz) as usize;
 
-        let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
+        let bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
         Ok(VoltageContext {
             metafits_context,
             corr_version: voltage_info.corr_format,
@@ -165,7 +158,7 @@ impl VoltageContext {
             num_coarse_channels,
             coarse_channels,
             fine_channel_width_hz,
-            observation_bandwidth_hz,
+            bandwidth_hz,
             coarse_channel_width_hz,
             num_fine_channels_per_coarse,
             voltage_batches: voltage_info.gpstime_batches,
@@ -497,7 +490,7 @@ impl fmt::Display for VoltageContext {
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,
             n_ants = self.metafits_context.num_antennas,
-            obw = self.observation_bandwidth_hz as f64 / 1e6,
+            obw = self.bandwidth_hz as f64 / 1e6,
             n_coarse = self.num_coarse_channels,
             coarse = self.coarse_channels,
             fcw = self.fine_channel_width_hz as f64 / 1e3,
@@ -584,7 +577,7 @@ mod tests {
         assert_eq!(context.num_visibility_pols, 4);
 
         // observation bandwidth:    1.28 MHz,
-        assert_eq!(context.observation_bandwidth_hz, 1_280_000);
+        assert_eq!(context.bandwidth_hz, 1_280_000);
 
         // num coarse channels,      1,
         assert_eq!(context.num_coarse_channels, 1);

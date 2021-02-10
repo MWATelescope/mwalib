@@ -52,7 +52,7 @@ pub struct CorrelatorContext {
     /// Vector of coarse channel structs
     pub coarse_channels: Vec<CoarseChannel>,
     /// Total bandwidth of observation (of the coarse channels we have)
-    pub observation_bandwidth_hz: u32,
+    pub bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,
     /// Correlator fine_channel_resolution
@@ -177,23 +177,17 @@ impl CorrelatorContext {
         let num_baselines =
             (metafits_context.num_antennas / 2) * (metafits_context.num_antennas + 1);
 
-        // observation bandwidth (read from metafits in MHz)
-        let metafits_observation_bandwidth_hz: u32 = {
-            let bw: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")?;
-            (bw * 1e6).round() as _
-        };
-
         // Populate coarse channels
         let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
             coarse_channel::CoarseChannel::populate_correlator_coarse_channels(
                 &mut metafits_fptr,
                 &metafits_hdu,
                 gpubox_info.corr_format,
-                metafits_observation_bandwidth_hz,
+                metafits_context.observation_bandwidth_hz,
                 &gpubox_info.time_map,
             )?;
 
-        let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
+        let bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
 
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.
@@ -255,7 +249,7 @@ impl CorrelatorContext {
             coarse_channels,
             integration_time_milliseconds,
             fine_channel_width_hz,
-            observation_bandwidth_hz,
+            bandwidth_hz,
             coarse_channel_width_hz,
             num_fine_channels_per_coarse,
             gpubox_batches: gpubox_info.batches,
@@ -615,7 +609,7 @@ impl fmt::Display for CorrelatorContext {
             vp1 = self.visibility_pols[1].polarisation,
             vp2 = self.visibility_pols[2].polarisation,
             vp3 = self.visibility_pols[3].polarisation,
-            obw = self.observation_bandwidth_hz as f64 / 1e6,
+            obw = self.bandwidth_hz as f64 / 1e6,
             n_coarse = self.num_coarse_channels,
             coarse = self.coarse_channels,
             fcw = self.fine_channel_width_hz as f64 / 1e3,
@@ -701,7 +695,7 @@ mod tests {
         assert_eq!(context.num_visibility_pols, 4);
 
         // observation bandwidth:    1.28 MHz,
-        assert_eq!(context.observation_bandwidth_hz, 1_280_000);
+        assert_eq!(context.bandwidth_hz, 1_280_000);
 
         // num coarse channels,      1,
         assert_eq!(context.num_coarse_channels, 1);

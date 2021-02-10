@@ -8,7 +8,6 @@ Structs and helper methods for coarse channel metadata
 use crate::gpubox_files::GpuboxTimeMap;
 use crate::voltage_files::VoltageFileTimeMap;
 use crate::*;
-use std::collections::BTreeMap;
 use std::fmt;
 
 /// This is a struct for our coarse channels
@@ -271,8 +270,8 @@ impl CoarseChannel {
         corr_version: metafits_context::CorrelatorVersion,
         observation_bandwidth_hz: u32,
         coarse_channel_vec: &[usize],
-        gpubox_time_map: Option<&BTreeMap<u64, BTreeMap<usize, (usize, usize)>>>,
-        voltage_time_map: Option<&BTreeMap<usize, BTreeMap<usize, String>>>,
+        gpubox_time_map: Option<&GpuboxTimeMap>,
+        voltage_time_map: Option<&VoltageFileTimeMap>,
     ) -> (Vec<Self>, usize, u32) {
         // Ensure we dont have a gpubox time map AND a voltage time map
         if gpubox_time_map.is_some() && voltage_time_map.is_some() {
@@ -436,6 +435,8 @@ impl fmt::Debug for CoarseChannel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
+
     // Create a BTree Structure for testing
     fn get_gpubox_time_map(
         sub_map_keys: Vec<usize>,

@@ -30,12 +30,12 @@ pub struct ObsTimes {
 /// MWA Legacy: obsid_gpstime_datetime_chan
 /// MWAX      : obsid_gpstime_datetime_chan
 pub struct VoltageFileBatch {
-    pub gps_time: usize,                 // 1234567890
+    pub gps_time: u64,                   // 1234567890
     pub voltage_files: Vec<VoltageFile>, // Vector storing the details of each voltage file in this batch
 }
 
 impl VoltageFileBatch {
-    pub fn new(gps_time: usize) -> Self {
+    pub fn new(gps_time: u64) -> Self {
         Self {
             gps_time,
             voltage_files: vec![],
@@ -95,7 +95,7 @@ struct TempVoltageFile<'a> {
     /// Channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
     channel_identifier: usize,
     /// GPS time (aka Batch number)
-    gps_time: usize,
+    gps_time: u64,
 }
 
 impl<'a> std::cmp::PartialEq for TempVoltageFile<'a> {
@@ -116,6 +116,34 @@ lazy_static::lazy_static! {
     // obsid        subobsid  chan
     static ref RE_LEGACY_VCS_RECOMBINED: Regex =
         Regex::new(r"(?P<obs_id>\d{10})_(?P<gpstime>\d{10})_ch(?P<channel>\d{1,3})\.dat").unwrap();
+}
+
+/// A type alias for a horrible type:
+/// `BTreeMap<u64, BTreeMap<usize, String>>`
+///
+/// The outer-most keys are GPS seconds, which correspond to the
+/// unique times in supplied voltage files. Each of these
+/// keys is associated with a tree; the keys of these trees are the
+/// coarse-channel numbers, which then refer to the filename.
+///
+/// Example of what the map looks like with some sample data (2 gps times which have 1 coarse channel each - 120 -
+/// plus 5 gps times with 2 coarse channels - 121 and 122):
+/// 1065880128: {120: "1065880128_1065880128_ch120.dat"}
+/// 1065880129: {121: "1065880128_1065880129_ch121.dat", 122: "1065880128_1065880129_ch122.dat"}
+/// 1065880130: {121: "1065880128_1065880130_ch121.dat", 122: "1065880128_1065880130_ch122.dat"}
+/// 1065880131: {121: "1065880128_1065880131_ch121.dat", 122: "1065880128_1065880131_ch122.dat"}
+/// 1065880132: {121: "1065880128_1065880132_ch121.dat", 122: "1065880128_1065880132_ch122.dat"}
+/// 1065880133: {121: "1065880128_1065880133_ch121.dat", 122: "1065880128_1065880133_ch122.dat"}
+/// 1065880134: {120: "1065880128_1065880134_ch120.dat"}
+pub type VoltageFileTimeMap = BTreeMap<u64, BTreeMap<usize, String>>;
+
+/// A little struct to help us not get confused when dealing with the returned
+/// values from complex functions.
+pub struct VoltageFileInfo {
+    pub gpstime_batches: Vec<VoltageFileBatch>,
+    pub corr_format: CorrelatorVersion,
+    pub time_map: VoltageFileTimeMap,
+    pub file_size: u64,
 }
 
 /// Convert `Vec<TempVoltageFile>` to `Vec<VoltageFileBatch>`. This requires the voltage
@@ -143,9 +171,9 @@ fn convert_temp_voltage_files(
     // unwrap is safe as a check is performed above to ensure that there are
     // some files present.
     let num_batches = temp_voltage_files.iter().map(|g| g.gps_time).max().unwrap() + 1;
-    let mut voltage_file_batches: Vec<VoltageFileBatch> = Vec::with_capacity(num_batches);
+    let mut voltage_file_batches: Vec<VoltageFileBatch> = Vec::with_capacity(num_batches as usize);
     for b in 0..num_batches {
-        voltage_file_batches.push(VoltageFileBatch::new(b));
+        voltage_file_batches.push(VoltageFileBatch::new(b as u64));
     }
 
     for temp_v in temp_voltage_files.into_iter() {
@@ -153,7 +181,9 @@ fn convert_temp_voltage_files(
             filename: temp_v.filename.to_string(),
             channel_identifier: temp_v.channel_identifier,
         };
-        voltage_file_batches[temp_v.gps_time].voltage_files.push(v);
+        voltage_file_batches[temp_v.gps_time as usize]
+            .voltage_files
+            .push(v);
     }
 
     // Ensure the output is properly sorted - each batch is sorted by
@@ -167,24 +197,6 @@ fn convert_temp_voltage_files(
     voltage_file_batches.sort_by_key(|b| b.gps_time);
 
     Ok(voltage_file_batches)
-}
-
-/// A type alias for a horrible type:
-/// `BTreeMap<u64, BTreeMap<usize, (usize, usize)>>`
-///
-/// The outer-most keys are GPS seconds, which correspond to the
-/// unique times in supplied voltage files. Each of these
-/// keys is associated with a tree; the keys of these trees are the
-/// coarse-channel numbers, which then refer to the filename.
-pub type VoltageFileTimeMap = BTreeMap<usize, BTreeMap<usize, String>>;
-
-/// A little struct to help us not get confused when dealing with the returned
-/// values from complex functions.
-pub struct VoltageFileInfo {
-    pub gpstime_batches: Vec<VoltageFileBatch>,
-    pub corr_format: CorrelatorVersion,
-    pub time_map: VoltageFileTimeMap,
-    pub file_size: u64,
 }
 
 /// Group input voltage files into gpstime_batches. A "voltage batch" refers to the sub_obs_id
@@ -289,13 +301,13 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
     }
 
     // Check batches are contiguous and have equal numbers of files.
-    let mut batches_and_files: BTreeMap<usize, u8> = BTreeMap::new();
+    let mut batches_and_files: BTreeMap<u64, u8> = BTreeMap::new();
     for voltage_file in &temp_voltage_files {
         *batches_and_files.entry(voltage_file.gps_time).or_insert(0) += 1;
     }
 
     let mut file_count: Option<u8> = None;
-    let mut prev_batch_num: usize = 0;
+    let mut prev_batch_num: u64 = 0;
     for (_, (batch_num, num_files)) in batches_and_files.iter().enumerate() {
         // Check that the previous batch + 1 == the current batch number
         // This is our contiguity check
@@ -469,7 +481,6 @@ pub fn determine_obs_times(
         Some(m) => m,
         None => return Err(VoltageFileError::EmptyBTreeMap),
     };
-
     // Filter the first elements that don't satisfy `submap.len() == size`. The
     // first and last of the submaps that satisfy this condition are the proper
     // start and end of the observation.
@@ -741,30 +752,34 @@ mod tests {
         let mut input = VoltageFileTimeMap::new();
         // insert a "dangling time" at the beginning (1065880128) which is not a common timestep
         let mut new_time_tree = BTreeMap::new();
-        new_time_tree.insert(121, String::from("1065880128_1065880128_ch121.dat"));
+        new_time_tree.insert(120, String::from("1065880128_1065880128_ch120.dat"));
         input.insert(1065880128, new_time_tree);
 
         // Add the common times to the data structure
         for time in common_times.iter() {
-            let mut new_time_tree = BTreeMap::new();
-            new_time_tree.insert(121, format!("1065880128_{}_ch121.dat", time));
-            input.insert(*time as usize, new_time_tree);
+            input
+                .entry(*time)
+                .or_insert_with(BTreeMap::new)
+                .entry(121)
+                .or_insert(format!("1065880128_{}_ch121.dat", time));
 
-            let mut new_time_tree2 = BTreeMap::new();
-            new_time_tree2.insert(122, format!("1065880128_{}_ch122.dat", time));
-            input.insert(*time as usize, new_time_tree2);
+            input
+                .entry(*time)
+                .or_insert_with(BTreeMap::new)
+                .entry(122)
+                .or_insert(format!("1065880128_{}_ch122.dat", time));
         }
 
         // insert a "dangling time" at the end (1065880134) which is not a common timestep
         new_time_tree = BTreeMap::new();
-        new_time_tree.insert(121, String::from("1065880128_1065880134_ch121.dat"));
+        new_time_tree.insert(120, String::from("1065880128_1065880134_ch120.dat"));
         input.insert(1065880134, new_time_tree);
 
         let expected_interval: u64 = 1000; // 1000 since we are Legacy
         let expected_start: u64 = *common_times.first().unwrap() * 1000;
-        let expected_end: u64 = (*common_times.last().unwrap() + expected_interval) * 1000;
+        let expected_end: u64 = (*common_times.last().unwrap() * 1000) + expected_interval;
         // Duration = common end - common start + integration time
-        // == 1065880133 - 1065880129 + 1000
+        // == 1065880133 - 1065880129 + 1
         let expected_duration = 5000;
 
         let result = determine_obs_times(&input, CorrelatorVersion::Legacy);
@@ -772,66 +787,85 @@ mod tests {
         let result = result.unwrap();
         assert_eq!(
             result.start_gps_time_milliseconds, expected_start,
-            "{:?}",
+            "start_gps_time_milliseconds incorrect {:?}",
             result
         );
         assert_eq!(
             result.end_gps_time_milliseconds, expected_end,
-            "{:?}",
+            "end_gps_time_milliseconds incorrect {:?}",
             result
         );
         assert_eq!(
             result.duration_milliseconds, expected_duration,
-            "{:?}",
+            "duration_milliseconds incorrect {:?}",
             result
         );
         assert_eq!(
             result.voltage_file_interval_milliseconds, expected_interval,
-            "{:?}",
+            "voltage_file_interval_milliseconds incorrect {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_determine_obs_times_test_many_timesteps_mwax() {
+        let common_times: Vec<u64> =
+            vec![1065880136, 1065880144, 1065880152, 1065880160, 1065880168];
+        let mut input = VoltageFileTimeMap::new();
+        // insert a "dangling time" at the beginning (1065880128) which is not a common timestep
+        let mut new_time_tree = BTreeMap::new();
+        new_time_tree.insert(120, String::from("1065880128_1065880128_120.sub"));
+        input.insert(1065880128, new_time_tree);
+
+        // Add the common times to the data structure
+        for time in common_times.iter() {
+            input
+                .entry(*time)
+                .or_insert_with(BTreeMap::new)
+                .entry(121)
+                .or_insert(format!("1065880128_{}_121.sub", time));
+
+            input
+                .entry(*time)
+                .or_insert_with(BTreeMap::new)
+                .entry(122)
+                .or_insert(format!("1065880128_{}_122.sub", time));
+        }
+
+        // insert a "dangling time" at the end (1065880176) which is not a common timestep
+        new_time_tree = BTreeMap::new();
+        new_time_tree.insert(120, String::from("1065880128_1065880176_120.sub"));
+        input.insert(1065880176, new_time_tree);
+
+        let expected_interval: u64 = 8000; // 8000 since we are MWAX
+        let expected_start: u64 = *common_times.first().unwrap() * 1000;
+        let expected_end: u64 = (*common_times.last().unwrap() * 1000) + expected_interval;
+        // Duration = common end - common start + integration time
+        // == 1065880168 - 1065880136 + 8
+        let expected_duration = 40000;
+
+        let result = determine_obs_times(&input, CorrelatorVersion::V2);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(
+            result.start_gps_time_milliseconds, expected_start,
+            "start_gps_time_milliseconds incorrect {:?}",
+            result
+        );
+        assert_eq!(
+            result.end_gps_time_milliseconds, expected_end,
+            "end_gps_time_milliseconds incorrect {:?}",
+            result
+        );
+        assert_eq!(
+            result.duration_milliseconds, expected_duration,
+            "duration_milliseconds incorrect {:?}",
+            result
+        );
+        assert_eq!(
+            result.voltage_file_interval_milliseconds, expected_interval,
+            "voltage_file_interval_milliseconds incorrect {:?}",
             result
         );
     }
 }
-/*
-    #[test]
-    fn test_determine_obs_times_test_one_timestep() {
-        // Create two files, with 1 overlapping times, but also a little
-        // dangling at the start and end.
-        let common_times: Vec<u64> = vec![1_381_844_923_500];
-        let integration_time_ms = 500;
-
-        let mut input = BTreeMap::new();
-        let mut new_time_tree = BTreeMap::new();
-        new_time_tree.insert(0, (0, 1));
-        // Add a dangling time before the common time
-        input.insert(1_381_844_923_000, new_time_tree);
-
-        for (i, time) in common_times.iter().enumerate() {
-            let mut new_time_tree = BTreeMap::new();
-            // gpubox 0.
-            new_time_tree.insert(0, (0, i + 2));
-            // gpubox 1.
-            new_time_tree.insert(1, (0, i + 1));
-            input.insert(*time, new_time_tree);
-        }
-
-        let mut new_time_tree = BTreeMap::new();
-        new_time_tree.insert(1, (0, common_times.len() + 1));
-        // Add a dangling time after the common time
-        input.insert(1_381_844_924_000, new_time_tree);
-
-        let expected_start = *common_times.first().unwrap();
-        let expected_end = *common_times.last().unwrap() + integration_time_ms;
-        // Duration = common end - common start + integration time
-        // == 1_381_844_923_500 - 1_381_844_923_500 + 500
-        let expected_duration = 500;
-
-        let result = determine_obs_times(&input, integration_time_ms);
-        assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.start_millisec, expected_start);
-        assert_eq!(result.end_millisec, expected_end);
-        assert_eq!(result.duration_millisec, expected_duration);
-    }
-}
-*/
