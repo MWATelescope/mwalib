@@ -9,6 +9,7 @@ Functions for organising and checking the consistency of voltage files.
 pub mod error;
 
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
 
@@ -139,11 +140,13 @@ pub type VoltageFileTimeMap = BTreeMap<u64, BTreeMap<usize, String>>;
 
 /// A little struct to help us not get confused when dealing with the returned
 /// values from complex functions.
+#[derive(Debug)]
 pub struct VoltageFileInfo {
     pub gpstime_batches: Vec<VoltageFileBatch>,
     pub corr_format: CorrelatorVersion,
     pub time_map: VoltageFileTimeMap,
     pub file_size: u64,
+    pub voltage_file_interval_milliseconds: u64,
 }
 
 /// Convert `Vec<TempVoltageFile>` to `Vec<VoltageFileBatch>`. This requires the voltage
@@ -167,35 +170,30 @@ pub struct VoltageFileInfo {
 ///
 fn convert_temp_voltage_files(
     temp_voltage_files: Vec<TempVoltageFile>,
-) -> Result<Vec<VoltageFileBatch>, VoltageFileError> {
+) -> Result<HashMap<u64, VoltageFileBatch>, VoltageFileError> {
     // unwrap is safe as a check is performed above to ensure that there are
     // some files present.
-    let num_batches = temp_voltage_files.iter().map(|g| g.gps_time).max().unwrap() + 1;
-    let mut voltage_file_batches: Vec<VoltageFileBatch> = Vec::with_capacity(num_batches as usize);
-    for b in 0..num_batches {
-        voltage_file_batches.push(VoltageFileBatch::new(b as u64));
+    let batches = temp_voltage_files.iter().map(|g| g.gps_time);
+    let mut voltage_file_batches: HashMap<u64, VoltageFileBatch> = HashMap::new();
+    for b in batches {
+        voltage_file_batches.insert(b, VoltageFileBatch::new(b as u64));
     }
 
-    for temp_v in temp_voltage_files.into_iter() {
+    for temp_v in temp_voltage_files.iter() {
         let v = VoltageFile {
             filename: temp_v.filename.to_string(),
             channel_identifier: temp_v.channel_identifier,
         };
-        voltage_file_batches[temp_v.gps_time as usize]
-            .voltage_files
-            .push(v);
+        let batch = voltage_file_batches.get_mut(&temp_v.gps_time).unwrap();
+        batch.voltage_files.push(v);
     }
 
     // Ensure the output is properly sorted - each batch is sorted by
     // channel_identifier.
-    for v in &mut voltage_file_batches {
+    for (_, v) in &mut voltage_file_batches {
         v.voltage_files
             .sort_unstable_by(|a, b| a.channel_identifier.cmp(&b.channel_identifier));
     }
-
-    // Sort the batches by batch number
-    voltage_file_batches.sort_by_key(|b| b.gps_time);
-
     Ok(voltage_file_batches)
 }
 
@@ -233,7 +231,7 @@ fn convert_temp_voltage_files(
 fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
     voltage_filenames: &[T],
     metafits_obs_id: usize,
-) -> Result<(Vec<TempVoltageFile>, CorrelatorVersion, usize), VoltageFileError> {
+) -> Result<(Vec<TempVoltageFile>, CorrelatorVersion, usize, u64), VoltageFileError> {
     if voltage_filenames.is_empty() {
         return Err(VoltageFileError::NoVoltageFiles);
     }
@@ -300,6 +298,13 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
         }
     }
 
+    // Determine the interval between files
+    let voltage_file_interval_seconds: u64 = match format.unwrap() {
+        CorrelatorVersion::V2 => 8,
+        CorrelatorVersion::Legacy => 1,
+        CorrelatorVersion::OldLegacy => 1,
+    };
+
     // Check batches are contiguous and have equal numbers of files.
     let mut batches_and_files: BTreeMap<u64, u8> = BTreeMap::new();
     for voltage_file in &temp_voltage_files {
@@ -309,12 +314,12 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
     let mut file_count: Option<u8> = None;
     let mut prev_batch_num: u64 = 0;
     for (_, (batch_num, num_files)) in batches_and_files.iter().enumerate() {
-        // Check that the previous batch + 1 == the current batch number
+        // Check that the previous batch + voltage_file_interval_seconds == the current batch number
         // This is our contiguity check
         if prev_batch_num != 0 {
-            if prev_batch_num + 1 != *batch_num {
+            if prev_batch_num + voltage_file_interval_seconds != *batch_num {
                 return Err(VoltageFileError::GpsTimeMissing {
-                    expected: prev_batch_num + 1,
+                    expected: prev_batch_num + voltage_file_interval_seconds,
                     got: *batch_num,
                 });
             }
@@ -338,7 +343,12 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
     // number, then channel identifier.
     temp_voltage_files.sort_unstable_by_key(|v| (v.gps_time, v.channel_identifier));
 
-    Ok((temp_voltage_files, format.unwrap(), batches_and_files.len()))
+    Ok((
+        temp_voltage_files,
+        format.unwrap(),
+        batches_and_files.len(),
+        voltage_file_interval_seconds * 1000,
+    ))
 }
 
 /// This function unpacks the metadata associated with input voltage files. The
@@ -379,19 +389,32 @@ pub fn examine_voltage_files<T: AsRef<Path>>(
     metafits_context: &MetafitsContext,
     voltage_filenames: &[T],
 ) -> Result<VoltageFileInfo, VoltageFileError> {
-    let (temp_voltage_files, corr_format, _) =
+    let (temp_voltage_files, corr_format, _, voltage_file_interval_milliseconds) =
         determine_voltage_file_gpstime_batches(voltage_filenames, metafits_context.obsid as usize)?;
 
     let time_map = create_time_map(&temp_voltage_files)?;
 
-    let mut gpstime_batches = convert_temp_voltage_files(temp_voltage_files)?;
+    let mut gpstime_batches: HashMap<u64, VoltageFileBatch> =
+        convert_temp_voltage_files(temp_voltage_files)?;
 
     // Determine the size of each voltage file. mwalib will throw an
     // error if this size is not consistent for all voltage files.
     let mut voltage_file_size: Option<u64> = None;
-    for b in &mut gpstime_batches {
+    for (_, b) in &mut gpstime_batches {
         for v in &mut b.voltage_files {
-            let this_size = std::fs::metadata(&v.filename).unwrap().len();
+            let this_size;
+            let metadata = std::fs::metadata(&v.filename);
+            match metadata {
+                Ok(m) => {
+                    this_size = m.len();
+                }
+                Err(e) => {
+                    return Err(VoltageFileError::VoltageFileError(
+                        (*v.filename).to_string(),
+                        String::from(format!("{}", e)),
+                    ));
+                }
+            };
             match voltage_file_size {
                 None => voltage_file_size = Some(this_size),
                 Some(s) => {
@@ -402,14 +425,19 @@ pub fn examine_voltage_files<T: AsRef<Path>>(
             }
         }
     }
+    // Not very rust like! I want to use gpstime_batches.into_values().collect(), but it is still listed as an "unstable" feature.
+    let mut gpstime_batches_vec: Vec<VoltageFileBatch> = Vec::new();
+    for (_, b) in gpstime_batches {
+        gpstime_batches_vec.push(b);
+    }
+    gpstime_batches_vec.sort_by_key(|b| b.gps_time);
 
-    // `determine_voltage_file_batches` fails if no voltage files are supplied, so it
-    // is safe to unwrap voltage_file_size.
     Ok(VoltageFileInfo {
-        gpstime_batches,
+        gpstime_batches: gpstime_batches_vec,
         corr_format,
         time_map,
         file_size: voltage_file_size.unwrap(),
+        voltage_file_interval_milliseconds: voltage_file_interval_milliseconds,
     })
 }
 
@@ -463,14 +491,8 @@ fn create_time_map(
 ///
 pub fn determine_obs_times(
     voltage_time_map: &VoltageFileTimeMap,
-    correlator_version: CorrelatorVersion,
+    voltage_file_interval_milliseconds: u64,
 ) -> Result<ObsTimes, VoltageFileError> {
-    let voltage_file_interval_milliseconds: u64 = match correlator_version {
-        CorrelatorVersion::V2 => 8_000,
-        CorrelatorVersion::Legacy => 1_000,
-        CorrelatorVersion::OldLegacy => 1_000,
-    };
-
     // Find the maximum number of voltage files for a timestep, and assume that this is the
     // total number of input voltage files.
     let size = match voltage_time_map
@@ -513,6 +535,52 @@ pub fn determine_obs_times(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs::File;
+    use std::io::{Error, Write};
+    use std::{mem, slice};
+
+    // Helper to write out f32 slice as u8 slice
+    fn as_u8_slice(v: &[f32]) -> &[u8] {
+        let element_size = mem::size_of::<i32>();
+        unsafe { slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * element_size) }
+    }
+
+    // Helper fuction to generate (small) test voltage files
+    fn generate_test_voltage_file(
+        temp_dir: &tempdir::TempDir,
+        filename: &str,
+        time_samples: usize,
+        rf_inputs: usize,
+    ) -> Result<String, Error> {
+        let tdir_path = temp_dir.path();
+        let full_filename = tdir_path.join(filename);
+
+        let mut output_file = File::create(&full_filename)?;
+        // Write out x time samples
+        // Each sample has x rfinputs
+        // and 1 float for real 1 float for imaginary
+        let floats = time_samples * rf_inputs * 2;
+        let mut buffer: Vec<f32> = vec![0.0; floats];
+
+        let mut bptr: usize = 0;
+
+        // This will write out the sequence:
+        // 0.25, 0.75, 1.25, 1.75..511.25,511.75  (1024 floats in all)
+        for t in 0..time_samples {
+            for r in 0..rf_inputs {
+                // real
+                buffer[bptr] = ((t * rf_inputs) + r) as f32 + 0.25;
+                bptr += 1;
+                // imag
+                buffer[bptr] = ((t * rf_inputs) + r) as f32 + 0.75;
+                bptr += 1;
+            }
+        }
+        output_file.write_all(as_u8_slice(buffer.as_slice()))?;
+        output_file.flush()?;
+
+        Ok(String::from(full_filename.to_str().unwrap()))
+    }
 
     #[test]
     fn test_determine_voltage_file_unrecognised_files() {
@@ -545,9 +613,11 @@ mod tests {
         ];
         let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
         assert!(result.is_ok(), "{:?}", result.unwrap_err());
-        let (temp_voltage_files, corr_format, num_gputimes) = result.unwrap();
+        let (temp_voltage_files, corr_format, num_gputimes, voltage_file_interval_milliseconds) =
+            result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(num_gputimes, 3);
+        assert_eq!(voltage_file_interval_milliseconds, 1000);
 
         let expected_voltage_files = vec![
             TempVoltageFile {
@@ -612,21 +682,23 @@ mod tests {
     #[test]
     fn test_determine_voltage_file_gpstime_batches_proper_mwax_format() {
         let files = vec![
-            "1065880128_1065880129_122.sub",
-            "1065880128_1065880129_21.sub",
-            "1065880128_1065880129_1.sub",
+            "1065880128_1065880136_122.sub",
+            "1065880128_1065880136_21.sub",
+            "1065880128_1065880136_1.sub",
             "1065880128_1065880128_21.sub",
             "1065880128_1065880128_001.sub",
             "1065880128_1065880128_122.sub",
-            "1065880128_1065880130_122.sub",
-            "1065880128_1065880130_021.sub",
-            "1065880128_1065880130_01.sub",
+            "1065880128_1065880144_122.sub",
+            "1065880128_1065880144_021.sub",
+            "1065880128_1065880144_01.sub",
         ];
         let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
         assert!(result.is_ok(), "{:?}", result.unwrap_err());
-        let (temp_voltage_files, corr_format, num_gputimes) = result.unwrap();
+        let (temp_voltage_files, corr_format, num_gputimes, voltage_file_interval_milliseconds) =
+            result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::V2);
         assert_eq!(num_gputimes, 3);
+        assert_eq!(voltage_file_interval_milliseconds, 8000);
 
         let expected_voltage_files = vec![
             TempVoltageFile {
@@ -648,39 +720,39 @@ mod tests {
                 channel_identifier: 122,
             },
             TempVoltageFile {
-                filename: "1065880128_1065880129_1.sub",
+                filename: "1065880128_1065880136_1.sub",
                 obs_id: 1065880128,
-                gps_time: 1065880129,
+                gps_time: 1065880136,
                 channel_identifier: 1,
             },
             TempVoltageFile {
-                filename: "1065880128_1065880129_21.sub",
+                filename: "1065880128_1065880136_21.sub",
                 obs_id: 1065880128,
-                gps_time: 1065880129,
+                gps_time: 1065880136,
                 channel_identifier: 21,
             },
             TempVoltageFile {
-                filename: "1065880128_1065880129_122.sub",
+                filename: "1065880128_1065880136_122.sub",
                 obs_id: 1065880128,
-                gps_time: 1065880129,
+                gps_time: 1065880136,
                 channel_identifier: 122,
             },
             TempVoltageFile {
-                filename: "1065880128_1065880130_01.sub",
+                filename: "1065880128_1065880144_01.sub",
                 obs_id: 1065880128,
-                gps_time: 1065880130,
+                gps_time: 1065880144,
                 channel_identifier: 1,
             },
             TempVoltageFile {
-                filename: "1065880128_1065880130_021.sub",
+                filename: "1065880128_1065880144_021.sub",
                 obs_id: 1065880128,
-                gps_time: 1065880130,
+                gps_time: 1065880144,
                 channel_identifier: 21,
             },
             TempVoltageFile {
-                filename: "1065880128_1065880130_122.sub",
+                filename: "1065880128_1065880144_122.sub",
                 obs_id: 1065880128,
-                gps_time: 1065880130,
+                gps_time: 1065880144,
                 channel_identifier: 122,
             },
         ];
@@ -703,6 +775,16 @@ mod tests {
                 expected: _,
                 got: _
             }
+        ));
+    }
+
+    #[test]
+    fn test_determine_voltage_file_gpstime_batches_no_files() {
+        let files: Vec<String> = Vec::new();
+        let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
+        assert!(matches!(
+            result.unwrap_err(),
+            VoltageFileError::NoVoltageFiles
         ));
     }
 
@@ -781,8 +863,9 @@ mod tests {
         // Duration = common end - common start + integration time
         // == 1065880133 - 1065880129 + 1
         let expected_duration = 5000;
+        let voltage_file_interval_milliseconds: u64 = 1000;
 
-        let result = determine_obs_times(&input, CorrelatorVersion::Legacy);
+        let result = determine_obs_times(&input, voltage_file_interval_milliseconds);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(
@@ -843,8 +926,9 @@ mod tests {
         // Duration = common end - common start + integration time
         // == 1065880168 - 1065880136 + 8
         let expected_duration = 40000;
+        let voltage_file_interval_milliseconds: u64 = 8000;
 
-        let result = determine_obs_times(&input, CorrelatorVersion::V2);
+        let result = determine_obs_times(&input, voltage_file_interval_milliseconds);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(
@@ -867,5 +951,279 @@ mod tests {
             "voltage_file_interval_milliseconds incorrect {:?}",
             result
         );
+    }
+
+    #[test]
+    fn test_voltage_file_batch_new() {
+        let new_batch = VoltageFileBatch::new(1234567890);
+
+        // Check the new batch is created ok
+        assert_eq!(new_batch.gps_time, 1234567890);
+        assert_eq!(new_batch.voltage_files.len(), 0);
+    }
+
+    #[test]
+    fn test_voltage_file_batch_partialeq() {
+        let mut batch1 = VoltageFileBatch::new(1234567890);
+        let voltage_file1 = VoltageFile {
+            filename: String::from("test.dat"),
+            channel_identifier: 123,
+        };
+        batch1.voltage_files.push(voltage_file1);
+
+        // Should be == to batch1
+        let mut batch2 = VoltageFileBatch::new(1234567890);
+        let voltage_file2 = VoltageFile {
+            filename: String::from("test.dat"),
+            channel_identifier: 123,
+        };
+        batch2.voltage_files.push(voltage_file2);
+
+        // Should be != batch1 (filename)
+        let mut batch3 = VoltageFileBatch::new(1234567890);
+        let voltage_file3 = VoltageFile {
+            filename: String::from("test1.dat"),
+            channel_identifier: 123,
+        };
+        batch3.voltage_files.push(voltage_file3);
+
+        // Should be != batch1 (gpstime)
+        let mut batch4 = VoltageFileBatch::new(9876543210);
+        let voltage_file4 = VoltageFile {
+            filename: String::from("test.dat"),
+            channel_identifier: 123,
+        };
+        batch4.voltage_files.push(voltage_file4);
+
+        // Check the eq works
+        assert_eq!(batch1, batch2);
+
+        assert_ne!(batch1, batch3);
+
+        assert_ne!(batch1, batch4);
+    }
+
+    #[test]
+    fn test_convert_temp_voltage_files() {
+        let mut temp_voltage_files: Vec<TempVoltageFile> = Vec::new();
+
+        temp_voltage_files.push(TempVoltageFile {
+            filename: "1234567000_1234567000_123.sub",
+            obs_id: 1234567000,
+            channel_identifier: 123,
+            gps_time: 1234567000,
+        });
+
+        temp_voltage_files.push(TempVoltageFile {
+            filename: "1234567890_1234567008_124.sub",
+            obs_id: 1234567000,
+            channel_identifier: 124,
+            gps_time: 1234567008,
+        });
+
+        temp_voltage_files.push(TempVoltageFile {
+            filename: "1234567890_1234567008_123.sub",
+            obs_id: 1234567000,
+            channel_identifier: 123,
+            gps_time: 1234567008,
+        });
+
+        temp_voltage_files.push(TempVoltageFile {
+            filename: "1234567890_1234567008_125.sub",
+            obs_id: 1234567000,
+            channel_identifier: 125,
+            gps_time: 1234567008,
+        });
+
+        temp_voltage_files.push(TempVoltageFile {
+            filename: "1234567000_1234567000_124.sub",
+            obs_id: 1234567000,
+            channel_identifier: 124,
+            gps_time: 1234567000,
+        });
+
+        let result = convert_temp_voltage_files(temp_voltage_files);
+
+        // The resulting VoltageFileBatches should:
+        // * have 2 batches
+        // * batches sorted by gpstime
+        // * each batch sorted by coarse channel indentifier
+        assert!(result.is_ok());
+
+        let batches: HashMap<u64, VoltageFileBatch> = result.unwrap();
+
+        assert_eq!(
+            batches.len(),
+            2,
+            "Error - number of batches is incorrect: {} should be 2.",
+            batches.len()
+        );
+        assert_eq!(batches.get(&1234567000).unwrap().voltage_files.len(), 2);
+        assert_eq!(batches.get(&1234567008).unwrap().voltage_files.len(), 3);
+    }
+
+    #[test]
+    fn test_examine_voltage_files_valid() {
+        // Get a metafits context
+        // Open the metafits file
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+        //
+        // Read the observation using mwalib
+        //
+        // Open a context and load in a test metafits
+        let context =
+            MetafitsContext::new(&metafits_filename).expect("Failed to create MetafitsContext");
+
+        // Create a temp dir for the temp files
+        // Once out of scope the temp dir and it's contents will be deleted
+        let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
+
+        // Populate vector of filenames
+        let mut voltage_filenames: Vec<String> = Vec::new();
+        voltage_filenames.push(String::from("1101503312_1101503312_123.sub"));
+        voltage_filenames.push(String::from("1101503312_1101503312_124.sub"));
+        voltage_filenames.push(String::from("1101503312_1101503320_123.sub"));
+        voltage_filenames.push(String::from("1101503312_1101503320_124.sub"));
+
+        let mut temp_filenames: Vec<String> = Vec::new();
+
+        for f in voltage_filenames.iter() {
+            temp_filenames.push(generate_test_voltage_file(&temp_dir, f, 2, 256).unwrap());
+        }
+        let result = examine_voltage_files(&context, &temp_filenames);
+
+        assert!(
+            result.is_ok(),
+            "examine_voltage_files failed {:?} - temp filenames: {:?}",
+            result,
+            temp_filenames
+        );
+    }
+
+    #[test]
+    fn test_examine_voltage_files_error_mismatched_sizes() {
+        // Get a metafits context
+        // Open the metafits file
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+        //
+        // Read the observation using mwalib
+        //
+        // Open a context and load in a test metafits
+        let context =
+            MetafitsContext::new(&metafits_filename).expect("Failed to create MetafitsContext");
+
+        // Create a temp dir for the temp files
+        // Once out of scope the temp dir and it's contents will be deleted
+        let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
+
+        // Populate vector of filenames
+        let mut voltage_filenames: Vec<String> = Vec::new();
+        voltage_filenames.push(String::from("1101503312_1101503312_123.sub"));
+        voltage_filenames.push(String::from("1101503312_1101503312_124.sub"));
+        voltage_filenames.push(String::from("1101503312_1101503320_123.sub"));
+        voltage_filenames.push(String::from("1101503312_1101503320_124.sub"));
+
+        let mut temp_filenames: Vec<String> = Vec::new();
+
+        for f in voltage_filenames.iter() {
+            temp_filenames.push(generate_test_voltage_file(&temp_dir, f, 2, 256).unwrap());
+        }
+        // Now add a gps time batch which is a different size
+        temp_filenames.push(
+            generate_test_voltage_file(&temp_dir, "1101503312_1101503328_123.sub", 1, 256).unwrap(),
+        );
+        temp_filenames.push(
+            generate_test_voltage_file(&temp_dir, "1101503312_1101503328_124.sub", 1, 256).unwrap(),
+        );
+
+        let result = examine_voltage_files(&context, &temp_filenames);
+
+        assert!(result.is_err());
+
+        assert!(matches!(
+            result.unwrap_err(),
+            VoltageFileError::UnequalFileSizes
+        ));
+    }
+
+    #[test]
+    fn test_examine_voltage_files_error_gpstime_gaps() {
+        // Get a metafits context
+        // Open the metafits file
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+        //
+        // Read the observation using mwalib
+        //
+        // Open a context and load in a test metafits
+        let context =
+            MetafitsContext::new(&metafits_filename).expect("Failed to create MetafitsContext");
+
+        // Create a temp dir for the temp files
+        // Once out of scope the temp dir and it's contents will be deleted
+        let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
+
+        // Populate vector of filenames
+        let mut voltage_filenames: Vec<String> = Vec::new();
+        voltage_filenames.push(String::from("1101503312_1101503312_123.sub"));
+        voltage_filenames.push(String::from("1101503312_1101503312_124.sub"));
+        // Gap of 8 seconds here
+        voltage_filenames.push(String::from("1101503312_1101503328_123.sub"));
+        voltage_filenames.push(String::from("1101503312_1101503328_124.sub"));
+
+        let mut temp_filenames: Vec<String> = Vec::new();
+
+        for f in voltage_filenames.iter() {
+            temp_filenames.push(generate_test_voltage_file(&temp_dir, f, 2, 256).unwrap());
+        }
+
+        let result = examine_voltage_files(&context, &temp_filenames);
+
+        assert!(result.is_err());
+
+        assert!(matches!(
+            result.unwrap_err(),
+            VoltageFileError::GpsTimeMissing{ expected: _, got: _}
+        ));
+    }
+
+    #[test]
+    fn test_examine_voltage_files_error_file_not_found() {
+        // Get a metafits context
+        // Open the metafits file
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+        //
+        // Read the observation using mwalib
+        //
+        // Open a context and load in a test metafits
+        let context =
+            MetafitsContext::new(&metafits_filename).expect("Failed to create MetafitsContext");
+
+        // Populate vector of filenames
+        let mut voltage_filenames: Vec<String> = Vec::new();
+        voltage_filenames.push(String::from(
+            "test_files_invalid/1101503312_1101503312_123.sub",
+        ));
+        voltage_filenames.push(String::from(
+            "test_files_invalid/1101503312_1101503312_124.sub",
+        ));
+        voltage_filenames.push(String::from(
+            "test_files_invalid/1101503312_1101503320_123.sub",
+        ));
+        voltage_filenames.push(String::from(
+            "test_files_invalid/1101503312_1101503320_124.sub",
+        ));
+
+        let result = examine_voltage_files(&context, &voltage_filenames);
+
+        assert!(result.is_err());
+
+        assert!(matches!(
+            result.unwrap_err(),
+            VoltageFileError::VoltageFileError(_, _)
+        ));
     }
 }

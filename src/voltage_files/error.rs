@@ -5,13 +5,15 @@
 /*!
 Errors associated with reading in voltage files.
 */
-
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VoltageFileError {
     #[error("No voltage files were supplied")]
     NoVoltageFiles,
+
+    #[error("Voltage file {0} error: {1}")]
+    VoltageFileError(String, String),
 
     #[error("There are a mixture of voltage filename types!")]
     Mixture,

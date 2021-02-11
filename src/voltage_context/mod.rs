@@ -101,18 +101,15 @@ impl VoltageContext {
         // Populate the start and end times of the observation.
         // Start= start of first timestep
         // End  = start of last timestep + integration time
-        let (
-            start_gps_time_milliseconds,
-            end_gps_time_milliseconds,
-            duration_milliseconds,
-            voltage_file_interval_milliseconds,
-        ) = {
-            let o = determine_obs_times(&voltage_info.time_map, voltage_info.corr_format)?;
+        let (start_gps_time_milliseconds, end_gps_time_milliseconds, duration_milliseconds) = {
+            let o = determine_obs_times(
+                &voltage_info.time_map,
+                voltage_info.voltage_file_interval_milliseconds,
+            )?;
             (
                 o.start_gps_time_milliseconds,
                 o.end_gps_time_milliseconds,
                 o.duration_milliseconds,
-                o.voltage_file_interval_milliseconds,
             )
         };
 
@@ -121,7 +118,7 @@ impl VoltageContext {
         let timesteps = TimeStep::populate_voltage_timesteps(
             start_gps_time_milliseconds,
             end_gps_time_milliseconds,
-            voltage_file_interval_milliseconds,
+            voltage_info.voltage_file_interval_milliseconds,
         )
         .unwrap();
         // Get number of timesteps
