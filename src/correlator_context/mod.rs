@@ -149,7 +149,7 @@ impl CorrelatorContext {
                 for (i, time) in timesteps.iter().enumerate() {
                     for channel in &channels {
                         gpubox_time_map
-                            .entry(time.unix_time_ms)
+                            .entry(time.unix_time_milliseconds)
                             .or_insert_with(BTreeMap::new)
                             .entry(*channel)
                             .or_insert((0, i));
@@ -203,7 +203,7 @@ impl CorrelatorContext {
         if !gpubox_filenames.is_empty() {
             let coarse_channel = coarse_channels[0].gpubox_number;
             let (batch_index, _) =
-                gpubox_info.time_map[&timesteps[0].unix_time_ms][&coarse_channel];
+                gpubox_info.time_map[&timesteps[0].unix_time_milliseconds][&coarse_channel];
 
             let mut fptr = fits_open!(&gpubox_info.batches[batch_index].gpubox_files[0].filename)?;
 
@@ -433,8 +433,8 @@ impl CorrelatorContext {
 
         // Lookup the coarse channel we need
         let coarse_channel = self.coarse_channels[coarse_channel_index].gpubox_number;
-        let (batch_index, hdu_index) =
-            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
+        let (batch_index, hdu_index) = self.gpubox_time_map
+            [&self.timesteps[timestep_index].unix_time_milliseconds][&coarse_channel];
 
         if self.gpubox_batches.is_empty() {
             return Err(GpuboxError::NoGpuboxes);
@@ -498,8 +498,8 @@ impl CorrelatorContext {
 
         // Lookup the coarse channel we need
         let coarse_channel = self.coarse_channels[coarse_channel_index].gpubox_number;
-        let (batch_index, hdu_index) =
-            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
+        let (batch_index, hdu_index) = self.gpubox_time_map
+            [&self.timesteps[timestep_index].unix_time_milliseconds][&coarse_channel];
 
         if self.gpubox_batches.is_empty() {
             return Err(GpuboxError::NoGpuboxes);
@@ -686,7 +686,10 @@ mod tests {
         assert_eq!(context.num_timesteps, 1);
 
         // timesteps:                [unix=1417468096.000],
-        assert_eq!(context.timesteps[0].unix_time_ms, 1_417_468_096_000);
+        assert_eq!(
+            context.timesteps[0].unix_time_milliseconds,
+            1_417_468_096_000
+        );
 
         // num baselines:            8256,
         assert_eq!(context.num_baselines, 8256);
@@ -797,7 +800,7 @@ mod tests {
 
         let coarse_channel = context.coarse_channels[0].gpubox_number;
         let (batch_index, _) =
-            context.gpubox_time_map[&context.timesteps[0].unix_time_ms][&coarse_channel];
+            context.gpubox_time_map[&context.timesteps[0].unix_time_milliseconds][&coarse_channel];
 
         let mut fptr =
             fits_open!(&context.gpubox_batches[batch_index].gpubox_files[0].filename).unwrap();

@@ -22,7 +22,7 @@
  * Enum for all of the known variants of file format based on Correlator version
  *
  */
-typedef enum CorrelatorVersion {
+typedef enum {
   /**
    * MWAX correlator (v2.0)
    */
@@ -52,10 +52,17 @@ typedef struct MetafitsContext MetafitsContext;
 
 /**
  *
+ * `mwalib` voltage captue system (VCS) observation context. This represents the basic metadata for a voltage capture observation.
+ *
+ */
+typedef struct VoltageContext VoltageContext;
+
+/**
+ *
  * This a C struct to allow the caller to consume the metafits metadata
  *
  */
-typedef struct mwalibMetafitsMetadata {
+typedef struct {
   /**
    * Observation id
    */
@@ -219,11 +226,11 @@ typedef struct mwalibMetafitsMetadata {
  * C Representation of the `CorrelatorContext` metadata
  *
  */
-typedef struct mwalibCorrelatorMetadata {
+typedef struct {
   /**
    * Version of the correlator format
    */
-  enum CorrelatorVersion corr_version;
+  CorrelatorVersion corr_version;
   /**
    * The proper start of the observation (the time that is common to all
    * provided gpubox files).
@@ -261,7 +268,7 @@ typedef struct mwalibCorrelatorMetadata {
   /**
    * Total bandwidth of observation (of the coarse channels we have)
    */
-  uint32_t observation_bandwidth_hz;
+  uint32_t bandwidth_hz;
   /**
    * Bandwidth of each coarse channel
    */
@@ -289,9 +296,59 @@ typedef struct mwalibCorrelatorMetadata {
 } mwalibCorrelatorMetadata;
 
 /**
+ *
+ * C Representation of the `VoltageContext` metadata
+ *
+ */
+typedef struct {
+  /**
+   * Version of the correlator format
+   */
+  CorrelatorVersion corr_version;
+  /**
+   * The proper start of the observation (the time that is common to all
+   * provided voltage files).
+   */
+  uint64_t start_gps_time_milliseconds;
+  /**
+   * `end_gps_time_milliseconds` is the actual end time of the observation
+   * i.e. start time of last common timestep plus length of a voltage file (1 sec for MWA Legacy, 8 secs for MWAX).
+   */
+  uint64_t end_gps_time_milliseconds;
+  /**
+   * Total duration of observation (based on voltage files)
+   */
+  uint64_t duration_milliseconds;
+  /**
+   * Number of timesteps in the observation
+   */
+  uintptr_t num_timesteps;
+  /**
+   * Number of coarse channels after we've validated the input voltage files
+   */
+  uintptr_t num_coarse_channels;
+  /**
+   * Total bandwidth of observation (of the coarse channels we have)
+   */
+  uint32_t bandwidth_hz;
+  /**
+   * Bandwidth of each coarse channel
+   */
+  uint32_t coarse_channel_width_hz;
+  /**
+   * Volatge fine_channel_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
+   */
+  uint32_t fine_channel_width_hz;
+  /**
+   * Number of fine channels in each coarse channel
+   */
+  uintptr_t num_fine_channels_per_coarse;
+} mwalibVoltageMetadata;
+
+/**
  * Representation in C of an `mwalibAntenna` struct
  */
-typedef struct mwalibAntenna {
+typedef struct {
   /**
    * This is the antenna number.
    * Nominally this is the field we sort by to get the desired output order of antenna.
@@ -316,7 +373,7 @@ typedef struct mwalibAntenna {
  * C Representation of a `mwalibBaseline` struct
  *
  */
-typedef struct mwalibBaseline {
+typedef struct {
   /**
    * Index in the `MetafitsContext` antenna array for antenna1 for this baseline
    */
@@ -330,7 +387,7 @@ typedef struct mwalibBaseline {
 /**
  * Representation in C of an `mwalibCoarseChannel` struct
  */
-typedef struct mwalibCoarseChannel {
+typedef struct {
   /**
    * Correlator channel is 0 indexed (0..N-1)
    */
@@ -366,7 +423,7 @@ typedef struct mwalibCoarseChannel {
 /**
  * Representation in C of an `mwalibRFInput` struct
  */
-typedef struct mwalibRFInput {
+typedef struct {
   /**
    * This is the metafits order (0-n inputs)
    */
@@ -435,11 +492,12 @@ typedef struct mwalibRFInput {
  * C Representation of a `mwalibTimeStep` struct
  *
  */
-typedef struct mwalibTimeStep {
+typedef struct {
   /**
    * UNIX time (in milliseconds to avoid floating point inaccuracy)
    */
-  uint64_t unix_time_ms;
+  uint64_t unix_time_milliseconds;
+  uint64_t gps_time_milliseconds;
 } mwalibTimeStep;
 
 /**
@@ -447,7 +505,7 @@ typedef struct mwalibTimeStep {
  * C Representation of a `mwalibVisibilityPol` struct
  *
  */
-typedef struct mwalibVisibilityPol {
+typedef struct {
   /**
    * Polarisation (e.g. "XX" or "XY" or "YX" or "YY")
    */
@@ -499,7 +557,7 @@ int32_t mwalib_free_rust_cstring(char *rust_cstring);
  * * Caller *must* call the `mwalib_metafits_context_free` function to release the rust memory.
  */
 int32_t mwalib_metafits_context_new(const char *metafits_filename,
-                                    struct MetafitsContext **out_metafits_context_ptr,
+                                    MetafitsContext **out_metafits_context_ptr,
                                     const char *error_message,
                                     size_t error_message_length);
 
@@ -525,7 +583,7 @@ int32_t mwalib_metafits_context_new(const char *metafits_filename,
  * * `error_message` *must* point to an already allocated char* buffer for any error messages.
  * * `metafits_context_ptr` must contain an MetafitsContext object already populated via `mwalib_metafits_context_new`
  */
-int32_t mwalib_metafits_context_display(const struct MetafitsContext *metafits_context_ptr,
+int32_t mwalib_metafits_context_display(const MetafitsContext *metafits_context_ptr,
                                         const char *error_message,
                                         size_t error_message_length);
 
@@ -547,7 +605,7 @@ int32_t mwalib_metafits_context_display(const struct MetafitsContext *metafits_c
  * * `metafits_context_ptr` must point to a populated `MetafitsContext` object from the `mwalib_metafits_context_new` functions.
  * * `metafits_context_ptr` must not have already been freed.
  */
-int32_t mwalib_metafits_context_free(struct MetafitsContext *metafits_context_ptr);
+int32_t mwalib_metafits_context_free(MetafitsContext *metafits_context_ptr);
 
 /**
  * Create and return a pointer to an `CorrelatorContext` struct based on metafits and gpubox files
@@ -579,7 +637,7 @@ int32_t mwalib_metafits_context_free(struct MetafitsContext *metafits_context_pt
 int32_t mwalib_correlator_context_new(const char *metafits_filename,
                                       const char **gpubox_filenames,
                                       size_t gpubox_count,
-                                      struct CorrelatorContext **out_correlator_context_ptr,
+                                      CorrelatorContext **out_correlator_context_ptr,
                                       const char *error_message,
                                       size_t error_message_length);
 
@@ -605,7 +663,7 @@ int32_t mwalib_correlator_context_new(const char *metafits_filename,
  * * `error_message` *must* point to an already allocated char* buffer for any error messages.
  * * `correlator_context_ptr` must contain an `CorrelatorContext` object already populated via `mwalib_correlator_context_new`
  */
-int32_t mwalib_correlator_context_display(const struct CorrelatorContext *correlator_context_ptr,
+int32_t mwalib_correlator_context_display(const CorrelatorContext *correlator_context_ptr,
                                           const char *error_message,
                                           size_t error_message_length);
 
@@ -644,7 +702,7 @@ int32_t mwalib_correlator_context_display(const struct CorrelatorContext *correl
  * * `correlator_context_ptr` must point to a populated object from the `mwalib_correlator_context_new` function.
  * * Caller *must* call `mwalib_correlator_context_free_read_buffer` function to release the rust memory.
  */
-int32_t mwalib_correlator_context_read_by_baseline(struct CorrelatorContext *correlator_context_ptr,
+int32_t mwalib_correlator_context_read_by_baseline(CorrelatorContext *correlator_context_ptr,
                                                    uintptr_t timestep_index,
                                                    uintptr_t coarse_channel_index,
                                                    float *buffer_ptr,
@@ -687,7 +745,7 @@ int32_t mwalib_correlator_context_read_by_baseline(struct CorrelatorContext *cor
  * * `correlator_context_ptr` must point to a populated object from the `mwalib_correlator_context_new` function.
  * * Caller *must* call `mwalib_correlator_context_free_read_buffer` function to release the rust memory.
  */
-int32_t mwalib_correlator_context_read_by_frequency(struct CorrelatorContext *correlator_context_ptr,
+int32_t mwalib_correlator_context_read_by_frequency(CorrelatorContext *correlator_context_ptr,
                                                     uintptr_t timestep_index,
                                                     uintptr_t coarse_channel_index,
                                                     float *buffer_ptr,
@@ -700,7 +758,7 @@ int32_t mwalib_correlator_context_read_by_frequency(struct CorrelatorContext *co
  *
  * # Arguments
  *
- * * `context_ptr` - pointer to an already populated `CorrelatorContext` object
+ * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object
  *
  *
  * # Returns
@@ -713,16 +771,98 @@ int32_t mwalib_correlator_context_read_by_frequency(struct CorrelatorContext *co
  * * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
  * * `correlator_context_ptr` must not have already been freed.
  */
-int32_t mwalib_correlator_context_free(struct CorrelatorContext *correlator_context_ptr);
+int32_t mwalib_correlator_context_free(CorrelatorContext *correlator_context_ptr);
 
 /**
- * This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext or CorrelatorContext
+ * Create and return a pointer to an `VoltageContext` struct based on metafits and voltage files
  *
  * # Arguments
  *
- * * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with correlator_context_ptr)
+ * * `metafits_filename` - pointer to char* buffer containing the full path and filename of a metafits file.
  *
- * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with metafits_context_ptr)
+ * * `voltage_filenames` - pointer to array of char* buffers containing the full path and filename of the voltage files.
+ *
+ * * `voltage_file_count` - length of the voltage char* array.
+ *
+ * * `out_voltage_context_ptr` - A Rust-owned populated `VoltageContext` pointer. Free with `mwalib_voltage_context_free`.
+ *
+ * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+ *
+ * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * `error_message` *must* point to an already allocated `char*` buffer for any error messages.
+ * * Caller *must* call function `mwalib_voltage_context_free` to release the rust memory.
+ */
+int32_t mwalib_voltage_context_new(const char *metafits_filename,
+                                   const char **voltage_filenames,
+                                   size_t voltage_file_count,
+                                   VoltageContext **out_voltage_context_ptr,
+                                   const char *error_message,
+                                   size_t error_message_length);
+
+/**
+ * Display a `VoltageContext` struct.
+ *
+ *
+ * # Arguments
+ *
+ * * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object
+ *
+ * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+ *
+ * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * `error_message` *must* point to an already allocated char* buffer for any error messages.
+ * * `voltage_context_ptr` must contain an `VoltageContext` object already populated via `mwalib_voltage_context_new`
+ */
+int32_t mwalib_voltage_context_display(const VoltageContext *voltage_context_ptr,
+                                       const char *error_message,
+                                       size_t error_message_length);
+
+/**
+ * Free a previously-allocated `VoltageContext` struct (and it's members).
+ *
+ * # Arguments
+ *
+ * * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * This must be called once caller is finished with the `VoltageContext` object
+ * * `voltage_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_voltage_context_new` function.
+ * * `voltage_context_ptr` must not have already been freed.
+ */
+int32_t mwalib_voltage_context_free(VoltageContext *voltage_context_ptr);
+
+/**
+ * This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext, CorrelatorContext or VoltageContext
+ *
+ * # Arguments
+ *
+ * * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with correlator_context_ptr and voltage_context_ptr)
+ *
+ * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with metafits_context_ptr and voltage_context_ptr)
+ *
+ * * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with metafits_context_ptr and correlator_context_ptr)
  *
  * * `out_metafits_metadata_ptr` - pointer to a Rust-owned `mwalibMetafitsMetadata` struct. Free with `mwalib_metafits_metadata_free`
  *
@@ -739,12 +879,14 @@ int32_t mwalib_correlator_context_free(struct CorrelatorContext *correlator_cont
  * # Safety
  * * `error_message` *must* point to an already allocated char* buffer for any error messages.
  * * `metafits_context_ptr` must point to a populated MetafitsContext object from the `mwalib_metafits_context_new` function OR
- *   a populated CorrelatorContext object from the 'mwalib_correlator_context_new' function. Set the unused ones to NULL.
+ * * `correlator_context_ptr` must point to a populated CorrelatorContext object from the 'mwalib_correlator_context_new' function OR
+ * * `voltage_context_ptr` must point to a populated VoltageContext object from the `mwalib_voltage_context_new` function. (Set the unused contexts to NULL).
  * * Caller must call `mwalib_metafits_metadata_free` once finished, to free the rust memory.
  */
-int32_t mwalib_metafits_metadata_get(struct MetafitsContext *metafits_context_ptr,
-                                     struct CorrelatorContext *correlator_context_ptr,
-                                     struct mwalibMetafitsMetadata **out_metafits_metadata_ptr,
+int32_t mwalib_metafits_metadata_get(MetafitsContext *metafits_context_ptr,
+                                     CorrelatorContext *correlator_context_ptr,
+                                     VoltageContext *voltage_context_ptr,
+                                     mwalibMetafitsMetadata **out_metafits_metadata_ptr,
                                      const char *error_message,
                                      size_t error_message_length);
 
@@ -766,7 +908,7 @@ int32_t mwalib_metafits_metadata_get(struct MetafitsContext *metafits_context_pt
  * * `metafits_metadata_ptr` must point to a populated `mwalibMetafitsMetadata` object from the `mwalib_metafits_metadata_get` function.
  * * `metafits_metadata_ptr` must not have already been freed.
  */
-int32_t mwalib_metafits_metadata_free(struct mwalibMetafitsMetadata *metafits_metadata_ptr);
+int32_t mwalib_metafits_metadata_free(mwalibMetafitsMetadata *metafits_metadata_ptr);
 
 /**
  * This returns a struct containing the `CorrelatorContext` metadata
@@ -792,8 +934,8 @@ int32_t mwalib_metafits_metadata_free(struct mwalibMetafitsMetadata *metafits_me
  * * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
  * * Caller must call `mwalib_correlator_metadata_free` once finished, to free the rust memory.
  */
-int32_t mwalib_correlator_metadata_get(struct CorrelatorContext *correlator_context_ptr,
-                                       struct mwalibCorrelatorMetadata **out_correlator_metadata_ptr,
+int32_t mwalib_correlator_metadata_get(CorrelatorContext *correlator_context_ptr,
+                                       mwalibCorrelatorMetadata **out_correlator_metadata_ptr,
                                        const char *error_message,
                                        size_t error_message_length);
 
@@ -815,16 +957,67 @@ int32_t mwalib_correlator_metadata_get(struct CorrelatorContext *correlator_cont
  * * `correlator_metadata_ptr` must point to a populated `mwalibCorrelatorMetadata` object from the `mwalib_correlator_metadata_get` function.
  * * `correlator_metadata_ptr` must not have already been freed.
  */
-int32_t mwalib_correlator_metadata_free(struct mwalibCorrelatorMetadata *correlator_metadata_ptr);
+int32_t mwalib_correlator_metadata_free(mwalibCorrelatorMetadata *correlator_metadata_ptr);
+
+/**
+ * This returns a struct containing the `VoltageContext` metadata
+ *
+ * # Arguments
+ *
+ * * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
+ *
+ * * `out_voltage_metadata_ptr` - A Rust-owned populated `mwalibCorrelatorMetadata` struct. Free with `mwalib_correlator_metadata_free`.
+ *
+ * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+ *
+ * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * `error_message` *must* point to an already allocated char* buffer for any error messages.
+ * * `correlator_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_correlator_context_new` function.
+ * * Caller must call `mwalib_correlator_metadata_free` once finished, to free the rust memory.
+ */
+int32_t mwalib_voltage_metadata_get(VoltageContext *voltage_context_ptr,
+                                    mwalibVoltageMetadata **out_voltage_metadata_ptr,
+                                    const char *error_message,
+                                    size_t error_message_length);
+
+/**
+ * Free a previously-allocated `mwalibVoltageMetadata` struct.
+ *
+ * # Arguments
+ *
+ * * `voltage_metadata_ptr` - pointer to an already populated `mwalibVoltageMetadata` object
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * This must be called once caller is finished with the `mwalibVoltageMetadata` object
+ * * `voltage_metadata_ptr` must point to a populated `mwalibVoltageMetadata` object from the `mwalib_voltage_metadata_get` function.
+ * * `voltage_metadata_ptr` must not have already been freed.
+ */
+int32_t mwalib_voltage_metadata_free(mwalibVoltageMetadata *voltage_metadata_ptr);
 
 /**
  * This passes back an array of structs containing all antennas given a metafits OR correlator context.
  *
  * # Arguments
  *
- * * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr`)
+ * * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
  *
- * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr`)
+ * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
+ *
+ * * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
  *
  * * `out_antennas_ptr` - A Rust-owned populated array of `mwalibAntenna` struct. Free with `mwalib_antennas_free`.
  *
@@ -845,9 +1038,10 @@ int32_t mwalib_correlator_metadata_free(struct mwalibCorrelatorMetadata *correla
  * * `metafits_context_ptr` must point to a populated MetafitsContext object from the `mwalib_metafits_context_new` function.
  * * Caller must call `mwalib_antenna_free` once finished, to free the rust memory.
  */
-int32_t mwalib_antennas_get(struct MetafitsContext *metafits_context_ptr,
-                            struct CorrelatorContext *correlator_context_ptr,
-                            struct mwalibAntenna **out_antennas_ptr,
+int32_t mwalib_antennas_get(MetafitsContext *metafits_context_ptr,
+                            CorrelatorContext *correlator_context_ptr,
+                            VoltageContext *voltage_context_ptr,
+                            mwalibAntenna **out_antennas_ptr,
                             uintptr_t *out_antennas_len,
                             const char *error_message,
                             size_t error_message_length);
@@ -872,7 +1066,7 @@ int32_t mwalib_antennas_get(struct MetafitsContext *metafits_context_ptr,
  * * `antenna_ptr` must point to a populated `mwalibAntenna` array from the `mwalib_antennas_get` function.
  * * `antenna_ptr` must not have already been freed.
  */
-int32_t mwalib_antennas_free(struct mwalibAntenna *antennas_ptr,
+int32_t mwalib_antennas_free(mwalibAntenna *antennas_ptr,
                              uintptr_t antennas_len);
 
 /**
@@ -901,8 +1095,8 @@ int32_t mwalib_antennas_free(struct mwalibAntenna *antennas_ptr,
  * * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
  * * Caller must call `mwalib_baselines_free` once finished, to free the rust memory.
  */
-int32_t mwalib_correlator_baselines_get(struct CorrelatorContext *correlator_context_ptr,
-                                        struct mwalibBaseline **out_baselines_ptr,
+int32_t mwalib_correlator_baselines_get(CorrelatorContext *correlator_context_ptr,
+                                        mwalibBaseline **out_baselines_ptr,
                                         uintptr_t *out_baselines_len,
                                         const char *error_message,
                                         size_t error_message_length);
@@ -927,7 +1121,7 @@ int32_t mwalib_correlator_baselines_get(struct CorrelatorContext *correlator_con
  * * `baseline_ptr` must point to a populated `mwalibBaseline` array from the `mwalib_baselines_get` function.
  * * `baseline_ptr` must not have already been freed.
  */
-int32_t mwalib_baselines_free(struct mwalibBaseline *baselines_ptr,
+int32_t mwalib_baselines_free(mwalibBaseline *baselines_ptr,
                               uintptr_t baselines_len);
 
 /**
@@ -956,11 +1150,43 @@ int32_t mwalib_baselines_free(struct mwalibBaseline *baselines_ptr,
  * * `correlator_context_ptr` must point to a populated `mwalibCorrelatorContext` object from the `mwalib_correlator_context_new` function.
  * * Caller must call `mwalib_coarse_channels_free` once finished, to free the rust memory.
  */
-int32_t mwalib_correlator_coarse_channels_get(struct CorrelatorContext *correlator_context_ptr,
-                                              struct mwalibCoarseChannel **out_coarse_channels_ptr,
+int32_t mwalib_correlator_coarse_channels_get(CorrelatorContext *correlator_context_ptr,
+                                              mwalibCoarseChannel **out_coarse_channels_ptr,
                                               uintptr_t *out_coarse_channels_len,
                                               const char *error_message,
                                               size_t error_message_length);
+
+/**
+ * This passes a pointer to an array of voltage coarse channel
+ *
+ * # Arguments
+ *
+ * * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
+ *
+ * * `out_coarse_channels_ptr` - A Rust-owned populated `mwalibCoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
+ *
+ * * `out_coarse_channels_len` - Coarse channel array length.
+ *
+ * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+ *
+ * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * `error_message` *must* point to an already allocated char* buffer for any error messages.
+ * * `voltage_context_ptr` must point to a populated `mwalibVoltageContext` object from the `mwalib_voltage_context_new` function.
+ * * Caller must call `mwalib_coarse_channels_free` once finished, to free the rust memory.
+ */
+int32_t mwalib_voltage_coarse_channels_get(VoltageContext *voltage_context_ptr,
+                                           mwalibCoarseChannel **out_coarse_channels_ptr,
+                                           uintptr_t *out_coarse_channels_len,
+                                           const char *error_message,
+                                           size_t error_message_length);
 
 /**
  * Free a previously-allocated `mwalibCoarseChannel` struct.
@@ -982,7 +1208,7 @@ int32_t mwalib_correlator_coarse_channels_get(struct CorrelatorContext *correlat
  * * `coarse_channel_ptr` must point to a populated `mwalibCoarseChannel` array from the `mwalib_correlator_coarse_channels_get` function.
  * * `coarse_channel_ptr` must not have already been freed.
  */
-int32_t mwalib_coarse_channels_free(struct mwalibCoarseChannel *coarse_channels_ptr,
+int32_t mwalib_coarse_channels_free(mwalibCoarseChannel *coarse_channels_ptr,
                                     uintptr_t coarse_channels_len);
 
 /**
@@ -990,9 +1216,11 @@ int32_t mwalib_coarse_channels_free(struct mwalibCoarseChannel *coarse_channels_
  *
  * # Arguments
  *
- * * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr`)
+ * * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
  *
- * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr`)
+ * * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
+ *
+ * * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
  *
  * * `out_rfinputs_ptr` - A Rust-owned populated `mwalibRFInput` array of structs. Free with `mwalib_rfinputs_free`.
  *
@@ -1013,9 +1241,10 @@ int32_t mwalib_coarse_channels_free(struct mwalibCoarseChannel *coarse_channels_
  * * `metafits_context_ptr` must point to a populated `MetafitsContext` object from the `mwalib_metafits_context_new` function.
  * * Caller must call `mwalib_rfinputs_free` once finished, to free the rust memory.
  */
-int32_t mwalib_rfinputs_get(struct MetafitsContext *metafits_context_ptr,
-                            struct CorrelatorContext *correlator_context_ptr,
-                            struct mwalibRFInput **out_rfinputs_ptr,
+int32_t mwalib_rfinputs_get(MetafitsContext *metafits_context_ptr,
+                            CorrelatorContext *correlator_context_ptr,
+                            VoltageContext *voltage_context_ptr,
+                            mwalibRFInput **out_rfinputs_ptr,
                             uintptr_t *out_rfinputs_len,
                             const char *error_message,
                             size_t error_message_length);
@@ -1040,7 +1269,7 @@ int32_t mwalib_rfinputs_get(struct MetafitsContext *metafits_context_ptr,
  * * `rf_input_ptr` must point to a populated `mwalibRFInput` array from the `mwalib_rfinputs_get` function.
  * * `rf_input_ptr` must not have already been freed.
  */
-int32_t mwalib_rfinputs_free(struct mwalibRFInput *rf_inputs_ptr,
+int32_t mwalib_rfinputs_free(mwalibRFInput *rf_inputs_ptr,
                              uintptr_t rf_inputs_len);
 
 /**
@@ -1069,11 +1298,43 @@ int32_t mwalib_rfinputs_free(struct mwalibRFInput *rf_inputs_ptr,
  * * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
  * * Caller must call `mwalib_timestep_free` once finished, to free the rust memory.
  */
-int32_t mwalib_correlator_timesteps_get(struct CorrelatorContext *correlator_context_ptr,
-                                        struct mwalibTimeStep **out_timesteps_ptr,
+int32_t mwalib_correlator_timesteps_get(CorrelatorContext *correlator_context_ptr,
+                                        mwalibTimeStep **out_timesteps_ptr,
                                         uintptr_t *out_timesteps_pols_len,
                                         const char *error_message,
                                         size_t error_message_length);
+
+/**
+ * This passes a pointer to an array of timesteps
+ *
+ * # Arguments
+ *
+ * * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
+ *
+ * * `out_timesteps_ptr` - A Rust-owned populated `mwalibTimeStep` struct. Free with `mwalib_timestep_free`.
+ *
+ * * `out_timesteps_len` - Timesteps array length.
+ *
+ * * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+ *
+ * * `error_message_length` - length of error_message char* buffer.
+ *
+ *
+ * # Returns
+ *
+ * * 0 on success, non-zero on failure
+ *
+ *
+ * # Safety
+ * * `error_message` *must* point to an already allocated char* buffer for any error messages.
+ * * `voltage_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_voltage_context_new` function.
+ * * Caller must call `mwalib_timestep_free` once finished, to free the rust memory.
+ */
+int32_t mwalib_voltage_timesteps_get(VoltageContext *voltage_context_ptr,
+                                     mwalibTimeStep **out_timesteps_ptr,
+                                     uintptr_t *out_timesteps_pols_len,
+                                     const char *error_message,
+                                     size_t error_message_length);
 
 /**
  * Free a previously-allocated `mwalibTimeStep` struct.
@@ -1095,7 +1356,7 @@ int32_t mwalib_correlator_timesteps_get(struct CorrelatorContext *correlator_con
  * * `timestep_ptr` must point to a populated `mwalibTimeStep` array from the `mwalib_correlator_timesteps_get` function.
  * * `timestep_ptr` must not have already been freed.
  */
-int32_t mwalib_timesteps_free(struct mwalibTimeStep *timesteps_ptr,
+int32_t mwalib_timesteps_free(mwalibTimeStep *timesteps_ptr,
                               uintptr_t timesteps_len);
 
 /**
@@ -1124,8 +1385,8 @@ int32_t mwalib_timesteps_free(struct mwalibTimeStep *timesteps_ptr,
  * * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
  * * Caller must call `mwalib_visibility_pols_free` once finished, to free the rust memory.
  */
-int32_t mwalib_correlator_visibility_pols_get(struct CorrelatorContext *correlator_context_ptr,
-                                              struct mwalibVisibilityPol **out_visibility_pols_ptr,
+int32_t mwalib_correlator_visibility_pols_get(CorrelatorContext *correlator_context_ptr,
+                                              mwalibVisibilityPol **out_visibility_pols_ptr,
                                               uintptr_t *out_visibility_pols_len,
                                               const char *error_message,
                                               size_t error_message_length);
@@ -1149,5 +1410,5 @@ int32_t mwalib_correlator_visibility_pols_get(struct CorrelatorContext *correlat
  * * `visibility_pols_ptr` must point to a populated `mwalibVisibilityPol` array from the `mwalib_correlator_visibility_pols_get` function.
  * * `visibility_pols_ptr` must not have already been freed.
  */
-int32_t mwalib_visibility_pols_free(struct mwalibVisibilityPol *visibility_pols_ptr,
+int32_t mwalib_visibility_pols_free(mwalibVisibilityPol *visibility_pols_ptr,
                                     uintptr_t visibility_pols_len);

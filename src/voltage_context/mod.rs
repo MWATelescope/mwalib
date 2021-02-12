@@ -62,8 +62,6 @@ pub struct VoltageContext {
     /// number, batch number and HDU index are everything needed to find the
     /// correct HDU out of all voltage files.
     pub voltage_time_map: VoltageFileTimeMap,
-    /// This is the number of voltage files *per batch*.
-    pub num_voltage_files: usize,
 }
 
 impl VoltageContext {
@@ -160,7 +158,6 @@ impl VoltageContext {
             num_fine_channels_per_coarse,
             voltage_batches: voltage_info.gpstime_batches,
             voltage_time_map: voltage_info.time_map,
-            num_voltage_files: voltage_filenames.len(),
         })
     }
 

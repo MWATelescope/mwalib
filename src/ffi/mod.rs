@@ -60,7 +60,7 @@ fn set_error_message(in_message: &str, error_buffer_ptr: *mut u8, error_buffer_l
     let error_message = CString::new(message).unwrap();
 
     // Add null terminator
-    let error_message_bytes = error_message.as_bytes_with_nul();
+    let error_message_bytes = error_message.as_bytes();
 
     unsafe {
         // Reconstruct a string to write into
@@ -537,7 +537,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
 ///
 /// # Arguments
 ///
-/// * `context_ptr` - pointer to an already populated `CorrelatorContext` object
+/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object
 ///
 ///
 /// # Returns
@@ -558,6 +558,140 @@ pub unsafe extern "C" fn mwalib_correlator_context_free(
     }
     // Release correlator context if applicable
     Box::from_raw(correlator_context_ptr);
+
+    // Return success
+    0
+}
+
+/// Create and return a pointer to an `VoltageContext` struct based on metafits and voltage files
+///
+/// # Arguments
+///
+/// * `metafits_filename` - pointer to char* buffer containing the full path and filename of a metafits file.
+///
+/// * `voltage_filenames` - pointer to array of char* buffers containing the full path and filename of the voltage files.
+///
+/// * `voltage_file_count` - length of the voltage char* array.
+///
+/// * `out_voltage_context_ptr` - A Rust-owned populated `VoltageContext` pointer. Free with `mwalib_voltage_context_free`.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * 0 on success, non-zero on failure
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated `char*` buffer for any error messages.
+/// * Caller *must* call function `mwalib_voltage_context_free` to release the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_voltage_context_new(
+    metafits_filename: *const c_char,
+    voltage_filenames: *mut *const c_char,
+    voltage_file_count: size_t,
+    out_voltage_context_ptr: &mut *mut VoltageContext,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    let m = CStr::from_ptr(metafits_filename)
+        .to_str()
+        .unwrap()
+        .to_string();
+    let voltage_slice = slice::from_raw_parts(voltage_filenames, voltage_file_count);
+    let mut voltage_files = Vec::with_capacity(voltage_file_count);
+    for v in voltage_slice {
+        let s = CStr::from_ptr(*v).to_str().unwrap();
+        voltage_files.push(s.to_string())
+    }
+    let context = match VoltageContext::new(&m, &voltage_files) {
+        Ok(c) => c,
+        Err(e) => {
+            set_error_message(
+                &format!("{}", e),
+                error_message as *mut u8,
+                error_message_length,
+            );
+            // Return failure
+            return 1;
+        }
+    };
+    *out_voltage_context_ptr = Box::into_raw(Box::new(context));
+    // Return success
+    0
+}
+
+/// Display a `VoltageContext` struct.
+///
+///
+/// # Arguments
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * 0 on success, non-zero on failure
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
+/// * `voltage_context_ptr` must contain an `VoltageContext` object already populated via `mwalib_voltage_context_new`
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_voltage_context_display(
+    voltage_context_ptr: *const VoltageContext,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    if voltage_context_ptr.is_null() {
+        set_error_message(
+            "mwalib_voltage_context() ERROR: null pointer for voltage_context_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return 1;
+    }
+
+    let context = &*voltage_context_ptr;
+
+    println!("{}", context);
+
+    // Return success
+    0
+}
+
+/// Free a previously-allocated `VoltageContext` struct (and it's members).
+///
+/// # Arguments
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object
+///
+///
+/// # Returns
+///
+/// * 0 on success, non-zero on failure
+///
+///
+/// # Safety
+/// * This must be called once caller is finished with the `VoltageContext` object
+/// * `voltage_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_voltage_context_new` function.
+/// * `voltage_context_ptr` must not have already been freed.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_voltage_context_free(
+    voltage_context_ptr: *mut VoltageContext,
+) -> i32 {
+    if voltage_context_ptr.is_null() {
+        return 0;
+    }
+    // Release voltage context if applicable
+    Box::from_raw(voltage_context_ptr);
 
     // Return success
     0
@@ -648,13 +782,15 @@ pub struct mwalibMetafitsMetadata {
     pub coarse_channel_width_hz: u32,
 }
 
-/// This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext or CorrelatorContext
+/// This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext, CorrelatorContext or VoltageContext
 ///
 /// # Arguments
 ///
-/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with correlator_context_ptr)
+/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with correlator_context_ptr and voltage_context_ptr)
 ///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with metafits_context_ptr)
+/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with metafits_context_ptr and voltage_context_ptr)
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with metafits_context_ptr and correlator_context_ptr)
 ///
 /// * `out_metafits_metadata_ptr` - pointer to a Rust-owned `mwalibMetafitsMetadata` struct. Free with `mwalib_metafits_metadata_free`
 ///
@@ -671,29 +807,25 @@ pub struct mwalibMetafitsMetadata {
 /// # Safety
 /// * `error_message` *must* point to an already allocated char* buffer for any error messages.
 /// * `metafits_context_ptr` must point to a populated MetafitsContext object from the `mwalib_metafits_context_new` function OR
-///   a populated CorrelatorContext object from the 'mwalib_correlator_context_new' function. Set the unused ones to NULL.
+/// * `correlator_context_ptr` must point to a populated CorrelatorContext object from the 'mwalib_correlator_context_new' function OR
+/// * `voltage_context_ptr` must point to a populated VoltageContext object from the `mwalib_voltage_context_new` function. (Set the unused contexts to NULL).
 /// * Caller must call `mwalib_metafits_metadata_free` once finished, to free the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
+    voltage_context_ptr: *mut VoltageContext,
     out_metafits_metadata_ptr: &mut *mut mwalibMetafitsMetadata,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    // Ensure only either metafits OR correlator context is passed in
-    if metafits_context_ptr.is_null() && correlator_context_ptr.is_null() {
+    // Ensure only either metafits XOR correlator XOR voltage context is passed in
+    if !(!metafits_context_ptr.is_null()
+        ^ !correlator_context_ptr.is_null()
+        ^ !voltage_context_ptr.is_null())
+    {
         set_error_message(
-            "mwalib_metafits_metadata_get() ERROR: null pointer for metafits_context_ptr and correlator_context_ptr passed in. One should be provided.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return 1;
-    }
-
-    if !metafits_context_ptr.is_null() && !correlator_context_ptr.is_null() {
-        set_error_message(
-            "mwalib_metafits_metadata_get() ERROR: pointers for metafits_context_ptr and correlator_context_ptr were passed in. Only one should be provided.",
+            "mwalib_metafits_metadata_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
             error_message as *mut u8,
             error_message_length,
         );
@@ -705,8 +837,13 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             // Caller passed in a metafits context, so use that
             &*metafits_context_ptr
         } else {
-            // Caller passed in a correlator context, so use that
-            &(&*correlator_context_ptr).metafits_context
+            if !correlator_context_ptr.is_null() {
+                // Caller passed in a correlator context, so use that
+                &(&*correlator_context_ptr).metafits_context
+            } else {
+                // Caller passed in a voltage context, so use that
+                &(&*voltage_context_ptr).metafits_context
+            }
         }
     };
 
@@ -946,6 +1083,125 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
     0
 }
 
+///
+/// C Representation of the `VoltageContext` metadata
+///
+#[repr(C)]
+pub struct mwalibVoltageMetadata {
+    /// Version of the correlator format
+    pub corr_version: CorrelatorVersion,
+    /// The proper start of the observation (the time that is common to all
+    /// provided voltage files).
+    pub start_gps_time_milliseconds: u64,
+    /// `end_gps_time_milliseconds` is the actual end time of the observation    
+    /// i.e. start time of last common timestep plus length of a voltage file (1 sec for MWA Legacy, 8 secs for MWAX).
+    pub end_gps_time_milliseconds: u64,
+    /// Total duration of observation (based on voltage files)
+    pub duration_milliseconds: u64,
+    /// Number of timesteps in the observation
+    pub num_timesteps: usize,
+    /// Number of coarse channels after we've validated the input voltage files
+    pub num_coarse_channels: usize,
+    /// Total bandwidth of observation (of the coarse channels we have)
+    pub bandwidth_hz: u32,
+    /// Bandwidth of each coarse channel
+    pub coarse_channel_width_hz: u32,
+    /// Volatge fine_channel_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
+    pub fine_channel_width_hz: u32,
+    /// Number of fine channels in each coarse channel
+    pub num_fine_channels_per_coarse: usize,
+}
+
+/// This returns a struct containing the `VoltageContext` metadata
+///
+/// # Arguments
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
+///
+/// * `out_voltage_metadata_ptr` - A Rust-owned populated `mwalibCorrelatorMetadata` struct. Free with `mwalib_correlator_metadata_free`.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * 0 on success, non-zero on failure
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
+/// * `correlator_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_correlator_context_new` function.
+/// * Caller must call `mwalib_correlator_metadata_free` once finished, to free the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_voltage_metadata_get(
+    voltage_context_ptr: *mut VoltageContext,
+    out_voltage_metadata_ptr: &mut *mut mwalibVoltageMetadata,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    if voltage_context_ptr.is_null() {
+        set_error_message(
+            "mwalib_voltage_metadata_get() ERROR: Warning: null pointer for voltage_context_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return 1;
+    }
+    // Get the voltage context object from the raw pointer passed in
+    let context = &*voltage_context_ptr;
+
+    // Populate the rust owned data structure with data from the voltage context
+    let out_context = mwalibVoltageMetadata {
+        corr_version: context.corr_version,
+        start_gps_time_milliseconds: context.start_gps_time_milliseconds,
+        end_gps_time_milliseconds: context.end_gps_time_milliseconds,
+        duration_milliseconds: context.duration_milliseconds,
+        num_timesteps: context.num_timesteps,
+        num_coarse_channels: context.num_coarse_channels,
+        bandwidth_hz: context.bandwidth_hz,
+        coarse_channel_width_hz: context.coarse_channel_width_hz,
+        fine_channel_width_hz: context.fine_channel_width_hz,
+        num_fine_channels_per_coarse: context.num_fine_channels_per_coarse,
+    };
+
+    // Pass out the pointer to the rust owned data structure
+    *out_voltage_metadata_ptr = Box::into_raw(Box::new(out_context));
+
+    // Return success
+    0
+}
+
+/// Free a previously-allocated `mwalibVoltageMetadata` struct.
+///
+/// # Arguments
+///
+/// * `voltage_metadata_ptr` - pointer to an already populated `mwalibVoltageMetadata` object
+///
+///
+/// # Returns
+///
+/// * 0 on success, non-zero on failure
+///
+///
+/// # Safety
+/// * This must be called once caller is finished with the `mwalibVoltageMetadata` object
+/// * `voltage_metadata_ptr` must point to a populated `mwalibVoltageMetadata` object from the `mwalib_voltage_metadata_get` function.
+/// * `voltage_metadata_ptr` must not have already been freed.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_voltage_metadata_free(
+    voltage_metadata_ptr: *mut mwalibVoltageMetadata,
+) -> i32 {
+    if voltage_metadata_ptr.is_null() {
+        return 0;
+    }
+    drop(Box::from_raw(voltage_metadata_ptr));
+
+    // Return success
+    0
+}
+
 /// Representation in C of an `mwalibAntenna` struct
 #[repr(C)]
 pub struct mwalibAntenna {
@@ -966,9 +1222,11 @@ pub struct mwalibAntenna {
 ///
 /// # Arguments
 ///
-/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr`)
+/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
 ///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr`)
+/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
 ///
 /// * `out_antennas_ptr` - A Rust-owned populated array of `mwalibAntenna` struct. Free with `mwalib_antennas_free`.
 ///
@@ -992,44 +1250,43 @@ pub struct mwalibAntenna {
 pub unsafe extern "C" fn mwalib_antennas_get(
     metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
+    voltage_context_ptr: *mut VoltageContext,
     out_antennas_ptr: &mut *mut mwalibAntenna,
     out_antennas_len: &mut usize,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    // Ensure only either metafits OR correlator context is passed in
-    if metafits_context_ptr.is_null() && correlator_context_ptr.is_null() {
+    // Ensure only either metafits XOR correlator XOR voltage context is passed in
+    if !(!metafits_context_ptr.is_null()
+        ^ !correlator_context_ptr.is_null()
+        ^ !voltage_context_ptr.is_null())
+    {
         set_error_message(
-            "mwalib_antennas_get() ERROR: null pointer for metafits_context_ptr and correlator_context_ptr passed in. One should be provided.",
+            "mwalib_antennas_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
             error_message as *mut u8,
             error_message_length,
         );
         return 1;
     }
-
-    if !metafits_context_ptr.is_null() && !correlator_context_ptr.is_null() {
-        set_error_message(
-            "mwalib_antennas_get() ERROR: pointers for metafits_context_ptr and correlator_context_ptr were passed in. Only one should be provided.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return 1;
-    }
-
     // Create our metafits context pointer depending on what was passed in
-    let context = {
+    let metafits_context = {
         if !metafits_context_ptr.is_null() {
             // Caller passed in a metafits context, so use that
             &*metafits_context_ptr
         } else {
-            // Caller passed in a correlator context, so use that
-            &(&*correlator_context_ptr).metafits_context
+            if !correlator_context_ptr.is_null() {
+                // Caller passed in a correlator context, so use that
+                &(&*correlator_context_ptr).metafits_context
+            } else {
+                // Caller passed in a voltage context, so use that
+                &(&*voltage_context_ptr).metafits_context
+            }
         }
     };
 
     let mut item_vec: Vec<mwalibAntenna> = Vec::new();
 
-    for item in context.antennas.iter() {
+    for item in metafits_context.antennas.iter() {
         let out_item = mwalibAntenna {
             antenna: item.antenna,
             tile_id: item.tile_id,
@@ -1043,7 +1300,7 @@ pub unsafe extern "C" fn mwalib_antennas_get(
 
     // Pass back the array and length of the array
     *out_antennas_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_antennas_len = context.antennas.len();
+    *out_antennas_len = metafits_context.antennas.len();
 
     // Return success
     0
@@ -1285,6 +1542,72 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
     0
 }
 
+/// This passes a pointer to an array of voltage coarse channel
+///
+/// # Arguments
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
+///
+/// * `out_coarse_channels_ptr` - A Rust-owned populated `mwalibCoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
+///
+/// * `out_coarse_channels_len` - Coarse channel array length.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * 0 on success, non-zero on failure
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
+/// * `voltage_context_ptr` must point to a populated `mwalibVoltageContext` object from the `mwalib_voltage_context_new` function.
+/// * Caller must call `mwalib_coarse_channels_free` once finished, to free the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
+    voltage_context_ptr: *mut VoltageContext,
+    out_coarse_channels_ptr: &mut *mut mwalibCoarseChannel,
+    out_coarse_channels_len: &mut usize,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    if voltage_context_ptr.is_null() {
+        set_error_message(
+            "mwalib_voltage_coarse_channels_get() ERROR: null pointer for voltage_context_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return 1;
+    }
+    let context = &*voltage_context_ptr;
+
+    let mut item_vec: Vec<mwalibCoarseChannel> = Vec::new();
+
+    for item in context.coarse_channels.iter() {
+        let out_item = mwalibCoarseChannel {
+            correlator_channel_number: item.correlator_channel_number,
+            receiver_channel_number: item.receiver_channel_number,
+            gpubox_number: item.gpubox_number,
+            channel_width_hz: item.channel_width_hz,
+            channel_start_hz: item.channel_start_hz,
+            channel_centre_hz: item.channel_centre_hz,
+            channel_end_hz: item.channel_end_hz,
+        };
+
+        item_vec.push(out_item);
+    }
+
+    // Pass back the array and length of the array
+    *out_coarse_channels_ptr = array_to_ffi_boxed_slice(item_vec);
+    *out_coarse_channels_len = context.coarse_channels.len();
+
+    // return success
+    0
+}
+
 /// Free a previously-allocated `mwalibCoarseChannel` struct.
 ///
 /// # Arguments
@@ -1363,9 +1686,11 @@ pub struct mwalibRFInput {
 ///
 /// # Arguments
 ///
-/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr`)
+/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
 ///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr`)
+/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
 ///
 /// * `out_rfinputs_ptr` - A Rust-owned populated `mwalibRFInput` array of structs. Free with `mwalib_rfinputs_free`.
 ///
@@ -1389,43 +1714,43 @@ pub struct mwalibRFInput {
 pub unsafe extern "C" fn mwalib_rfinputs_get(
     metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
+    voltage_context_ptr: *mut VoltageContext,
     out_rfinputs_ptr: &mut *mut mwalibRFInput,
     out_rfinputs_len: &mut usize,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    // Ensure only either metafits OR correlator context is passed in
-    if metafits_context_ptr.is_null() && correlator_context_ptr.is_null() {
+    // Ensure only either metafits XOR correlator XOR voltage context is passed in
+    if !(!metafits_context_ptr.is_null()
+        ^ !correlator_context_ptr.is_null()
+        ^ !voltage_context_ptr.is_null())
+    {
         set_error_message(
-            "mwalib_rfinputs_get() ERROR: null pointer for metafits_context_ptr and correlator_context_ptr passed in. One should be provided.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return 1;
-    }
-
-    if !metafits_context_ptr.is_null() && !correlator_context_ptr.is_null() {
-        set_error_message(
-            "mwalib_rfinputs_get() ERROR: pointers for metafits_context_ptr and correlator_context_ptr were passed in. Only one should be provided.",
+            "mwalib_rfinputs_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
             error_message as *mut u8,
             error_message_length,
         );
         return 1;
     }
     // Create our metafits context pointer depending on what was passed in
-    let context = {
+    let metafits_context = {
         if !metafits_context_ptr.is_null() {
             // Caller passed in a metafits context, so use that
             &*metafits_context_ptr
         } else {
-            // Caller passed in a correlator context, so use that
-            &(&*correlator_context_ptr).metafits_context
+            if !correlator_context_ptr.is_null() {
+                // Caller passed in a correlator context, so use that
+                &(&*correlator_context_ptr).metafits_context
+            } else {
+                // Caller passed in a voltage context, so use that
+                &(&*voltage_context_ptr).metafits_context
+            }
         }
     };
 
     let mut item_vec: Vec<mwalibRFInput> = Vec::new();
 
-    for item in context.rf_inputs.iter() {
+    for item in metafits_context.rf_inputs.iter() {
         let out_item = mwalibRFInput {
             input: item.input,
             antenna: item.antenna,
@@ -1450,7 +1775,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
 
     // Pass back the array and length of the array
     *out_rfinputs_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_rfinputs_len = context.rf_inputs.len();
+    *out_rfinputs_len = metafits_context.rf_inputs.len();
 
     // Return success
     0
@@ -1503,7 +1828,8 @@ pub unsafe extern "C" fn mwalib_rfinputs_free(
 #[repr(C)]
 pub struct mwalibTimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
-    pub unix_time_ms: u64,
+    pub unix_time_milliseconds: u64,
+    pub gps_time_milliseconds: u64,
 }
 
 /// This passes a pointer to an array of timesteps
@@ -1552,7 +1878,69 @@ pub unsafe extern "C" fn mwalib_correlator_timesteps_get(
 
     for item in context.timesteps.iter() {
         let out_item = mwalibTimeStep {
-            unix_time_ms: item.unix_time_ms,
+            unix_time_milliseconds: item.unix_time_milliseconds,
+            gps_time_milliseconds: item.gps_time_milliseconds,
+        };
+
+        item_vec.push(out_item);
+    }
+
+    // Pass back the array and length of the array
+    *out_timesteps_ptr = array_to_ffi_boxed_slice(item_vec);
+    *out_timesteps_pols_len = context.timesteps.len();
+
+    // Return success
+    0
+}
+
+/// This passes a pointer to an array of timesteps
+///
+/// # Arguments
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
+///
+/// * `out_timesteps_ptr` - A Rust-owned populated `mwalibTimeStep` struct. Free with `mwalib_timestep_free`.
+///
+/// * `out_timesteps_len` - Timesteps array length.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * 0 on success, non-zero on failure
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
+/// * `voltage_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_voltage_context_new` function.
+/// * Caller must call `mwalib_timestep_free` once finished, to free the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_voltage_timesteps_get(
+    voltage_context_ptr: *mut VoltageContext,
+    out_timesteps_ptr: &mut *mut mwalibTimeStep,
+    out_timesteps_pols_len: &mut usize,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    if voltage_context_ptr.is_null() {
+        set_error_message(
+            "mwalib_voltage_timesteps_get() ERROR: null pointer for voltage_context_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return 1;
+    }
+    let context = &*voltage_context_ptr;
+
+    let mut item_vec: Vec<mwalibTimeStep> = Vec::new();
+
+    for item in context.timesteps.iter() {
+        let out_item = mwalibTimeStep {
+            unix_time_milliseconds: item.unix_time_milliseconds,
+            gps_time_milliseconds: item.gps_time_milliseconds,
         };
 
         item_vec.push(out_item);

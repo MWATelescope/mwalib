@@ -537,14 +537,6 @@ mod tests {
     use super::*;
     use std::fs::File;
     use std::io::{Error, Write};
-    use std::{mem, slice};
-
-    // Helper to write out f32 slice as u8 slice
-    fn as_u8_slice(v: &[f32]) -> &[u8] {
-        let element_size = mem::size_of::<i32>();
-        unsafe { slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * element_size) }
-    }
-
     // Helper fuction to generate (small) test voltage files
     fn generate_test_voltage_file(
         temp_dir: &tempdir::TempDir,
@@ -576,7 +568,7 @@ mod tests {
                 bptr += 1;
             }
         }
-        output_file.write_all(as_u8_slice(buffer.as_slice()))?;
+        output_file.write_all(misc::as_u8_slice(buffer.as_slice()))?;
         output_file.flush()?;
 
         Ok(String::from(full_filename.to_str().unwrap()))

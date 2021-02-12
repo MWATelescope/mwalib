@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 
     // Example of using metadata struct
     mwalibMetafitsMetadata *metafits_metadata = NULL;
-    if (mwalib_metafits_metadata_get(NULL, correlator_context, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    if (mwalib_metafits_metadata_get(NULL, correlator_context, NULL, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error %s", error_message);
         exit(1);
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     mwalibAntenna *ants = NULL;
     size_t nants = 0;
 
-    if (mwalib_antennas_get(metafits_context, NULL, &ants, &nants, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    if (mwalib_antennas_get(metafits_context, NULL, NULL, &ants, &nants, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
         printf("%lu antennas returned\n", nants);
 
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
     mwalibRFInput *rfs = NULL;
     size_t nrfs = 0;
 
-    if (mwalib_rfinputs_get(NULL, correlator_context, &rfs, &nrfs, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    if (mwalib_rfinputs_get(NULL, correlator_context, NULL, &rfs, &nrfs, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
         printf("%lu rf_inputs returned\n", nrfs);
 
@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
 
         for (int i = 0; i < corr_metadata->num_timesteps; i++)
         {
-            printf("Timestep %d is %.2f\n", i, ts[i].unix_time_ms / 1000.);
+            printf("Timestep %d is %.2f\n", i, ts[i].unix_time_milliseconds / 1000.);
         }
     }
     else

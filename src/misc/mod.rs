@@ -6,6 +6,7 @@
 General helper/utility methods
 */
 use crate::antenna;
+use std::{mem, slice};
 
 /// Function to take d m s and return the decimal degrees.
 ///
@@ -30,6 +31,12 @@ pub fn dms_to_degrees(degrees: i32, minutes: u32, seconds: f64) -> f64 {
     } else {
         deg
     }
+}
+
+// Helper to write out f32 slice as u8 slice
+pub fn as_u8_slice(v: &[f32]) -> &[u8] {
+    let element_size = mem::size_of::<i32>();
+    unsafe { slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * element_size) }
 }
 
 /// Function to allow access to a temporary file. Temp directory and File is dropped once out of scope.

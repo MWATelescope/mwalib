@@ -15,7 +15,7 @@ use std::fmt;
 #[derive(Clone)]
 pub struct TimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
-    pub unix_time_ms: u64,
+    pub unix_time_milliseconds: u64,
     /// gps time (in milliseconds)
     pub gps_time_milliseconds: u64,
 }
@@ -25,7 +25,7 @@ impl TimeStep {
     ///
     /// # Arguments
     ///
-    /// * `unix_time_ms` - The UNIX time for this timestep, in milliseconds
+    /// * `unix_time_milliseconds` - The UNIX time for this timestep, in milliseconds
     ///
     /// * `gps_time_milliseconds` - The gps time for this timestep, in milliseconds
     ///
@@ -34,9 +34,9 @@ impl TimeStep {
     ///
     /// * A populated TimeStep struct
     ///
-    pub fn new(unix_time_ms: u64, gps_time_milliseconds: u64) -> Self {
+    pub fn new(unix_time_milliseconds: u64, gps_time_milliseconds: u64) -> Self {
         TimeStep {
-            unix_time_ms,
+            unix_time_milliseconds,
             gps_time_milliseconds,
         }
     }
@@ -120,7 +120,7 @@ impl TimeStep {
 #[cfg(not(tarpaulin_include))]
 impl fmt::Debug for TimeStep {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "unix={:.3}", self.unix_time_ms as f64 / 1000.,)
+        write!(f, "unix={:.3}", self.unix_time_milliseconds as f64 / 1000.,)
     }
 }
 
@@ -156,8 +156,8 @@ mod tests {
 
         // Check
         assert_eq!(6, timesteps.len());
-        assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
-        assert_eq!(timesteps[5].unix_time_ms, 1_381_844_925_500);
+        assert_eq!(timesteps[0].unix_time_milliseconds, 1_381_844_923_000);
+        assert_eq!(timesteps[5].unix_time_milliseconds, 1_381_844_925_500);
     }
 
     #[test]
@@ -176,12 +176,15 @@ mod tests {
         // This test is a bit of a waste right now but it will be useful once
         // julian date and possibly UTC conversions are done in the new() method
         let timestep = TimeStep {
-            unix_time_ms: 1_234_567_890_123,
+            unix_time_milliseconds: 1_234_567_890_123,
             gps_time_milliseconds: 0,
         };
         let new_timestep = TimeStep::new(1_234_567_890_123, 0);
 
-        assert_eq!(timestep.unix_time_ms, new_timestep.unix_time_ms);
+        assert_eq!(
+            timestep.unix_time_milliseconds,
+            new_timestep.unix_time_milliseconds
+        );
         assert_eq!(
             timestep.gps_time_milliseconds,
             new_timestep.gps_time_milliseconds
