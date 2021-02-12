@@ -531,6 +531,8 @@ mod tests {
             float_cmp::F64Margin::default()
         ));
         assert_eq!(row.flag, 1);
+        assert_eq!(row.rx, 10);
+        assert_eq!(row.slot, 4);
     }
 
     #[test]
@@ -562,4 +564,111 @@ mod tests {
             assert_eq!(metafits_result.is_err(), true);
         });
     }
+
+    #[test]
+    fn test_populate_rf_inputs() {
+        /* populate_rf_inputs(
+            num_inputs: usize,
+            metafits_fptr: &mut fitsio::FitsFile,
+            metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
+            coax_v_factor: f64,
+        ) -> Result<Vec<Self>, RfinputError>*/
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+        let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
+        let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+        let result =
+            RFInput::populate_rf_inputs(256, &mut metafits_fptr, metafits_tile_table_hdu, 1.204);
+
+        assert!(result.is_ok());
+
+        let rfinput = result.unwrap();
+
+        assert_eq!(rfinput[0].input, 0);
+        assert_eq!(rfinput[0].antenna, 75);
+        assert_eq!(rfinput[0].tile_id, 104);
+        assert_eq!(rfinput[0].tile_name, "Tile104");
+        assert_eq!(rfinput[0].pol, Pol::Y);
+        assert_eq!(rfinput[0].electrical_length_m, -756.49);
+        assert!(float_cmp::approx_eq!(
+            f64,
+            rfinput[0].north_m,
+            -101.529_998_779_296_88 as f64,
+            float_cmp::F64Margin::default()
+        ));
+        assert!(float_cmp::approx_eq!(
+            f64,
+            rfinput[0].east_m,
+            -585.674_987_792_968_8 as f64,
+            float_cmp::F64Margin::default()
+        ));
+        assert!(float_cmp::approx_eq!(
+            f64,
+            rfinput[0].height_m,
+            375.212_005_615_234_4 as f64,
+            float_cmp::F64Margin::default()
+        ));
+        assert_eq!(rfinput[0].flagged, true);
+        assert_eq!(
+            rfinput[0].gains,
+            vec![
+                74, 73, 73, 72, 71, 70, 68, 67, 66, 65, 65, 65, 66, 66, 65, 65, 64, 64, 64, 65, 65,
+                66, 67, 68
+            ]
+        );
+        assert_eq!(
+            rfinput[0].delays,
+            vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        );
+        assert_eq!(rfinput[0].receiver_number, 10);
+        assert_eq!(rfinput[0].receiver_slot_number, 4);
+    }
+
+    /*#[test]
+    fn test_read_metafits_values_invalid_data() {
+        let metafits_filename = "read_metafits_values_from_invalid_metafits.metafits";
+
+        crate::misc::with_new_temp_fits_file(&metafits_filename, |metafits_fptr| {
+            // Create a tiledata hdu
+            let col_input = ColumnDescription::new("Input")
+                .with_type(ColumnDataType::Int)
+                .create()
+                .unwrap();
+            let col_antenna = ColumnDescription::new("Antenna")
+                .with_type(ColumnDataType::Int)
+                .create()
+                .unwrap();
+            let col_tile = ColumnDescription::new("Tile")
+                .with_type(ColumnDataType::Int)
+                .create()
+                .unwrap();
+            let col_tilename = ColumnDescription::new("TileName")
+                .with_type(ColumnDataType::String)
+                .create()
+                .unwrap();
+            let col_pol = ColumnDescription::new("Pol")
+                .with_type(ColumnDataType::String)
+                .create()
+                .unwrap();
+            let descriptions = [col_input, col_antenna, col_tile, col_tilename, col_pol];
+
+            metafits_fptr
+                .create_table("TILEDATA".to_string(), &descriptions)
+                .unwrap();
+
+            let metafits_tile_table_hdu = fits_open_hdu!(metafits_fptr, 1).unwrap();
+
+            metafits_tile_table_hdu.write_col(&mut metafits_fptr, "Input", vec![0]);
+            metafits_tile_table_hdu.write_col(&mut metafits_fptr, "Antenna", vec![0]);
+            metafits_tile_table_hdu.write_col(&mut metafits_fptr, "Tile", &vec![0]);
+            metafits_tile_table_hdu.write_col(&mut metafits_fptr, "TileName", vec!["Tile1"]);
+            metafits_tile_table_hdu.write_col(&mut metafits_fptr, "Pol", vec!["Z"]); // this is invalid!
+
+            // Get values from row 1
+            let metafits_result =
+                RFInput::read_metafits_values(metafits_fptr, &metafits_tile_table_hdu, 0);
+
+            assert_eq!(metafits_result.is_err(), true);
+        });
+    }
+    */
 }

@@ -12,7 +12,6 @@ fn test_obs_context_new_invalid_metafits() {
 }
 
 #[test]
-#[allow(clippy::cognitive_complexity)]
 fn test_obs_context_legacy_v1() {
     // Open the test mwa v 1 metafits file
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";

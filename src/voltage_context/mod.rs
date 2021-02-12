@@ -13,6 +13,8 @@ use crate::metafits_context::*;
 use crate::timestep::*;
 use crate::voltage_files::*;
 use crate::*;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 
 ///
 /// `mwalib` voltage captue system (VCS) observation context. This represents the basic metadata for a voltage capture observation.
@@ -33,6 +35,10 @@ pub struct VoltageContext {
     pub duration_milliseconds: u64,
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
+    /// length in millseconds of each timestep
+    pub timestep_duration_milliseconds: u64,
+    /// Number of samples in each timestep
+    pub num_samples_per_timestep: usize,
     /// This is an array of all timesteps we have data for
     pub timesteps: Vec<TimeStep>,
     /// Number of coarse channels after we've validated the input voltage files
@@ -110,23 +116,6 @@ impl VoltageContext {
                 o.duration_milliseconds,
             )
         };
-
-        // We can unwrap here because the `voltage_time_map` can't be empty if
-        // `voltages` isn't empty.
-        let timesteps = TimeStep::populate_voltage_timesteps(
-            start_gps_time_milliseconds,
-            end_gps_time_milliseconds,
-            voltage_info.voltage_file_interval_milliseconds,
-        )
-        .unwrap();
-        // Get number of timesteps
-        let num_timesteps = timesteps.len();
-        // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1.28 MHz (unchannelised)
-        let fine_channel_width_hz: u32 = match voltage_info.corr_format {
-            CorrelatorVersion::Legacy => 10_000,
-            CorrelatorVersion::OldLegacy => 10_000,
-            CorrelatorVersion::V2 => metafits_context.observation_bandwidth_hz,
-        };
         // Populate coarse channels
         let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
             coarse_channel::CoarseChannel::populate_voltage_coarse_channels(
@@ -137,11 +126,46 @@ impl VoltageContext {
                 &voltage_info.time_map,
             )?;
 
+        // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1.28 MHz (unchannelised)
+        let fine_channel_width_hz: u32 = match voltage_info.corr_format {
+            CorrelatorVersion::Legacy => 10_000,
+            CorrelatorVersion::OldLegacy => 10_000,
+            CorrelatorVersion::V2 => {
+                metafits_context.observation_bandwidth_hz
+                    / metafits_context.num_coarse_channels as u32
+            }
+        };
+
         // Determine the number of fine channels per coarse channel.
         let num_fine_channels_per_coarse =
             (coarse_channel_width_hz / fine_channel_width_hz) as usize;
 
         let bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
+
+        // We can unwrap here because the `voltage_time_map` can't be empty if
+        // `voltages` isn't empty.
+        let timesteps = TimeStep::populate_voltage_timesteps(
+            start_gps_time_milliseconds,
+            end_gps_time_milliseconds,
+            voltage_info.voltage_file_interval_milliseconds,
+        );
+
+        // The number of samples this timestep represents. For correlator, this would be 1. For voltage capture it will be many.
+        let num_samples_per_timestep = match voltage_info.corr_format {
+            CorrelatorVersion::OldLegacy => 1, // TODO: find out the legacy VCS value
+            CorrelatorVersion::Legacy => 1,    // TODO: find out the legacy VCS value
+            CorrelatorVersion::V2 => 160,
+        };
+
+        // Length of this timestep in milliseconds
+        let timestep_duration_milliseconds = match voltage_info.corr_format {
+            CorrelatorVersion::OldLegacy => 1000,
+            CorrelatorVersion::Legacy => 1000,
+            CorrelatorVersion::V2 => 8000,
+        };
+
+        // Get number of timesteps
+        let num_timesteps = timesteps.len();
         Ok(VoltageContext {
             metafits_context,
             corr_version: voltage_info.corr_format,
@@ -150,6 +174,8 @@ impl VoltageContext {
             duration_milliseconds,
             num_timesteps,
             timesteps,
+            num_samples_per_timestep,
+            timestep_duration_milliseconds,
             num_coarse_channels,
             coarse_channels,
             fine_channel_width_hz,
@@ -161,280 +187,72 @@ impl VoltageContext {
         })
     }
 
-    /*
-    /// Validates the PSRDADA header of a voltage file against metafits metadata
-    ///
-    /// In this case we call `validate_hdu_axes()`
-    ///
-    /// # Arguments
-    ///
-    /// * `corr_version` - Correlator version of this voltage file.
-    ///
-    /// * `metafits_fine_channels_per_coarse` - the number of fine chan per coarse as calculated using info from metafits.
-    ///
-    /// * `metafits_baselines` - the number of baselines as reported by the metafits file.
-    ///
-    /// * `visibility_pols` - the number of pols produced by the correlator (always 4 for MWA)
-    ///
-    /// * `voltage_fptr` - FITSFile pointer to an MWA GPUbox file
-    ///
-    /// # Returns
-    ///
-    /// * Result containing `Ok` if it is valid, or a custom `MwalibError` if not valid.
-    ///
-    ///
-    pub fn validate_first_hdu(
-        corr_version: CorrelatorVersion,
-        metafits_fine_channels_per_coarse: usize,
-        metafits_baselines: usize,
-        visibility_pols: usize,
-        voltage_fptr: &mut fitsio::FitsFile,
-    ) -> Result<(), GpuboxError> {
-        // Get NAXIS1 and NAXIS2 from a voltage file first image HDU
-        let hdu = fits_open_hdu!(voltage_fptr, 1)?;
-        let dimensions = get_hdu_image_size!(voltage_fptr, &hdu)?;
-        let naxis1 = dimensions[1];
-        let naxis2 = dimensions[0];
-
-        Self::validate_hdu_axes(
-            corr_version,
-            metafits_fine_channels_per_coarse,
-            metafits_baselines,
-            visibility_pols,
-            naxis1,
-            naxis2,
-        )
-    }
-
-    /// Validates the first HDU of a voltage file against metafits metadata
-    ///
-    /// In this case we check that NAXIS1 = the correct value and NAXIS2 = the correct value calculated from the metafits
-    ///
-    /// # Arguments
-    ///
-    /// * `corr_version` - Correlator version of this voltage file.
-    ///
-    /// * `metafits_fine_channels_per_coarse` - the number of fine chan per coarse as calculated using info from metafits.
-    ///
-    /// * `metafits_baselines` - the number of baselines as reported by the metafits file.
-    ///
-    /// * `visibility_pols` - the number of pols produced by the correlator (always 4 for MWA)
-    ///
-    /// * `naxis1` - NAXIS1 keyword read from HDU1 of a Gpubox file
-    ///
-    /// * `naxis2` - NAXIS2 keyword read from HDU1 of a Gpubox file
-    ///
-    /// # Returns
-    ///
-    /// * Result containing `Ok` if it is valid, or a custom `MwalibError` if not valid.
-    ///
-    ///
-    pub fn validate_hdu_axes(
-        corr_version: CorrelatorVersion,
-        metafits_fine_channels_per_coarse: usize,
-        metafits_baselines: usize,
-        visibility_pols: usize,
-        naxis1: usize,
-        naxis2: usize,
-    ) -> Result<(), GpuboxError> {
-        // We have different values depending on the version of the correlator
-        match corr_version {
-            CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
-                // NAXIS1 = baselines * visibility_pols * 2
-                // NAXIS2 = fine channels
-                let calculated_naxis1: i32 = metafits_baselines as i32 * visibility_pols as i32 * 2;
-                let calculated_naxis2: i32 = metafits_fine_channels_per_coarse as i32;
-
-                if calculated_naxis1 != naxis1 as i32 {
-                    return Err(GpuboxError::LegacyNAXIS1Mismatch {
-                        naxis1,
-                        calculated_naxis1,
-                        metafits_baselines,
-                        visibility_pols,
-                        naxis2,
-                    });
-                }
-                if calculated_naxis2 != naxis2 as i32 {
-                    return Err(GpuboxError::LegacyNAXIS2Mismatch {
-                        naxis2,
-                        calculated_naxis2,
-                        metafits_fine_channels_per_coarse,
-                    });
-                }
-            }
-            CorrelatorVersion::V2 => {
-                // NAXIS1 = fine channels * visibility pols * 2
-                // NAXIS2 = baselines
-                let calculated_naxis1: i32 =
-                    metafits_fine_channels_per_coarse as i32 * visibility_pols as i32 * 2;
-                let calculated_naxis2: i32 = metafits_baselines as i32;
-
-                if calculated_naxis1 != naxis1 as i32 {
-                    return Err(GpuboxError::MwaxNAXIS1Mismatch {
-                        naxis1,
-                        calculated_naxis1,
-                        metafits_fine_channels_per_coarse,
-                        visibility_pols,
-                        naxis2,
-                    });
-                }
-                if calculated_naxis2 != naxis2 as i32 {
-                    return Err(GpuboxError::MwaxNAXIS2Mismatch {
-                        naxis2,
-                        calculated_naxis2,
-                        metafits_baselines,
-                    });
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Read a single timestep for a single coarse channel
-    /// The output visibilities are in order:
-    /// [baseline][frequency][pol][r][i]
+    /// Read a single gps time / coarse channel worth of data
+    /// The output data are in order:
+    /// antenna[0]|pol[0]|s[0]...s[63999]|pol[0]
+    /// Each sample is a byte.
     ///
     /// # Arguments
     ///
     /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within mwalibContext.timesteps.
+    ///                      to the element within VoltageContext.timesteps.
     ///
     /// * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
-    ///                      to the element within mwalibContext.coarse_channels.
+    ///                      to the element within VoltageContext.coarse_channels.
     ///
     ///
     /// # Returns
     ///
-    /// * A Result containing vector of 32 bit floats containing the data in [baseline][frequency][pol][r][i] order, if Ok.
+    /// * A Result containing vector of bytes containing the data in antenna[0]|pol[0]|s[0]...s[63999]|pol[0] order, if Ok.
     ///
     ///
-    pub fn read_by_baseline(
+    pub fn read(
         &mut self,
         timestep_index: usize,
         coarse_channel_index: usize,
-    ) -> Result<Vec<f32>, GpuboxError> {
-        // Output buffer for read in data
-        let output_buffer: Vec<f32>;
+    ) -> Result<Vec<u8>, VoltageFileError> {
+        if self.voltage_batches.is_empty() {
+            return Err(VoltageFileError::NoVoltageFiles);
+        }
 
-        // Prepare temporary buffer, if we are reading legacy correlator files
-        let mut temp_buffer = if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
-        {
-            vec![
-                0.;
-                self.num_fine_channels_per_coarse
-                    * self.num_visibility_pols
-                    * self.num_baselines
-                    * 2
-            ]
-        } else {
-            Vec::new()
+        // Lookup the coarse channel we need
+        let coarse_channel = self.coarse_channels[coarse_channel_index].receiver_channel_number;
+
+        // Lookup the timestep we need
+        let timestep = self.timesteps[timestep_index].gps_time_milliseconds;
+
+        // Get the filename for this timestep and coarse channel
+        let filename: &String = &self.voltage_time_map[&timestep][&coarse_channel];
+
+        // Open the file
+        let mut file_handle = File::open(&filename).expect("no file found");
+
+        // Obtain metadata
+        let metadata = std::fs::metadata(&filename).expect("unable to read metadata");
+
+        // Create an output buffer big enough
+        let mut buffer = vec![0; metadata.len() as usize];
+
+        // Determine delay_block_size
+        let delay_block_size: u64 = self.metafits_context.num_rf_inputs as u64 * 128000;
+
+        // Determine where the data starts
+        let skip_pos = match self.corr_version {
+            CorrelatorVersion::V2 => 4096 + delay_block_size,
+            CorrelatorVersion::Legacy => 0,
+            CorrelatorVersion::OldLegacy => 0,
         };
 
-        // Lookup the coarse channel we need
-        let coarse_channel = self.coarse_channels[coarse_channel_index].gpubox_number;
-        let (batch_index, hdu_index) =
-            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
+        // Skip to the data
+        file_handle
+            .seek(SeekFrom::Start(skip_pos))
+            .expect("Unable to seek to data in voltage file");
 
-        if self.voltage_batches.is_empty() {
-            return Err(GpuboxError::NoGpuboxes);
-        }
-        let mut fptr = fits_open!(
-            &self.voltage_batches[batch_index].gpubox_files[coarse_channel_index].filename
-        )?;
-        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
-        output_buffer = get_fits_image!(&mut fptr, &hdu)?;
-        // If legacy correlator, then convert the HDU into the correct output format
-        if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
-        {
-            convert::convert_legacy_hdu_to_mwax_baseline_order(
-                &self.legacy_conversion_table,
-                &output_buffer,
-                &mut temp_buffer,
-                self.num_fine_channels_per_coarse,
-            );
+        // Read data into the buffer
+        file_handle.read(&mut buffer).expect("buffer overflow");
 
-            Ok(temp_buffer)
-        } else {
-            Ok(output_buffer)
-        }
+        Ok(buffer)
     }
-
-    /// Read a single timestep for a single coarse channel
-    /// The output visibilities are in order:
-    /// [frequency][baseline][pol][r][i]
-    ///
-    /// # Arguments
-    ///
-    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within mwalibContext.timesteps.
-    ///
-    /// * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
-    ///                      to the element within mwalibContext.coarse_channels.
-    ///
-    ///
-    /// # Returns
-    ///
-    /// * A Result containing vector of 32 bit floats containing the data in [frequency][baseline][pol][r][i] order, if Ok.
-    ///
-    ///
-    pub fn read_by_frequency(
-        &mut self,
-        timestep_index: usize,
-        coarse_channel_index: usize,
-    ) -> Result<Vec<f32>, GpuboxError> {
-        // Output buffer for read in data
-        let output_buffer: Vec<f32>;
-
-        // Prepare temporary buffer, if we are reading legacy correlator files
-        let mut temp_buffer = vec![
-            0.;
-            self.num_fine_channels_per_coarse
-                * self.num_visibility_pols
-                * self.num_baselines
-                * 2
-        ];
-
-        // Lookup the coarse channel we need
-        let coarse_channel = self.coarse_channels[coarse_channel_index].gpubox_number;
-        let (batch_index, hdu_index) =
-            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_channel];
-
-        if self.voltage_batches.is_empty() {
-            return Err(GpuboxError::NoGpuboxes);
-        }
-        let mut fptr = fits_open!(
-            &self.voltage_batches[batch_index].gpubox_files[coarse_channel_index].filename
-        )?;
-        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
-        output_buffer = get_fits_image!(&mut fptr, &hdu)?;
-        // If legacy correlator, then convert the HDU into the correct output format
-        if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
-        {
-            convert::convert_legacy_hdu_to_mwax_frequency_order(
-                &self.legacy_conversion_table,
-                &output_buffer,
-                &mut temp_buffer,
-                self.num_fine_channels_per_coarse,
-            );
-
-            Ok(temp_buffer)
-        } else {
-            // Do conversion for mwax (it is in baseline order, we want it in freq order)
-            convert::convert_mwax_hdu_to_frequency_order(
-                &output_buffer,
-                &mut temp_buffer,
-                self.num_baselines,
-                self.num_fine_channels_per_coarse,
-                self.num_visibility_pols,
-            );
-
-            Ok(temp_buffer)
-        }
-    }*/
 }
 
 /// Implements fmt::Display for VoltageContext struct
@@ -464,6 +282,8 @@ impl fmt::Display for VoltageContext {
 
             num timesteps:            {n_timesteps},
             timesteps:                {timesteps:?},
+            num samples / ts:         {num_samples_per_timestep},
+            timestep duration ms,     {timestep_duration_milliseconds}
 
             num antennas:             {n_ants},
 
@@ -483,6 +303,8 @@ impl fmt::Display for VoltageContext {
             duration = self.duration_milliseconds as f64 / 1e3,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,
+            num_samples_per_timestep = self.num_samples_per_timestep,
+            timestep_duration_milliseconds = self.timestep_duration_milliseconds,
             n_ants = self.metafits_context.num_antennas,
             obw = self.bandwidth_hz as f64 / 1e6,
             n_coarse = self.num_coarse_channels,
@@ -497,7 +319,44 @@ impl fmt::Display for VoltageContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    //use float_cmp::*;
+    use std::fs::File;
+    use std::io::{Error, Write};
+    // Helper fuction to generate (small) test voltage files
+    fn generate_test_voltage_file(
+        temp_dir: &tempdir::TempDir,
+        filename: &str,
+        time_samples: usize,
+        rf_inputs: usize,
+    ) -> Result<String, Error> {
+        let tdir_path = temp_dir.path();
+        let full_filename = tdir_path.join(filename);
+
+        let mut output_file = File::create(&full_filename)?;
+        // Write out x time samples
+        // Each sample has x rfinputs
+        // and 1 float for real 1 float for imaginary
+        let floats = time_samples * rf_inputs * 2;
+        let mut buffer: Vec<f32> = vec![0.0; floats];
+
+        let mut bptr: usize = 0;
+
+        // This will write out the sequence:
+        // 0.25, 0.75, 1.25, 1.75..511.25,511.75  (1024 floats in all)
+        for t in 0..time_samples {
+            for r in 0..rf_inputs {
+                // real
+                buffer[bptr] = ((t * rf_inputs) + r) as f32 + 0.25;
+                bptr += 1;
+                // imag
+                buffer[bptr] = ((t * rf_inputs) + r) as f32 + 0.75;
+                bptr += 1;
+            }
+        }
+        output_file.write_all(misc::as_u8_slice(buffer.as_slice()))?;
+        output_file.flush()?;
+
+        Ok(String::from(full_filename.to_str().unwrap()))
+    }
 
     #[test]
     fn test_context_new_missing_voltage_files() {
@@ -511,94 +370,170 @@ mod tests {
             MwalibError::Voltage(VoltageFileError::NoVoltageFiles)
         ));
     }
-}
 
-/*
     #[test]
     fn test_context_new_invalid_metafits() {
         let metafits_filename = "invalid.metafits";
-        let filename =
-            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
-        let gpuboxfiles = vec![filename];
+        let filename = "test_files/1101503312_1_timestep/1101503312_1101503312_ch123.dat";
+        let voltage_files = vec![filename];
 
         // No gpubox files provided
-        let context = VoltageContext::new(&metafits_filename, &gpuboxfiles);
+        let context = VoltageContext::new(&metafits_filename, &voltage_files);
 
         assert!(context.is_err());
     }
-}*/
-/*
 
     #[test]
-    #[allow(clippy::cognitive_complexity)]
     fn test_context_legacy_v1() {
         // Open the test mwax file
         let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
-        let filename =
-            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+        // Create some test files
+        // Create a temp dir for the temp files
+        // Once out of scope the temp dir and it's contents will be deleted
+        let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
+
+        // Populate vector of filenames
+        let mut temp_filenames: Vec<&str> = Vec::new();
+        let tvf1 = generate_test_voltage_file(&temp_dir, "1101503312_1101503312_ch123.dat", 2, 256)
+            .unwrap();
+        temp_filenames.push(&tvf1);
+        let tvf2 = generate_test_voltage_file(&temp_dir, "1101503312_1101503312_ch124.dat", 2, 256)
+            .unwrap();
+        temp_filenames.push(&tvf2);
+        let tvf3 = generate_test_voltage_file(&temp_dir, "1101503312_1101503313_ch123.dat", 2, 256)
+            .unwrap();
+        temp_filenames.push(&tvf3);
+        let tvf4 = generate_test_voltage_file(&temp_dir, "1101503312_1101503313_ch124.dat", 2, 256)
+            .unwrap();
+        temp_filenames.push(&tvf4);
 
         //
         // Read the observation using mwalib
         //
         // Open a context and load in a test metafits and gpubox file
-        let gpuboxfiles = vec![filename];
-        let context = VoltageContext::new(&metafits_filename, &gpuboxfiles)
-            .expect("Failed to create mwalibContext");
+        let context = VoltageContext::new(&metafits_filename, &temp_filenames)
+            .expect("Failed to create VoltageContext");
 
         // Test the properties of the context object match what we expect
         // Correlator version:       v1 Legacy,
         assert_eq!(context.corr_version, CorrelatorVersion::Legacy);
 
-        // Actual UNIX start time:   1417468096,
-        assert_eq!(context.start_unix_time_milliseconds, 1_417_468_096_000);
+        // Actual gps start time:   1_101_503_312,
+        assert_eq!(context.start_gps_time_milliseconds, 1_101_503_312_000);
 
-        // Actual UNIX end time:     1417468098,
-        assert_eq!(context.end_unix_time_milliseconds, 1_417_468_098_000);
+        // Actual gps end time:     1_101_503_314,
+        assert_eq!(context.end_gps_time_milliseconds, 1_101_503_314_000);
 
         // Actual duration:          2 s,
-        assert_eq!(context.duration_milliseconds, 2000);
+        assert_eq!(context.duration_milliseconds, 2_000);
 
-        // num timesteps:            1,
-        assert_eq!(context.num_timesteps, 1);
+        // num timesteps:            2,
+        assert_eq!(context.num_timesteps, 2);
 
-        // timesteps:                [unix=1417468096.000],
-        assert_eq!(context.timesteps[0].unix_time_ms, 1_417_468_096_000);
+        // timesteps:
+        assert_eq!(
+            context.timesteps[0].gps_time_milliseconds,
+            1_101_503_312_000
+        );
+        assert_eq!(
+            context.timesteps[1].gps_time_milliseconds,
+            1_101_503_313_000
+        );
 
-        // num baselines:            8256,
-        assert_eq!(context.num_baselines, 8256);
+        // num coarse channels,      2,
+        assert_eq!(context.num_coarse_channels, 2);
 
-        // num visibility pols:      4,
-        assert_eq!(context.num_visibility_pols, 4);
+        // observation bandwidth:    2.56 MHz,
+        assert_eq!(context.bandwidth_hz, 1_280_000 * 2);
 
-        // observation bandwidth:    1.28 MHz,
-        assert_eq!(context.bandwidth_hz, 1_280_000);
-
-        // num coarse channels,      1,
-        assert_eq!(context.num_coarse_channels, 1);
-
-        // coarse channels:          [gpu=1 corr=0 rec=109 @ 139.520 MHz],
-        assert_eq!(context.coarse_channels[0].gpubox_number, 1);
-        assert_eq!(context.coarse_channels[0].receiver_channel_number, 109);
-        assert_eq!(context.coarse_channels[0].channel_centre_hz, 139_520_000);
-
-        // Correlator Mode:
+        // coarse channels:
+        assert_eq!(context.coarse_channels[0].receiver_channel_number, 123);
+        assert_eq!(context.coarse_channels[0].channel_centre_hz, 157_440_000);
+        assert_eq!(context.coarse_channels[1].receiver_channel_number, 124);
+        assert_eq!(context.coarse_channels[1].channel_centre_hz, 158_720_000);
         // fine channel resolution:  10 kHz,
         assert_eq!(context.fine_channel_width_hz, 10_000);
-
-        // integration time:         2.00 s
-        assert_eq!(context.integration_time_milliseconds, 2000);
-
         // num fine channels/coarse: 128,
         assert_eq!(context.num_fine_channels_per_coarse, 128);
-
-        // gpubox HDU size:          32.25 MiB,
-        // Memory usage per scan:    32.25 MiB,
-
-        // metafits filename:        ../test_files/1101503312_1_timestep/1101503312.metafits,
-        // gpubox batches:           [
-        // batch_number=0 gpubox_files=[filename=../test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits channelidentifier=1]
+        assert_eq!(context.voltage_batches.len(), 2);
     }
 
+    #[test]
+    fn test_context_mwax_v2() {
+        // Open the test mwax file
+        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+        // Create some test files
+        // Create a temp dir for the temp files
+        // Once out of scope the temp dir and it's contents will be deleted
+        let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
+
+        // Populate vector of filenames
+        let mut temp_filenames: Vec<&str> = Vec::new();
+        let tvf1 =
+            generate_test_voltage_file(&temp_dir, "1101503312_1101503312_123.sub", 2, 256).unwrap();
+        temp_filenames.push(&tvf1);
+        let tvf2 =
+            generate_test_voltage_file(&temp_dir, "1101503312_1101503312_124.sub", 2, 256).unwrap();
+        temp_filenames.push(&tvf2);
+        let tvf3 =
+            generate_test_voltage_file(&temp_dir, "1101503312_1101503320_123.sub", 2, 256).unwrap();
+        temp_filenames.push(&tvf3);
+        let tvf4 =
+            generate_test_voltage_file(&temp_dir, "1101503312_1101503320_124.sub", 2, 256).unwrap();
+        temp_filenames.push(&tvf4);
+
+        //
+        // Read the observation using mwalib
+        //
+        // Open a context and load in a test metafits and gpubox file
+        let context = VoltageContext::new(&metafits_filename, &temp_filenames)
+            .expect("Failed to create VoltageContext");
+
+        // Test the properties of the context object match what we expect
+        // Correlator version:       v2 mwax,
+        assert_eq!(context.corr_version, CorrelatorVersion::V2);
+
+        // Actual gps start time:   1_101_503_312,
+        assert_eq!(context.start_gps_time_milliseconds, 1_101_503_312_000);
+
+        // Actual gps end time:     1_101_503_328,
+        assert_eq!(context.end_gps_time_milliseconds, 1_101_503_328_000);
+
+        // Actual duration:          16 s,
+        assert_eq!(context.duration_milliseconds, 16_000);
+
+        // num timesteps:            2,
+        assert_eq!(context.num_timesteps, 2);
+
+        // timesteps:
+        assert_eq!(
+            context.timesteps[0].gps_time_milliseconds,
+            1_101_503_312_000
+        );
+        assert_eq!(
+            context.timesteps[1].gps_time_milliseconds,
+            1_101_503_320_000
+        );
+
+        // num coarse channels,      2,
+        assert_eq!(context.num_coarse_channels, 2);
+
+        // observation bandwidth:    2.56 MHz,
+        assert_eq!(context.bandwidth_hz, 1_280_000 * 2);
+
+        // coarse channels:
+        assert_eq!(context.coarse_channels[0].receiver_channel_number, 123);
+        assert_eq!(context.coarse_channels[0].channel_centre_hz, 157_440_000);
+        assert_eq!(context.coarse_channels[1].receiver_channel_number, 124);
+        assert_eq!(context.coarse_channels[1].channel_centre_hz, 158_720_000);
+        // fine channel resolution:  1.28 MHz,
+        assert_eq!(context.fine_channel_width_hz, 1_280_000);
+        // num fine channels/coarse: 1,
+        assert_eq!(context.num_fine_channels_per_coarse, 1);
+        assert_eq!(context.voltage_batches.len(), 2);
+    }
+}
+/*
     #[test]
     fn test_mwax_read() {
         // Open the test mwax file
