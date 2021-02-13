@@ -2,9 +2,6 @@
 
 set -eux
 
-# Build mwalib in release and regenerate mwalib.h
-../tools/generate_mwalib_h.sh
-
 # Compile the example C code
 gcc -O3 \
     mwalib-print-obs-context.c \

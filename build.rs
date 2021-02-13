@@ -31,4 +31,26 @@ fn main() {
     if env::var("MWALIB_LINK_STATIC_CFITSIO") == Ok("1".to_string()) || infer_static("cfitsio") {
         println!("cargo:rustc-link-lib=static=cfitsio");
     }
+
+    // Generate a C header for mwalib and write it to the include directory.
+    // This routine only need to be done if the ffi module has changed.
+    println!("cargo:rerun-if-changed=src/ffi.rs");
+    // Only do this if we're not on docs.rs (doesn't like writing files outside
+    // of OUT_DIR).
+    match env::var("DOCS_RS").as_deref() {
+        Ok("1") => (),
+        _ => {
+            cbindgen::Builder::new()
+                .with_config(cbindgen::Config {
+                    cpp_compat: true,
+                    pragma_once: true,
+                    ..Default::default()
+                })
+                .with_crate(env::var("CARGO_MANIFEST_DIR").unwrap())
+                .with_language(cbindgen::Language::C)
+                .generate()
+                .expect("Unable to generate bindings")
+                .write_to_file("include/mwalib.h");
+        }
+    }
 }

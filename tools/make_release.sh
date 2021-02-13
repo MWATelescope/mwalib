@@ -6,8 +6,6 @@ rm -rf release
 echo "Building mwalib..."
 export MWALIB_LINK_STATIC_CFITSIO=1
 cargo build --release -v
-cbindgen -l c .. > ../include/mwalib.h
-echo "mwalib.h has been regenerated in ../include/mwalib.h"
 echo "Packaging up mwalib..."
 mkdir -p release
 mkdir -p release/lib
