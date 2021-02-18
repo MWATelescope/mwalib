@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    mwalibCorrelatorMetadata *corr_metadata = NULL;
+    CorrelatorMetadata *corr_metadata = NULL;
 
     if (mwalib_correlator_metadata_get(corr_context, &corr_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {

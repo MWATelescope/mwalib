@@ -407,7 +407,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         assert!(context_ptr.is_some());
 
         // Populate a mwalibMetafitsMetadata struct
-        let mut metafits_metadata_ptr: &mut *mut mwalibMetafitsMetadata = &mut std::ptr::null_mut();
+        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
         let retval = mwalib_metafits_metadata_get(
             metafits_context_ptr,
             std::ptr::null_mut(),
@@ -447,7 +447,7 @@ fn test_mwalib_metafits_metadata_get_null_contexts() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut metafits_metadata_ptr: &mut *mut mwalibMetafitsMetadata = &mut std::ptr::null_mut();
+        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
         let ret_val = mwalib_metafits_metadata_get(
             std::ptr::null_mut(),
             std::ptr::null_mut(),
@@ -478,7 +478,7 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
         assert!(context_ptr.is_some());
 
         // Populate a mwalibMetafitsMetadata struct
-        let mut metafits_metadata_ptr: &mut *mut mwalibMetafitsMetadata = &mut std::ptr::null_mut();
+        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
         let retval = mwalib_metafits_metadata_get(
             std::ptr::null_mut(),
             correlator_context_ptr,
@@ -518,7 +518,7 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
         assert!(context_ptr.is_some());
 
         // Populate a mwalibMetafitsMetadata struct
-        let mut metafits_metadata_ptr: &mut *mut mwalibMetafitsMetadata = &mut std::ptr::null_mut();
+        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
         let retval = mwalib_metafits_metadata_get(
             std::ptr::null_mut(),
             std::ptr::null_mut(),
@@ -557,9 +557,8 @@ fn test_mwalib_correlator_metadata_get_valid() {
         let context_ptr = correlator_context_ptr.as_mut();
         assert!(context_ptr.is_some());
 
-        // Populate a mwalibCorrelatorMetadata struct
-        let mut correlator_metadata_ptr: &mut *mut mwalibCorrelatorMetadata =
-            &mut std::ptr::null_mut();
+        // Populate a CorrelatorMetadata struct
+        let mut correlator_metadata_ptr: &mut *mut CorrelatorMetadata = &mut std::ptr::null_mut();
         let retval = mwalib_correlator_metadata_get(
             correlator_context_ptr,
             &mut correlator_metadata_ptr,
@@ -589,8 +588,7 @@ fn test_mwalib_correlator_metadata_get_null_context() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut correlator_metadata_ptr: &mut *mut mwalibCorrelatorMetadata =
-            &mut std::ptr::null_mut();
+        let mut correlator_metadata_ptr: &mut *mut CorrelatorMetadata = &mut std::ptr::null_mut();
 
         let context_ptr = std::ptr::null_mut();
         let ret_val = mwalib_correlator_metadata_get(
@@ -621,7 +619,7 @@ fn test_mwalib_antennas_get_from_metafits_context_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibAntenna = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Antenna = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_antennas_get(
@@ -638,7 +636,7 @@ fn test_mwalib_antennas_get_from_metafits_context_valid() {
         assert_eq!(retval, 0, "mwalib_antennas_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<mwalibAntenna> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<Antenna> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 128, "Array length is not correct");
@@ -661,7 +659,7 @@ fn test_mwalib_antennas_get_from_correlator_context_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibAntenna = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Antenna = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_antennas_get(
@@ -678,7 +676,7 @@ fn test_mwalib_antennas_get_from_correlator_context_valid() {
         assert_eq!(retval, 0, "mwalib_antennas_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<mwalibAntenna> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<Antenna> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 128, "Array length is not correct");
@@ -701,7 +699,7 @@ fn test_mwalib_antennas_get_from_voltage_context_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibAntenna = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Antenna = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_antennas_get(
@@ -718,7 +716,7 @@ fn test_mwalib_antennas_get_from_voltage_context_valid() {
         assert_eq!(retval, 0, "mwalib_antennas_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<mwalibAntenna> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<Antenna> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 128, "Array length is not correct");
@@ -734,7 +732,7 @@ fn test_mwalib_antennas_get_null_contexts() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut array_ptr: &mut *mut mwalibAntenna = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Antenna = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
         let retval = mwalib_antennas_get(
             std::ptr::null_mut(),
@@ -774,7 +772,7 @@ fn test_mwalib_correlator_baselines_get_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibBaseline = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Baseline = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_correlator_baselines_get(
@@ -789,7 +787,7 @@ fn test_mwalib_correlator_baselines_get_valid() {
         assert_eq!(retval, 0, "mwalib_baselines_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<mwalibBaseline> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<Baseline> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 8256, "Array length is not correct");
@@ -806,7 +804,7 @@ fn test_mwalib_correlator_baselines_get_null_context() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut array_ptr: &mut *mut mwalibBaseline = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Baseline = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
         let retval = mwalib_correlator_baselines_get(
             std::ptr::null_mut(),
@@ -844,7 +842,7 @@ fn test_mwalib_correlator_coarse_channels_get_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibCoarseChannel = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut CoarseChannel = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_correlator_coarse_channels_get(
@@ -862,7 +860,7 @@ fn test_mwalib_correlator_coarse_channels_get_valid() {
         );
 
         // reconstitute into a vector
-        let item: Vec<mwalibCoarseChannel> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<CoarseChannel> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 1, "Array length is not correct");
@@ -878,7 +876,7 @@ fn test_mwalib_correlator_coarse_channels_get_null_context() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut array_ptr: &mut *mut mwalibCoarseChannel = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut CoarseChannel = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
         let retval = mwalib_correlator_coarse_channels_get(
             std::ptr::null_mut(),
@@ -913,7 +911,7 @@ fn test_mwalib_voltage_coarse_channels_get_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibCoarseChannel = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut CoarseChannel = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_voltage_coarse_channels_get(
@@ -931,7 +929,7 @@ fn test_mwalib_voltage_coarse_channels_get_valid() {
         );
 
         // reconstitute into a vector
-        let item: Vec<mwalibCoarseChannel> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<CoarseChannel> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(
@@ -951,7 +949,7 @@ fn test_mwalib_voltage_coarse_channels_get_null_context() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut array_ptr: &mut *mut mwalibCoarseChannel = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut CoarseChannel = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
         let retval = mwalib_voltage_coarse_channels_get(
             std::ptr::null_mut(),
@@ -989,7 +987,7 @@ fn test_mwalib_rfinputs_get_from_metafits_context_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibRFInput = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut RFInput = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_rfinputs_get(
@@ -1006,7 +1004,7 @@ fn test_mwalib_rfinputs_get_from_metafits_context_valid() {
         assert_eq!(retval, 0, "mwalib_rfinputs_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<mwalibRFInput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<RFInput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 256, "Array length is not correct");
@@ -1041,7 +1039,7 @@ fn test_mwalib_rfinputs_get_from_correlator_context_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibRFInput = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut RFInput = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_rfinputs_get(
@@ -1058,7 +1056,7 @@ fn test_mwalib_rfinputs_get_from_correlator_context_valid() {
         assert_eq!(retval, 0, "mwalib_rfinputs_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<mwalibRFInput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<RFInput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 256, "Array length is not correct");
@@ -1093,7 +1091,7 @@ fn test_mwalib_rfinputs_get_from_voltage_context_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibRFInput = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut RFInput = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_rfinputs_get(
@@ -1110,7 +1108,7 @@ fn test_mwalib_rfinputs_get_from_voltage_context_valid() {
         assert_eq!(retval, 0, "mwalib_rfinputs_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<mwalibRFInput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<RFInput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 256, "Array length is not correct");
@@ -1137,7 +1135,7 @@ fn test_mwalib_rfinputs_get_null_contexts() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut array_ptr: &mut *mut mwalibRFInput = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut RFInput = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
         let retval = mwalib_rfinputs_get(
             std::ptr::null_mut(),
@@ -1177,7 +1175,7 @@ fn test_mwalib_correlator_timesteps_get_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibTimeStep = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut TimeStep = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_correlator_timesteps_get(
@@ -1192,7 +1190,7 @@ fn test_mwalib_correlator_timesteps_get_valid() {
         assert_eq!(retval, 0, "mwalib_timesteps_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<mwalibTimeStep> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<TimeStep> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 1, "Array length is not correct");
@@ -1208,7 +1206,7 @@ fn test_mwalib_correlator_timesteps_get_null_context() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut array_ptr: &mut *mut mwalibTimeStep = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut TimeStep = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
         let retval = mwalib_correlator_timesteps_get(
             std::ptr::null_mut(),
@@ -1244,7 +1242,7 @@ fn test_mwalib_correlator_visibility_pols_get_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut mwalibVisibilityPol = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut VisibilityPol = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_correlator_visibility_pols_get(
@@ -1262,7 +1260,7 @@ fn test_mwalib_correlator_visibility_pols_get_valid() {
         );
 
         // reconstitute into a vector
-        let item: Vec<mwalibVisibilityPol> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<VisibilityPol> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 4, "Array length is not correct");
@@ -1293,7 +1291,7 @@ fn test_mwalib_correlator_visibilitypols_get_null_context() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut array_ptr: &mut *mut mwalibVisibilityPol = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut VisibilityPol = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
         let retval = mwalib_correlator_visibility_pols_get(
             std::ptr::null_mut(),

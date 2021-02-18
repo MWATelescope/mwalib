@@ -32,7 +32,7 @@ mwalib.mwalib_correlator_context_new.argtypes = \
      ct.POINTER(ct.POINTER(CorrelatorContextS)), # Pointer to pointer to CorrelatorContext
      ct.c_char_p,              # error message
      ct.c_size_t)              # length of error message
-mwalib.mwalib_correlator_context_new.restype = ct.c_uint32
+mwalib.mwalib_correlator_context_new.restype = ct.c_int32
 
 mwalib.mwalib_correlator_context_free.argtypes = (ct.POINTER(CorrelatorContextS), )
 

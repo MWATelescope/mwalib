@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
     }
 
     // Get correlator metadata
-    mwalibCorrelatorMetadata *corr_metadata = NULL;
+    CorrelatorMetadata *corr_metadata = NULL;
     if (mwalib_correlator_metadata_get(correlator_context, &corr_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error displaying correlator metadata info: %s\n", error_message);
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     }
 
     // Example of using metadata struct
-    mwalibMetafitsMetadata *metafits_metadata = NULL;
+    MetafitsMetadata *metafits_metadata = NULL;
     if (mwalib_metafits_metadata_get(NULL, correlator_context, NULL, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error %s", error_message);
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
     }
 
     // Example of using antennas
-    mwalibAntenna *ants = NULL;
+    Antenna *ants = NULL;
     size_t nants = 0;
 
     if (mwalib_antennas_get(metafits_context, NULL, NULL, &ants, &nants, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
     mwalib_antennas_free(ants, metafits_metadata->num_antennas);
 
     // Example of using baselines
-    mwalibBaseline *bls = NULL;
+    Baseline *bls = NULL;
     size_t nbls = 0;
 
     if (mwalib_correlator_baselines_get(correlator_context, &bls, &nbls, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
     mwalib_baselines_free(bls, corr_metadata->num_baselines);
 
     // Example of using coarse channels
-    mwalibCoarseChannel *ccs = NULL;
+    CoarseChannel *ccs = NULL;
     size_t nccs = 0;
 
     if (mwalib_correlator_coarse_channels_get(correlator_context, &ccs, &nccs, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
     mwalib_coarse_channels_free(ccs, corr_metadata->num_coarse_channels);
 
     // Example of using rf_inputs
-    mwalibRFInput *rfs = NULL;
+    RFInput *rfs = NULL;
     size_t nrfs = 0;
 
     if (mwalib_rfinputs_get(NULL, correlator_context, NULL, &rfs, &nrfs, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
     mwalib_rfinputs_free(rfs, metafits_metadata->num_rf_inputs);
 
     // Example of using timestep struct
-    mwalibTimeStep *ts = NULL;
+    TimeStep *ts = NULL;
     size_t nts = 0;
 
     if (mwalib_correlator_timesteps_get(correlator_context, &ts, &nts, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
     mwalib_timesteps_free(ts, corr_metadata->num_timesteps);
 
     // Example of using visibility pols
-    mwalibVisibilityPol *vis_pol_array = NULL;
+    VisibilityPol *vis_pol_array = NULL;
     size_t nvps = 0;
 
     if (mwalib_correlator_visibility_pols_get(correlator_context, &vis_pol_array, &nvps, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
