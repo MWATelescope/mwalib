@@ -6,13 +6,13 @@ cd ..
 cargo clean
 rustup run nightly cargo clean
 rm *.profraw
-RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests
+RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --lib
 rustup run nightly cargo profdata -- merge -sparse json5format-*.profraw -o json5format.profdata
 rustup run nightly cargo cov -- report --use-color --ignore-filename-regex='/.cargo/registry' --instr-profile=json5format.profdata \
 $( \
       for file in \
        $( \
-            RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests --no-run --message-format=json \
+            RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --lib --no-run --message-format=json \
                 | jq -r "select(.profile.test == true) | .filenames[]" \
                 | grep -v dSYM - \
         ); \
@@ -24,7 +24,7 @@ rustup run nightly cargo cov -- show --use-color --ignore-filename-regex='/.carg
 $( \
       for file in \
        $( \
-           RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests --no-run --message-format=json \
+           RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --lib --no-run --message-format=json \
                 | jq -r "select(.profile.test == true) | .filenames[]" \
                 | grep -v dSYM - \
         ); \

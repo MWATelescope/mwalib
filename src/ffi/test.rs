@@ -256,6 +256,26 @@ fn test_set_error_message() {
     assert_eq!(buffer, CString::new("hello world").unwrap());
 }
 
+#[test]
+fn test_set_error_message_null_ptr() {
+    let buffer_ptr: *mut i8 = std::ptr::null_mut();
+    unsafe {
+        assert_eq!(mwalib_free_rust_cstring(buffer_ptr), 0);
+    }
+}
+
+#[test]
+fn test_mwalib_free_rust_cstring() {
+    let buffer = CString::new("HELLO WORLD").unwrap();
+    let buffer_ptr = buffer.into_raw() as *mut i8;
+
+    // into_raw will take garbage collection of the buffer away from rust, so
+    // some ffi/C code can free it (like below)
+    unsafe {
+        assert_eq!(mwalib_free_rust_cstring(buffer_ptr), 0);
+    }
+}
+
 //
 // Metafits context Tests
 //

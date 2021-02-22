@@ -148,13 +148,15 @@ impl VoltageContext {
             start_gps_time_milliseconds,
             end_gps_time_milliseconds,
             voltage_info.voltage_file_interval_milliseconds,
+            metafits_context.scheduled_start_gpstime_milliseconds,
+            metafits_context.scheduled_start_unix_time_milliseconds,
         );
 
         // The number of samples this timestep represents. For correlator, this would be 1. For voltage capture it will be many.
         let num_samples_per_timestep = match voltage_info.corr_format {
-            CorrelatorVersion::OldLegacy => 1, // TODO: find out the legacy VCS value
-            CorrelatorVersion::Legacy => 1,    // TODO: find out the legacy VCS value
-            CorrelatorVersion::V2 => 160,
+            CorrelatorVersion::OldLegacy => 10000,
+            CorrelatorVersion::Legacy => 10000,
+            CorrelatorVersion::V2 => 10_240_000, // (64K per 50ms and there are 160 50ms blocks per 8 seconds of MWAX VCS)
         };
 
         // Length of this timestep in milliseconds

@@ -282,8 +282,6 @@ pub fn generate_conversion_array(rf_inputs: &mut Vec<RFInput>) -> Vec<LegacyConv
 ///
 /// * Nothing
 ///
-/// # TODO
-/// Better error handling by returning a Result with associated Errors. Right now it just panics.
 ///
 pub fn convert_legacy_hdu_to_mwax_baseline_order(
     conversion_table: &[LegacyConversionBaseline],
@@ -382,8 +380,6 @@ pub fn convert_legacy_hdu_to_mwax_baseline_order(
 ///
 /// * Nothing
 ///
-/// # TODO
-/// Better error handling by returning a Result with associated Errors. Right now it just panics.
 ///
 pub fn convert_legacy_hdu_to_mwax_frequency_order(
     conversion_table: &[LegacyConversionBaseline],
@@ -472,8 +468,6 @@ pub fn convert_legacy_hdu_to_mwax_frequency_order(
 ///
 /// * Nothing
 ///
-/// # TODO
-/// Better error handling by returning a Result with associated Errors. Right now it just panics.
 ///
 pub fn convert_mwax_hdu_to_frequency_order(
     input_buffer: &[f32],

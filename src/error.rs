@@ -15,6 +15,10 @@ pub enum MwalibError {
 
     /// An error derived from `RfinputError`.
     #[error("{0}")]
+    CoarseChannel(#[from] crate::coarse_channel::error::CoarseChannelError),
+
+    /// An error derived from `RfinputError`.
+    #[error("{0}")]
     Rfinput(#[from] crate::rfinput::error::RfinputError),
 
     /// An error derived from `GpuboxError`.
