@@ -56,7 +56,6 @@ impl VisibilityPol {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for VisibilityPol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "pol={}", self.polarisation,)

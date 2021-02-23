@@ -42,7 +42,6 @@ impl GPUBoxBatch {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for GPUBoxBatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -61,7 +60,6 @@ pub struct GPUBoxFile {
     pub channel_identifier: usize,
 }
 
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for GPUBoxFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

@@ -90,7 +90,6 @@ pub enum Pol {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Display for Pol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -427,7 +426,6 @@ fn read_cell_array(
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for RFInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.tile_name, self.pol)

@@ -44,7 +44,6 @@ impl VoltageFileBatch {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for VoltageFileBatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -63,7 +62,6 @@ pub struct VoltageFile {
     pub channel_identifier: usize,
 }
 
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for VoltageFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -815,7 +813,10 @@ mod tests {
         let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
         assert!(matches!(
             result.unwrap_err(),
-            VoltageFileError::GpsTimeMissing { expected: _, got: _ }
+            VoltageFileError::GpsTimeMissing {
+                expected: _,
+                got: _
+            }
         ));
     }
 
@@ -1177,7 +1178,10 @@ mod tests {
 
         assert!(matches!(
             result.unwrap_err(),
-            VoltageFileError::GpsTimeMissing{ expected: _, got: _}
+            VoltageFileError::GpsTimeMissing {
+                expected: _,
+                got: _
+            }
         ));
     }
 

@@ -209,7 +209,6 @@ impl TimeStep {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for TimeStep {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "unix={:.3}", self.unix_time_milliseconds as f64 / 1000.,)

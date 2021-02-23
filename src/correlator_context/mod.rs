@@ -548,7 +548,6 @@ impl CorrelatorContext {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Display for CorrelatorContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // `size` is the number of floats (self.gpubox_hdu_size) multiplied by 4
@@ -845,5 +844,185 @@ mod tests {
         assert!(result_invalid2.is_err());
 
         assert!(result_invalid3.is_err());
+    }
+
+    #[test]
+    fn test_validate_hdu_axes_good() {
+        let metafits_fine_channels_per_coarse = 128;
+        let metafits_baselines = 8256;
+        let visibility_pols = 4;
+        let result_good1 = CorrelatorContext::validate_hdu_axes(
+            CorrelatorVersion::OldLegacy,
+            metafits_fine_channels_per_coarse,
+            metafits_baselines,
+            visibility_pols,
+            8256 * 4 * 2,
+            128,
+        );
+
+        assert!(result_good1.is_ok());
+
+        let result_good2 = CorrelatorContext::validate_hdu_axes(
+            CorrelatorVersion::Legacy,
+            metafits_fine_channels_per_coarse,
+            metafits_baselines,
+            visibility_pols,
+            8256 * 4 * 2,
+            128,
+        );
+
+        assert!(result_good2.is_ok());
+
+        let result_good3 = CorrelatorContext::validate_hdu_axes(
+            CorrelatorVersion::V2,
+            metafits_fine_channels_per_coarse,
+            metafits_baselines,
+            visibility_pols,
+            128 * 4 * 2,
+            8256,
+        );
+
+        assert!(result_good3.is_ok());
+    }
+
+    #[test]
+    fn test_validate_hdu_axes_naxis_mismatches_oldlegacy() {
+        let metafits_fine_channels_per_coarse = 128;
+        let metafits_baselines = 8256;
+        let visibility_pols = 4;
+
+        // Check for NAXIS1 mismatch
+        let result_bad1 = CorrelatorContext::validate_hdu_axes(
+            CorrelatorVersion::OldLegacy,
+            metafits_fine_channels_per_coarse,
+            metafits_baselines,
+            visibility_pols,
+            8256 * 4 * 1,
+            128,
+        );
+
+        assert!(matches!(
+            result_bad1.unwrap_err(),
+            GpuboxError::LegacyNAXIS1Mismatch {
+                metafits_baselines: _,
+                visibility_pols: _,
+                naxis1: _,
+                naxis2: _,
+                calculated_naxis1: _
+            }
+        ));
+
+        // Check for NAXIS2 mismatch
+        let result_bad2 = CorrelatorContext::validate_hdu_axes(
+            CorrelatorVersion::OldLegacy,
+            metafits_fine_channels_per_coarse,
+            metafits_baselines,
+            visibility_pols,
+            8256 * 4 * 2,
+            129,
+        );
+
+        assert!(matches!(
+            result_bad2.unwrap_err(),
+            GpuboxError::LegacyNAXIS2Mismatch {
+                metafits_fine_channels_per_coarse: _,
+                naxis2: _,
+                calculated_naxis2: _
+            }
+        ));
+    }
+
+    #[test]
+    fn test_validate_hdu_axes_naxis_mismatches_legacy() {
+        let metafits_fine_channels_per_coarse = 128;
+        let metafits_baselines = 8256;
+        let visibility_pols = 4;
+
+        // Check for NAXIS1 mismatch
+        let result_bad1 = CorrelatorContext::validate_hdu_axes(
+            CorrelatorVersion::Legacy,
+            metafits_fine_channels_per_coarse,
+            metafits_baselines,
+            visibility_pols,
+            8256 * 4 * 1,
+            128,
+        );
+
+        assert!(matches!(
+            result_bad1.unwrap_err(),
+            GpuboxError::LegacyNAXIS1Mismatch {
+                metafits_baselines: _,
+                visibility_pols: _,
+                naxis1: _,
+                naxis2: _,
+                calculated_naxis1: _
+            }
+        ));
+
+        // Check for NAXIS2 mismatch
+        let result_bad2 = CorrelatorContext::validate_hdu_axes(
+            CorrelatorVersion::Legacy,
+            metafits_fine_channels_per_coarse,
+            metafits_baselines,
+            visibility_pols,
+            8256 * 4 * 2,
+            129,
+        );
+
+        assert!(matches!(
+            result_bad2.unwrap_err(),
+            GpuboxError::LegacyNAXIS2Mismatch {
+                metafits_fine_channels_per_coarse: _,
+                naxis2: _,
+                calculated_naxis2: _
+            }
+        ));
+    }
+
+    #[test]
+    fn test_validate_hdu_axes_naxis_mismatches_v2() {
+        let metafits_fine_channels_per_coarse = 128;
+        let metafits_baselines = 8256;
+        let visibility_pols = 4;
+
+        // Check for NAXIS1 mismatch
+        let result_bad1 = CorrelatorContext::validate_hdu_axes(
+            CorrelatorVersion::V2,
+            metafits_fine_channels_per_coarse,
+            metafits_baselines,
+            visibility_pols,
+            128 * 4 * 1,
+            8256,
+        );
+
+        assert!(matches!(
+            result_bad1.unwrap_err(),
+            GpuboxError::MwaxNAXIS1Mismatch {
+                metafits_fine_channels_per_coarse: _,
+                visibility_pols: _,
+                naxis1: _,
+                naxis2: _,
+                calculated_naxis1: _
+            }
+        ));
+
+        // Check for NAXIS2 mismatch
+        let result_bad2 = CorrelatorContext::validate_hdu_axes(
+            CorrelatorVersion::V2,
+            metafits_fine_channels_per_coarse,
+            metafits_baselines,
+            visibility_pols,
+            128 * 4 * 2,
+            8257,
+        );
+
+        assert!(matches!(
+            result_bad2.unwrap_err(),
+            GpuboxError::MwaxNAXIS2Mismatch {
+                metafits_baselines: _,
+                naxis2: _,
+                calculated_naxis2: _
+            }
+        ));
     }
 }

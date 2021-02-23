@@ -100,7 +100,6 @@ impl LegacyConversionBaseline {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for LegacyConversionBaseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -535,6 +534,25 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_legacy_conversion_baseline_debug() {
+        let lcb = LegacyConversionBaseline {
+            baseline: 1,
+            ant1: 0,
+            ant2: 1,
+            xx_conjugate: false,
+            xx_index: 2,
+            xy_conjugate: false,
+            xy_index: 3,
+            yx_conjugate: false,
+            yx_index: 4,
+            yy_conjugate: false,
+            yy_index: 5,
+        };
+
+        assert_eq!(format!("{:?}", lcb), "1 0v1 2 3 4 5");
     }
 
     #[test]

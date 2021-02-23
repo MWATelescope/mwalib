@@ -773,9 +773,9 @@ pub struct MetafitsMetadata {
     pub num_rf_inputs: usize,
     /// Number of antenna pols. e.g. X and Y
     pub num_antenna_pols: usize,
-    /// Number of coarse channels
+    /// Number of coarse channels we should have
     pub num_coarse_channels: usize,
-    /// Total bandwidth of observation (of the coarse channels we have)
+    /// Total bandwidth of observation assuming we have all coarse channels
     pub observation_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,

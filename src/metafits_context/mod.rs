@@ -38,7 +38,6 @@ pub enum CorrelatorVersion {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Display for CorrelatorVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -141,9 +140,9 @@ pub struct MetafitsContext {
     pub rf_inputs: Vec<RFInput>,
     /// Number of antenna pols. e.g. X and Y
     pub num_antenna_pols: usize,
-    /// Number of coarse channels after we've validated the input gpubox files
+    /// Number of coarse channels we should have
     pub num_coarse_channels: usize,
-    /// Total bandwidth of observation
+    /// Total bandwidth of observation assuming we have all coarse channels
     pub observation_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,
@@ -371,7 +370,6 @@ impl MetafitsContext {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Display for MetafitsContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(

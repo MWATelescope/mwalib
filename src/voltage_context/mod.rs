@@ -13,8 +13,8 @@ use crate::metafits_context::*;
 use crate::timestep::*;
 use crate::voltage_files::*;
 use crate::*;
-use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+//use std::fs::File;
+//use std::io::{Read, Seek, SeekFrom};
 
 ///
 /// `mwalib` voltage captue system (VCS) observation context. This represents the basic metadata for a voltage capture observation.
@@ -189,6 +189,7 @@ impl VoltageContext {
         })
     }
 
+    /*
     /// Read a single gps time / coarse channel worth of data
     /// The output data are in order:
     /// antenna[0]|pol[0]|s[0]...s[63999]|pol[0]
@@ -197,7 +198,8 @@ impl VoltageContext {
     /// # Arguments
     ///
     /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within VoltageContext.timesteps.
+    ///                      to the element within VoltageContext.timesteps. For mwa legacy each index
+    ///                      represents 1 second increments, for mwax it is 8 second increments.
     ///
     /// * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
     ///                      to the element within VoltageContext.coarse_channels.
@@ -254,7 +256,7 @@ impl VoltageContext {
         file_handle.read(&mut buffer).expect("buffer overflow");
 
         Ok(buffer)
-    }
+    }*/
 }
 
 /// Implements fmt::Display for VoltageContext struct
@@ -269,7 +271,6 @@ impl VoltageContext {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Display for VoltageContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
@@ -535,126 +536,3 @@ mod tests {
         assert_eq!(context.voltage_batches.len(), 2);
     }
 }
-/*
-    #[test]
-    fn test_mwax_read() {
-        // Open the test mwax file
-        // a) directly using Fits  (data will be ordered [baseline][freq][pol][r][i])
-        // b) using mwalib (by baseline) (data will be ordered the same as the raw fits file)
-        // c) using mwalib (by frequency) (data will be ordered [freq][baseline][pol][r][i])
-        // Then check b) is the same as a) and
-        // that c) is the same size and sum as a) and b)
-        let mwax_metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
-        let mwax_filename =
-            "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
-
-        //
-        // Read the mwax file using FITS
-        //
-        let mut fptr = fits_open!(&mwax_filename).unwrap();
-        let fits_hdu = fits_open_hdu!(&mut fptr, 1).unwrap();
-
-        // Read data from fits hdu into vector
-        let fits_hdu_data: Vec<f32> = get_fits_image!(&mut fptr, &fits_hdu).unwrap();
-        //
-        // Read the mwax file by frequency using mwalib
-        //
-        // Open a context and load in a test metafits and gpubox file
-        let gpuboxfiles = vec![mwax_filename];
-        let mut context = VoltageContext::new(&mwax_metafits_filename, &gpuboxfiles)
-            .expect("Failed to create VoltageContext");
-
-        // Read and convert first HDU by baseline
-        let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
-
-        // Read and convert first HDU by frequency
-        let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
-
-        // First assert that the data vectors are the same size
-        assert_eq!(fits_hdu_data.len(), mwalib_hdu_data_by_bl.len());
-        assert_eq!(fits_hdu_data.len(), mwalib_hdu_data_by_freq.len());
-
-        // Check all 3 sum to the same value
-        let sum_fits: f64 = fits_hdu_data.iter().fold(0., |sum, x| sum + *x as f64);
-        let sum_freq: f64 = mwalib_hdu_data_by_freq
-            .iter()
-            .fold(0., |sum, x| sum + *x as f64);
-        let sum_bl: f64 = mwalib_hdu_data_by_bl
-            .iter()
-            .fold(0., |sum, x| sum + *x as f64);
-
-        // Check sums match
-        assert_eq!(
-            approx_eq!(f64, sum_fits, sum_freq, F64Margin::default()),
-            approx_eq!(f64, sum_fits, sum_bl, F64Margin::default())
-        );
-
-        // Check this block of floats matches
-        assert_eq!(fits_hdu_data, mwalib_hdu_data_by_bl);
-    }
-
-    #[test]
-    fn test_validate_first_hdu() {
-        // Open the test mwax file
-        let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
-        let filename =
-            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
-
-        //
-        // Read the observation using mwalib
-        //
-        // Open a context and load in a test metafits and gpubox file
-        let gpuboxfiles = vec![filename];
-        let context = VoltageContext::new(&metafits_filename, &gpuboxfiles)
-            .expect("Failed to create VoltageContext");
-
-        let coarse_channel = context.coarse_channels[0].gpubox_number;
-        let (batch_index, _) =
-            context.gpubox_time_map[&context.timesteps[0].unix_time_ms][&coarse_channel];
-
-        let mut fptr =
-            fits_open!(&context.voltage_batches[batch_index].gpubox_files[0].filename).unwrap();
-
-        let result_valid = VoltageContext::validate_first_hdu(
-            context.corr_version,
-            context.num_fine_channels_per_coarse,
-            context.num_baselines,
-            context.num_visibility_pols,
-            &mut fptr,
-        );
-
-        let result_invalid1 = VoltageContext::validate_first_hdu(
-            context.corr_version,
-            context.num_fine_channels_per_coarse + 1,
-            context.num_baselines,
-            context.num_visibility_pols,
-            &mut fptr,
-        );
-
-        let result_invalid2 = VoltageContext::validate_first_hdu(
-            context.corr_version,
-            context.num_fine_channels_per_coarse,
-            context.num_baselines + 1,
-            context.num_visibility_pols,
-            &mut fptr,
-        );
-
-        let result_invalid3 = VoltageContext::validate_first_hdu(
-            context.corr_version,
-            context.num_fine_channels_per_coarse,
-            context.num_baselines,
-            context.num_visibility_pols + 1,
-            &mut fptr,
-        );
-
-        // This is valid
-        assert!(result_valid.is_ok());
-
-        assert!(result_invalid1.is_err());
-
-        assert!(result_invalid2.is_err());
-
-        assert!(result_invalid3.is_err());
-    }
-}
-*/

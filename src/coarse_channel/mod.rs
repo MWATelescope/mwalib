@@ -14,7 +14,7 @@ pub use error::CoarseChannelError;
 use std::fmt;
 
 /// This is a struct for our coarse channels
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct CoarseChannel {
     /// Correlator channel is 0 indexed (0..N-1)
     pub correlator_channel_number: usize,
@@ -280,10 +280,6 @@ impl CoarseChannel {
         if gpubox_time_map.is_some() && voltage_time_map.is_some() {
             return Err(CoarseChannelError::BothGpuboxAndVoltageTimeMapSupplied);
         }
-        if gpubox_time_map.is_none() && voltage_time_map.is_none() {
-            return Err(CoarseChannelError::NoGpuboxOrVoltageTimeMapSupplied);
-        }
-
         // How many coarse channels should there be (from the metafits)
         // NOTE: this will NOT always be equal to the number of gpubox files we get
         let mut num_coarse_channels = coarse_channel_vec.len();
@@ -347,12 +343,7 @@ impl CoarseChannel {
                                     }
                                 }
                             }
-                            _ => coarse_channels.push(CoarseChannel::new(
-                                correlator_channel_number,
-                                *rec_channel_number,
-                                gpubox_channel_number,
-                                coarse_channel_width_hz,
-                            )),
+                            _ => return Err(CoarseChannelError::NoGpuboxOrVoltageTimeMapSupplied),
                         },
                     }
                 }
@@ -385,12 +376,7 @@ impl CoarseChannel {
                                     }
                                 }
                             }
-                            _ => coarse_channels.push(CoarseChannel::new(
-                                correlator_channel_number,
-                                *rec_channel_number,
-                                *rec_channel_number,
-                                coarse_channel_width_hz,
-                            )),
+                            _ => return Err(CoarseChannelError::NoGpuboxOrVoltageTimeMapSupplied),
                         },
                     }
                 }
@@ -424,7 +410,6 @@ impl CoarseChannel {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for CoarseChannel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -706,5 +691,12 @@ mod tests {
             result.unwrap_err(),
             CoarseChannelError::BothGpuboxAndVoltageTimeMapSupplied
         ));
+    }
+
+    #[test]
+    fn test_coarse_channel_debug() {
+        let cc = CoarseChannel::new(1, 109, 2, 1_280_000);
+
+        assert_eq!(format!("{:?}", cc), "gpu=2 corr=1 rec=109 @ 139.520 MHz");
     }
 }

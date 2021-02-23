@@ -83,7 +83,6 @@ impl Antenna {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for Antenna {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.tile_name)
@@ -263,5 +262,54 @@ mod tests {
         assert_eq!(antennas[2].tile_name, "Tile103");
         assert_eq!(antennas[2].x_pol.input, 4);
         assert_eq!(antennas[3].tile_id, 104);
+    }
+
+    #[test]
+    fn test_antenna_debug() {
+        // Create some rf_inputs
+        let mut rf_inputs: Vec<RFInput> = Vec::new();
+
+        rf_inputs.push(RFInput {
+            input: 0,
+            antenna: 101,
+            tile_id: 101,
+            tile_name: String::from("Tile101"),
+            pol: Pol::X,
+            electrical_length_m: 101.,
+            north_m: 11.,
+            east_m: 21.,
+            height_m: 31.,
+            vcs_order: 0,
+            subfile_order: 0,
+            flagged: false,
+            delays: vec![],
+            gains: vec![],
+            receiver_number: 1,
+            receiver_slot_number: 0,
+        });
+
+        rf_inputs.push(RFInput {
+            input: 1,
+            antenna: 101,
+            tile_id: 101,
+            tile_name: String::from("Tile101"),
+            pol: Pol::Y,
+            electrical_length_m: 102.,
+            north_m: 12.,
+            east_m: 22.,
+            height_m: 32.,
+            vcs_order: 4,
+            subfile_order: 1,
+            flagged: false,
+            delays: vec![],
+            gains: vec![],
+            receiver_number: 1,
+            receiver_slot_number: 1,
+        });
+
+        // Call populate
+        let antennas = Antenna::populate_antennas(&rf_inputs);
+
+        assert_eq!(format!("{:?}", antennas[0]), "Tile101");
     }
 }
