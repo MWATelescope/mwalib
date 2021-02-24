@@ -31,6 +31,10 @@ pub struct CorrelatorContext {
     /// `end_unix_time_milliseconds` is the actual end time of the observation
     /// i.e. start time of last common timestep plus integration time.
     pub end_unix_time_milliseconds: u64,
+    /// `start_unix_time_milliseconds` but in GPS milliseconds
+    pub start_gps_time_milliseconds: u64,
+    /// `end_unix_time_milliseconds` but in GPS milliseconds
+    pub end_gps_time_milliseconds: u64,
     /// Total duration of observation (based on gpubox files)
     pub duration_milliseconds: u64,
     /// Number of timesteps in the observation
@@ -224,6 +228,18 @@ impl CorrelatorContext {
             (o.start_millisec, o.end_millisec, o.duration_millisec)
         };
 
+        // Convert the real start and end times to GPS time
+        let start_gps_time_milliseconds = misc::convert_unixtime_to_gpstime(
+            start_unix_time_milliseconds,
+            metafits_context.scheduled_start_gpstime_milliseconds,
+            metafits_context.scheduled_start_unix_time_milliseconds,
+        );
+        let end_gps_time_milliseconds = misc::convert_unixtime_to_gpstime(
+            end_unix_time_milliseconds,
+            metafits_context.scheduled_start_gpstime_milliseconds,
+            metafits_context.scheduled_start_unix_time_milliseconds,
+        );
+
         // Prepare the conversion array to convert legacy correlator format into mwax format
         // or just leave it empty if we're in any other format
         let legacy_conversion_table: Vec<LegacyConversionBaseline> = match gpubox_info.corr_format {
@@ -238,6 +254,8 @@ impl CorrelatorContext {
             corr_version: gpubox_info.corr_format,
             start_unix_time_milliseconds,
             end_unix_time_milliseconds,
+            start_gps_time_milliseconds,
+            end_gps_time_milliseconds,
             duration_milliseconds,
             num_timesteps,
             timesteps,
@@ -562,6 +580,8 @@ impl fmt::Display for CorrelatorContext {
 
             Actual UNIX start time:   {start_unix},
             Actual UNIX end time:     {end_unix},
+            Actual GPS start time:    {start_gps},
+            Actual GPS end time:      {end_gps},
             Actual duration:          {duration} s,
 
             num timesteps:            {n_timesteps},
@@ -593,6 +613,8 @@ impl fmt::Display for CorrelatorContext {
             corr_ver = self.corr_version,
             start_unix = self.start_unix_time_milliseconds as f64 / 1e3,
             end_unix = self.end_unix_time_milliseconds as f64 / 1e3,
+            start_gps = self.start_gps_time_milliseconds as f64 / 1e3,
+            end_gps = self.end_gps_time_milliseconds as f64 / 1e3,
             duration = self.duration_milliseconds as f64 / 1e3,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,

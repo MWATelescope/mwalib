@@ -725,6 +725,14 @@ pub struct MetafitsMetadata {
     pub azimuth_degrees: f64,
     /// ALTITUDE
     pub altitude_degrees: f64,
+    /// Zenith angle of the pointing centre in degrees
+    pub zenith_angle_degrees: f64,
+    /// AZIMUTH of the pointing centre in radians
+    pub azimuth_radians: f64,
+    /// ALTITUDE (a.k.a. elevation) of the pointing centre in radians
+    pub altitude_radians: f64,
+    /// Zenith angle of the pointing centre in radians
+    pub zenith_angle_radians: f64,
     /// Altitude of Sun
     pub sun_altitude_degrees: f64,
     /// Distance from pointing center to Sun
@@ -735,6 +743,8 @@ pub struct MetafitsMetadata {
     pub jupiter_distance_degrees: f64,
     /// Local Sidereal Time
     pub lst_degrees: f64,
+    /// Local Sidereal Time in radians
+    pub lst_radians: f64,
     /// Hour Angle of pointing center (as a string)
     pub hour_angle_string: *mut c_char,
     /// GRIDNAME
@@ -761,6 +771,10 @@ pub struct MetafitsMetadata {
     pub scheduled_start_unix_time_milliseconds: u64,
     /// Scheduled end (UNIX time) of observation
     pub scheduled_end_unix_time_milliseconds: u64,
+    /// Scheduled start (GPS) of observation
+    pub scheduled_start_gpstime_milliseconds: u64,
+    /// Scheduled end (GPS) of observation
+    pub scheduled_end_gpstime_milliseconds: u64,
     /// Scheduled duration of observation
     pub scheduled_duration_milliseconds: u64,
     /// Seconds of bad data after observation starts
@@ -779,6 +793,10 @@ pub struct MetafitsMetadata {
     pub observation_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
     pub coarse_channel_width_hz: u32,
+    /// Centre frequency of observation
+    pub metafits_centre_freq_hz: u32,
+    /// filename of metafits file used
+    pub metafits_filename: *mut c_char,
 }
 
 /// This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext, CorrelatorContext or VoltageContext
@@ -847,65 +865,125 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     };
 
     // Populate the outgoing structure with data from the metafits context
-    let out_context = MetafitsMetadata {
-        obsid: metafits_context.obsid,
-        mwa_latitude_radians: metafits_context.mwa_latitude_radians,
-        mwa_longitude_radians: metafits_context.mwa_longitude_radians,
-        mwa_altitude_metres: metafits_context.mwa_altitude_metres,
-        coax_v_factor: metafits_context.coax_v_factor,
-        global_analogue_attenuation_db: metafits_context.global_analogue_attenuation_db,
-        ra_tile_pointing_degrees: metafits_context.ra_tile_pointing_degrees,
-        dec_tile_pointing_degrees: metafits_context.dec_tile_pointing_degrees,
-        ra_phase_center_degrees: match metafits_context.ra_phase_center_degrees {
-            Some(v) => v,
-            None => 0.,
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
+    let out_context = match &metafits_context {
+        MetafitsContext {
+            obsid,
+            mwa_latitude_radians,
+            mwa_longitude_radians,
+            mwa_altitude_metres,
+            coax_v_factor,
+            scheduled_start_gpstime_milliseconds,
+            scheduled_end_gpstime_milliseconds,
+            scheduled_start_unix_time_milliseconds,
+            scheduled_end_unix_time_milliseconds,
+            scheduled_start_utc,
+            scheduled_end_utc,
+            scheduled_start_mjd,
+            scheduled_end_mjd,
+            scheduled_duration_milliseconds,
+            ra_tile_pointing_degrees,
+            dec_tile_pointing_degrees,
+            ra_phase_center_degrees,
+            dec_phase_center_degrees,
+            azimuth_degrees,
+            altitude_degrees,
+            zenith_angle_degrees,
+            azimuth_radians,
+            altitude_radians,
+            zenith_angle_radians,
+            sun_altitude_degrees,
+            sun_distance_degrees,
+            moon_distance_degrees,
+            jupiter_distance_degrees,
+            lst_degrees,
+            lst_radians,
+            hour_angle_string,
+            grid_name,
+            grid_number,
+            creator,
+            project_id,
+            observation_name,
+            mode,
+            receivers: _, // Not currently supported via FFI
+            delays: _,    // Not currently supported via FFI
+            global_analogue_attenuation_db,
+            quack_time_duration_milliseconds,
+            good_time_unix_milliseconds,
+            num_antennas,
+            antennas: _, // This is provided by the seperate antenna struct in FFI
+            num_rf_inputs,
+            rf_inputs: _, // This is provided by the seperate rfinput struct in FFI
+            num_antenna_pols,
+            num_coarse_channels,
+            observation_bandwidth_hz,
+            coarse_channel_width_hz,
+            metafits_centre_freq_hz,
+            metafits_filename,
+        } => MetafitsMetadata {
+            obsid: *obsid,
+            mwa_latitude_radians: *mwa_latitude_radians,
+            mwa_longitude_radians: *mwa_longitude_radians,
+            mwa_altitude_metres: *mwa_altitude_metres,
+            coax_v_factor: *coax_v_factor,
+            global_analogue_attenuation_db: *global_analogue_attenuation_db,
+            ra_tile_pointing_degrees: *ra_tile_pointing_degrees,
+            dec_tile_pointing_degrees: *dec_tile_pointing_degrees,
+            ra_phase_center_degrees: match *ra_phase_center_degrees {
+                Some(v) => v,
+                None => 0.,
+            },
+            dec_phase_center_degrees: match *dec_phase_center_degrees {
+                Some(v) => v,
+                None => 0.,
+            },
+            azimuth_degrees: *azimuth_degrees,
+            altitude_degrees: *altitude_degrees,
+            zenith_angle_degrees: *zenith_angle_degrees,
+            azimuth_radians: *azimuth_radians,
+            altitude_radians: *altitude_radians,
+            zenith_angle_radians: *zenith_angle_radians,
+            sun_altitude_degrees: *sun_altitude_degrees,
+            sun_distance_degrees: *sun_distance_degrees,
+            moon_distance_degrees: *moon_distance_degrees,
+            jupiter_distance_degrees: *jupiter_distance_degrees,
+            lst_degrees: *lst_degrees,
+            lst_radians: *lst_radians,
+            hour_angle_string: CString::new(String::from(&*hour_angle_string))
+                .unwrap()
+                .into_raw(),
+            grid_name: CString::new(String::from(&*grid_name)).unwrap().into_raw(),
+            grid_number: *grid_number,
+            creator: CString::new(String::from(&*creator)).unwrap().into_raw(),
+            project_id: CString::new(String::from(&*project_id)).unwrap().into_raw(),
+            observation_name: CString::new(String::from(&*observation_name))
+                .unwrap()
+                .into_raw(),
+            mode: CString::new(String::from(&*mode)).unwrap().into_raw(),
+            scheduled_start_utc: scheduled_start_utc.timestamp(),
+            scheduled_end_utc: scheduled_end_utc.timestamp(),
+            scheduled_start_mjd: *scheduled_start_mjd,
+            scheduled_end_mjd: *scheduled_end_mjd,
+            scheduled_start_unix_time_milliseconds: *scheduled_start_unix_time_milliseconds,
+            scheduled_end_unix_time_milliseconds: *scheduled_end_unix_time_milliseconds,
+            scheduled_start_gpstime_milliseconds: *scheduled_start_gpstime_milliseconds,
+            scheduled_end_gpstime_milliseconds: *scheduled_end_gpstime_milliseconds,
+            scheduled_duration_milliseconds: *scheduled_duration_milliseconds,
+            quack_time_duration_milliseconds: *quack_time_duration_milliseconds,
+            good_time_unix_milliseconds: *good_time_unix_milliseconds,
+            num_antennas: *num_antennas,
+            num_rf_inputs: *num_rf_inputs,
+            num_antenna_pols: *num_antenna_pols,
+            num_coarse_channels: *num_coarse_channels,
+            observation_bandwidth_hz: *observation_bandwidth_hz,
+            coarse_channel_width_hz: *coarse_channel_width_hz,
+            metafits_centre_freq_hz: *metafits_centre_freq_hz,
+            metafits_filename: CString::new(String::from(&*metafits_filename))
+                .unwrap()
+                .into_raw(),
         },
-        dec_phase_center_degrees: match metafits_context.dec_phase_center_degrees {
-            Some(v) => v,
-            None => 0.,
-        },
-        azimuth_degrees: metafits_context.azimuth_degrees,
-        altitude_degrees: metafits_context.altitude_degrees,
-        sun_altitude_degrees: metafits_context.sun_altitude_degrees,
-        sun_distance_degrees: metafits_context.sun_distance_degrees,
-        moon_distance_degrees: metafits_context.moon_distance_degrees,
-        jupiter_distance_degrees: metafits_context.jupiter_distance_degrees,
-        lst_degrees: metafits_context.lst_degrees,
-        hour_angle_string: CString::new(String::from(&metafits_context.hour_angle_string))
-            .unwrap()
-            .into_raw(),
-        grid_name: CString::new(String::from(&metafits_context.grid_name))
-            .unwrap()
-            .into_raw(),
-        grid_number: metafits_context.grid_number,
-        creator: CString::new(String::from(&metafits_context.creator))
-            .unwrap()
-            .into_raw(),
-        project_id: CString::new(String::from(&metafits_context.project_id))
-            .unwrap()
-            .into_raw(),
-        observation_name: CString::new(String::from(&metafits_context.observation_name))
-            .unwrap()
-            .into_raw(),
-        mode: CString::new(String::from(&metafits_context.mode))
-            .unwrap()
-            .into_raw(),
-        scheduled_start_utc: metafits_context.scheduled_start_utc.timestamp(),
-        scheduled_end_utc: metafits_context.scheduled_end_utc.timestamp(),
-        scheduled_start_mjd: metafits_context.scheduled_start_mjd,
-        scheduled_end_mjd: metafits_context.scheduled_end_mjd,
-        scheduled_duration_milliseconds: metafits_context.scheduled_duration_milliseconds,
-        scheduled_start_unix_time_milliseconds: metafits_context
-            .scheduled_start_unix_time_milliseconds,
-        scheduled_end_unix_time_milliseconds: metafits_context.scheduled_end_unix_time_milliseconds,
-        quack_time_duration_milliseconds: metafits_context.quack_time_duration_milliseconds,
-        good_time_unix_milliseconds: metafits_context.good_time_unix_milliseconds,
-        num_antennas: metafits_context.num_antennas,
-        num_rf_inputs: metafits_context.num_rf_inputs,
-        num_antenna_pols: metafits_context.num_antenna_pols,
-        num_coarse_channels: metafits_context.num_coarse_channels,
-        observation_bandwidth_hz: metafits_context.observation_bandwidth_hz,
-        coarse_channel_width_hz: metafits_context.coarse_channel_width_hz,
     };
 
     // Pass back a pointer to the rust owned struct
@@ -958,6 +1036,10 @@ pub struct CorrelatorMetadata {
     /// `end_time_milliseconds` will is the actual end time of the observation
     /// i.e. start time of last common timestep plus integration time.
     pub end_unix_time_milliseconds: u64,
+    /// `start_unix_time_milliseconds` but in GPS milliseconds
+    pub start_gps_time_milliseconds: u64,
+    /// `end_unix_time_milliseconds` but in GPS milliseconds
+    pub end_gps_time_milliseconds: u64,
     /// Total duration of observation (based on gpubox files)
     pub duration_milliseconds: u64,
     /// Number of timesteps in the observation
@@ -1027,23 +1109,57 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
     let context = &*correlator_context_ptr;
 
     // Populate the rust owned data structure with data from the correlator context
-    let out_context = CorrelatorMetadata {
-        corr_version: context.corr_version,
-        start_unix_time_milliseconds: context.start_unix_time_milliseconds,
-        end_unix_time_milliseconds: context.end_unix_time_milliseconds,
-        duration_milliseconds: context.duration_milliseconds,
-        num_timesteps: context.num_timesteps,
-        num_baselines: context.num_baselines,
-        num_visibility_pols: context.num_visibility_pols,
-        num_coarse_channels: context.num_coarse_channels,
-        integration_time_milliseconds: context.integration_time_milliseconds,
-        fine_channel_width_hz: context.fine_channel_width_hz,
-        bandwidth_hz: context.bandwidth_hz,
-        coarse_channel_width_hz: context.coarse_channel_width_hz,
-        num_fine_channels_per_coarse: context.num_fine_channels_per_coarse,
-        num_timestep_coarse_channel_bytes: context.num_timestep_coarse_channel_bytes,
-        num_timestep_coarse_channel_floats: context.num_timestep_coarse_channel_floats,
-        num_gpubox_files: context.num_gpubox_files,
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
+    let out_context = match &context {
+        CorrelatorContext {
+            metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
+            corr_version,
+            start_unix_time_milliseconds,
+            end_unix_time_milliseconds,
+            start_gps_time_milliseconds,
+            end_gps_time_milliseconds,
+            duration_milliseconds,
+            num_timesteps,
+            timesteps: _, // This is provided by the seperate timestep struct in FFI
+            num_baselines,
+            baselines: _, // This is provided by the seperate baseline struct in FFI
+            num_visibility_pols,
+            visibility_pols: _, // This is provided by the seperate visibility_pol struct in FFI
+            num_coarse_channels,
+            coarse_channels: _, // This is provided by the seperate coarse_channel struct in FFI
+            integration_time_milliseconds,
+            fine_channel_width_hz,
+            bandwidth_hz,
+            coarse_channel_width_hz,
+            num_fine_channels_per_coarse,
+            num_timestep_coarse_channel_bytes,
+            num_timestep_coarse_channel_floats,
+            num_gpubox_files,
+            gpubox_batches: _, // This is currently not provided to FFI as it is private
+            gpubox_time_map: _, // This is currently not provided to FFI as it is private
+            legacy_conversion_table: _, // This is currently not provided to FFI as it is private
+        } => CorrelatorMetadata {
+            corr_version: *corr_version,
+            start_unix_time_milliseconds: *start_unix_time_milliseconds,
+            end_unix_time_milliseconds: *end_unix_time_milliseconds,
+            start_gps_time_milliseconds: *start_gps_time_milliseconds,
+            end_gps_time_milliseconds: *end_gps_time_milliseconds,
+            duration_milliseconds: *duration_milliseconds,
+            num_timesteps: *num_timesteps,
+            num_baselines: *num_baselines,
+            num_visibility_pols: *num_visibility_pols,
+            num_coarse_channels: *num_coarse_channels,
+            integration_time_milliseconds: *integration_time_milliseconds,
+            fine_channel_width_hz: *fine_channel_width_hz,
+            bandwidth_hz: *bandwidth_hz,
+            coarse_channel_width_hz: *coarse_channel_width_hz,
+            num_fine_channels_per_coarse: *num_fine_channels_per_coarse,
+            num_timestep_coarse_channel_bytes: *num_timestep_coarse_channel_bytes,
+            num_timestep_coarse_channel_floats: *num_timestep_coarse_channel_floats,
+            num_gpubox_files: *num_gpubox_files,
+        },
     };
 
     // Pass out the pointer to the rust owned data structure
@@ -1086,7 +1202,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
 /// C Representation of the `VoltageContext` metadata
 ///
 #[repr(C)]
-pub struct mwalibVoltageMetadata {
+pub struct VoltageMetadata {
     /// Version of the correlator format
     pub corr_version: CorrelatorVersion,
     /// The proper start of the observation (the time that is common to all
@@ -1095,10 +1211,18 @@ pub struct mwalibVoltageMetadata {
     /// `end_gps_time_milliseconds` is the actual end time of the observation    
     /// i.e. start time of last common timestep plus length of a voltage file (1 sec for MWA Legacy, 8 secs for MWAX).
     pub end_gps_time_milliseconds: u64,
+    /// `start_gps_time_milliseconds` but in UNIX time (milliseconds)
+    pub start_unix_time_milliseconds: u64,
+    /// `end_gps_time_milliseconds` but in UNIX time (milliseconds)
+    pub end_unix_time_milliseconds: u64,
     /// Total duration of observation (based on voltage files)
     pub duration_milliseconds: u64,
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
+    /// The number of millseconds interval between timestep indices
+    pub timestep_duration_milliseconds: u64,
+    /// The number of samples in each timestep
+    pub num_samples_per_timestep: usize,
     /// Number of coarse channels after we've validated the input voltage files
     pub num_coarse_channels: usize,
     /// Total bandwidth of observation (of the coarse channels we have)
@@ -1117,7 +1241,7 @@ pub struct mwalibVoltageMetadata {
 ///
 /// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
 ///
-/// * `out_voltage_metadata_ptr` - A Rust-owned populated `CorrelatorMetadata` struct. Free with `mwalib_correlator_metadata_free`.
+/// * `out_voltage_metadata_ptr` - A Rust-owned populated `VoltageMetadata` struct. Free with `mwalib_voltage_metadata_free`.
 ///
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
@@ -1131,12 +1255,12 @@ pub struct mwalibVoltageMetadata {
 ///
 /// # Safety
 /// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `correlator_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_correlator_context_new` function.
-/// * Caller must call `mwalib_correlator_metadata_free` once finished, to free the rust memory.
+/// * `voltage_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_voltage_context_new` function.
+/// * Caller must call `mwalib_voltage_metadata_free` once finished, to free the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_voltage_metadata_get(
     voltage_context_ptr: *mut VoltageContext,
-    out_voltage_metadata_ptr: &mut *mut mwalibVoltageMetadata,
+    out_voltage_metadata_ptr: &mut *mut VoltageMetadata,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
@@ -1152,17 +1276,46 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
     let context = &*voltage_context_ptr;
 
     // Populate the rust owned data structure with data from the voltage context
-    let out_context = mwalibVoltageMetadata {
-        corr_version: context.corr_version,
-        start_gps_time_milliseconds: context.start_gps_time_milliseconds,
-        end_gps_time_milliseconds: context.end_gps_time_milliseconds,
-        duration_milliseconds: context.duration_milliseconds,
-        num_timesteps: context.num_timesteps,
-        num_coarse_channels: context.num_coarse_channels,
-        bandwidth_hz: context.bandwidth_hz,
-        coarse_channel_width_hz: context.coarse_channel_width_hz,
-        fine_channel_width_hz: context.fine_channel_width_hz,
-        num_fine_channels_per_coarse: context.num_fine_channels_per_coarse,
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
+    let out_context = match &context {
+        VoltageContext {
+            metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
+            corr_version,
+            start_gps_time_milliseconds,
+            end_gps_time_milliseconds,
+            start_unix_time_milliseconds,
+            end_unix_time_milliseconds,
+            duration_milliseconds,
+            num_timesteps,
+            timesteps: _, // This is provided by the seperate timestep struct in FFI
+            timestep_duration_milliseconds,
+            num_samples_per_timestep,
+            num_coarse_channels,
+            coarse_channels: _, // This is provided by the seperate coarse_channel struct in FFI
+            bandwidth_hz,
+            coarse_channel_width_hz,
+            fine_channel_width_hz,
+            num_fine_channels_per_coarse,
+            voltage_batches: _, // This is currently not provided to FFI as it is private
+            voltage_time_map: _, // This is currently not provided to FFI as it is private
+        } => VoltageMetadata {
+            corr_version: *corr_version,
+            start_gps_time_milliseconds: *start_gps_time_milliseconds,
+            end_gps_time_milliseconds: *end_gps_time_milliseconds,
+            start_unix_time_milliseconds: *start_unix_time_milliseconds,
+            end_unix_time_milliseconds: *end_unix_time_milliseconds,
+            duration_milliseconds: *duration_milliseconds,
+            num_timesteps: *num_timesteps,
+            timestep_duration_milliseconds: *timestep_duration_milliseconds,
+            num_samples_per_timestep: *num_samples_per_timestep,
+            num_coarse_channels: *num_coarse_channels,
+            bandwidth_hz: *bandwidth_hz,
+            coarse_channel_width_hz: *coarse_channel_width_hz,
+            fine_channel_width_hz: *fine_channel_width_hz,
+            num_fine_channels_per_coarse: *num_fine_channels_per_coarse,
+        },
     };
 
     // Pass out the pointer to the rust owned data structure
@@ -1172,11 +1325,11 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
     0
 }
 
-/// Free a previously-allocated `mwalibVoltageMetadata` struct.
+/// Free a previously-allocated `VoltageMetadata` struct.
 ///
 /// # Arguments
 ///
-/// * `voltage_metadata_ptr` - pointer to an already populated `mwalibVoltageMetadata` object
+/// * `voltage_metadata_ptr` - pointer to an already populated `VoltageMetadata` object
 ///
 ///
 /// # Returns
@@ -1185,12 +1338,12 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
 ///
 ///
 /// # Safety
-/// * This must be called once caller is finished with the `mwalibVoltageMetadata` object
-/// * `voltage_metadata_ptr` must point to a populated `mwalibVoltageMetadata` object from the `mwalib_voltage_metadata_get` function.
+/// * This must be called once caller is finished with the `VoltageMetadata` object
+/// * `voltage_metadata_ptr` must point to a populated `VoltageMetadata` object from the `mwalib_voltage_metadata_get` function.
 /// * `voltage_metadata_ptr` must not have already been freed.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_voltage_metadata_free(
-    voltage_metadata_ptr: *mut mwalibVoltageMetadata,
+    voltage_metadata_ptr: *mut VoltageMetadata,
 ) -> i32 {
     if voltage_metadata_ptr.is_null() {
         return 0;
@@ -1285,13 +1438,22 @@ pub unsafe extern "C" fn mwalib_antennas_get(
 
     let mut item_vec: Vec<Antenna> = Vec::new();
 
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
     for item in metafits_context.antennas.iter() {
-        let out_item = Antenna {
-            antenna: item.antenna,
-            tile_id: item.tile_id,
-            tile_name: CString::new(String::from(&item.tile_name))
-                .unwrap()
-                .into_raw(),
+        let out_item = match &item {
+            antenna::Antenna {
+                antenna,
+                tile_id,
+                tile_name,
+                x_pol: _, // not exposed via FFI- caller should use rfinput struct
+                y_pol: _, // not exposed via FFI- caller should use rfinput struct
+            } => Antenna {
+                antenna: *antenna,
+                tile_id: *tile_id,
+                tile_name: CString::new(String::from(*&tile_name)).unwrap().into_raw(),
+            },
         };
 
         item_vec.push(out_item);
@@ -1402,10 +1564,18 @@ pub unsafe extern "C" fn mwalib_correlator_baselines_get(
 
     let mut item_vec: Vec<Baseline> = Vec::new();
 
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
     for item in context.baselines.iter() {
-        let out_item = Baseline {
-            antenna1_index: item.antenna1_index,
-            antenna2_index: item.antenna2_index,
+        let out_item = match &item {
+            baseline::Baseline {
+                antenna1_index,
+                antenna2_index,
+            } => Baseline {
+                antenna1_index: *antenna1_index,
+                antenna2_index: *antenna2_index,
+            },
         };
 
         item_vec.push(out_item);
@@ -1519,15 +1689,28 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
 
     let mut item_vec: Vec<CoarseChannel> = Vec::new();
 
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
     for item in context.coarse_channels.iter() {
-        let out_item = CoarseChannel {
-            correlator_channel_number: item.correlator_channel_number,
-            receiver_channel_number: item.receiver_channel_number,
-            gpubox_number: item.gpubox_number,
-            channel_width_hz: item.channel_width_hz,
-            channel_start_hz: item.channel_start_hz,
-            channel_centre_hz: item.channel_centre_hz,
-            channel_end_hz: item.channel_end_hz,
+        let out_item = match &item {
+            coarse_channel::CoarseChannel {
+                correlator_channel_number,
+                receiver_channel_number,
+                gpubox_number,
+                channel_width_hz,
+                channel_start_hz,
+                channel_centre_hz,
+                channel_end_hz,
+            } => CoarseChannel {
+                correlator_channel_number: *correlator_channel_number,
+                receiver_channel_number: *receiver_channel_number,
+                gpubox_number: *gpubox_number,
+                channel_width_hz: *channel_width_hz,
+                channel_start_hz: *channel_start_hz,
+                channel_centre_hz: *channel_centre_hz,
+                channel_end_hz: *channel_end_hz,
+            },
         };
 
         item_vec.push(out_item);
@@ -1585,15 +1768,28 @@ pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
 
     let mut item_vec: Vec<CoarseChannel> = Vec::new();
 
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
     for item in context.coarse_channels.iter() {
-        let out_item = CoarseChannel {
-            correlator_channel_number: item.correlator_channel_number,
-            receiver_channel_number: item.receiver_channel_number,
-            gpubox_number: item.gpubox_number,
-            channel_width_hz: item.channel_width_hz,
-            channel_start_hz: item.channel_start_hz,
-            channel_centre_hz: item.channel_centre_hz,
-            channel_end_hz: item.channel_end_hz,
+        let out_item = match &item {
+            coarse_channel::CoarseChannel {
+                correlator_channel_number,
+                receiver_channel_number,
+                gpubox_number,
+                channel_width_hz,
+                channel_start_hz,
+                channel_centre_hz,
+                channel_end_hz,
+            } => CoarseChannel {
+                correlator_channel_number: *correlator_channel_number,
+                receiver_channel_number: *receiver_channel_number,
+                gpubox_number: *gpubox_number,
+                channel_width_hz: *channel_width_hz,
+                channel_start_hz: *channel_start_hz,
+                channel_centre_hz: *channel_centre_hz,
+                channel_end_hz: *channel_end_hz,
+            },
         };
 
         item_vec.push(out_item);
@@ -1749,24 +1945,45 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
 
     let mut item_vec: Vec<RFInput> = Vec::new();
 
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
     for item in metafits_context.rf_inputs.iter() {
-        let out_item = RFInput {
-            input: item.input,
-            antenna: item.antenna,
-            tile_id: item.tile_id,
-            tile_name: CString::new(String::from(&item.tile_name))
-                .unwrap()
-                .into_raw(),
-            pol: CString::new(item.pol.to_string()).unwrap().into_raw(),
-            electrical_length_m: item.electrical_length_m,
-            north_m: item.north_m,
-            east_m: item.east_m,
-            height_m: item.height_m,
-            vcs_order: item.vcs_order,
-            subfile_order: item.subfile_order,
-            flagged: item.flagged,
-            receiver_number: item.receiver_number,
-            receiver_slot_number: item.receiver_slot_number,
+        let out_item = match &item {
+            rfinput::RFInput {
+                input,
+                antenna,
+                tile_id,
+                tile_name,
+                pol,
+                electrical_length_m,
+                north_m,
+                east_m,
+                height_m,
+                vcs_order,
+                subfile_order,
+                flagged,
+                receiver_number,
+                receiver_slot_number,
+                digital_gains: _, // not currently supported via FFI interface
+                dipole_gains: _,  // not currently supported via FFI interface
+                dipole_delays: _, // not currently supported via FFI interface
+            } => RFInput {
+                input: *input,
+                antenna: *antenna,
+                tile_id: *tile_id,
+                tile_name: CString::new(String::from(&*tile_name)).unwrap().into_raw(),
+                pol: CString::new(pol.to_string()).unwrap().into_raw(),
+                electrical_length_m: *electrical_length_m,
+                north_m: *north_m,
+                east_m: *east_m,
+                height_m: *height_m,
+                vcs_order: *vcs_order,
+                subfile_order: *subfile_order,
+                flagged: *flagged,
+                receiver_number: *receiver_number,
+                receiver_slot_number: *receiver_slot_number,
+            },
         };
 
         item_vec.push(out_item);
@@ -1875,10 +2092,18 @@ pub unsafe extern "C" fn mwalib_correlator_timesteps_get(
 
     let mut item_vec: Vec<TimeStep> = Vec::new();
 
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
     for item in context.timesteps.iter() {
-        let out_item = TimeStep {
-            unix_time_milliseconds: item.unix_time_milliseconds,
-            gps_time_milliseconds: item.gps_time_milliseconds,
+        let out_item = match &item {
+            timestep::TimeStep {
+                unix_time_milliseconds,
+                gps_time_milliseconds,
+            } => TimeStep {
+                unix_time_milliseconds: *unix_time_milliseconds,
+                gps_time_milliseconds: *gps_time_milliseconds,
+            },
         };
 
         item_vec.push(out_item);
@@ -1936,10 +2161,18 @@ pub unsafe extern "C" fn mwalib_voltage_timesteps_get(
 
     let mut item_vec: Vec<TimeStep> = Vec::new();
 
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
     for item in context.timesteps.iter() {
-        let out_item = TimeStep {
-            unix_time_milliseconds: item.unix_time_milliseconds,
-            gps_time_milliseconds: item.gps_time_milliseconds,
+        let out_item = match &item {
+            timestep::TimeStep {
+                unix_time_milliseconds,
+                gps_time_milliseconds,
+            } => TimeStep {
+                unix_time_milliseconds: *unix_time_milliseconds,
+                gps_time_milliseconds: *gps_time_milliseconds,
+            },
         };
 
         item_vec.push(out_item);
@@ -2040,14 +2273,19 @@ pub unsafe extern "C" fn mwalib_correlator_visibility_pols_get(
     let context = &*correlator_context_ptr;
     let mut item_vec: Vec<VisibilityPol> = Vec::new();
 
+    // We explicitly break out the attributes so at compile time it will let us know
+    // if there have been new fields added to the rust struct, then we can choose to
+    // ignore them (with _) or add that field to the FFI struct.
     for item in context.visibility_pols.iter() {
-        let out_visibility_pol = VisibilityPol {
-            polarisation: CString::new(String::from(&item.polarisation))
-                .unwrap()
-                .into_raw(),
+        let out_item = match &item {
+            visibility_pol::VisibilityPol { polarisation } => VisibilityPol {
+                polarisation: CString::new(String::from(&*polarisation))
+                    .unwrap()
+                    .into_raw(),
+            },
         };
 
-        item_vec.push(out_visibility_pol);
+        item_vec.push(out_item);
     }
 
     // Pass back the array and length of the array

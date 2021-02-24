@@ -31,6 +31,10 @@ pub struct VoltageContext {
     /// `end_gps_time_milliseconds` is the actual end time of the observation    
     /// i.e. start time of last common timestep plus length of a voltage file (1 sec for MWA Legacy, 8 secs for MWAX).
     pub end_gps_time_milliseconds: u64,
+    /// `start_gps_time_milliseconds` but in UNIX time (milliseconds)
+    pub start_unix_time_milliseconds: u64,
+    /// `end_gps_time_milliseconds` but in UNIX time (milliseconds)
+    pub end_unix_time_milliseconds: u64,
     /// Total duration of observation (based on voltage files)
     pub duration_milliseconds: u64,
     /// Number of timesteps in the observation
@@ -116,6 +120,7 @@ impl VoltageContext {
                 o.duration_milliseconds,
             )
         };
+
         // Populate coarse channels
         let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
             coarse_channel::CoarseChannel::populate_voltage_coarse_channels(
@@ -152,6 +157,18 @@ impl VoltageContext {
             metafits_context.scheduled_start_unix_time_milliseconds,
         );
 
+        // Convert the real start and end times to UNIX time
+        let start_unix_time_milliseconds = misc::convert_gpstime_to_unixtime(
+            start_gps_time_milliseconds,
+            metafits_context.scheduled_start_gpstime_milliseconds,
+            metafits_context.scheduled_start_unix_time_milliseconds,
+        );
+        let end_unix_time_milliseconds = misc::convert_gpstime_to_unixtime(
+            end_gps_time_milliseconds,
+            metafits_context.scheduled_start_gpstime_milliseconds,
+            metafits_context.scheduled_start_unix_time_milliseconds,
+        );
+
         // The number of samples this timestep represents. For correlator, this would be 1. For voltage capture it will be many.
         let num_samples_per_timestep = match voltage_info.corr_format {
             CorrelatorVersion::OldLegacy => 10000,
@@ -173,6 +190,8 @@ impl VoltageContext {
             corr_version: voltage_info.corr_format,
             start_gps_time_milliseconds,
             end_gps_time_milliseconds,
+            start_unix_time_milliseconds,
+            end_unix_time_milliseconds,
             duration_milliseconds,
             num_timesteps,
             timesteps,
@@ -279,6 +298,8 @@ impl fmt::Display for VoltageContext {
             Metafits Context:         {metafits_context}
             Correlator version:       {corr_ver},
 
+            Actual GPS start time:    {start_gps},
+            Actual GPS end time:      {end_gps},
             Actual UNIX start time:   {start_unix},
             Actual UNIX end time:     {end_unix},
             Actual duration:          {duration} s,
@@ -301,8 +322,10 @@ impl fmt::Display for VoltageContext {
         )"#,
             metafits_context = self.metafits_context,
             corr_ver = self.corr_version,
-            start_unix = self.start_gps_time_milliseconds as f64 / 1e3,
-            end_unix = self.end_gps_time_milliseconds as f64 / 1e3,
+            start_unix = self.start_unix_time_milliseconds as f64 / 1e3,
+            end_unix = self.end_unix_time_milliseconds as f64 / 1e3,
+            start_gps = self.start_gps_time_milliseconds as f64 / 1e3,
+            end_gps = self.end_gps_time_milliseconds as f64 / 1e3,
             duration = self.duration_milliseconds as f64 / 1e3,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,

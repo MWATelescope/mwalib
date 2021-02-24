@@ -36,7 +36,7 @@ csv = "1.1.*"
 float-cmp = "0.8.*"
 structopt = "0.3.*"
 tempdir = "0.3.*"
-cbindgen = "0.16.*"
+cbindgen = "0.*"
 cargo-tarpaulin = "*"
 
 [build-dependencies]

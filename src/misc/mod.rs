@@ -227,12 +227,112 @@ pub fn get_baseline_from_antenna_names(
     unreachable!("Baseline was not found")
 }
 
+/// Returns a UNIX time given a GPStime
+///
+/// NOTE: this method relies on the fact that metafits files have the following information, which we use to
+/// determine the UNIX vs GPS offset in seconds, which has already been corrected for leap seconds:assert_eq!
+///
+/// GOODTIME = the first UNIX time of "good" data (after receivers, beamformers, etc have settled down)
+/// QUACKTIM = the number of seconds added to the scheduled UNIX start time to skip "bad" data.
+/// GPSTIME  = the GPS scheduled start time of an observation
+///
+/// Thus we can subtract QUACKTIM from GOODTIME to get the UNIX scheduled start time.assert_eq!
+/// Know things and that we have the GPSTIME for the same instant, we can compute and offset and
+/// use THAT to adjust any times in THIS OBSERVATION. NOTE: this only works because the telescope garauntees
+/// that we will never observe OVER a leap second change.
+///
+/// # Arguments
+///
+/// * `gpstime_milliseconds` - GPS time (in ms) you want to convert to UNIX timestamp
+///
+/// * `mwa_start_gps_time_milliseconds` - Scheduled GPS start time (in ms) of observation according to metafits.
+///
+/// * `mwa_start_unix_time_milliseconds` - Scheduled UNIX start time (in ms) according to the metafits (GOODTIM-QUACKTIM).
+///    
+///
+/// # Returns
+///
+/// * The UNIX time (in ms) converted from the `gpstime_milliseconds`.
+///
+pub fn convert_gpstime_to_unixtime(
+    gpstime_milliseconds: u64,
+    mwa_start_gpstime_milliseconds: u64,
+    mwa_start_unixtime_milliseconds: u64,
+) -> u64 {
+    // We have a UNIX time reference and a gpstime reference
+    // Compute an offset
+    let offset_milliseconds = mwa_start_unixtime_milliseconds - mwa_start_gpstime_milliseconds;
+
+    // The new converted Unix time is gpstime + offset
+    gpstime_milliseconds + offset_milliseconds
+}
+
+/// Returns a UNIX time given a GPStime
+///
+/// NOTE: see `convert_gpstime_to_unixtime` for more details.
+///
+/// # Arguments
+///
+/// * `unixtime_milliseconds` - GPS time (in ms) you want to convert to UNIX timestamp
+///
+/// * `mwa_start_gps_time_milliseconds` - Scheduled GPS start time (in ms) of observation according to metafits.
+///
+/// * `mwa_start_unix_time_milliseconds` - Scheduled UNIX start time (in ms) according to the metafits (GOODTIM-QUACKTIM).
+///    
+///
+/// # Returns
+///
+/// * The GPS time (in ms) converted from the `unixtime_milliseconds`.
+///
+pub fn convert_unixtime_to_gpstime(
+    unixtime_milliseconds: u64,
+    mwa_start_gpstime_milliseconds: u64,
+    mwa_start_unixtime_milliseconds: u64,
+) -> u64 {
+    // We have a UNIX time reference and a gpstime reference
+    // Compute an offset
+    let offset_milliseconds = mwa_start_unixtime_milliseconds - mwa_start_gpstime_milliseconds;
+
+    // The new converted gps time is unix time - offset
+    unixtime_milliseconds - offset_milliseconds
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::antenna::*;
     use crate::rfinput::*;
     use float_cmp::*;
+
+    #[test]
+    fn test_convert_gpstime_to_unixtime() {
+        // Tested using https://www.andrews.edu/~tzs/timeconv/timedisplay.php
+        let gpstime_milliseconds = 1298013490_000;
+        let mwa_start_gpstime_milliseconds = 1242552568_000;
+        let mwa_start_unixtime_milliseconds = 1558517350_000;
+
+        let new_unixtime_milliseconds = convert_gpstime_to_unixtime(
+            gpstime_milliseconds,
+            mwa_start_gpstime_milliseconds,
+            mwa_start_unixtime_milliseconds,
+        );
+        assert_eq!(new_unixtime_milliseconds, 1613978272_000);
+    }
+
+    #[test]
+    fn test_convert_unixtime_to_gpstime() {
+        // Tested using https://www.andrews.edu/~tzs/timeconv/timedisplay.php
+        let unixtime_milliseconds = 1613978272_000;
+        let mwa_start_gpstime_milliseconds = 1242552568_000;
+        let mwa_start_unixtime_milliseconds = 1558517350_000;
+
+        let new_unixtime_milliseconds = convert_unixtime_to_gpstime(
+            unixtime_milliseconds,
+            mwa_start_gpstime_milliseconds,
+            mwa_start_unixtime_milliseconds,
+        );
+        assert_eq!(new_unixtime_milliseconds, 1298013490_000);
+    }
 
     #[test]
     fn test_get_baseline_count() {
