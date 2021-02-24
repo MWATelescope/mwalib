@@ -95,11 +95,11 @@ int main(int argc, char *argv[])
     Baseline *bls = NULL;
     size_t nbls = 0;
 
-    if (mwalib_correlator_baselines_get(correlator_context, &bls, &nbls, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    if (mwalib_baselines_get(NULL, correlator_context, NULL, &bls, &nbls, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
         printf("%lu baselines returned\n", nbls);
 
-        for (int i = 0; i < corr_metadata->num_baselines; i++)
+        for (int i = 0; i < metafits_metadata->num_baselines; i++)
         {
             printf("Baseline %d is ant %lu vs ant %lu\n", i, bls[i].antenna1_index, bls[i].antenna2_index);
         }
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
     }
 
     // Clean up baselines
-    mwalib_baselines_free(bls, corr_metadata->num_baselines);
+    mwalib_baselines_free(bls, metafits_metadata->num_baselines);
 
     // Example of using coarse channels
     CoarseChannel *ccs = NULL;
@@ -179,11 +179,11 @@ int main(int argc, char *argv[])
     VisibilityPol *vis_pol_array = NULL;
     size_t nvps = 0;
 
-    if (mwalib_correlator_visibility_pols_get(correlator_context, &vis_pol_array, &nvps, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    if (mwalib_visibility_pols_get(NULL, correlator_context, NULL, &vis_pol_array, &nvps, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
         printf("%lu visibility pols returned\n", nvps);
 
-        for (int i = 0; i < corr_metadata->num_visibility_pols; i++)
+        for (int i = 0; i < metafits_metadata->num_visibility_pols; i++)
         {
             printf("mwalibVisibilityPols %d is %s\n", i, vis_pol_array[i].polarisation);
         }
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
         exit(-1);
     }
     // Clean up visibility pols
-    mwalib_visibility_pols_free(vis_pol_array, corr_metadata->num_visibility_pols);
+    mwalib_visibility_pols_free(vis_pol_array, metafits_metadata->num_visibility_pols);
 
     // Clean up
     mwalib_correlator_metadata_free(corr_metadata);

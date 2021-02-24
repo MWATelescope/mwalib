@@ -8,13 +8,11 @@ The main interface to MWA data.
 use std::collections::BTreeMap;
 use std::fmt;
 
-use crate::baseline::*;
 use crate::coarse_channel::*;
 use crate::convert::*;
 use crate::gpubox_files::*;
 use crate::metafits_context::*;
 use crate::timestep::*;
-use crate::visibility_pol::*;
 use crate::*;
 
 ///
@@ -41,28 +39,12 @@ pub struct CorrelatorContext {
     pub num_timesteps: usize,
     /// This is an array of all timesteps we have data for
     pub timesteps: Vec<TimeStep>,
-    /// Number of baselines stored. This is autos plus cross correlations
-    pub num_baselines: usize,
-    /// Baslines
-    pub baselines: Vec<Baseline>,
-    /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
-    pub num_visibility_pols: usize,
-    /// Visibility polarisations
-    pub visibility_pols: Vec<VisibilityPol>,
-    /// Correlator mode dump time
-    pub integration_time_milliseconds: u64,
     /// Number of coarse channels after we've validated the input gpubox files
     pub num_coarse_channels: usize,
     /// Vector of coarse channel structs
     pub coarse_channels: Vec<CoarseChannel>,
-    /// Total bandwidth of observation (of the coarse channels we have)
+    /// Total bandwidth of the common coarse channels which have been provided (which may be less than or equal to the bandwith in the MetafitsContext)
     pub bandwidth_hz: u32,
-    /// Bandwidth of each coarse channel
-    pub coarse_channel_width_hz: u32,
-    /// Correlator fine_channel_resolution
-    pub fine_channel_width_hz: u32,
-    /// Number of fine channels in each coarse channel
-    pub num_fine_channels_per_coarse: usize,
 
     /// `gpubox_batches` *must* be sorted appropriately. See
     /// `gpubox::determine_gpubox_batches`. The order of the filenames
@@ -116,12 +98,6 @@ impl CorrelatorContext {
         let mut metafits_fptr = fits_open!(&metafits_filename)?;
         let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
 
-        // We need to get the correlator integration time
-        let integration_time_milliseconds: u64 = {
-            let it: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "INTTIME")?;
-            (it * 1000.) as _
-        };
-
         let (gpubox_info, timesteps) =
         // Do gpubox stuff only if we have gpubox files.
             if !gpubox_filenames.is_empty() {
@@ -135,7 +111,7 @@ impl CorrelatorContext {
                 let nscans: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "NSCANS")?;
                 let timesteps: Vec<TimeStep> = (0..nscans)
                     .map(|i| {
-                        let time = metafits_context.good_time_unix_milliseconds + i * integration_time_milliseconds;
+                        let time = metafits_context.good_time_unix_milliseconds + i * metafits_context.correlator_integration_time_milliseconds;
                         TimeStep::new(time, 0)
                     })
                     .collect();
@@ -169,18 +145,6 @@ impl CorrelatorContext {
             };
         let num_timesteps = timesteps.len();
 
-        // Populate baselines
-        let baselines = Baseline::populate_baselines(metafits_context.num_antennas);
-
-        // Populate the pols that come out of the correlator
-        let visibility_pols = VisibilityPol::populate_visibility_pols();
-        let num_visibility_pols = visibility_pols.len();
-
-        // `num_baselines` is the number of cross-correlations + the number of
-        // auto-correlations.
-        let num_baselines =
-            (metafits_context.num_antennas / 2) * (metafits_context.num_antennas + 1);
-
         // Populate coarse channels
         let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
             coarse_channel::CoarseChannel::populate_correlator_coarse_channels(
@@ -193,16 +157,6 @@ impl CorrelatorContext {
 
         let bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
 
-        // Fine-channel resolution. The FINECHAN value in the metafits is in units
-        // of kHz - make it Hz.
-        let fine_channel_width_hz: u32 = {
-            let fc: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FINECHAN")?;
-            (fc * 1000.).round() as _
-        };
-        // Determine the number of fine channels per coarse channel.
-        let num_fine_channels_per_coarse =
-            (coarse_channel_width_hz / fine_channel_width_hz) as usize;
-
         // We have enough information to validate HDU matches metafits
         if !gpubox_filenames.is_empty() {
             let coarse_channel = coarse_channels[0].gpubox_number;
@@ -213,9 +167,9 @@ impl CorrelatorContext {
 
             CorrelatorContext::validate_first_hdu(
                 gpubox_info.corr_format,
-                num_fine_channels_per_coarse,
-                num_baselines,
-                num_visibility_pols,
+                metafits_context.num_fine_channels_per_coarse,
+                metafits_context.num_baselines,
+                metafits_context.num_visibility_pols,
                 &mut fptr,
             )?;
         }
@@ -224,7 +178,10 @@ impl CorrelatorContext {
         // Start= start of first timestep
         // End  = start of last timestep + integration time
         let (start_unix_time_milliseconds, end_unix_time_milliseconds, duration_milliseconds) = {
-            let o = determine_obs_times(&gpubox_info.time_map, integration_time_milliseconds)?;
+            let o = determine_obs_times(
+                &gpubox_info.time_map,
+                metafits_context.correlator_integration_time_milliseconds,
+            )?;
             (o.start_millisec, o.end_millisec, o.duration_millisec)
         };
 
@@ -259,17 +216,9 @@ impl CorrelatorContext {
             duration_milliseconds,
             num_timesteps,
             timesteps,
-            num_baselines,
-            baselines,
-            num_visibility_pols,
-            visibility_pols,
             num_coarse_channels,
             coarse_channels,
-            integration_time_milliseconds,
-            fine_channel_width_hz,
             bandwidth_hz,
-            coarse_channel_width_hz,
-            num_fine_channels_per_coarse,
             gpubox_batches: gpubox_info.batches,
             gpubox_time_map: gpubox_info.time_map,
             num_timestep_coarse_channel_bytes: gpubox_info.hdu_size * 4,
@@ -440,9 +389,9 @@ impl CorrelatorContext {
         {
             vec![
                 0.;
-                self.num_fine_channels_per_coarse
-                    * self.num_visibility_pols
-                    * self.num_baselines
+                self.metafits_context.num_fine_channels_per_coarse
+                    * self.metafits_context.num_visibility_pols
+                    * self.metafits_context.num_baselines
                     * 2
             ]
         } else {
@@ -470,7 +419,7 @@ impl CorrelatorContext {
                 &self.legacy_conversion_table,
                 &output_buffer,
                 &mut temp_buffer,
-                self.num_fine_channels_per_coarse,
+                self.metafits_context.num_fine_channels_per_coarse,
             );
 
             Ok(temp_buffer)
@@ -508,9 +457,9 @@ impl CorrelatorContext {
         // Prepare temporary buffer, if we are reading legacy correlator files
         let mut temp_buffer = vec![
             0.;
-            self.num_fine_channels_per_coarse
-                * self.num_visibility_pols
-                * self.num_baselines
+            self.metafits_context.num_fine_channels_per_coarse
+                * self.metafits_context.num_visibility_pols
+                * self.metafits_context.num_baselines
                 * 2
         ];
 
@@ -535,7 +484,7 @@ impl CorrelatorContext {
                 &self.legacy_conversion_table,
                 &output_buffer,
                 &mut temp_buffer,
-                self.num_fine_channels_per_coarse,
+                self.metafits_context.num_fine_channels_per_coarse,
             );
 
             Ok(temp_buffer)
@@ -544,9 +493,9 @@ impl CorrelatorContext {
             convert::convert_mwax_hdu_to_frequency_order(
                 &output_buffer,
                 &mut temp_buffer,
-                self.num_baselines,
-                self.num_fine_channels_per_coarse,
-                self.num_visibility_pols,
+                self.metafits_context.num_baselines,
+                self.metafits_context.num_fine_channels_per_coarse,
+                self.metafits_context.num_visibility_pols,
             );
 
             Ok(temp_buffer)
@@ -585,24 +534,11 @@ impl fmt::Display for CorrelatorContext {
             Actual duration:          {duration} s,
 
             num timesteps:            {n_timesteps},
-            timesteps:                {timesteps:?},
-
-            num baselines:            {n_bls},
-            baselines:                {bl01} v {bl02} to {bll1} v {bll2}
-            num auto-correlations:    {n_ants},
-            num cross-correlations:   {n_ccs},
-
-            num visibility pols:      {n_vps},
-            visibility pols:          {vp0}, {vp1}, {vp2}, {vp3},
+            timesteps:                {timesteps:?},           
 
             observation bandwidth:    {obw} MHz,
             num coarse channels,      {n_coarse},
-            coarse channels:          {coarse:?},
-
-            Correlator Mode:
-            fine channel resolution:  {fcw} kHz,
-            integration time:         {int_time:.2} s
-            num fine channels/coarse: {nfcpc},
+            coarse channels:          {coarse:?},            
 
             gpubox HDU size:          {hdu_size} MiB,
             Memory usage per scan:    {scan_size} MiB,
@@ -618,24 +554,9 @@ impl fmt::Display for CorrelatorContext {
             duration = self.duration_milliseconds as f64 / 1e3,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,
-            n_bls = self.num_baselines,
-            bl01 = self.baselines[0].antenna1_index,
-            bl02 = self.baselines[0].antenna2_index,
-            bll1 = self.baselines[self.num_baselines - 1].antenna1_index,
-            bll2 = self.baselines[self.num_baselines - 1].antenna2_index,
-            n_ants = self.metafits_context.num_antennas,
-            n_ccs = self.num_baselines - self.metafits_context.num_antennas,
-            n_vps = self.num_visibility_pols,
-            vp0 = self.visibility_pols[0].polarisation,
-            vp1 = self.visibility_pols[1].polarisation,
-            vp2 = self.visibility_pols[2].polarisation,
-            vp3 = self.visibility_pols[3].polarisation,
             obw = self.bandwidth_hz as f64 / 1e6,
             n_coarse = self.num_coarse_channels,
             coarse = self.coarse_channels,
-            fcw = self.fine_channel_width_hz as f64 / 1e3,
-            int_time = self.integration_time_milliseconds as f64 / 1e3,
-            nfcpc = self.num_fine_channels_per_coarse,
             hdu_size = size,
             scan_size = size * self.num_gpubox_files as f64,
             batches = self.gpubox_batches,
@@ -712,12 +633,6 @@ mod tests {
             1_417_468_096_000
         );
 
-        // num baselines:            8256,
-        assert_eq!(context.num_baselines, 8256);
-
-        // num visibility pols:      4,
-        assert_eq!(context.num_visibility_pols, 4);
-
         // observation bandwidth:    1.28 MHz,
         assert_eq!(context.bandwidth_hz, 1_280_000);
 
@@ -728,16 +643,6 @@ mod tests {
         assert_eq!(context.coarse_channels[0].gpubox_number, 1);
         assert_eq!(context.coarse_channels[0].receiver_channel_number, 109);
         assert_eq!(context.coarse_channels[0].channel_centre_hz, 139_520_000);
-
-        // Correlator Mode:
-        // fine channel resolution:  10 kHz,
-        assert_eq!(context.fine_channel_width_hz, 10_000);
-
-        // integration time:         2.00 s
-        assert_eq!(context.integration_time_milliseconds, 2000);
-
-        // num fine channels/coarse: 128,
-        assert_eq!(context.num_fine_channels_per_coarse, 128);
 
         // gpubox HDU size:          32.25 MiB,
         // Memory usage per scan:    32.25 MiB,
@@ -828,33 +733,33 @@ mod tests {
 
         let result_valid = CorrelatorContext::validate_first_hdu(
             context.corr_version,
-            context.num_fine_channels_per_coarse,
-            context.num_baselines,
-            context.num_visibility_pols,
+            context.metafits_context.num_fine_channels_per_coarse,
+            context.metafits_context.num_baselines,
+            context.metafits_context.num_visibility_pols,
             &mut fptr,
         );
 
         let result_invalid1 = CorrelatorContext::validate_first_hdu(
             context.corr_version,
-            context.num_fine_channels_per_coarse + 1,
-            context.num_baselines,
-            context.num_visibility_pols,
+            context.metafits_context.num_fine_channels_per_coarse + 1,
+            context.metafits_context.num_baselines,
+            context.metafits_context.num_visibility_pols,
             &mut fptr,
         );
 
         let result_invalid2 = CorrelatorContext::validate_first_hdu(
             context.corr_version,
-            context.num_fine_channels_per_coarse,
-            context.num_baselines + 1,
-            context.num_visibility_pols,
+            context.metafits_context.num_fine_channels_per_coarse,
+            context.metafits_context.num_baselines + 1,
+            context.metafits_context.num_visibility_pols,
             &mut fptr,
         );
 
         let result_invalid3 = CorrelatorContext::validate_first_hdu(
             context.corr_version,
-            context.num_fine_channels_per_coarse,
-            context.num_baselines,
-            context.num_visibility_pols + 1,
+            context.metafits_context.num_fine_channels_per_coarse,
+            context.metafits_context.num_baselines,
+            context.metafits_context.num_visibility_pols + 1,
             &mut fptr,
         );
 

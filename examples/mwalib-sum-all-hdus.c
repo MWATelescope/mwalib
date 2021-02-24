@@ -108,11 +108,19 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
+    MetafitsMetadata *metafits_metadata = NULL;
+
+    if (mwalib_metafits_metadata_get(NULL, corr_context, NULL, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    {
+        printf("Error getting metafits metadata: %s\n", error_message);
+        exit(-1);
+    }
+
     int num_timesteps = corr_metadata->num_timesteps;
     int num_coarse_channels = corr_metadata->num_coarse_channels;
-    int num_vis_pols = corr_metadata->num_visibility_pols;
-    int num_fine_channels = corr_metadata->num_fine_channels_per_coarse;
-    int num_baselines = corr_metadata->num_baselines;
+    int num_vis_pols = metafits_metadata->num_visibility_pols;
+    int num_fine_channels = metafits_metadata->num_fine_channels_per_coarse;
+    int num_baselines = metafits_metadata->num_baselines;
     long num_floats = corr_metadata->num_timestep_coarse_channel_floats;
 
     // Now sum by baseline

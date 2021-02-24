@@ -11,7 +11,9 @@ use std::fmt;
 use chrono::{DateTime, Duration, FixedOffset};
 
 use crate::antenna::*;
+use crate::baseline::*;
 use crate::rfinput::*;
+use crate::visibility_pol::*;
 use crate::*;
 
 /// Enum for all of the known variants of file format based on Correlator version
@@ -131,6 +133,12 @@ pub struct MetafitsContext {
     pub observation_name: String,
     /// MWA observation mode
     pub mode: String,
+    /// Correlator fine_channel_resolution
+    pub correlator_fine_channel_width_hz: u32,
+    /// Correlator mode dump time
+    pub correlator_integration_time_milliseconds: u64,
+    /// Number of fine channels in each coarse channel
+    pub num_fine_channels_per_coarse: usize,
     /// RECVRS    // Array of receiver numbers (this tells us how many receivers too)
     pub receivers: Vec<usize>,
     /// DELAYS    // Array of delays
@@ -159,6 +167,14 @@ pub struct MetafitsContext {
     pub coarse_channel_width_hz: u32,
     /// The value of the FREQCENT key in the metafits file, but in Hz.
     pub metafits_centre_freq_hz: u32,
+    /// Number of baselines stored. This is autos plus cross correlations
+    pub num_baselines: usize,
+    /// Baslines
+    pub baselines: Vec<Baseline>,
+    /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
+    pub num_visibility_pols: usize,
+    /// Visibility polarisations
+    pub visibility_pols: Vec<VisibilityPol>,
     /// Filename of the metafits we were given
     pub metafits_filename: String,
 }
@@ -210,6 +226,17 @@ impl MetafitsContext {
 
         // Always assume that MWA antennas have 2 pols
         let num_antenna_pols = 2;
+
+        // Populate baselines
+        let baselines = Baseline::populate_baselines(num_antennas);
+
+        // Populate the pols that come out of the correlator
+        let visibility_pols = VisibilityPol::populate_visibility_pols();
+        let num_visibility_pols = visibility_pols.len();
+
+        // `num_baselines` is the number of cross-correlations + the number of
+        // auto-correlations.
+        let num_baselines = (num_antennas / 2) * (num_antennas + 1);
 
         // The FREQCENT value in the metafits is in units of kHz - make it Hz.
         let metafits_centre_freq_hz: u32 = {
@@ -278,6 +305,11 @@ impl MetafitsContext {
         let observation_name =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FILENAME")?;
         let mode = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MODE")?;
+        // We need to get the correlator integration time
+        let integration_time_milliseconds: u64 = {
+            let it: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "INTTIME")?;
+            (it * 1000.) as _
+        };
         let receivers_string: String =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "RECVRS")?;
 
@@ -314,6 +346,17 @@ impl MetafitsContext {
             )?;
 
         let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
+
+        // Fine-channel resolution. The FINECHAN value in the metafits is in units
+        // of kHz - make it Hz.
+        let fine_channel_width_hz: u32 = {
+            let fc: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FINECHAN")?;
+            (fc * 1000.).round() as _
+        };
+        // Determine the number of fine channels per coarse channel.
+        let num_fine_channels_per_coarse =
+            (coarse_channel_width_hz / fine_channel_width_hz) as usize;
+
         Ok(MetafitsContext {
             obsid,
             mwa_latitude_radians: MWA_LATITUDE_RADIANS,
@@ -352,6 +395,9 @@ impl MetafitsContext {
             project_id,
             observation_name,
             mode,
+            correlator_fine_channel_width_hz: fine_channel_width_hz,
+            correlator_integration_time_milliseconds: integration_time_milliseconds,
+            num_fine_channels_per_coarse,
             receivers,
             delays,
             global_analogue_attenuation_db,
@@ -371,6 +417,10 @@ impl MetafitsContext {
                 .to_str()
                 .expect("Metafits filename is not UTF-8 compliant")
                 .to_string(),
+            num_baselines,
+            baselines,
+            num_visibility_pols,
+            visibility_pols,
         })
     }
 }
@@ -398,6 +448,11 @@ impl fmt::Display for MetafitsContext {
 
     obsid:                    {obsid},
     mode:                     {mode},
+
+    Correlator Mode:
+    fine channel resolution:  {fcw} kHz,
+    integration time:         {int_time:.2} s
+    num fine channels/coarse: {nfcpc},
 
     Creator:                  {creator},
     Project ID:               {project_id},
@@ -438,6 +493,13 @@ impl fmt::Display for MetafitsContext {
     rf_inputs:                {rfs:?},
 
     num antenna pols:         {n_aps},
+    num baselines:            {n_bls},
+    baselines:                {bl01} v {bl02} to {bll1} v {bll2}
+    num auto-correlations:    {n_ants},
+    num cross-correlations:   {n_ccs},
+
+    num visibility pols:      {n_vps},
+    visibility pols:          {vp0}, {vp1}, {vp2}, {vp3},
 
     metafits FREQCENT key:    {freqcent} MHz,
 
@@ -490,8 +552,22 @@ impl fmt::Display for MetafitsContext {
             ants = self.antennas,
             rfs = self.rf_inputs,
             n_aps = self.num_antenna_pols,
+            n_bls = self.num_baselines,
+            bl01 = self.baselines[0].antenna1_index,
+            bl02 = self.baselines[0].antenna2_index,
+            bll1 = self.baselines[self.num_baselines - 1].antenna1_index,
+            bll2 = self.baselines[self.num_baselines - 1].antenna2_index,
+            n_ccs = self.num_baselines - self.num_antennas,
+            n_vps = self.num_visibility_pols,
+            vp0 = self.visibility_pols[0].polarisation,
+            vp1 = self.visibility_pols[1].polarisation,
+            vp2 = self.visibility_pols[2].polarisation,
+            vp3 = self.visibility_pols[3].polarisation,
             freqcent = self.metafits_centre_freq_hz as f64 / 1e6,
             mode = self.mode,
+            fcw = self.correlator_fine_channel_width_hz as f64 / 1e3,
+            nfcpc = self.num_fine_channels_per_coarse,
+            int_time = self.correlator_integration_time_milliseconds as f64 / 1e3,
             meta = self.metafits_filename,
         )
     }
@@ -499,3 +575,20 @@ impl fmt::Display for MetafitsContext {
 
 #[cfg(test)]
 mod test;
+
+/*
+// num baselines:            8256,
+        assert_eq!(context.num_baselines, 8256);
+
+        // num visibility pols:      4,
+        assert_eq!(context.num_visibility_pols, 4);
+        // Correlator Mode:
+        // fine channel resolution:  10 kHz,
+        assert_eq!(context.fine_channel_width_hz, 10_000);
+
+        // integration time:         2.00 s
+        assert_eq!(context.integration_time_milliseconds, 2000);
+
+        // num fine channels/coarse: 128,
+        assert_eq!(context.num_fine_channels_per_coarse, 128);
+*/

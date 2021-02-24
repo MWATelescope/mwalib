@@ -842,7 +842,10 @@ mod tests {
             }
 
             // Ensure channel is <= num_fine_channels
-            assert_eq!(fine_chan <= context.num_fine_channels_per_coarse, true);
+            assert_eq!(
+                fine_chan <= context.metafits_context.num_fine_channels_per_coarse,
+                true
+            );
 
             let record: Vec<f32> = result.expect("Failed to deserialize CSV");
             assert!(
@@ -964,18 +967,19 @@ mod tests {
         // First assert that the data vectors are the same size
         assert_eq!(fits_hdu_data.len(), mwalib_hdu_data.len());
 
-        let num_floats_per_baseline_fine_chan = context.num_visibility_pols * 2; // xx_r, xx_i, xy_r, ...
+        let num_floats_per_baseline_fine_chan = context.metafits_context.num_visibility_pols * 2; // xx_r, xx_i, xy_r, ...
 
         // We will walk through the visibilities and compare them
-        for b in 0..context.num_baselines {
-            for f in 0..context.num_fine_channels_per_coarse {
+        for b in 0..context.metafits_context.num_baselines {
+            for f in 0..context.metafits_context.num_fine_channels_per_coarse {
                 // At this point we have 1 baseline and 1 fine channel which == (num_floats_per_baseline_fine_chan)
                 // locate this block of data in both hdus
                 let fits_index = (b
-                    * (context.num_fine_channels_per_coarse * num_floats_per_baseline_fine_chan))
+                    * (context.metafits_context.num_fine_channels_per_coarse
+                        * num_floats_per_baseline_fine_chan))
                     + (f * num_floats_per_baseline_fine_chan);
                 let mwalib_index = (f
-                    * (context.num_baselines * num_floats_per_baseline_fine_chan))
+                    * (context.metafits_context.num_baselines * num_floats_per_baseline_fine_chan))
                     + (b * num_floats_per_baseline_fine_chan);
 
                 // Check this block of floats matches

@@ -63,8 +63,9 @@ fn dump_data<T: AsRef<std::path::Path>>(
 
     println!("Correlator version: {}", context.corr_version);
 
-    let floats_per_finechan = context.num_visibility_pols * 2;
-    let floats_per_baseline = context.num_fine_channels_per_coarse * floats_per_finechan;
+    let floats_per_finechan = context.metafits_context.num_visibility_pols * 2;
+    let floats_per_baseline =
+        context.metafits_context.num_fine_channels_per_coarse * floats_per_finechan;
 
     let (ant1, ant2) =
         misc::get_antennas_from_baseline(baseline, context.metafits_context.num_antennas).unwrap();

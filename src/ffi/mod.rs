@@ -759,6 +759,12 @@ pub struct MetafitsMetadata {
     pub observation_name: *mut c_char,
     /// MWA observation mode
     pub mode: *mut c_char,
+    /// Correlator fine_channel_resolution
+    pub correlator_fine_channel_width_hz: u32,
+    /// Correlator mode dump time
+    pub correlator_integration_time_milliseconds: u64,
+    /// Number of fine channels in each coarse channel
+    pub num_fine_channels_per_coarse: usize,
     /// Scheduled start (gps time) of observation
     pub scheduled_start_utc: i64,
     /// Scheduled end (gps time) of observation
@@ -787,6 +793,10 @@ pub struct MetafitsMetadata {
     pub num_rf_inputs: usize,
     /// Number of antenna pols. e.g. X and Y
     pub num_antenna_pols: usize,
+    /// Number of baselines
+    pub num_baselines: usize,
+    /// Number of visibility_pols
+    pub num_visibility_pols: usize,
     /// Number of coarse channels we should have
     pub num_coarse_channels: usize,
     /// Total bandwidth of observation assuming we have all coarse channels
@@ -907,6 +917,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             project_id,
             observation_name,
             mode,
+            correlator_fine_channel_width_hz,
+            correlator_integration_time_milliseconds,
+            num_fine_channels_per_coarse,
             receivers: _, // Not currently supported via FFI
             delays: _,    // Not currently supported via FFI
             global_analogue_attenuation_db,
@@ -917,6 +930,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_rf_inputs,
             rf_inputs: _, // This is provided by the seperate rfinput struct in FFI
             num_antenna_pols,
+            num_baselines,
+            baselines: _, // This is provided by the seperate baseline struct in FFI
+            num_visibility_pols,
+            visibility_pols: _, // This is provided by the seperate visibility_pol struct in FFI
             num_coarse_channels,
             observation_bandwidth_hz,
             coarse_channel_width_hz,
@@ -962,6 +979,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 .unwrap()
                 .into_raw(),
             mode: CString::new(String::from(&*mode)).unwrap().into_raw(),
+            correlator_fine_channel_width_hz: *correlator_fine_channel_width_hz,
+            correlator_integration_time_milliseconds: *correlator_integration_time_milliseconds,
+            num_fine_channels_per_coarse: *num_fine_channels_per_coarse,
             scheduled_start_utc: scheduled_start_utc.timestamp(),
             scheduled_end_utc: scheduled_end_utc.timestamp(),
             scheduled_start_mjd: *scheduled_start_mjd,
@@ -976,6 +996,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_antennas: *num_antennas,
             num_rf_inputs: *num_rf_inputs,
             num_antenna_pols: *num_antenna_pols,
+            num_baselines: *num_baselines,
+            num_visibility_pols: *num_visibility_pols,
             num_coarse_channels: *num_coarse_channels,
             observation_bandwidth_hz: *observation_bandwidth_hz,
             coarse_channel_width_hz: *coarse_channel_width_hz,
@@ -1044,22 +1066,10 @@ pub struct CorrelatorMetadata {
     pub duration_milliseconds: u64,
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
-    /// Number of baselines stored. This is autos plus cross correlations
-    pub num_baselines: usize,
-    /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
-    pub num_visibility_pols: usize,
-    /// Correlator mode dump time
-    pub integration_time_milliseconds: u64,
     /// Number of coarse channels
     pub num_coarse_channels: usize,
     /// Total bandwidth of observation (of the coarse channels we have)
     pub bandwidth_hz: u32,
-    /// Bandwidth of each coarse channel
-    pub coarse_channel_width_hz: u32,
-    /// Correlator fine_channel_resolution
-    pub fine_channel_width_hz: u32,
-    /// Number of fine channels in each coarse channel
-    pub num_fine_channels_per_coarse: usize,
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_channel_bytes: usize,
     /// The number of floats in each gpubox HDU.
@@ -1123,17 +1133,9 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             duration_milliseconds,
             num_timesteps,
             timesteps: _, // This is provided by the seperate timestep struct in FFI
-            num_baselines,
-            baselines: _, // This is provided by the seperate baseline struct in FFI
-            num_visibility_pols,
-            visibility_pols: _, // This is provided by the seperate visibility_pol struct in FFI
             num_coarse_channels,
             coarse_channels: _, // This is provided by the seperate coarse_channel struct in FFI
-            integration_time_milliseconds,
-            fine_channel_width_hz,
             bandwidth_hz,
-            coarse_channel_width_hz,
-            num_fine_channels_per_coarse,
             num_timestep_coarse_channel_bytes,
             num_timestep_coarse_channel_floats,
             num_gpubox_files,
@@ -1148,14 +1150,8 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             end_gps_time_milliseconds: *end_gps_time_milliseconds,
             duration_milliseconds: *duration_milliseconds,
             num_timesteps: *num_timesteps,
-            num_baselines: *num_baselines,
-            num_visibility_pols: *num_visibility_pols,
             num_coarse_channels: *num_coarse_channels,
-            integration_time_milliseconds: *integration_time_milliseconds,
-            fine_channel_width_hz: *fine_channel_width_hz,
             bandwidth_hz: *bandwidth_hz,
-            coarse_channel_width_hz: *coarse_channel_width_hz,
-            num_fine_channels_per_coarse: *num_fine_channels_per_coarse,
             num_timestep_coarse_channel_bytes: *num_timestep_coarse_channel_bytes,
             num_timestep_coarse_channel_floats: *num_timestep_coarse_channel_floats,
             num_gpubox_files: *num_gpubox_files,
@@ -1523,7 +1519,11 @@ pub struct Baseline {
 ///
 /// # Arguments
 ///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
+/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
+///
+/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
 ///
 /// * `out_baselines_ptr` - populated, array of rust-owned baseline structs. Free with `mwalib_baselines_free`.
 ///
@@ -1544,30 +1544,49 @@ pub struct Baseline {
 /// * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
 /// * Caller must call `mwalib_baselines_free` once finished, to free the rust memory.
 #[no_mangle]
-pub unsafe extern "C" fn mwalib_correlator_baselines_get(
+pub unsafe extern "C" fn mwalib_baselines_get(
+    metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
+    voltage_context_ptr: *mut VoltageContext,
     out_baselines_ptr: &mut *mut Baseline,
     out_baselines_len: &mut size_t,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    if correlator_context_ptr.is_null() {
+    // Ensure only either metafits XOR correlator XOR voltage context is passed in
+    if !(!metafits_context_ptr.is_null()
+        ^ !correlator_context_ptr.is_null()
+        ^ !voltage_context_ptr.is_null())
+    {
         set_error_message(
-            "mwalib_correlator_baselines_get() ERROR: null pointer for correlator_context_ptr passed in",
+            "mwalib_baselines_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
             error_message as *mut u8,
             error_message_length,
         );
         return 1;
     }
-
-    let context = &*correlator_context_ptr;
+    // Create our metafits context pointer depending on what was passed in
+    let metafits_context = {
+        if !metafits_context_ptr.is_null() {
+            // Caller passed in a metafits context, so use that
+            &*metafits_context_ptr
+        } else {
+            if !correlator_context_ptr.is_null() {
+                // Caller passed in a correlator context, so use that
+                &(&*correlator_context_ptr).metafits_context
+            } else {
+                // Caller passed in a voltage context, so use that
+                &(&*voltage_context_ptr).metafits_context
+            }
+        }
+    };
 
     let mut item_vec: Vec<Baseline> = Vec::new();
 
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    for item in context.baselines.iter() {
+    for item in metafits_context.baselines.iter() {
         let out_item = match &item {
             baseline::Baseline {
                 antenna1_index,
@@ -1583,7 +1602,7 @@ pub unsafe extern "C" fn mwalib_correlator_baselines_get(
 
     // Pass back the array and length of the array
     *out_baselines_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_baselines_len = context.baselines.len();
+    *out_baselines_len = metafits_context.baselines.len();
 
     return 0;
 }
@@ -2234,7 +2253,11 @@ pub struct VisibilityPol {
 ///
 /// # Arguments
 ///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
+/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
+///
+/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
 ///
 /// * `out_visibility_pols_ptr` - A Rust-owned populated array of `VisibilityPol` structs. Free with `mwalib_visibility_pols_free`.
 ///
@@ -2255,28 +2278,48 @@ pub struct VisibilityPol {
 /// * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
 /// * Caller must call `mwalib_visibility_pols_free` once finished, to free the rust memory.
 #[no_mangle]
-pub unsafe extern "C" fn mwalib_correlator_visibility_pols_get(
+pub unsafe extern "C" fn mwalib_visibility_pols_get(
+    metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
+    voltage_context_ptr: *mut VoltageContext,
     out_visibility_pols_ptr: &mut *mut VisibilityPol,
     out_visibility_pols_len: &mut size_t,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    if correlator_context_ptr.is_null() {
+    // Ensure only either metafits XOR correlator XOR voltage context is passed in
+    if !(!metafits_context_ptr.is_null()
+        ^ !correlator_context_ptr.is_null()
+        ^ !voltage_context_ptr.is_null())
+    {
         set_error_message(
-            "mwalib_correlator_visibility_pols_get() ERROR: null pointer for correlator_context_ptr passed in",
+            "mwalib_visibility_pols_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
             error_message as *mut u8,
             error_message_length,
         );
         return 1;
     }
-    let context = &*correlator_context_ptr;
+    // Create our metafits context pointer depending on what was passed in
+    let metafits_context = {
+        if !metafits_context_ptr.is_null() {
+            // Caller passed in a metafits context, so use that
+            &*metafits_context_ptr
+        } else {
+            if !correlator_context_ptr.is_null() {
+                // Caller passed in a correlator context, so use that
+                &(&*correlator_context_ptr).metafits_context
+            } else {
+                // Caller passed in a voltage context, so use that
+                &(&*voltage_context_ptr).metafits_context
+            }
+        }
+    };
     let mut item_vec: Vec<VisibilityPol> = Vec::new();
 
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    for item in context.visibility_pols.iter() {
+    for item in metafits_context.visibility_pols.iter() {
         let out_item = match &item {
             visibility_pol::VisibilityPol { polarisation } => VisibilityPol {
                 polarisation: CString::new(String::from(&*polarisation))
@@ -2290,7 +2333,7 @@ pub unsafe extern "C" fn mwalib_correlator_visibility_pols_get(
 
     // Pass back the array and length of the array
     *out_visibility_pols_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_visibility_pols_len = context.visibility_pols.len();
+    *out_visibility_pols_len = metafits_context.visibility_pols.len();
 
     // Return success
     0
@@ -2311,7 +2354,7 @@ pub unsafe extern "C" fn mwalib_correlator_visibility_pols_get(
 ///
 /// # Safety
 /// * This must be called once caller is finished with the `VisibilityPol` array
-/// * `visibility_pols_ptr` must point to a populated `VisibilityPol` array from the `mwalib_correlator_visibility_pols_get` function.
+/// * `visibility_pols_ptr` must point to a populated `VisibilityPol` array from the `mwalib_visibility_pols_get` function.
 /// * `visibility_pols_ptr` must not have already been freed.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_visibility_pols_free(
