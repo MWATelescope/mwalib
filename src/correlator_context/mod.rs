@@ -104,7 +104,7 @@ impl CorrelatorContext {
                 let gpubox_info = examine_gpubox_files(&gpubox_filenames)?;
                 // We can unwrap here because the `gpubox_time_map` can't be empty if
                 // `gpuboxes` isn't empty.
-                let timesteps = TimeStep::populate_correlator_timesteps(&gpubox_info.time_map, metafits_context.scheduled_start_gpstime_milliseconds, metafits_context.scheduled_start_unix_time_milliseconds).unwrap();
+                let timesteps = TimeStep::populate_correlator_timesteps(&gpubox_info.time_map, metafits_context.scheduled_start_gps_time_milliseconds, metafits_context.scheduled_start_unix_time_milliseconds).unwrap();
                 (gpubox_info, timesteps)
             } else {
                 // If there are no gpubox files, then we need to use metafits info.
@@ -188,12 +188,12 @@ impl CorrelatorContext {
         // Convert the real start and end times to GPS time
         let start_gps_time_milliseconds = misc::convert_unixtime_to_gpstime(
             start_unix_time_milliseconds,
-            metafits_context.scheduled_start_gpstime_milliseconds,
+            metafits_context.scheduled_start_gps_time_milliseconds,
             metafits_context.scheduled_start_unix_time_milliseconds,
         );
         let end_gps_time_milliseconds = misc::convert_unixtime_to_gpstime(
             end_unix_time_milliseconds,
-            metafits_context.scheduled_start_gpstime_milliseconds,
+            metafits_context.scheduled_start_gps_time_milliseconds,
             metafits_context.scheduled_start_unix_time_milliseconds,
         );
 

@@ -70,9 +70,9 @@ pub struct MetafitsContext {
     /// the velocity factor of electic fields in RG-6 like coax
     pub coax_v_factor: f64,
     /// Scheduled start (gps time) of observation
-    pub scheduled_start_gpstime_milliseconds: u64,
+    pub scheduled_start_gps_time_milliseconds: u64,
     /// Scheduled end (gps time) of observation
-    pub scheduled_end_gpstime_milliseconds: u64,
+    pub scheduled_end_gps_time_milliseconds: u64,
     /// Scheduled start (UNIX time) of observation
     pub scheduled_start_unix_time_milliseconds: u64,
     /// Scheduled end (UNIX time) of observation
@@ -363,8 +363,8 @@ impl MetafitsContext {
             mwa_longitude_radians: MWA_LONGITUDE_RADIANS,
             mwa_altitude_metres: MWA_ALTITUDE_METRES,
             coax_v_factor,
-            scheduled_start_gpstime_milliseconds,
-            scheduled_end_gpstime_milliseconds,
+            scheduled_start_gps_time_milliseconds: scheduled_start_gpstime_milliseconds,
+            scheduled_end_gps_time_milliseconds: scheduled_end_gpstime_milliseconds,
             scheduled_start_unix_time_milliseconds,
             scheduled_end_unix_time_milliseconds,
             scheduled_start_utc,
@@ -517,8 +517,8 @@ impl fmt::Display for MetafitsContext {
             atten = self.global_analogue_attenuation_db,
             sched_start_unix = self.scheduled_start_unix_time_milliseconds as f64 / 1e3,
             sched_end_unix = self.scheduled_end_unix_time_milliseconds as f64 / 1e3,
-            sched_start_gps = self.scheduled_start_gpstime_milliseconds as f64 / 1e3,
-            sched_end_gps = self.scheduled_end_gpstime_milliseconds as f64 / 1e3,
+            sched_start_gps = self.scheduled_start_gps_time_milliseconds as f64 / 1e3,
+            sched_end_gps = self.scheduled_end_gps_time_milliseconds as f64 / 1e3,
             sched_start_utc = self.scheduled_start_utc,
             sched_end_utc = self.scheduled_end_utc,
             sched_start_mjd = self.scheduled_start_mjd,

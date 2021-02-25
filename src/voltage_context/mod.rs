@@ -153,19 +153,19 @@ impl VoltageContext {
             start_gps_time_milliseconds,
             end_gps_time_milliseconds,
             voltage_info.voltage_file_interval_milliseconds,
-            metafits_context.scheduled_start_gpstime_milliseconds,
+            metafits_context.scheduled_start_gps_time_milliseconds,
             metafits_context.scheduled_start_unix_time_milliseconds,
         );
 
         // Convert the real start and end times to UNIX time
         let start_unix_time_milliseconds = misc::convert_gpstime_to_unixtime(
             start_gps_time_milliseconds,
-            metafits_context.scheduled_start_gpstime_milliseconds,
+            metafits_context.scheduled_start_gps_time_milliseconds,
             metafits_context.scheduled_start_unix_time_milliseconds,
         );
         let end_unix_time_milliseconds = misc::convert_gpstime_to_unixtime(
             end_gps_time_milliseconds,
-            metafits_context.scheduled_start_gpstime_milliseconds,
+            metafits_context.scheduled_start_gps_time_milliseconds,
             metafits_context.scheduled_start_unix_time_milliseconds,
         );
 

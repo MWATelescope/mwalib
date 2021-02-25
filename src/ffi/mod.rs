@@ -778,9 +778,9 @@ pub struct MetafitsMetadata {
     /// Scheduled end (UNIX time) of observation
     pub scheduled_end_unix_time_milliseconds: u64,
     /// Scheduled start (GPS) of observation
-    pub scheduled_start_gpstime_milliseconds: u64,
+    pub scheduled_start_gps_time_milliseconds: u64,
     /// Scheduled end (GPS) of observation
-    pub scheduled_end_gpstime_milliseconds: u64,
+    pub scheduled_end_gps_time_milliseconds: u64,
     /// Scheduled duration of observation
     pub scheduled_duration_milliseconds: u64,
     /// Seconds of bad data after observation starts
@@ -885,8 +885,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             mwa_longitude_radians,
             mwa_altitude_metres,
             coax_v_factor,
-            scheduled_start_gpstime_milliseconds,
-            scheduled_end_gpstime_milliseconds,
+            scheduled_start_gps_time_milliseconds: scheduled_start_gpstime_milliseconds,
+            scheduled_end_gps_time_milliseconds: scheduled_end_gpstime_milliseconds,
             scheduled_start_unix_time_milliseconds,
             scheduled_end_unix_time_milliseconds,
             scheduled_start_utc,
@@ -988,8 +988,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             scheduled_end_mjd: *scheduled_end_mjd,
             scheduled_start_unix_time_milliseconds: *scheduled_start_unix_time_milliseconds,
             scheduled_end_unix_time_milliseconds: *scheduled_end_unix_time_milliseconds,
-            scheduled_start_gpstime_milliseconds: *scheduled_start_gpstime_milliseconds,
-            scheduled_end_gpstime_milliseconds: *scheduled_end_gpstime_milliseconds,
+            scheduled_start_gps_time_milliseconds: *scheduled_start_gpstime_milliseconds,
+            scheduled_end_gps_time_milliseconds: *scheduled_end_gpstime_milliseconds,
             scheduled_duration_milliseconds: *scheduled_duration_milliseconds,
             quack_time_duration_milliseconds: *quack_time_duration_milliseconds,
             good_time_unix_milliseconds: *good_time_unix_milliseconds,
