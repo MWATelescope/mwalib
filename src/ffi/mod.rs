@@ -351,7 +351,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_display(
 
 /// Read a single timestep / coarse channel of MWA data.
 ///
-/// This method takes as input a timestep_index and a coarse_channel_index to return one
+/// This method takes as input a timestep_index and a coarse_chan_index to return one
 /// HDU of data in [baseline][freq][pol][r][i] format
 ///
 /// # Arguments
@@ -361,8 +361,8 @@ pub unsafe extern "C" fn mwalib_correlator_context_display(
 /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
 ///                      to TimeStep.get(context, N) where N is timestep_index.
 ///
-/// * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
-///                            to CoarseChannel.get(context, N) where N is coarse_channel_index.
+/// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+///                            to CoarseChannel.get(context, N) where N is coarse_chan_index.
 ///
 /// * `buffer_ptr` - pointer to caller-owned and allocated buffer to write data into.
 ///
@@ -386,7 +386,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_display(
 pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
     correlator_context_ptr: *mut CorrelatorContext,
     timestep_index: size_t,
-    coarse_channel_index: size_t,
+    coarse_chan_index: size_t,
     buffer_ptr: *mut c_float,
     buffer_len: size_t,
     error_message: *const c_char,
@@ -413,7 +413,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
     let output_slice = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
 
     // Read data in.
-    let data = match corr_context.read_by_baseline(timestep_index, coarse_channel_index) {
+    let data = match corr_context.read_by_baseline(timestep_index, coarse_chan_index) {
         Ok(data) => data,
         Err(e) => {
             set_error_message(
@@ -443,7 +443,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
 
 /// Read a single timestep / coarse channel of MWA data.
 ///
-/// This method takes as input a timestep_index and a coarse_channel_index to return one
+/// This method takes as input a timestep_index and a coarse_chan_index to return one
 /// HDU of data in [freq][baseline][pol][r][i] format
 ///
 /// # Arguments
@@ -453,8 +453,8 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
 /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
 ///                      to TimeStep.get(context, N) where N is timestep_index.
 ///
-/// * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
-///                            to CoarseChannel.get(context, N) where N is coarse_channel_index.
+/// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+///                            to CoarseChannel.get(context, N) where N is coarse_chan_index.
 ///
 /// * `buffer_ptr` - pointer to caller-owned and allocated buffer to write data into.
 ///
@@ -478,7 +478,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
 pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
     correlator_context_ptr: *mut CorrelatorContext,
     timestep_index: size_t,
-    coarse_channel_index: size_t,
+    coarse_chan_index: size_t,
     buffer_ptr: *mut c_float,
     buffer_len: size_t,
     error_message: *const c_char,
@@ -504,7 +504,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
     let output_slice = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
 
     // Read data in.
-    let data = match corr_context.read_by_frequency(timestep_index, coarse_channel_index) {
+    let data = match corr_context.read_by_frequency(timestep_index, coarse_chan_index) {
         Ok(data) => data,
         Err(e) => {
             set_error_message(
@@ -702,49 +702,49 @@ pub unsafe extern "C" fn mwalib_voltage_context_free(
 #[repr(C)]
 pub struct MetafitsMetadata {
     /// Observation id
-    pub obsid: u32,
+    pub obs_id: u32,
     /// Latitude of centre point of MWA in raidans
-    pub mwa_latitude_radians: f64,
+    pub mwa_lat_rad: f64,
     /// Longitude of centre point of MWA in raidans
-    pub mwa_longitude_radians: f64,
+    pub mwa_long_rad: f64,
     /// Altitude of centre poing of MWA in metres
-    pub mwa_altitude_metres: f64,
+    pub mwa_alt_metres: f64,
     /// the velocity factor of electic fields in RG-6 like coax
     pub coax_v_factor: f64,
     /// ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
     /// RA tile pointing
-    pub ra_tile_pointing_degrees: f64,
+    pub ra_tile_pointing_deg: f64,
     /// DEC tile pointing
-    pub dec_tile_pointing_degrees: f64,
+    pub dec_tile_pointing_deg: f64,
     /// RA phase centre
-    pub ra_phase_center_degrees: f64,
+    pub ra_phase_center_deg: f64,
     /// DEC phase centre
-    pub dec_phase_center_degrees: f64,
+    pub dec_phase_center_deg: f64,
     /// AZIMUTH
-    pub azimuth_degrees: f64,
+    pub az_deg: f64,
     /// ALTITUDE
-    pub altitude_degrees: f64,
+    pub alt_deg: f64,
     /// Zenith angle of the pointing centre in degrees
-    pub zenith_angle_degrees: f64,
+    pub zenith_angle_deg: f64,
     /// AZIMUTH of the pointing centre in radians
-    pub azimuth_radians: f64,
+    pub az_rad: f64,
     /// ALTITUDE (a.k.a. elevation) of the pointing centre in radians
-    pub altitude_radians: f64,
+    pub alt_rad: f64,
     /// Zenith angle of the pointing centre in radians
-    pub zenith_angle_radians: f64,
+    pub zenith_angle_rad: f64,
     /// Altitude of Sun
-    pub sun_altitude_degrees: f64,
+    pub sun_alt_deg: f64,
     /// Distance from pointing center to Sun
-    pub sun_distance_degrees: f64,
+    pub sun_distance_deg: f64,
     /// Distance from pointing center to the Moon
-    pub moon_distance_degrees: f64,
+    pub moon_distance_deg: f64,
     /// Distance from pointing center to Jupiter
-    pub jupiter_distance_degrees: f64,
+    pub jupiter_distance_deg: f64,
     /// Local Sidereal Time
-    pub lst_degrees: f64,
+    pub lst_deg: f64,
     /// Local Sidereal Time in radians
-    pub lst_radians: f64,
+    pub lst_rad: f64,
     /// Hour Angle of pointing center (as a string)
     pub hour_angle_string: *mut c_char,
     /// GRIDNAME
@@ -756,53 +756,53 @@ pub struct MetafitsMetadata {
     /// PROJECT
     pub project_id: *mut c_char,
     /// Observation name
-    pub observation_name: *mut c_char,
+    pub obs_name: *mut c_char,
     /// MWA observation mode
     pub mode: *mut c_char,
-    /// Correlator fine_channel_resolution
-    pub correlator_fine_channel_width_hz: u32,
+    /// Correlator fine_chan_resolution
+    pub corr_fine_chan_width_hz: u32,
     /// Correlator mode dump time
-    pub correlator_integration_time_milliseconds: u64,
-    /// Number of fine channels in each coarse channel
-    pub num_fine_channels_per_coarse: usize,
+    pub corr_int_time_ms: u64,
+    /// Number of fine channels in each coarse channel for a correlator observation
+    pub num_corr_fine_chans_per_coarse: usize,
     /// Scheduled start (gps time) of observation
-    pub scheduled_start_utc: i64,
+    pub sched_start_utc: i64,
     /// Scheduled end (gps time) of observation
-    pub scheduled_end_utc: i64,
+    pub sched_end_utc: i64,
     /// Scheduled start (MJD) of observation
-    pub scheduled_start_mjd: f64,
+    pub sched_start_mjd: f64,
     /// Scheduled end (MJD) of observation
-    pub scheduled_end_mjd: f64,
+    pub sched_end_mjd: f64,
     /// Scheduled start (UNIX time) of observation
-    pub scheduled_start_unix_time_milliseconds: u64,
+    pub sched_start_unix_time_ms: u64,
     /// Scheduled end (UNIX time) of observation
-    pub scheduled_end_unix_time_milliseconds: u64,
+    pub sched_end_unix_time_ms: u64,
     /// Scheduled start (GPS) of observation
-    pub scheduled_start_gps_time_milliseconds: u64,
+    pub sched_start_gps_time_ms: u64,
     /// Scheduled end (GPS) of observation
-    pub scheduled_end_gps_time_milliseconds: u64,
+    pub sched_end_gps_time_ms: u64,
     /// Scheduled duration of observation
-    pub scheduled_duration_milliseconds: u64,
+    pub sched_duration_ms: u64,
     /// Seconds of bad data after observation starts
-    pub quack_time_duration_milliseconds: u64,
+    pub quack_time_duration_ms: u64,
     /// OBSID+QUACKTIM as Unix timestamp (first good timestep)
-    pub good_time_unix_milliseconds: u64,
+    pub good_time_unix_ms: u64,
     /// Total number of antennas (tiles) in the array
-    pub num_antennas: usize,
+    pub num_ants: usize,
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
     pub num_rf_inputs: usize,
     /// Number of antenna pols. e.g. X and Y
-    pub num_antenna_pols: usize,
+    pub num_ant_pols: usize,
     /// Number of baselines
     pub num_baselines: usize,
     /// Number of visibility_pols
     pub num_visibility_pols: usize,
     /// Number of coarse channels we should have
-    pub num_coarse_channels: usize,
+    pub num_coarse_chans: usize,
     /// Total bandwidth of observation assuming we have all coarse channels
-    pub observation_bandwidth_hz: u32,
+    pub obs_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
-    pub coarse_channel_width_hz: u32,
+    pub coarse_chan_width_hz: u32,
     /// Centre frequency of observation
     pub metafits_centre_freq_hz: u32,
     /// filename of metafits file used
@@ -880,94 +880,94 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     // ignore them (with _) or add that field to the FFI struct.
     let out_context = match &metafits_context {
         MetafitsContext {
-            obsid,
-            mwa_latitude_radians,
-            mwa_longitude_radians,
-            mwa_altitude_metres,
+            obs_id,
+            mwa_lat_radians,
+            mwa_long_radians,
+            mwa_alt_metres,
             coax_v_factor,
-            scheduled_start_gps_time_milliseconds: scheduled_start_gpstime_milliseconds,
-            scheduled_end_gps_time_milliseconds: scheduled_end_gpstime_milliseconds,
-            scheduled_start_unix_time_milliseconds,
-            scheduled_end_unix_time_milliseconds,
-            scheduled_start_utc,
-            scheduled_end_utc,
-            scheduled_start_mjd,
-            scheduled_end_mjd,
-            scheduled_duration_milliseconds,
+            sched_start_gps_time_ms,
+            sched_end_gps_time_ms,
+            sched_start_unix_time_ms,
+            sched_end_unix_time_ms,
+            sched_start_utc,
+            sched_end_utc,
+            sched_start_mjd,
+            sched_end_mjd,
+            sched_duration_ms,
             ra_tile_pointing_degrees,
             dec_tile_pointing_degrees,
             ra_phase_center_degrees,
             dec_phase_center_degrees,
-            azimuth_degrees,
-            altitude_degrees,
-            zenith_angle_degrees,
-            azimuth_radians,
-            altitude_radians,
-            zenith_angle_radians,
-            sun_altitude_degrees,
-            sun_distance_degrees,
-            moon_distance_degrees,
-            jupiter_distance_degrees,
-            lst_degrees,
-            lst_radians,
+            az_deg: azimuth_degrees,
+            alt_deg: altitude_degrees,
+            zenith_angle_deg,
+            az_rad,
+            alt_rad,
+            zenith_angle_rad,
+            sun_alt_deg,
+            sun_distance_deg,
+            moon_distance_deg,
+            jupiter_distance_deg,
+            lst_deg: lst_degrees,
+            lst_rad: lst_radians,
             hour_angle_string,
             grid_name,
             grid_number,
             creator,
             project_id,
-            observation_name,
+            obs_name,
             mode,
-            correlator_fine_channel_width_hz,
-            correlator_integration_time_milliseconds,
-            num_fine_channels_per_coarse,
+            corr_fine_chan_width_hz,
+            corr_int_time_ms,
+            num_corr_fine_chans_per_coarse,
             receivers: _, // Not currently supported via FFI
             delays: _,    // Not currently supported via FFI
             global_analogue_attenuation_db,
-            quack_time_duration_milliseconds,
-            good_time_unix_milliseconds,
-            num_antennas,
+            quack_time_duration_ms,
+            good_time_unix_ms,
+            num_ants,
             antennas: _, // This is provided by the seperate antenna struct in FFI
             num_rf_inputs,
             rf_inputs: _, // This is provided by the seperate rfinput struct in FFI
-            num_antenna_pols,
+            num_ant_pols,
             num_baselines,
             baselines: _, // This is provided by the seperate baseline struct in FFI
             num_visibility_pols,
             visibility_pols: _, // This is provided by the seperate visibility_pol struct in FFI
-            num_coarse_channels,
-            observation_bandwidth_hz,
-            coarse_channel_width_hz,
+            num_coarse_chans,
+            obs_bandwidth_hz,
+            coarse_chan_width_hz,
             metafits_centre_freq_hz,
             metafits_filename,
         } => MetafitsMetadata {
-            obsid: *obsid,
-            mwa_latitude_radians: *mwa_latitude_radians,
-            mwa_longitude_radians: *mwa_longitude_radians,
-            mwa_altitude_metres: *mwa_altitude_metres,
+            obs_id: *obs_id,
+            mwa_lat_rad: *mwa_lat_radians,
+            mwa_long_rad: *mwa_long_radians,
+            mwa_alt_metres: *mwa_alt_metres,
             coax_v_factor: *coax_v_factor,
             global_analogue_attenuation_db: *global_analogue_attenuation_db,
-            ra_tile_pointing_degrees: *ra_tile_pointing_degrees,
-            dec_tile_pointing_degrees: *dec_tile_pointing_degrees,
-            ra_phase_center_degrees: match *ra_phase_center_degrees {
+            ra_tile_pointing_deg: *ra_tile_pointing_degrees,
+            dec_tile_pointing_deg: *dec_tile_pointing_degrees,
+            ra_phase_center_deg: match *ra_phase_center_degrees {
                 Some(v) => v,
                 None => 0.,
             },
-            dec_phase_center_degrees: match *dec_phase_center_degrees {
+            dec_phase_center_deg: match *dec_phase_center_degrees {
                 Some(v) => v,
                 None => 0.,
             },
-            azimuth_degrees: *azimuth_degrees,
-            altitude_degrees: *altitude_degrees,
-            zenith_angle_degrees: *zenith_angle_degrees,
-            azimuth_radians: *azimuth_radians,
-            altitude_radians: *altitude_radians,
-            zenith_angle_radians: *zenith_angle_radians,
-            sun_altitude_degrees: *sun_altitude_degrees,
-            sun_distance_degrees: *sun_distance_degrees,
-            moon_distance_degrees: *moon_distance_degrees,
-            jupiter_distance_degrees: *jupiter_distance_degrees,
-            lst_degrees: *lst_degrees,
-            lst_radians: *lst_radians,
+            az_deg: *azimuth_degrees,
+            alt_deg: *altitude_degrees,
+            zenith_angle_deg: *zenith_angle_deg,
+            az_rad: *az_rad,
+            alt_rad: *alt_rad,
+            zenith_angle_rad: *zenith_angle_rad,
+            sun_alt_deg: *sun_alt_deg,
+            sun_distance_deg: *sun_distance_deg,
+            moon_distance_deg: *moon_distance_deg,
+            jupiter_distance_deg: *jupiter_distance_deg,
+            lst_deg: *lst_degrees,
+            lst_rad: *lst_radians,
             hour_angle_string: CString::new(String::from(&*hour_angle_string))
                 .unwrap()
                 .into_raw(),
@@ -975,32 +975,30 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             grid_number: *grid_number,
             creator: CString::new(String::from(&*creator)).unwrap().into_raw(),
             project_id: CString::new(String::from(&*project_id)).unwrap().into_raw(),
-            observation_name: CString::new(String::from(&*observation_name))
-                .unwrap()
-                .into_raw(),
+            obs_name: CString::new(String::from(&*obs_name)).unwrap().into_raw(),
             mode: CString::new(String::from(&*mode)).unwrap().into_raw(),
-            correlator_fine_channel_width_hz: *correlator_fine_channel_width_hz,
-            correlator_integration_time_milliseconds: *correlator_integration_time_milliseconds,
-            num_fine_channels_per_coarse: *num_fine_channels_per_coarse,
-            scheduled_start_utc: scheduled_start_utc.timestamp(),
-            scheduled_end_utc: scheduled_end_utc.timestamp(),
-            scheduled_start_mjd: *scheduled_start_mjd,
-            scheduled_end_mjd: *scheduled_end_mjd,
-            scheduled_start_unix_time_milliseconds: *scheduled_start_unix_time_milliseconds,
-            scheduled_end_unix_time_milliseconds: *scheduled_end_unix_time_milliseconds,
-            scheduled_start_gps_time_milliseconds: *scheduled_start_gpstime_milliseconds,
-            scheduled_end_gps_time_milliseconds: *scheduled_end_gpstime_milliseconds,
-            scheduled_duration_milliseconds: *scheduled_duration_milliseconds,
-            quack_time_duration_milliseconds: *quack_time_duration_milliseconds,
-            good_time_unix_milliseconds: *good_time_unix_milliseconds,
-            num_antennas: *num_antennas,
+            corr_fine_chan_width_hz: *corr_fine_chan_width_hz,
+            corr_int_time_ms: *corr_int_time_ms,
+            num_corr_fine_chans_per_coarse: *num_corr_fine_chans_per_coarse,
+            sched_start_utc: sched_start_utc.timestamp(),
+            sched_end_utc: sched_end_utc.timestamp(),
+            sched_start_mjd: *sched_start_mjd,
+            sched_end_mjd: *sched_end_mjd,
+            sched_start_unix_time_ms: *sched_start_unix_time_ms,
+            sched_end_unix_time_ms: *sched_end_unix_time_ms,
+            sched_start_gps_time_ms: *sched_start_gps_time_ms,
+            sched_end_gps_time_ms: *sched_end_gps_time_ms,
+            sched_duration_ms: *sched_duration_ms,
+            quack_time_duration_ms: *quack_time_duration_ms,
+            good_time_unix_ms: *good_time_unix_ms,
+            num_ants: *num_ants,
             num_rf_inputs: *num_rf_inputs,
-            num_antenna_pols: *num_antenna_pols,
+            num_ant_pols: *num_ant_pols,
             num_baselines: *num_baselines,
             num_visibility_pols: *num_visibility_pols,
-            num_coarse_channels: *num_coarse_channels,
-            observation_bandwidth_hz: *observation_bandwidth_hz,
-            coarse_channel_width_hz: *coarse_channel_width_hz,
+            num_coarse_chans: *num_coarse_chans,
+            obs_bandwidth_hz: *obs_bandwidth_hz,
+            coarse_chan_width_hz: *coarse_chan_width_hz,
             metafits_centre_freq_hz: *metafits_centre_freq_hz,
             metafits_filename: CString::new(String::from(&*metafits_filename))
                 .unwrap()
@@ -1054,26 +1052,26 @@ pub struct CorrelatorMetadata {
     pub corr_version: CorrelatorVersion,
     /// The proper start of the observation (the time that is common to all
     /// provided gpubox files).
-    pub start_unix_time_milliseconds: u64,
-    /// `end_time_milliseconds` will is the actual end time of the observation
+    pub start_unix_time_ms: u64,
+    /// `end_time_ms` will is the actual end time of the observation
     /// i.e. start time of last common timestep plus integration time.
-    pub end_unix_time_milliseconds: u64,
-    /// `start_unix_time_milliseconds` but in GPS milliseconds
-    pub start_gps_time_milliseconds: u64,
-    /// `end_unix_time_milliseconds` but in GPS milliseconds
-    pub end_gps_time_milliseconds: u64,
+    pub end_unix_time_ms: u64,
+    /// `start_unix_time_ms` but in GPS milliseconds
+    pub start_gps_time_ms: u64,
+    /// `end_unix_time_ms` but in GPS milliseconds
+    pub end_gps_time_ms: u64,
     /// Total duration of observation (based on gpubox files)
-    pub duration_milliseconds: u64,
+    pub duration_ms: u64,
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
     /// Number of coarse channels
-    pub num_coarse_channels: usize,
+    pub num_coarse_chans: usize,
     /// Total bandwidth of observation (of the coarse channels we have)
     pub bandwidth_hz: u32,
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
-    pub num_timestep_coarse_channel_bytes: usize,
+    pub num_timestep_coarse_chan_bytes: usize,
     /// The number of floats in each gpubox HDU.
-    pub num_timestep_coarse_channel_floats: usize,
+    pub num_timestep_coarse_chan_floats: usize,
     /// This is the number of gpubox files *per batch*.
     pub num_gpubox_files: usize,
 }
@@ -1126,34 +1124,34 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
         CorrelatorContext {
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
             corr_version,
-            start_unix_time_milliseconds,
-            end_unix_time_milliseconds,
-            start_gps_time_milliseconds,
-            end_gps_time_milliseconds,
-            duration_milliseconds,
+            start_unix_time_ms,
+            end_unix_time_ms,
+            start_gps_time_ms,
+            end_gps_time_ms,
+            duration_ms,
             num_timesteps,
             timesteps: _, // This is provided by the seperate timestep struct in FFI
-            num_coarse_channels,
-            coarse_channels: _, // This is provided by the seperate coarse_channel struct in FFI
+            num_coarse_chans,
+            coarse_chans: _, // This is provided by the seperate coarse_chan struct in FFI
             bandwidth_hz,
-            num_timestep_coarse_channel_bytes,
-            num_timestep_coarse_channel_floats,
+            num_timestep_coarse_chan_bytes,
+            num_timestep_coarse_chan_floats,
             num_gpubox_files,
             gpubox_batches: _, // This is currently not provided to FFI as it is private
             gpubox_time_map: _, // This is currently not provided to FFI as it is private
             legacy_conversion_table: _, // This is currently not provided to FFI as it is private
         } => CorrelatorMetadata {
             corr_version: *corr_version,
-            start_unix_time_milliseconds: *start_unix_time_milliseconds,
-            end_unix_time_milliseconds: *end_unix_time_milliseconds,
-            start_gps_time_milliseconds: *start_gps_time_milliseconds,
-            end_gps_time_milliseconds: *end_gps_time_milliseconds,
-            duration_milliseconds: *duration_milliseconds,
+            start_unix_time_ms: *start_unix_time_ms,
+            end_unix_time_ms: *end_unix_time_ms,
+            start_gps_time_ms: *start_gps_time_ms,
+            end_gps_time_ms: *end_gps_time_ms,
+            duration_ms: *duration_ms,
             num_timesteps: *num_timesteps,
-            num_coarse_channels: *num_coarse_channels,
+            num_coarse_chans: *num_coarse_chans,
             bandwidth_hz: *bandwidth_hz,
-            num_timestep_coarse_channel_bytes: *num_timestep_coarse_channel_bytes,
-            num_timestep_coarse_channel_floats: *num_timestep_coarse_channel_floats,
+            num_timestep_coarse_chan_bytes: *num_timestep_coarse_chan_bytes,
+            num_timestep_coarse_chan_floats: *num_timestep_coarse_chan_floats,
             num_gpubox_files: *num_gpubox_files,
         },
     };
@@ -1203,32 +1201,32 @@ pub struct VoltageMetadata {
     pub corr_version: CorrelatorVersion,
     /// The proper start of the observation (the time that is common to all
     /// provided voltage files).
-    pub start_gps_time_milliseconds: u64,
-    /// `end_gps_time_milliseconds` is the actual end time of the observation    
+    pub start_gps_time_ms: u64,
+    /// `end_gps_time_ms` is the actual end time of the observation    
     /// i.e. start time of last common timestep plus length of a voltage file (1 sec for MWA Legacy, 8 secs for MWAX).
-    pub end_gps_time_milliseconds: u64,
-    /// `start_gps_time_milliseconds` but in UNIX time (milliseconds)
-    pub start_unix_time_milliseconds: u64,
-    /// `end_gps_time_milliseconds` but in UNIX time (milliseconds)
-    pub end_unix_time_milliseconds: u64,
+    pub end_gps_time_ms: u64,
+    /// `start_gps_time_ms` but in UNIX time (milliseconds)
+    pub start_unix_time_ms: u64,
+    /// `end_gps_time_ms` but in UNIX time (milliseconds)
+    pub end_unix_time_ms: u64,
     /// Total duration of observation (based on voltage files)
-    pub duration_milliseconds: u64,
+    pub duration_ms: u64,
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
     /// The number of millseconds interval between timestep indices
-    pub timestep_duration_milliseconds: u64,
+    pub timestep_duration_ms: u64,
     /// The number of samples in each timestep
     pub num_samples_per_timestep: usize,
     /// Number of coarse channels after we've validated the input voltage files
-    pub num_coarse_channels: usize,
+    pub num_coarse_chans: usize,
     /// Total bandwidth of observation (of the coarse channels we have)
     pub bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
-    pub coarse_channel_width_hz: u32,
-    /// Volatge fine_channel_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
-    pub fine_channel_width_hz: u32,
+    pub coarse_chan_width_hz: u32,
+    /// Volatge fine_chan_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
+    pub fine_chan_width_hz: u32,
     /// Number of fine channels in each coarse channel
-    pub num_fine_channels_per_coarse: usize,
+    pub num_fine_chans_per_coarse: usize,
 }
 
 /// This returns a struct containing the `VoltageContext` metadata
@@ -1279,38 +1277,38 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
         VoltageContext {
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
             corr_version,
-            start_gps_time_milliseconds,
-            end_gps_time_milliseconds,
-            start_unix_time_milliseconds,
-            end_unix_time_milliseconds,
-            duration_milliseconds,
+            start_gps_time_ms,
+            end_gps_time_ms,
+            start_unix_time_ms,
+            end_unix_time_ms,
+            duration_ms,
             num_timesteps,
             timesteps: _, // This is provided by the seperate timestep struct in FFI
-            timestep_duration_milliseconds,
+            timestep_duration_ms,
             num_samples_per_timestep,
-            num_coarse_channels,
-            coarse_channels: _, // This is provided by the seperate coarse_channel struct in FFI
+            num_coarse_chans,
+            coarse_chans: _, // This is provided by the seperate coarse_chan struct in FFI
             bandwidth_hz,
-            coarse_channel_width_hz,
-            fine_channel_width_hz,
-            num_fine_channels_per_coarse,
+            coarse_chan_width_hz,
+            fine_chan_width_hz,
+            num_fine_chans_per_coarse,
             voltage_batches: _, // This is currently not provided to FFI as it is private
             voltage_time_map: _, // This is currently not provided to FFI as it is private
         } => VoltageMetadata {
             corr_version: *corr_version,
-            start_gps_time_milliseconds: *start_gps_time_milliseconds,
-            end_gps_time_milliseconds: *end_gps_time_milliseconds,
-            start_unix_time_milliseconds: *start_unix_time_milliseconds,
-            end_unix_time_milliseconds: *end_unix_time_milliseconds,
-            duration_milliseconds: *duration_milliseconds,
+            start_gps_time_ms: *start_gps_time_ms,
+            end_gps_time_ms: *end_gps_time_ms,
+            start_unix_time_ms: *start_unix_time_ms,
+            end_unix_time_ms: *end_unix_time_ms,
+            duration_ms: *duration_ms,
             num_timesteps: *num_timesteps,
-            timestep_duration_milliseconds: *timestep_duration_milliseconds,
+            timestep_duration_ms: *timestep_duration_ms,
             num_samples_per_timestep: *num_samples_per_timestep,
-            num_coarse_channels: *num_coarse_channels,
+            num_coarse_chans: *num_coarse_chans,
             bandwidth_hz: *bandwidth_hz,
-            coarse_channel_width_hz: *coarse_channel_width_hz,
-            fine_channel_width_hz: *fine_channel_width_hz,
-            num_fine_channels_per_coarse: *num_fine_channels_per_coarse,
+            coarse_chan_width_hz: *coarse_chan_width_hz,
+            fine_chan_width_hz: *fine_chan_width_hz,
+            num_fine_chans_per_coarse: *num_fine_chans_per_coarse,
         },
     };
 
@@ -1357,7 +1355,7 @@ pub struct Antenna {
     /// Nominally this is the field we sort by to get the desired output order of antenna.
     /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
     /// e.g. 0...N-1
-    pub antenna: u32,
+    pub ant: u32,
     /// Numeric part of tile_name for the antenna. Each pol has the same value
     /// e.g. tile_name "tile011" hsa tile_id of 11
     pub tile_id: u32,
@@ -1376,9 +1374,9 @@ pub struct Antenna {
 ///
 /// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
 ///
-/// * `out_antennas_ptr` - A Rust-owned populated array of `Antenna` struct. Free with `mwalib_antennas_free`.
+/// * `out_ants_ptr` - A Rust-owned populated array of `Antenna` struct. Free with `mwalib_antennas_free`.
 ///
-/// * `out_antennas_len` - Antennas array length.
+/// * `out_ants_len` - Antennas array length.
 ///
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
@@ -1399,8 +1397,8 @@ pub unsafe extern "C" fn mwalib_antennas_get(
     metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
     voltage_context_ptr: *mut VoltageContext,
-    out_antennas_ptr: &mut *mut Antenna,
-    out_antennas_len: &mut size_t,
+    out_ants_ptr: &mut *mut Antenna,
+    out_ants_len: &mut size_t,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
@@ -1440,13 +1438,13 @@ pub unsafe extern "C" fn mwalib_antennas_get(
     for item in metafits_context.antennas.iter() {
         let out_item = match &item {
             antenna::Antenna {
-                antenna,
+                ant,
                 tile_id,
                 tile_name,
                 x_pol: _, // not exposed via FFI- caller should use rfinput struct
                 y_pol: _, // not exposed via FFI- caller should use rfinput struct
             } => Antenna {
-                antenna: *antenna,
+                ant: *ant,
                 tile_id: *tile_id,
                 tile_name: CString::new(String::from(*&tile_name)).unwrap().into_raw(),
             },
@@ -1456,8 +1454,8 @@ pub unsafe extern "C" fn mwalib_antennas_get(
     }
 
     // Pass back the array and length of the array
-    *out_antennas_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_antennas_len = metafits_context.antennas.len();
+    *out_ants_ptr = array_to_ffi_boxed_slice(item_vec);
+    *out_ants_len = metafits_context.antennas.len();
 
     // Return success
     0
@@ -1467,9 +1465,9 @@ pub unsafe extern "C" fn mwalib_antennas_get(
 ///
 /// # Arguments
 ///
-/// * `antennas_ptr` - pointer to an already populated `Antenna` array
+/// * `ants_ptr` - pointer to an already populated `Antenna` array
 ///
-/// * `antennas_len` - number of elements in the pointed to array
+/// * `ants_len` - number of elements in the pointed to array
 ///
 ///
 /// # Returns
@@ -1479,19 +1477,16 @@ pub unsafe extern "C" fn mwalib_antennas_get(
 ///
 /// # Safety
 /// * This must be called once caller is finished with the `Antenna` array
-/// * `antenna_ptr` must point to a populated `Antenna` array from the `mwalib_antennas_get` function.
-/// * `antenna_ptr` must not have already been freed.
+/// * `ants_ptr` must point to a populated `Antenna` array from the `mwalib_antennas_get` function.
+/// * `ants_ptr` must not have already been freed.
 #[no_mangle]
-pub unsafe extern "C" fn mwalib_antennas_free(
-    antennas_ptr: *mut Antenna,
-    antennas_len: size_t,
-) -> i32 {
-    if antennas_ptr.is_null() {
+pub unsafe extern "C" fn mwalib_antennas_free(ants_ptr: *mut Antenna, ants_len: size_t) -> i32 {
+    if ants_ptr.is_null() {
         return 0;
     }
 
     // Extract a slice from the pointer
-    let slice: &mut [Antenna] = slice::from_raw_parts_mut(antennas_ptr, antennas_len);
+    let slice: &mut [Antenna] = slice::from_raw_parts_mut(ants_ptr, ants_len);
     // Now for each item we need to free anything on the heap
     for i in slice.into_iter() {
         drop(Box::from_raw(i.tile_name));
@@ -1510,9 +1505,9 @@ pub unsafe extern "C" fn mwalib_antennas_free(
 #[repr(C)]
 pub struct Baseline {
     /// Index in the `MetafitsContext` antenna array for antenna1 for this baseline
-    pub antenna1_index: usize,
+    pub ant1_index: usize,
     /// Index in the `MetafitsContext` antenna array for antenna2 for this baseline
-    pub antenna2_index: usize,
+    pub ant2_index: usize,
 }
 
 /// This passes a pointer to an array of baselines
@@ -1589,11 +1584,11 @@ pub unsafe extern "C" fn mwalib_baselines_get(
     for item in metafits_context.baselines.iter() {
         let out_item = match &item {
             baseline::Baseline {
-                antenna1_index,
-                antenna2_index,
+                ant1_index,
+                ant2_index,
             } => Baseline {
-                antenna1_index: *antenna1_index,
-                antenna2_index: *antenna2_index,
+                ant1_index: *ant1_index,
+                ant2_index: *ant2_index,
             },
         };
 
@@ -1647,21 +1642,21 @@ pub unsafe extern "C" fn mwalib_baselines_free(
 #[repr(C)]
 pub struct CoarseChannel {
     /// Correlator channel is 0 indexed (0..N-1)
-    pub correlator_channel_number: usize,
+    pub corr_chan_number: usize,
     /// Receiver channel is 0-255 in the RRI recivers
-    pub receiver_channel_number: usize,
+    pub rec_chan_number: usize,
     /// gpubox channel number
     /// Legacy e.g. obsid_datetime_gpuboxXX_00
     /// v2     e.g. obsid_datetime_gpuboxXXX_00
     pub gpubox_number: usize,
     /// Width of a coarse channel in Hz
-    pub channel_width_hz: u32,
+    pub chan_width_hz: u32,
     /// Starting frequency of coarse channel in Hz
-    pub channel_start_hz: u32,
+    pub chan_start_hz: u32,
     /// Centre frequency of coarse channel in Hz
-    pub channel_centre_hz: u32,
+    pub chan_centre_hz: u32,
     /// Ending frequency of coarse channel in Hz
-    pub channel_end_hz: u32,
+    pub chan_end_hz: u32,
 }
 
 /// This passes a pointer to an array of correlator coarse channel
@@ -1670,9 +1665,9 @@ pub struct CoarseChannel {
 ///
 /// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
 ///
-/// * `out_coarse_channels_ptr` - A Rust-owned populated `CoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
+/// * `out_coarse_chans_ptr` - A Rust-owned populated `CoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
 ///
-/// * `out_coarse_channels_len` - Coarse channel array length.
+/// * `out_coarse_chans_len` - Coarse channel array length.
 ///
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
@@ -1691,8 +1686,8 @@ pub struct CoarseChannel {
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
     correlator_context_ptr: *mut CorrelatorContext,
-    out_coarse_channels_ptr: &mut *mut CoarseChannel,
-    out_coarse_channels_len: &mut size_t,
+    out_coarse_chans_ptr: &mut *mut CoarseChannel,
+    out_coarse_chans_len: &mut size_t,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
@@ -1711,24 +1706,24 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    for item in context.coarse_channels.iter() {
+    for item in context.coarse_chans.iter() {
         let out_item = match &item {
             coarse_channel::CoarseChannel {
-                correlator_channel_number,
-                receiver_channel_number,
+                corr_chan_number,
+                rec_chan_number,
                 gpubox_number,
-                channel_width_hz,
-                channel_start_hz,
-                channel_centre_hz,
-                channel_end_hz,
+                chan_width_hz,
+                chan_start_hz,
+                chan_centre_hz,
+                chan_end_hz,
             } => CoarseChannel {
-                correlator_channel_number: *correlator_channel_number,
-                receiver_channel_number: *receiver_channel_number,
+                corr_chan_number: *corr_chan_number,
+                rec_chan_number: *rec_chan_number,
                 gpubox_number: *gpubox_number,
-                channel_width_hz: *channel_width_hz,
-                channel_start_hz: *channel_start_hz,
-                channel_centre_hz: *channel_centre_hz,
-                channel_end_hz: *channel_end_hz,
+                chan_width_hz: *chan_width_hz,
+                chan_start_hz: *chan_start_hz,
+                chan_centre_hz: *chan_centre_hz,
+                chan_end_hz: *chan_end_hz,
             },
         };
 
@@ -1736,8 +1731,8 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
     }
 
     // Pass back the array and length of the array
-    *out_coarse_channels_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_coarse_channels_len = context.coarse_channels.len();
+    *out_coarse_chans_ptr = array_to_ffi_boxed_slice(item_vec);
+    *out_coarse_chans_len = context.coarse_chans.len();
 
     // return success
     0
@@ -1749,9 +1744,9 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
 ///
 /// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
 ///
-/// * `out_coarse_channels_ptr` - A Rust-owned populated `CoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
+/// * `out_coarse_chans_ptr` - A Rust-owned populated `CoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
 ///
-/// * `out_coarse_channels_len` - Coarse channel array length.
+/// * `out_coarse_chans_len` - Coarse channel array length.
 ///
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
@@ -1770,8 +1765,8 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
     voltage_context_ptr: *mut VoltageContext,
-    out_coarse_channels_ptr: &mut *mut CoarseChannel,
-    out_coarse_channels_len: &mut usize,
+    out_coarse_chans_ptr: &mut *mut CoarseChannel,
+    out_coarse_chans_len: &mut usize,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
@@ -1790,24 +1785,24 @@ pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    for item in context.coarse_channels.iter() {
+    for item in context.coarse_chans.iter() {
         let out_item = match &item {
             coarse_channel::CoarseChannel {
-                correlator_channel_number,
-                receiver_channel_number,
+                corr_chan_number,
+                rec_chan_number,
                 gpubox_number,
-                channel_width_hz,
-                channel_start_hz,
-                channel_centre_hz,
-                channel_end_hz,
+                chan_width_hz,
+                chan_start_hz,
+                chan_centre_hz,
+                chan_end_hz,
             } => CoarseChannel {
-                correlator_channel_number: *correlator_channel_number,
-                receiver_channel_number: *receiver_channel_number,
+                corr_chan_number: *corr_chan_number,
+                rec_chan_number: *rec_chan_number,
                 gpubox_number: *gpubox_number,
-                channel_width_hz: *channel_width_hz,
-                channel_start_hz: *channel_start_hz,
-                channel_centre_hz: *channel_centre_hz,
-                channel_end_hz: *channel_end_hz,
+                chan_width_hz: *chan_width_hz,
+                chan_start_hz: *chan_start_hz,
+                chan_centre_hz: *chan_centre_hz,
+                chan_end_hz: *chan_end_hz,
             },
         };
 
@@ -1815,8 +1810,8 @@ pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
     }
 
     // Pass back the array and length of the array
-    *out_coarse_channels_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_coarse_channels_len = context.coarse_channels.len();
+    *out_coarse_chans_ptr = array_to_ffi_boxed_slice(item_vec);
+    *out_coarse_chans_len = context.coarse_chans.len();
 
     // return success
     0
@@ -1826,9 +1821,9 @@ pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
 ///
 /// # Arguments
 ///
-/// * `coarse_channels_ptr` - pointer to an already populated `CoarseChannel` array
+/// * `coarse_chans_ptr` - pointer to an already populated `CoarseChannel` array
 ///
-/// * `coarse_channels_len` - number of elements in the pointed to array
+/// * `coarse_chans_len` - number of elements in the pointed to array
 ///
 ///
 /// # Returns
@@ -1838,19 +1833,18 @@ pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
 ///
 /// # Safety
 /// * This must be called once caller is finished with the `CoarseChannel` array
-/// * `coarse_channel_ptr` must point to a populated `CoarseChannel` array from the `mwalib_correlator_coarse_channels_get` function.
-/// * `coarse_channel_ptr` must not have already been freed.
+/// * `coarse_chan_ptr` must point to a populated `CoarseChannel` array from the `mwalib_correlator_coarse_channels_get` function.
+/// * `coarse_chan_ptr` must not have already been freed.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_coarse_channels_free(
-    coarse_channels_ptr: *mut CoarseChannel,
-    coarse_channels_len: size_t,
+    coarse_chans_ptr: *mut CoarseChannel,
+    coarse_chans_len: size_t,
 ) -> i32 {
-    if coarse_channels_ptr.is_null() {
+    if coarse_chans_ptr.is_null() {
         return 0;
     }
     // Extract a slice from the pointer
-    let slice: &mut [CoarseChannel] =
-        slice::from_raw_parts_mut(coarse_channels_ptr, coarse_channels_len);
+    let slice: &mut [CoarseChannel] = slice::from_raw_parts_mut(coarse_chans_ptr, coarse_chans_len);
     // Free the memory for the slice
     drop(Box::from_raw(slice));
 
@@ -1867,7 +1861,7 @@ pub struct RFInput {
     /// Nominally this is the field we sort by to get the desired output order of antenna.
     /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
     /// e.g. 0...N-1
-    pub antenna: u32,
+    pub ant: u32,
     /// Numeric part of tile_name for the antenna. Each pol has the same value
     /// e.g. tile_name "tile011" hsa tile_id of 11
     pub tile_id: u32,
@@ -1891,9 +1885,9 @@ pub struct RFInput {
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flagged: bool,
     /// Receiver number
-    pub receiver_number: u32,
+    pub rec_number: u32,
     /// Receiver slot number
-    pub receiver_slot_number: u32,
+    pub rec_slot_number: u32,
 }
 
 /// This passes a pointer to an array of antenna given a metafits context OR correlator context
@@ -1971,7 +1965,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
         let out_item = match &item {
             rfinput::RFInput {
                 input,
-                antenna,
+                ant,
                 tile_id,
                 tile_name,
                 pol,
@@ -1982,14 +1976,14 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
                 vcs_order,
                 subfile_order,
                 flagged,
-                receiver_number,
-                receiver_slot_number,
+                rec_number,
+                rec_slot_number,
                 digital_gains: _, // not currently supported via FFI interface
                 dipole_gains: _,  // not currently supported via FFI interface
                 dipole_delays: _, // not currently supported via FFI interface
             } => RFInput {
                 input: *input,
-                antenna: *antenna,
+                ant: *ant,
                 tile_id: *tile_id,
                 tile_name: CString::new(String::from(&*tile_name)).unwrap().into_raw(),
                 pol: CString::new(pol.to_string()).unwrap().into_raw(),
@@ -2000,8 +1994,8 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
                 vcs_order: *vcs_order,
                 subfile_order: *subfile_order,
                 flagged: *flagged,
-                receiver_number: *receiver_number,
-                receiver_slot_number: *receiver_slot_number,
+                rec_number: *rec_number,
+                rec_slot_number: *rec_slot_number,
             },
         };
 
@@ -2063,8 +2057,8 @@ pub unsafe extern "C" fn mwalib_rfinputs_free(
 #[repr(C)]
 pub struct TimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
-    pub unix_time_milliseconds: u64,
-    pub gps_time_milliseconds: u64,
+    pub unix_time_ms: u64,
+    pub gps_time_ms: u64,
 }
 
 /// This passes a pointer to an array of timesteps
@@ -2117,11 +2111,11 @@ pub unsafe extern "C" fn mwalib_correlator_timesteps_get(
     for item in context.timesteps.iter() {
         let out_item = match &item {
             timestep::TimeStep {
-                unix_time_milliseconds,
-                gps_time_milliseconds,
+                unix_time_ms,
+                gps_time_ms,
             } => TimeStep {
-                unix_time_milliseconds: *unix_time_milliseconds,
-                gps_time_milliseconds: *gps_time_milliseconds,
+                unix_time_ms: *unix_time_ms,
+                gps_time_ms: *gps_time_ms,
             },
         };
 
@@ -2186,11 +2180,11 @@ pub unsafe extern "C" fn mwalib_voltage_timesteps_get(
     for item in context.timesteps.iter() {
         let out_item = match &item {
             timestep::TimeStep {
-                unix_time_milliseconds,
-                gps_time_milliseconds,
+                unix_time_ms,
+                gps_time_ms,
             } => TimeStep {
-                unix_time_milliseconds: *unix_time_milliseconds,
-                gps_time_milliseconds: *gps_time_milliseconds,
+                unix_time_ms: *unix_time_ms,
+                gps_time_ms: *gps_time_ms,
             },
         };
 

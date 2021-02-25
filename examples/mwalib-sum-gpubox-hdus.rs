@@ -60,16 +60,16 @@ fn sum_mwalib<T: AsRef<std::path::Path>>(metafits: &T, files: &[T]) -> Result<()
     let mut count: u64 = 0;
 
     for t in 0..context.num_timesteps {
-        for c in 0..context.num_coarse_channels {
+        for c in 0..context.num_coarse_chans {
             let data = context.read_by_baseline(t, c)?;
 
             for b in 0..context.metafits_context.num_baselines {
                 let baseline_index = b
-                    * (context.metafits_context.num_fine_channels_per_coarse
+                    * (context.metafits_context.num_corr_fine_chans_per_coarse
                         * context.metafits_context.num_visibility_pols
                         * 2);
 
-                for f in 0..context.metafits_context.num_fine_channels_per_coarse {
+                for f in 0..context.metafits_context.num_corr_fine_chans_per_coarse {
                     let fine_chan_index = f * (context.metafits_context.num_visibility_pols * 2);
 
                     for v in 0..8 {

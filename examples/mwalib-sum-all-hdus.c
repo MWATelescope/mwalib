@@ -8,7 +8,7 @@
 
 #define ERROR_MESSAGE_LEN 1024
 
-void do_sum(int mode, CorrelatorContext *context, long num_floats, int num_timesteps, int num_coarse_channels)
+void do_sum(int mode, CorrelatorContext *context, long num_floats, int num_timesteps, int num_coarse_chans)
 {
     // Allocate buffer for any error messages
     char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
@@ -35,9 +35,9 @@ void do_sum(int mode, CorrelatorContext *context, long num_floats, int num_times
     {
         double this_sum = 0;
 
-        for (int coarse_channel_index = 0; coarse_channel_index < num_coarse_channels; coarse_channel_index++)
+        for (int coarse_chan_index = 0; coarse_chan_index < num_coarse_chans; coarse_chan_index++)
         {
-            if (sum_func(context, timestep_index, coarse_channel_index,
+            if (sum_func(context, timestep_index, coarse_chan_index,
                          buffer_ptr, num_floats, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
             {
                 for (long i = 0; i < num_floats; i++)
@@ -117,17 +117,17 @@ int main(int argc, char *argv[])
     }
 
     int num_timesteps = corr_metadata->num_timesteps;
-    int num_coarse_channels = corr_metadata->num_coarse_channels;
+    int num_coarse_chans = corr_metadata->num_coarse_chans;
     int num_vis_pols = metafits_metadata->num_visibility_pols;
-    int num_fine_channels = metafits_metadata->num_fine_channels_per_coarse;
+    int num_fine_chans = metafits_metadata->num_corr_fine_chans_per_coarse;
     int num_baselines = metafits_metadata->num_baselines;
-    long num_floats = corr_metadata->num_timestep_coarse_channel_floats;
+    long num_floats = corr_metadata->num_timestep_coarse_chan_floats;
 
     // Now sum by baseline
-    do_sum(1, corr_context, num_floats, num_timesteps, num_coarse_channels);
+    do_sum(1, corr_context, num_floats, num_timesteps, num_coarse_chans);
 
     // Now sum by freq
-    do_sum(2, corr_context, num_floats, num_timesteps, num_coarse_channels);
+    do_sum(2, corr_context, num_floats, num_timesteps, num_coarse_chans);
 
     mwalib_correlator_metadata_free(corr_metadata);
     mwalib_correlator_context_free(corr_context);

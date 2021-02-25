@@ -25,7 +25,7 @@ impl VisibilityPol {
     ///
     /// * A populated vector of visibility polarisations for the MWA
     ///
-    pub fn populate_visibility_pols() -> Vec<Self> {
+    pub(crate) fn populate_visibility_pols() -> Vec<Self> {
         let mut pols: Vec<VisibilityPol> = Vec::with_capacity(4);
         pols.push(VisibilityPol {
             polarisation: String::from("XX"),

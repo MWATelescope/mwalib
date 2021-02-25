@@ -20,7 +20,7 @@ use crate::*;
 pub use error::GpuboxError;
 
 #[derive(Debug)]
-pub struct ObsTimes {
+pub(crate) struct ObsTimes {
     pub start_millisec: u64, // Start= start of first timestep
     pub end_millisec: u64,   // End  = start of last timestep + integration time
     pub duration_millisec: u64,
@@ -28,7 +28,7 @@ pub struct ObsTimes {
 
 /// This represents one group of gpubox files with the same "batch" identitifer.
 /// e.g. obsid_datetime_chan_batch
-pub struct GPUBoxBatch {
+pub(crate) struct GPUBoxBatch {
     pub batch_number: usize,           // 00,01,02..n
     pub gpubox_files: Vec<GPUBoxFile>, // Vector storing the details of each gpubox file in this batch
 }
@@ -53,7 +53,7 @@ impl fmt::Debug for GPUBoxBatch {
 }
 
 /// This represents one gpubox file
-pub struct GPUBoxFile {
+pub(crate) struct GPUBoxFile {
     /// Filename of gpubox file
     pub filename: String,
     /// channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
@@ -125,11 +125,11 @@ lazy_static::lazy_static! {
 /// keys is associated with a tree; the keys of these trees are the gpubox
 /// coarse-channel numbers, which then refer to gpubox batch numbers and HDU
 /// indices.
-pub type GpuboxTimeMap = BTreeMap<u64, BTreeMap<usize, (usize, usize)>>;
+pub(crate) type GpuboxTimeMap = BTreeMap<u64, BTreeMap<usize, (usize, usize)>>;
 
 /// A little struct to help us not get confused when dealing with the returned
 /// values from complex functions.
-pub struct GpuboxInfo {
+pub(crate) struct GpuboxInfo {
     pub batches: Vec<GPUBoxBatch>,
     pub corr_format: CorrelatorVersion,
     pub time_map: GpuboxTimeMap,
@@ -214,6 +214,7 @@ fn convert_temp_gpuboxes(
 /// * `gpubox_filenames` - A vector or slice of strings or references to strings
 ///                        containing all of the gpubox filenames provided by the client.
 ///
+/// * `metafits_obs_id` - The obs_id reported from the metafits file primary HDU
 ///
 /// # Returns
 ///
@@ -222,8 +223,9 @@ fn convert_temp_gpuboxes(
 ///   data in each HDU.
 ///
 ///
-pub fn examine_gpubox_files<T: AsRef<Path>>(
+pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
     gpubox_filenames: &[T],
+    metafits_obs_id: u32,
 ) -> Result<GpuboxInfo, GpuboxError> {
     let (temp_gpuboxes, corr_format, _) = determine_gpubox_batches(gpubox_filenames)?;
 
@@ -248,6 +250,18 @@ pub fn examine_gpubox_files<T: AsRef<Path>>(
                     }
                 }
             }
+
+            // Do another check by looking in the header of each fits file and checking the corr_version is correct
+            let primary_hdu = fits_open_hdu!(&mut fptr, 0)?;
+            validate_gpubox_metadata_correlator_version(
+                &mut fptr,
+                &primary_hdu,
+                &g.filename,
+                corr_format,
+            )?;
+
+            // Do another check to ensure the obsid in the metafits matches that in the gpubox files
+            validate_gpubox_metadata_obs_id(&mut fptr, &primary_hdu, &g.filename, metafits_obs_id)?;
         }
     }
 
@@ -417,7 +431,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
 /// * A Result containing the full start unix time (in milliseconds) or an error.
 ///
 ///
-pub fn determine_hdu_time(
+fn determine_hdu_time(
     gpubox_fptr: &mut FitsFile,
     gpubox_hdu_fptr: &FitsHdu,
 ) -> Result<u64, FitsError> {
@@ -443,7 +457,7 @@ pub fn determine_hdu_time(
 /// * A BTree representing time and hdu index this gpubox file.
 ///
 ///
-pub fn map_unix_times_to_hdus(
+fn map_unix_times_to_hdus(
     gpubox_fptr: &mut FitsFile,
     correlator_version: CorrelatorVersion,
 ) -> Result<BTreeMap<u64, usize>, FitsError> {
@@ -487,7 +501,7 @@ pub fn map_unix_times_to_hdus(
 /// * A Result containing `Ok` or an `MwalibError` if it fails validation.
 ///
 ///
-pub fn validate_gpubox_metadata_correlator_version(
+fn validate_gpubox_metadata_correlator_version(
     gpubox_fptr: &mut FitsFile,
     gpubox_primary_hdu: &FitsHdu,
     gpubox_filename: &str,
@@ -539,11 +553,11 @@ pub fn validate_gpubox_metadata_correlator_version(
 /// * A Result containing `Ok` or an `MwalibError` if it fails validation.
 ///
 ///
-pub fn validate_gpubox_metadata_obs_id(
+fn validate_gpubox_metadata_obs_id(
     gpubox_fptr: &mut FitsFile,
     gpubox_primary_hdu: &FitsHdu,
     gpubox_filename: &str,
-    metafits_obsid: u32,
+    metafits_obs_id: u32,
 ) -> Result<(), GpuboxError> {
     // Get the OBSID- if not present, this is probably not an MWA fits file!
     let gpu_obs_id: u32 = match get_required_fits_key!(gpubox_fptr, gpubox_primary_hdu, "OBSID") {
@@ -551,9 +565,9 @@ pub fn validate_gpubox_metadata_obs_id(
         Err(_) => return Err(GpuboxError::MissingObsid(gpubox_filename.to_string())),
     };
 
-    if gpu_obs_id != metafits_obsid {
+    if gpu_obs_id != metafits_obs_id {
         Err(GpuboxError::ObsidMismatch {
-            obsid: metafits_obsid,
+            obsid: metafits_obs_id,
             gpubox_filename: gpubox_filename.to_string(),
             gpubox_obsid: gpu_obs_id,
         })
@@ -663,7 +677,7 @@ fn create_time_map(
 /// * A struct containing the start and end times based on what we actually got, so all coarse channels match.
 ///
 ///
-pub fn determine_obs_times(
+pub(crate) fn determine_obs_times(
     gpubox_time_map: &GpuboxTimeMap,
     integration_time_ms: u64,
 ) -> Result<ObsTimes, GpuboxError> {

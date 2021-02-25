@@ -12,9 +12,9 @@ use std::fmt;
 #[derive(Clone)]
 pub struct Baseline {
     /// Index in the mwalibContext.antenna array for antenna1 for this baseline
-    pub antenna1_index: usize,
+    pub ant1_index: usize,
     /// Index in the mwalibContext.antenna array for antenna2 for this baseline
-    pub antenna2_index: usize,
+    pub ant2_index: usize,
 }
 
 impl Baseline {
@@ -23,29 +23,28 @@ impl Baseline {
     ///
     /// # Arguments
     ///
-    /// * `num_antennas` - The number of antennas in this observation
+    /// * `num_ants` - The number of antennas in this observation
     ///
     ///
     /// # Returns
     ///
-    /// * A populated
-    ///Baseline struct
+    /// * A populated Baseline struct
     ///    
-    pub fn populate_baselines(num_antennas: usize) -> Vec<Self> {
-        let num_baselines = misc::get_baseline_count(num_antennas);
+    pub(crate) fn populate_baselines(num_ants: usize) -> Vec<Self> {
+        let num_baselines = misc::get_baseline_count(num_ants);
         let mut bls: Vec<Baseline> = vec![
             Baseline {
-                antenna1_index: 0,
-                antenna2_index: 0
+                ant1_index: 0,
+                ant2_index: 0
             };
             num_baselines
         ];
         let mut bl_index = 0;
 
-        for a1 in 0..num_antennas {
-            for a2 in a1..num_antennas {
-                bls[bl_index].antenna1_index = a1;
-                bls[bl_index].antenna2_index = a2;
+        for a1 in 0..num_ants {
+            for a2 in a1..num_ants {
+                bls[bl_index].ant1_index = a1;
+                bls[bl_index].ant2_index = a2;
 
                 bl_index += 1;
             }
@@ -55,8 +54,7 @@ impl Baseline {
     }
 }
 
-/// Implements fmt::Debug for
-///Baseline struct
+/// Implements fmt::Debug for Baseline struct
 ///
 /// # Arguments
 ///
@@ -70,7 +68,7 @@ impl Baseline {
 ///
 impl fmt::Debug for Baseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{},{}", self.antenna1_index, self.antenna2_index,)
+        write!(f, "{},{}", self.ant1_index, self.ant2_index,)
     }
 }
 
@@ -80,18 +78,18 @@ mod tests {
 
     #[test]
     fn test_populate_baselines() {
-        let num_antennas = 128;
-        let bls = Baseline::populate_baselines(num_antennas);
+        let num_ants = 128;
+        let bls = Baseline::populate_baselines(num_ants);
 
         assert_eq!(bls.len(), 8256);
 
-        assert_eq!(bls[0].antenna1_index, 0);
-        assert_eq!(bls[0].antenna2_index, 0);
-        assert_eq!(bls[128].antenna1_index, 1);
-        assert_eq!(bls[128].antenna2_index, 1);
-        assert_eq!(bls[129].antenna1_index, 1);
-        assert_eq!(bls[129].antenna2_index, 2);
-        assert_eq!(bls[8255].antenna1_index, 127);
-        assert_eq!(bls[8255].antenna2_index, 127);
+        assert_eq!(bls[0].ant1_index, 0);
+        assert_eq!(bls[0].ant2_index, 0);
+        assert_eq!(bls[128].ant1_index, 1);
+        assert_eq!(bls[128].ant2_index, 1);
+        assert_eq!(bls[129].ant1_index, 1);
+        assert_eq!(bls[129].ant2_index, 2);
+        assert_eq!(bls[8255].ant1_index, 127);
+        assert_eq!(bls[8255].ant2_index, 127);
     }
 }

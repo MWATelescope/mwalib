@@ -34,18 +34,18 @@ fn main() -> Result<(), anyhow::Error> {
     if context.corr_version != CorrelatorVersion::V2 {
         bail!("Input data is not MWAX data; exiting.");
     }
-    let floats_per_fine_channel = context.metafits_context.num_visibility_pols * 2;
+    let floats_per_fine_chan = context.metafits_context.num_visibility_pols * 2;
 
     let mut sum: f64 = 0.0;
     for timestep_index in 0..context.num_timesteps {
-        for coarse_channel_index in 0..context.num_coarse_channels {
-            let data = context.read_by_baseline(timestep_index, coarse_channel_index)?;
+        for coarse_chan_index in 0..context.num_coarse_chans {
+            let data = context.read_by_baseline(timestep_index, coarse_chan_index)?;
             for baseline in 0..context.metafits_context.num_baselines {
                 // We want the first fine chan for each baseline
                 let start_index = baseline
-                    * (context.metafits_context.num_fine_channels_per_coarse
-                        * floats_per_fine_channel);
-                let end_index = start_index + floats_per_fine_channel;
+                    * (context.metafits_context.num_corr_fine_chans_per_coarse
+                        * floats_per_fine_chan);
+                let end_index = start_index + floats_per_fine_chan;
 
                 assert_eq!(end_index - start_index, 8);
 

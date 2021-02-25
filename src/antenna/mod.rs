@@ -15,7 +15,7 @@ pub struct Antenna {
     /// Nominally this is the field we sort by to get the desired output order of antenna.
     /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
     /// e.g. 0...N-1
-    pub antenna: u32,
+    pub ant: u32,
     /// Numeric part of tile_name for the antenna. Each pol has the same value
     /// e.g. tile_name "tile011" hsa tile_id of 11
     pub tile_id: u32,
@@ -33,18 +33,18 @@ impl Antenna {
     ///
     /// # Arguments
     ///
-    /// * `x_pol` - A reference to an already populated mwalibRFInput struct which is the x polarisation of this antenna
+    /// * `x_pol` - A reference to an already populated RFInput struct which is the x polarisation of this antenna
     ///
-    /// * `y_pol` - A reference to an already populated mwalibRFInput struct which is the y polarisation of this antenna
+    /// * `y_pol` - A reference to an already populated bRFInput struct which is the y polarisation of this antenna
     ///
     ///
     /// # Returns
     ///
     /// * An Result containing a populated Antenna struct or an Error
     ///
-    pub fn new(x_pol: &RFInput, y_pol: &RFInput) -> Self {
+    pub(crate) fn new(x_pol: &RFInput, y_pol: &RFInput) -> Self {
         Self {
-            antenna: x_pol.antenna,
+            ant: x_pol.ant,
             tile_id: x_pol.tile_id,
             tile_name: x_pol.tile_name.to_string(),
             x_pol: x_pol.clone(),
@@ -56,13 +56,13 @@ impl Antenna {
     ///
     /// # Arguments
     ///
-    /// `rf_inputs` - a vector or slice of mwalibRFInputs.
+    /// `rf_inputs` - a vector or slice of RFInputs.
     ///
     /// # Returns
     ///
     /// * A vector of populated Antenna structs.
     ///
-    pub fn populate_antennas(rf_inputs: &[RFInput]) -> Vec<Antenna> {
+    pub(crate) fn populate_antennas(rf_inputs: &[RFInput]) -> Vec<Antenna> {
         let mut antennas: Vec<Antenna> = Vec::with_capacity(rf_inputs.len() / 2);
         for index in (0..rf_inputs.len()).step_by(2) {
             antennas.push(Antenna::new(&rf_inputs[index], &rf_inputs[index + 1]));
@@ -100,7 +100,7 @@ mod tests {
 
         rf_inputs.push(RFInput {
             input: 0,
-            antenna: 101,
+            ant: 101,
             tile_id: 101,
             tile_name: String::from("Tile101"),
             pol: Pol::X,
@@ -114,13 +114,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 1,
-            receiver_slot_number: 0,
+            rec_number: 1,
+            rec_slot_number: 0,
         });
 
         rf_inputs.push(RFInput {
             input: 1,
-            antenna: 101,
+            ant: 101,
             tile_id: 101,
             tile_name: String::from("Tile101"),
             pol: Pol::Y,
@@ -134,13 +134,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 1,
-            receiver_slot_number: 1,
+            rec_number: 1,
+            rec_slot_number: 1,
         });
 
         rf_inputs.push(RFInput {
             input: 2,
-            antenna: 102,
+            ant: 102,
             tile_id: 102,
             tile_name: String::from("Tile102"),
             pol: Pol::X,
@@ -154,13 +154,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 2,
-            receiver_slot_number: 0,
+            rec_number: 2,
+            rec_slot_number: 0,
         });
 
         rf_inputs.push(RFInput {
             input: 3,
-            antenna: 102,
+            ant: 102,
             tile_id: 102,
             tile_name: String::from("Tile102"),
             pol: Pol::Y,
@@ -174,13 +174,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 2,
-            receiver_slot_number: 1,
+            rec_number: 2,
+            rec_slot_number: 1,
         });
 
         rf_inputs.push(RFInput {
             input: 4,
-            antenna: 103,
+            ant: 103,
             tile_id: 103,
             tile_name: String::from("Tile103"),
             pol: Pol::X,
@@ -194,13 +194,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 3,
-            receiver_slot_number: 0,
+            rec_number: 3,
+            rec_slot_number: 0,
         });
 
         rf_inputs.push(RFInput {
             input: 5,
-            antenna: 103,
+            ant: 103,
             tile_id: 103,
             tile_name: String::from("Tile103"),
             pol: Pol::Y,
@@ -214,13 +214,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 3,
-            receiver_slot_number: 1,
+            rec_number: 3,
+            rec_slot_number: 1,
         });
 
         rf_inputs.push(RFInput {
             input: 6,
-            antenna: 104,
+            ant: 104,
             tile_id: 104,
             tile_name: String::from("Tile104"),
             pol: Pol::X,
@@ -234,13 +234,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 4,
-            receiver_slot_number: 0,
+            rec_number: 4,
+            rec_slot_number: 0,
         });
 
         rf_inputs.push(RFInput {
             input: 7,
-            antenna: 104,
+            ant: 104,
             tile_id: 104,
             tile_name: String::from("Tile104"),
             pol: Pol::Y,
@@ -254,8 +254,8 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 4,
-            receiver_slot_number: 1,
+            rec_number: 4,
+            rec_slot_number: 1,
         });
 
         // Call populate
@@ -264,7 +264,7 @@ mod tests {
         // Check
         assert_eq!(antennas.len(), 4);
         assert_eq!(antennas[0].tile_id, 101);
-        assert_eq!(antennas[0].antenna, 101);
+        assert_eq!(antennas[0].ant, 101);
         assert_eq!(antennas[1].y_pol.pol, Pol::Y);
         assert_eq!(antennas[1].tile_name, "Tile102");
         assert_eq!(antennas[2].tile_name, "Tile103");
@@ -279,7 +279,7 @@ mod tests {
 
         rf_inputs.push(RFInput {
             input: 0,
-            antenna: 101,
+            ant: 101,
             tile_id: 101,
             tile_name: String::from("Tile101"),
             pol: Pol::X,
@@ -293,13 +293,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 1,
-            receiver_slot_number: 0,
+            rec_number: 1,
+            rec_slot_number: 0,
         });
 
         rf_inputs.push(RFInput {
             input: 1,
-            antenna: 101,
+            ant: 101,
             tile_id: 101,
             tile_name: String::from("Tile101"),
             pol: Pol::Y,
@@ -313,8 +313,8 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 1,
-            receiver_slot_number: 1,
+            rec_number: 1,
+            rec_slot_number: 1,
         });
 
         // Call populate

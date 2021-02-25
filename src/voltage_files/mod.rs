@@ -19,18 +19,18 @@ use crate::*;
 pub use error::VoltageFileError;
 
 #[derive(Debug)]
-pub struct ObsTimes {
-    pub start_gps_time_milliseconds: u64, // Start= start of first timestep
-    pub end_gps_time_milliseconds: u64,   // End  = start of last timestep + interval time
-    pub duration_milliseconds: u64,
-    pub voltage_file_interval_milliseconds: u64, // number of milliseconds between each voltage file
+pub(crate) struct ObsTimes {
+    pub start_gps_time_ms: u64, // Start= start of first timestep
+    pub end_gps_time_ms: u64,   // End  = start of last timestep + interval time
+    pub duration_ms: u64,
+    pub voltage_file_interval_ms: u64, // number of milliseconds between each voltage file
 }
 
 /// This represents one group of voltage files with the same "batch" identitifer (gps time).
 /// e.g.
 /// MWA Legacy: obsid_gpstime_datetime_chan
 /// MWAX      : obsid_gpstime_datetime_chan
-pub struct VoltageFileBatch {
+pub(crate) struct VoltageFileBatch {
     pub gps_time: u64,                   // 1234567890
     pub voltage_files: Vec<VoltageFile>, // Vector storing the details of each voltage file in this batch
 }
@@ -55,7 +55,7 @@ impl fmt::Debug for VoltageFileBatch {
 }
 
 /// This represents one voltage file
-pub struct VoltageFile {
+pub(crate) struct VoltageFile {
     /// Filename of voltage file
     pub filename: String,
     /// channel number (receiver channel number 001..255)
@@ -134,17 +134,17 @@ lazy_static::lazy_static! {
 /// 1065880132: {121: "1065880128_1065880132_ch121.dat", 122: "1065880128_1065880132_ch122.dat"}
 /// 1065880133: {121: "1065880128_1065880133_ch121.dat", 122: "1065880128_1065880133_ch122.dat"}
 /// 1065880134: {120: "1065880128_1065880134_ch120.dat"}
-pub type VoltageFileTimeMap = BTreeMap<u64, BTreeMap<usize, String>>;
+pub(crate) type VoltageFileTimeMap = BTreeMap<u64, BTreeMap<usize, String>>;
 
 /// A little struct to help us not get confused when dealing with the returned
 /// values from complex functions.
 #[derive(Debug)]
-pub struct VoltageFileInfo {
+pub(crate) struct VoltageFileInfo {
     pub gpstime_batches: Vec<VoltageFileBatch>,
     pub corr_format: CorrelatorVersion,
     pub time_map: VoltageFileTimeMap,
     pub file_size: u64,
-    pub voltage_file_interval_milliseconds: u64,
+    pub voltage_file_interval_ms: u64,
 }
 
 /// Convert `Vec<TempVoltageFile>` to `Vec<VoltageFileBatch>`. This requires the voltage
@@ -383,12 +383,15 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
 ///   data in each HDU.
 ///
 ///
-pub fn examine_voltage_files<T: AsRef<Path>>(
+pub(crate) fn examine_voltage_files<T: AsRef<Path>>(
     metafits_context: &MetafitsContext,
     voltage_filenames: &[T],
 ) -> Result<VoltageFileInfo, VoltageFileError> {
-    let (temp_voltage_files, corr_format, _, voltage_file_interval_milliseconds) =
-        determine_voltage_file_gpstime_batches(voltage_filenames, metafits_context.obsid as usize)?;
+    let (temp_voltage_files, corr_format, _, voltage_file_interval_ms) =
+        determine_voltage_file_gpstime_batches(
+            voltage_filenames,
+            metafits_context.obs_id as usize,
+        )?;
 
     let time_map = create_time_map(&temp_voltage_files)?;
 
@@ -435,7 +438,7 @@ pub fn examine_voltage_files<T: AsRef<Path>>(
         corr_format,
         time_map,
         file_size: voltage_file_size.unwrap(),
-        voltage_file_interval_milliseconds: voltage_file_interval_milliseconds,
+        voltage_file_interval_ms: voltage_file_interval_ms,
     })
 }
 
@@ -446,8 +449,6 @@ pub fn examine_voltage_files<T: AsRef<Path>>(
 /// # Arguments
 ///
 /// * `voltage_file_batches` - vector of structs describing each voltage "batch" of gpstimes
-///
-/// * `correlator_version` - enum telling us which correlator version the observation was created by.
 ///
 ///
 /// # Returns
@@ -480,16 +481,14 @@ fn create_time_map(
 ///
 /// * `voltage_time_map` - BTree structure containing the map of what voltage files and timesteps we were supplied by the client.
 ///
-/// * `correlator_version` - Correlator dump time (so we know the gap between timesteps)
-///
 /// # Returns
 ///
 /// * A struct containing the start and end times based on what we actually got, so all coarse channels match.
 ///
 ///
-pub fn determine_obs_times(
+pub(crate) fn determine_obs_times(
     voltage_time_map: &VoltageFileTimeMap,
-    voltage_file_interval_milliseconds: u64,
+    voltage_file_interval_ms: u64,
 ) -> Result<ObsTimes, VoltageFileError> {
     // Find the maximum number of voltage files for a timestep, and assume that this is the
     // total number of input voltage files.
@@ -508,9 +507,9 @@ pub fn determine_obs_times(
         .iter()
         .filter(|(_, submap)| submap.len() == size);
 
-    //let proper_start_milliseconds: u64 = *voltage_time_map.iter().next().unwrap().0 as u64;
-    //let proper_end_milliseconds: u64 = *voltage_time_map.iter().next_back().unwrap().0 as u64
-    //    + timestep_interval_milliseconds as u64;
+    //let proper_start_ms: u64 = *voltage_time_map.iter().next().unwrap().0 as u64;
+    //let proper_end_ms: u64 = *voltage_time_map.iter().next_back().unwrap().0 as u64
+    //    + timestep_interval_ms as u64;
     let proper_start_gps_time: u64 = *i.next().unwrap().0 as u64;
     let proper_end_gps_time: u64 = match i.last() {
         Some(s) => *s.0 as u64,
@@ -521,12 +520,11 @@ pub fn determine_obs_times(
     };
 
     Ok(ObsTimes {
-        start_gps_time_milliseconds: proper_start_gps_time * 1000,
-        end_gps_time_milliseconds: (proper_end_gps_time * 1000)
-            + voltage_file_interval_milliseconds,
-        duration_milliseconds: ((proper_end_gps_time - proper_start_gps_time) * 1000)
-            + voltage_file_interval_milliseconds,
-        voltage_file_interval_milliseconds,
+        start_gps_time_ms: proper_start_gps_time * 1000,
+        end_gps_time_ms: (proper_end_gps_time * 1000) + voltage_file_interval_ms,
+        duration_ms: ((proper_end_gps_time - proper_start_gps_time) * 1000)
+            + voltage_file_interval_ms,
+        voltage_file_interval_ms,
     })
 }
 
@@ -603,11 +601,11 @@ mod tests {
         ];
         let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
         assert!(result.is_ok(), "{:?}", result.unwrap_err());
-        let (temp_voltage_files, corr_format, num_gputimes, voltage_file_interval_milliseconds) =
+        let (temp_voltage_files, corr_format, num_gputimes, voltage_file_interval_ms) =
             result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::Legacy);
         assert_eq!(num_gputimes, 3);
-        assert_eq!(voltage_file_interval_milliseconds, 1000);
+        assert_eq!(voltage_file_interval_ms, 1000);
 
         let expected_voltage_files = vec![
             TempVoltageFile {
@@ -684,11 +682,11 @@ mod tests {
         ];
         let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
         assert!(result.is_ok(), "{:?}", result.unwrap_err());
-        let (temp_voltage_files, corr_format, num_gputimes, voltage_file_interval_milliseconds) =
+        let (temp_voltage_files, corr_format, num_gputimes, voltage_file_interval_ms) =
             result.unwrap();
         assert_eq!(corr_format, CorrelatorVersion::V2);
         assert_eq!(num_gputimes, 3);
-        assert_eq!(voltage_file_interval_milliseconds, 8000);
+        assert_eq!(voltage_file_interval_ms, 8000);
 
         let expected_voltage_files = vec![
             TempVoltageFile {
@@ -751,7 +749,7 @@ mod tests {
     }
 
     #[test]
-    fn test_determine_voltage_file_gpstime_batches_channel_mismatch() {
+    fn test_determine_voltage_file_gpstime_batches_chan_mismatch() {
         let files = vec![
             "1065880128_1065880129_ch123.dat",
             "1065880128_1065880129_ch121.dat",
@@ -856,29 +854,29 @@ mod tests {
         // Duration = common end - common start + integration time
         // == 1065880133 - 1065880129 + 1
         let expected_duration = 5000;
-        let voltage_file_interval_milliseconds: u64 = 1000;
+        let voltage_file_interval_ms: u64 = 1000;
 
-        let result = determine_obs_times(&input, voltage_file_interval_milliseconds);
+        let result = determine_obs_times(&input, voltage_file_interval_ms);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(
-            result.start_gps_time_milliseconds, expected_start,
-            "start_gps_time_milliseconds incorrect {:?}",
+            result.start_gps_time_ms, expected_start,
+            "start_gps_time_ms incorrect {:?}",
             result
         );
         assert_eq!(
-            result.end_gps_time_milliseconds, expected_end,
-            "end_gps_time_milliseconds incorrect {:?}",
+            result.end_gps_time_ms, expected_end,
+            "end_gps_time_ms incorrect {:?}",
             result
         );
         assert_eq!(
-            result.duration_milliseconds, expected_duration,
-            "duration_milliseconds incorrect {:?}",
+            result.duration_ms, expected_duration,
+            "duration_ms incorrect {:?}",
             result
         );
         assert_eq!(
-            result.voltage_file_interval_milliseconds, expected_interval,
-            "voltage_file_interval_milliseconds incorrect {:?}",
+            result.voltage_file_interval_ms, expected_interval,
+            "voltage_file_interval_ms incorrect {:?}",
             result
         );
     }
@@ -919,29 +917,29 @@ mod tests {
         // Duration = common end - common start + integration time
         // == 1065880168 - 1065880136 + 8
         let expected_duration = 40000;
-        let voltage_file_interval_milliseconds: u64 = 8000;
+        let voltage_file_interval_ms: u64 = 8000;
 
-        let result = determine_obs_times(&input, voltage_file_interval_milliseconds);
+        let result = determine_obs_times(&input, voltage_file_interval_ms);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(
-            result.start_gps_time_milliseconds, expected_start,
-            "start_gps_time_milliseconds incorrect {:?}",
+            result.start_gps_time_ms, expected_start,
+            "start_gps_time_ms incorrect {:?}",
             result
         );
         assert_eq!(
-            result.end_gps_time_milliseconds, expected_end,
-            "end_gps_time_milliseconds incorrect {:?}",
+            result.end_gps_time_ms, expected_end,
+            "end_gps_time_ms incorrect {:?}",
             result
         );
         assert_eq!(
-            result.duration_milliseconds, expected_duration,
-            "duration_milliseconds incorrect {:?}",
+            result.duration_ms, expected_duration,
+            "duration_ms incorrect {:?}",
             result
         );
         assert_eq!(
-            result.voltage_file_interval_milliseconds, expected_interval,
-            "voltage_file_interval_milliseconds incorrect {:?}",
+            result.voltage_file_interval_ms, expected_interval,
+            "voltage_file_interval_ms incorrect {:?}",
             result
         );
     }

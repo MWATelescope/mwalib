@@ -156,7 +156,7 @@ pub struct RFInput {
     /// Nominally this is the field we sort by to get the desired output order of antenna.
     /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
     /// e.g. 0...N-1
-    pub antenna: u32,
+    pub ant: u32,
     /// Numeric part of tile_name for the antenna. Each pol has the same value
     /// e.g. tile_name "tile011" hsa tile_id of 11
     pub tile_id: u32,
@@ -191,9 +191,9 @@ pub struct RFInput {
     /// Dipole delays
     pub dipole_delays: Vec<u32>,
     /// Receiver number
-    pub receiver_number: u32,
+    pub rec_number: u32,
     /// Receiver slot number
-    pub receiver_slot_number: u32,
+    pub rec_slot_number: u32,
 }
 
 impl RFInput {
@@ -303,7 +303,7 @@ impl RFInput {
     ///
     /// * An Result containing a populated vector of RFInputMetafitsTableRow structss or an Error
     ///
-    pub fn populate_rf_inputs(
+    pub(crate) fn populate_rf_inputs(
         num_inputs: usize,
         metafits_fptr: &mut fitsio::FitsFile,
         metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
@@ -328,7 +328,7 @@ impl RFInput {
 
             rf_inputs.push(Self {
                 input: metafits_row.input,
-                antenna: metafits_row.antenna,
+                ant: metafits_row.antenna,
                 tile_id: metafits_row.tile_id,
                 tile_name: metafits_row.tile_name,
                 pol: metafits_row.pol,
@@ -342,8 +342,8 @@ impl RFInput {
                 digital_gains: metafits_row.digital_gains,
                 dipole_gains: metafits_row.dipole_gains,
                 dipole_delays: metafits_row.dipole_delays,
-                receiver_number: metafits_row.rx,
-                receiver_slot_number: metafits_row.slot,
+                rec_number: metafits_row.rx,
+                rec_slot_number: metafits_row.slot,
             })
         }
         Ok(rf_inputs)
@@ -611,7 +611,7 @@ mod tests {
         let rfinput = result.unwrap();
 
         assert_eq!(rfinput[0].input, 0);
-        assert_eq!(rfinput[0].antenna, 75);
+        assert_eq!(rfinput[0].ant, 75);
         assert_eq!(rfinput[0].tile_id, 104);
         assert_eq!(rfinput[0].tile_name, "Tile104");
         assert_eq!(rfinput[0].pol, Pol::Y);
@@ -646,8 +646,8 @@ mod tests {
             rfinput[0].dipole_delays,
             vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         );
-        assert_eq!(rfinput[0].receiver_number, 10);
-        assert_eq!(rfinput[0].receiver_slot_number, 4);
+        assert_eq!(rfinput[0].rec_number, 10);
+        assert_eq!(rfinput[0].rec_slot_number, 4);
     }
 
     /*#[test]

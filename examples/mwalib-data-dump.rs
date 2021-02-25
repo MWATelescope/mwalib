@@ -30,7 +30,7 @@ struct Opt {
 
     /// Coarse channel
     #[structopt(long)]
-    coarse_channel: usize,
+    coarse_chan: usize,
 
     /// Path to the metafits file.
     #[structopt(short, long, parse(from_os_str))]
@@ -51,24 +51,24 @@ fn dump_data<T: AsRef<std::path::Path>>(
     files: &[T],
     timestep: usize,
     baseline: usize,
-    fine_channel_range: (usize, usize),
-    coarse_channel: usize,
+    fine_chan_range: (usize, usize),
+    coarse_chan: usize,
     dump_filename: &T,
 ) -> Result<(), anyhow::Error> {
     let mut dump_file = File::create(dump_filename)?;
     println!("Dumping data via mwalib...");
     let mut context = CorrelatorContext::new(metafits, files)?;
-    let coarse_channel_array = context.coarse_channels.clone();
+    let coarse_chan_array = context.coarse_chans.clone();
     let timestep_array = context.timesteps.clone();
 
     println!("Correlator version: {}", context.corr_version);
 
     let floats_per_finechan = context.metafits_context.num_visibility_pols * 2;
     let floats_per_baseline =
-        context.metafits_context.num_fine_channels_per_coarse * floats_per_finechan;
+        context.metafits_context.num_corr_fine_chans_per_coarse * floats_per_finechan;
 
     let (ant1, ant2) =
-        misc::get_antennas_from_baseline(baseline, context.metafits_context.num_antennas).unwrap();
+        misc::get_antennas_from_baseline(baseline, context.metafits_context.num_ants).unwrap();
     let ant1_name: String = context.metafits_context.antennas[ant1]
         .tile_name
         .to_string();
@@ -78,8 +78,8 @@ fn dump_data<T: AsRef<std::path::Path>>(
 
     let baseline_index = baseline * floats_per_baseline;
 
-    let ch1 = fine_channel_range.0;
-    let ch2 = fine_channel_range.1;
+    let ch1 = fine_chan_range.0;
+    let ch2 = fine_chan_range.1;
 
     let ch_start_index = baseline_index + (ch1 * floats_per_finechan);
     let ch_end_index = baseline_index + (ch2 * floats_per_finechan) + floats_per_finechan;
@@ -89,9 +89,9 @@ fn dump_data<T: AsRef<std::path::Path>>(
     println!(
         "Dumping t={} coarse chan: {} ({}) {:.3} Mhz, fine ch: {}-{}, ant {} vs {}",
         timestep,
-        coarse_channel,
-        coarse_channel_array[coarse_channel].receiver_channel_number,
-        (coarse_channel_array[coarse_channel].channel_centre_hz as f32 / 1.0e6),
+        coarse_chan,
+        coarse_chan_array[coarse_chan].rec_chan_number,
+        (coarse_chan_array[coarse_chan].chan_centre_hz as f32 / 1.0e6),
         ch1,
         ch2,
         ant1_name,
@@ -100,17 +100,17 @@ fn dump_data<T: AsRef<std::path::Path>>(
     for (t, _) in timestep_array.iter().enumerate() {
         if t == timestep {
             println!("timestep: {}", t);
-            for (c, _) in coarse_channel_array.iter().enumerate() {
-                if c == coarse_channel {
+            for (c, _) in coarse_chan_array.iter().enumerate() {
+                if c == coarse_chan {
                     println!("Reading timestep {}, coarse channel {}...", t, c);
-                    let data = context.read_by_baseline(timestep, coarse_channel)?;
-                    let mut fine_channel_counter = 0;
+                    let data = context.read_by_baseline(timestep, coarse_chan)?;
+                    let mut fine_chan_counter = 0;
                     for v in (0..data.len()).step_by(floats_per_finechan) {
                         if v >= ch_start_index && v < ch_end_index {
                             writeln!(
                                 &mut dump_file,
                                 "{},{},{},{},{},{},{},{},{}",
-                                ch1 + fine_channel_counter,
+                                ch1 + fine_chan_counter,
                                 data[v],
                                 data[v + 1],
                                 data[v + 2],
@@ -132,7 +132,7 @@ fn dump_data<T: AsRef<std::path::Path>>(
                                 + (data[v + 7] as f64);
                             float_count += 8;
 
-                            fine_channel_counter += 1;
+                            fine_chan_counter += 1;
                         }
                     }
                 }
@@ -155,7 +155,7 @@ fn main() -> Result<(), anyhow::Error> {
         opts.timestep,
         opts.baseline,
         (opts.fine_chan1, opts.fine_chan2),
-        opts.coarse_channel,
+        opts.coarse_chan,
         &opts.dump_filename,
     )?;
     Ok(())

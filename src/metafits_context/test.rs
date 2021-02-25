@@ -28,27 +28,27 @@ fn test_obs_context_legacy_v1() {
     // MWA latitude:             -26.703319405555554 degrees,
     assert!(approx_eq!(
         f64,
-        context.mwa_latitude_radians.to_degrees(),
+        context.mwa_lat_radians.to_degrees(),
         -26.703_319_405_555_554,
         F64Margin::default()
     ));
     // MWA longitude:            116.67081523611111 degrees
     assert!(approx_eq!(
         f64,
-        context.mwa_longitude_radians.to_degrees(),
+        context.mwa_long_radians.to_degrees(),
         116.670_815_236_111_11,
         F64Margin::default()
     ));
     // MWA altitude:             377.827 m,
     assert!(approx_eq!(
         f64,
-        context.mwa_altitude_metres,
+        context.mwa_alt_metres,
         377.827,
         F64Margin::default()
     ));
 
     // obsid:                    1101503312,
-    assert_eq!(context.obsid, 1_101_503_312);
+    assert_eq!(context.obs_id, 1_101_503_312);
 
     // Creator:                  Randall,
     assert_eq!(context.creator, "Randall");
@@ -57,7 +57,7 @@ fn test_obs_context_legacy_v1() {
     assert_eq!(context.project_id, "G0009");
 
     // Observation Name:         FDS_DEC-26.7_121,
-    assert_eq!(context.observation_name, "FDS_DEC-26.7_121");
+    assert_eq!(context.obs_name, "FDS_DEC-26.7_121");
 
     // Receivers:                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
     assert_eq!(context.receivers.len(), 16);
@@ -74,26 +74,26 @@ fn test_obs_context_legacy_v1() {
 
     // Scheduled start (utc)     2014-12-01 21:08:16 +00:00,
     assert_eq!(
-        context.scheduled_start_utc,
+        context.sched_start_utc,
         DateTime::parse_from_rfc3339("2014-12-01T21:08:16+00:00").unwrap()
     );
 
     // Scheduled start (MJD)     56992.88074074074,
     assert!(approx_eq!(
         f64,
-        context.scheduled_start_mjd,
+        context.sched_start_mjd,
         56_992.880_740_740_74,
         F64Margin::default()
     ));
 
     // Scheduled duration        112 s,
-    assert_eq!(context.scheduled_duration_milliseconds, 112_000);
+    assert_eq!(context.sched_duration_ms, 112_000);
 
     // Quack time:               2 s,
-    assert_eq!(context.quack_time_duration_milliseconds, 2000);
+    assert_eq!(context.quack_time_duration_ms, 2000);
 
     // Good UNIX start time:     1417468098,
-    assert_eq!(context.good_time_unix_milliseconds, 1_417_468_098_000);
+    assert_eq!(context.good_time_unix_ms, 1_417_468_098_000);
 
     // R.A. (tile_pointing):     144.2107504850443 degrees,
     assert!(approx_eq!(
@@ -118,25 +118,15 @@ fn test_obs_context_legacy_v1() {
     assert!(context.dec_phase_center_degrees.is_none());
 
     // Azimuth:                  0 degrees,
-    assert!(approx_eq!(
-        f64,
-        context.azimuth_degrees,
-        0.,
-        F64Margin::default()
-    ));
+    assert!(approx_eq!(f64, context.az_deg, 0., F64Margin::default()));
 
     // Altitude:                 90 degrees,
-    assert!(approx_eq!(
-        f64,
-        context.altitude_degrees,
-        90.,
-        F64Margin::default()
-    ));
+    assert!(approx_eq!(f64, context.alt_deg, 90., F64Margin::default()));
 
     // Sun altitude:             -1.53222775573148 degrees,
     assert!(approx_eq!(
         f64,
-        context.sun_altitude_degrees,
+        context.sun_alt_deg,
         -1.532_227_755_731_48,
         F64Margin::default()
     ));
@@ -144,7 +134,7 @@ fn test_obs_context_legacy_v1() {
     // Sun distance:             91.5322277557315 degrees,
     assert!(approx_eq!(
         f64,
-        context.sun_distance_degrees,
+        context.sun_distance_deg,
         91.532_227_755_731_5,
         F64Margin::default()
     ));
@@ -152,7 +142,7 @@ fn test_obs_context_legacy_v1() {
     // Moon distance:            131.880015235607 degrees,
     assert!(approx_eq!(
         f64,
-        context.moon_distance_degrees,
+        context.moon_distance_deg,
         131.880_015_235_607,
         F64Margin::default()
     ));
@@ -160,7 +150,7 @@ fn test_obs_context_legacy_v1() {
     // Jupiter distance:         41.401684338269 degrees,
     assert!(approx_eq!(
         f64,
-        context.jupiter_distance_degrees,
+        context.jupiter_distance_deg,
         41.401_684_338_269,
         F64Margin::default()
     ));
@@ -168,7 +158,7 @@ fn test_obs_context_legacy_v1() {
     // LST:                      144.381251875516 degrees,
     assert!(approx_eq!(
         f64,
-        context.lst_degrees,
+        context.lst_deg,
         144.381_251_875_516,
         F64Margin::default()
     ));
@@ -181,7 +171,7 @@ fn test_obs_context_legacy_v1() {
     assert_eq!(context.grid_number, 0);
 
     // num antennas:             128,
-    assert_eq!(context.num_antennas, 128);
+    assert_eq!(context.num_ants, 128);
 
     // antennas:                 [Tile011, Tile012, ... Tile167, Tile168],
     assert_eq!(context.antennas[0].tile_name, "Tile011");
@@ -195,7 +185,7 @@ fn test_obs_context_legacy_v1() {
     assert_eq!(context.rf_inputs[255].tile_name, "Tile168");
 
     // num antenna pols:         2,
-    assert_eq!(context.num_antenna_pols, 2);
+    assert_eq!(context.num_ant_pols, 2);
 
     // Mode:                     HW_LFILES,
     assert_eq!(context.mode, "HW_LFILES");

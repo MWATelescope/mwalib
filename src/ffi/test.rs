@@ -455,7 +455,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         let metafits_metadata = Box::from_raw(*metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
-        assert_eq!(metafits_metadata.obsid, 1_101_503_312);
+        assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
     }
 }
 
@@ -518,7 +518,7 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
         let metafits_metadata = Box::from_raw(*metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
-        assert_eq!(metafits_metadata.obsid, 1_101_503_312);
+        assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
     }
 }
 
@@ -558,7 +558,7 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
         let metafits_metadata = Box::from_raw(*metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
-        assert_eq!(metafits_metadata.obsid, 1_101_503_312);
+        assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
     }
 }
 
@@ -596,7 +596,7 @@ fn test_mwalib_correlator_metadata_get_valid() {
         let correlator_metadata = Box::from_raw(*correlator_metadata_ptr);
 
         // We should get a valid timestep and no error message
-        assert_eq!(correlator_metadata.num_coarse_channels, 1);
+        assert_eq!(correlator_metadata.num_coarse_chans, 1);
     }
 }
 
@@ -813,8 +813,8 @@ fn test_mwalib_baselines_get_valid_using_metafits_context() {
 
         // We should get a valid, populated array
         assert_eq!(array_len, 8256, "Array length is not correct");
-        assert_eq!(item[index].antenna1_index, 0);
-        assert_eq!(item[index].antenna2_index, 2);
+        assert_eq!(item[index].ant1_index, 0);
+        assert_eq!(item[index].ant2_index, 2);
     }
 }
 
@@ -855,8 +855,8 @@ fn test_mwalib_baselines_get_valid_using_correlator_context() {
 
         // We should get a valid, populated array
         assert_eq!(array_len, 8256, "Array length is not correct");
-        assert_eq!(item[index].antenna1_index, 0);
-        assert_eq!(item[index].antenna2_index, 2);
+        assert_eq!(item[index].ant1_index, 0);
+        assert_eq!(item[index].ant2_index, 2);
     }
 }
 
@@ -897,8 +897,8 @@ fn test_mwalib_baselines_get_valid_using_voltage_context() {
 
         // We should get a valid, populated array
         assert_eq!(array_len, 8256, "Array length is not correct");
-        assert_eq!(item[index].antenna1_index, 0);
-        assert_eq!(item[index].antenna2_index, 2);
+        assert_eq!(item[index].ant1_index, 0);
+        assert_eq!(item[index].ant2_index, 2);
     }
 }
 
@@ -936,7 +936,7 @@ fn test_mwalib_baselines_get_null_context() {
 // Coarse Channels
 #[test]
 fn test_mwalib_correlator_coarse_channels_get_valid() {
-    // This test populates coarse_channels given a correlator context
+    // This test populates coarse_chans given a correlator context
     let index = 0; // valid  should be receiver channel 109
 
     let error_len: size_t = 128;
@@ -972,7 +972,7 @@ fn test_mwalib_correlator_coarse_channels_get_valid() {
 
         // We should get a valid, populated array
         assert_eq!(array_len, 1, "Array length is not correct");
-        assert_eq!(item[index].receiver_channel_number, 109);
+        assert_eq!(item[index].rec_chan_number, 109);
     }
 }
 
@@ -1007,7 +1007,7 @@ fn test_mwalib_correlator_coarse_channels_get_null_context() {
 
 #[test]
 fn test_mwalib_voltage_coarse_channels_get_valid() {
-    // This test populates coarse_channels given a voltage context
+    // This test populates coarse_chans given a voltage context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *const c_char;
@@ -1044,8 +1044,8 @@ fn test_mwalib_voltage_coarse_channels_get_valid() {
             array_len, 2,
             "Coarse channel array length is not correct- should be 2"
         );
-        assert_eq!(item[0].receiver_channel_number, 123);
-        assert_eq!(item[1].receiver_channel_number, 124);
+        assert_eq!(item[0].rec_chan_number, 123);
+        assert_eq!(item[1].rec_chan_number, 124);
     }
 }
 
@@ -1117,7 +1117,7 @@ fn test_mwalib_rfinputs_get_from_metafits_context_valid() {
         // We should get a valid, populated array
         assert_eq!(array_len, 256, "Array length is not correct");
 
-        assert_eq!(item[index].antenna, 1);
+        assert_eq!(item[index].ant, 1);
 
         assert_eq!(
             CString::from_raw(item[index].tile_name),
@@ -1169,7 +1169,7 @@ fn test_mwalib_rfinputs_get_from_correlator_context_valid() {
         // We should get a valid, populated array
         assert_eq!(array_len, 256, "Array length is not correct");
 
-        assert_eq!(item[index].antenna, 1);
+        assert_eq!(item[index].ant, 1);
 
         assert_eq!(
             CString::from_raw(item[index].tile_name),
@@ -1221,7 +1221,7 @@ fn test_mwalib_rfinputs_get_from_voltage_context_valid() {
         // We should get a valid, populated array
         assert_eq!(array_len, 256, "Array length is not correct");
 
-        assert_eq!(item[index].antenna, 1);
+        assert_eq!(item[index].ant, 1);
 
         assert_eq!(
             CString::from_raw(item[index].tile_name),
@@ -1302,7 +1302,7 @@ fn test_mwalib_correlator_timesteps_get_valid() {
 
         // We should get a valid, populated array
         assert_eq!(array_len, 1, "Array length is not correct");
-        assert_eq!(item[index].unix_time_milliseconds, 1_417_468_096_000);
+        assert_eq!(item[index].unix_time_ms, 1_417_468_096_000);
     }
 }
 

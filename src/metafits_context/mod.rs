@@ -60,33 +60,33 @@ impl fmt::Display for CorrelatorVersion {
 #[derive(Clone, Debug)]
 pub struct MetafitsContext {
     /// Observation id
-    pub obsid: u32,
+    pub obs_id: u32,
     /// Latitude of centre point of MWA in raidans
-    pub mwa_latitude_radians: f64,
+    pub mwa_lat_radians: f64,
     /// Longitude of centre point of MWA in raidans
-    pub mwa_longitude_radians: f64,
+    pub mwa_long_radians: f64,
     /// Altitude of centre poing of MWA in metres
-    pub mwa_altitude_metres: f64,
+    pub mwa_alt_metres: f64,
     /// the velocity factor of electic fields in RG-6 like coax
     pub coax_v_factor: f64,
     /// Scheduled start (gps time) of observation
-    pub scheduled_start_gps_time_milliseconds: u64,
+    pub sched_start_gps_time_ms: u64,
     /// Scheduled end (gps time) of observation
-    pub scheduled_end_gps_time_milliseconds: u64,
+    pub sched_end_gps_time_ms: u64,
     /// Scheduled start (UNIX time) of observation
-    pub scheduled_start_unix_time_milliseconds: u64,
+    pub sched_start_unix_time_ms: u64,
     /// Scheduled end (UNIX time) of observation
-    pub scheduled_end_unix_time_milliseconds: u64,
+    pub sched_end_unix_time_ms: u64,
     /// Scheduled start (UTC) of observation
-    pub scheduled_start_utc: DateTime<FixedOffset>,
+    pub sched_start_utc: DateTime<FixedOffset>,
     /// Scheduled end (UTC) of observation
-    pub scheduled_end_utc: DateTime<FixedOffset>,
+    pub sched_end_utc: DateTime<FixedOffset>,
     /// Scheduled start (MJD) of observation
-    pub scheduled_start_mjd: f64,
+    pub sched_start_mjd: f64,
     /// Scheduled end (MJD) of observation
-    pub scheduled_end_mjd: f64,
+    pub sched_end_mjd: f64,
     /// Scheduled duration of observation
-    pub scheduled_duration_milliseconds: u64,
+    pub sched_duration_ms: u64,
     /// RA tile pointing
     pub ra_tile_pointing_degrees: f64,
     /// DEC tile pointing
@@ -96,29 +96,29 @@ pub struct MetafitsContext {
     /// DEC phase centre
     pub dec_phase_center_degrees: Option<f64>,
     /// AZIMUTH of the pointing centre in degrees
-    pub azimuth_degrees: f64,
+    pub az_deg: f64,
     /// ALTITUDE (a.k.a. elevation) of the pointing centre in degrees
-    pub altitude_degrees: f64,
+    pub alt_deg: f64,
     /// Zenith angle of the pointing centre in degrees
-    pub zenith_angle_degrees: f64,
+    pub zenith_angle_deg: f64,
     /// AZIMUTH of the pointing centre in radians
-    pub azimuth_radians: f64,
+    pub az_rad: f64,
     /// ALTITUDE (a.k.a. elevation) of the pointing centre in radians
-    pub altitude_radians: f64,
+    pub alt_rad: f64,
     /// Zenith angle of the pointing centre in radians
-    pub zenith_angle_radians: f64,
+    pub zenith_angle_rad: f64,
     /// Altitude of Sun
-    pub sun_altitude_degrees: f64,
+    pub sun_alt_deg: f64,
     /// Distance from pointing center to Sun
-    pub sun_distance_degrees: f64,
+    pub sun_distance_deg: f64,
     /// Distance from pointing center to the Moon
-    pub moon_distance_degrees: f64,
+    pub moon_distance_deg: f64,
     /// Distance from pointing center to Jupiter
-    pub jupiter_distance_degrees: f64,
+    pub jupiter_distance_deg: f64,
     /// Local Sidereal Time
-    pub lst_degrees: f64,
+    pub lst_deg: f64,
     /// Local Sidereal Time in radians
-    pub lst_radians: f64,
+    pub lst_rad: f64,
     /// Hour Angle of pointing center (as a string)
     pub hour_angle_string: String,
     /// GRIDNAME
@@ -130,15 +130,15 @@ pub struct MetafitsContext {
     /// PROJECT
     pub project_id: String,
     /// Observation name
-    pub observation_name: String,
+    pub obs_name: String,
     /// MWA observation mode
     pub mode: String,
-    /// Correlator fine_channel_resolution
-    pub correlator_fine_channel_width_hz: u32,
+    /// Correlator fine_chan_resolution
+    pub corr_fine_chan_width_hz: u32,
     /// Correlator mode dump time
-    pub correlator_integration_time_milliseconds: u64,
-    /// Number of fine channels in each coarse channel
-    pub num_fine_channels_per_coarse: usize,
+    pub corr_int_time_ms: u64,
+    /// Number of fine channels in each coarse channel for a correlator observation
+    pub num_corr_fine_chans_per_coarse: usize,
     /// RECVRS    // Array of receiver numbers (this tells us how many receivers too)
     pub receivers: Vec<usize>,
     /// DELAYS    // Array of delays
@@ -146,11 +146,11 @@ pub struct MetafitsContext {
     /// ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
     /// Seconds of bad data after observation starts
-    pub quack_time_duration_milliseconds: u64,
+    pub quack_time_duration_ms: u64,
     /// OBSID+QUACKTIM as Unix timestamp (first good timestep)
-    pub good_time_unix_milliseconds: u64,
+    pub good_time_unix_ms: u64,
     /// Total number of antennas (tiles) in the array
-    pub num_antennas: usize,
+    pub num_ants: usize,
     /// We also have just the antennas
     pub antennas: Vec<Antenna>,
     /// Total number of rf_inputs (tiles * 2 pols X&Y)    
@@ -158,13 +158,13 @@ pub struct MetafitsContext {
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
     pub rf_inputs: Vec<RFInput>,
     /// Number of antenna pols. e.g. X and Y
-    pub num_antenna_pols: usize,
+    pub num_ant_pols: usize,
     /// Number of coarse channels we should have
-    pub num_coarse_channels: usize,
+    pub num_coarse_chans: usize,
     /// Total bandwidth of observation assuming we have all coarse channels
-    pub observation_bandwidth_hz: u32,
+    pub obs_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
-    pub coarse_channel_width_hz: u32,
+    pub coarse_chan_width_hz: u32,
     /// The value of the FREQCENT key in the metafits file, but in Hz.
     pub metafits_centre_freq_hz: u32,
     /// Number of baselines stored. This is autos plus cross correlations
@@ -193,11 +193,11 @@ impl MetafitsContext {
         // from MWA_Tools/CONV2UVFITS/convutils.h
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
         let coax_v_factor: f64 = 1.204;
-        let quack_time_duration_milliseconds: u64 = {
+        let quack_time_duration_ms: u64 = {
             let qt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")?;
             (qt * 1000.).round() as _
         };
-        let good_time_unix_milliseconds: u64 = {
+        let good_time_unix_ms: u64 = {
             let gt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GOODTIME")?;
             (gt * 1000.).round() as _
         };
@@ -255,25 +255,22 @@ impl MetafitsContext {
                 .expect("Unable to parse DATE-OBS into a date time");
         let scheduled_start_mjd: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MJD")?;
-        let scheduled_duration_milliseconds: u64 = {
+        let scheduled_duration_ms: u64 = {
             let ex: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "EXPOSURE")?;
             ex * 1000
         };
         let scheduled_end_utc =
-            scheduled_start_utc + Duration::milliseconds(scheduled_duration_milliseconds as i64);
+            scheduled_start_utc + Duration::milliseconds(scheduled_duration_ms as i64);
 
         // To increment the mjd we need to fractional proportion of the day that the duration represents
         let scheduled_end_mjd =
-            scheduled_start_mjd + (scheduled_duration_milliseconds as f64 / 1000. / 86400.);
+            scheduled_start_mjd + (scheduled_duration_ms as f64 / 1000. / 86400.);
 
-        let scheduled_start_gpstime_milliseconds: u64 = obsid as u64 * 1000;
-        let scheduled_end_gpstime_milliseconds: u64 =
-            scheduled_start_gpstime_milliseconds + scheduled_duration_milliseconds;
+        let scheduled_start_gpstime_ms: u64 = obsid as u64 * 1000;
+        let scheduled_end_gpstime_ms: u64 = scheduled_start_gpstime_ms + scheduled_duration_ms;
 
-        let scheduled_start_unix_time_milliseconds: u64 =
-            good_time_unix_milliseconds - quack_time_duration_milliseconds;
-        let scheduled_end_unix_time_milliseconds: u64 =
-            scheduled_start_unix_time_milliseconds + scheduled_duration_milliseconds;
+        let scheduled_start_unix_time_ms: u64 = good_time_unix_ms - quack_time_duration_ms;
+        let scheduled_end_unix_time_ms: u64 = scheduled_start_unix_time_ms + scheduled_duration_ms;
 
         let ra_tile_pointing_degrees: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "RA")?;
@@ -306,7 +303,7 @@ impl MetafitsContext {
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FILENAME")?;
         let mode = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MODE")?;
         // We need to get the correlator integration time
-        let integration_time_milliseconds: u64 = {
+        let integration_time_ms: u64 = {
             let it: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "INTTIME")?;
             (it * 1000.) as _
         };
@@ -338,79 +335,78 @@ impl MetafitsContext {
         };
 
         // Populate coarse channels
-        let (num_coarse_channels, coarse_channel_width_hz) =
-            coarse_channel::CoarseChannel::populate_metafits_coarse_channels(
+        let (num_coarse_chans, coarse_chan_width_hz) =
+            coarse_channel::CoarseChannel::populate_metafits_coarse_chans(
                 &mut metafits_fptr,
                 &metafits_hdu,
                 metafits_observation_bandwidth_hz,
             )?;
 
-        let observation_bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
+        let observation_bandwidth_hz = (num_coarse_chans as u32) * coarse_chan_width_hz;
 
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.
-        let fine_channel_width_hz: u32 = {
+        let fine_chan_width_hz: u32 = {
             let fc: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FINECHAN")?;
             (fc * 1000.).round() as _
         };
         // Determine the number of fine channels per coarse channel.
-        let num_fine_channels_per_coarse =
-            (coarse_channel_width_hz / fine_channel_width_hz) as usize;
+        let num_fine_chans_per_coarse = (coarse_chan_width_hz / fine_chan_width_hz) as usize;
 
         Ok(MetafitsContext {
-            obsid,
-            mwa_latitude_radians: MWA_LATITUDE_RADIANS,
-            mwa_longitude_radians: MWA_LONGITUDE_RADIANS,
-            mwa_altitude_metres: MWA_ALTITUDE_METRES,
+            obs_id: obsid,
+            mwa_lat_radians: MWA_LATITUDE_RADIANS,
+            mwa_long_radians: MWA_LONGITUDE_RADIANS,
+            mwa_alt_metres: MWA_ALTITUDE_METRES,
             coax_v_factor,
-            scheduled_start_gps_time_milliseconds: scheduled_start_gpstime_milliseconds,
-            scheduled_end_gps_time_milliseconds: scheduled_end_gpstime_milliseconds,
-            scheduled_start_unix_time_milliseconds,
-            scheduled_end_unix_time_milliseconds,
-            scheduled_start_utc,
-            scheduled_end_utc,
-            scheduled_start_mjd,
-            scheduled_end_mjd,
-            scheduled_duration_milliseconds,
+            sched_start_gps_time_ms: scheduled_start_gpstime_ms,
+            sched_end_gps_time_ms: scheduled_end_gpstime_ms,
+            sched_start_unix_time_ms: scheduled_start_unix_time_ms,
+            sched_end_unix_time_ms: scheduled_end_unix_time_ms,
+            sched_start_utc: scheduled_start_utc,
+            sched_end_utc: scheduled_end_utc,
+            sched_start_mjd: scheduled_start_mjd,
+            sched_end_mjd: scheduled_end_mjd,
+            sched_duration_ms: scheduled_duration_ms,
             ra_tile_pointing_degrees,
             dec_tile_pointing_degrees,
             ra_phase_center_degrees,
             dec_phase_center_degrees,
-            azimuth_degrees,
-            altitude_degrees,
-            zenith_angle_degrees,
-            azimuth_radians: azimuth_degrees.to_radians(),
-            altitude_radians: altitude_degrees.to_radians(),
-            zenith_angle_radians: zenith_angle_degrees.to_radians(),
-            sun_altitude_degrees,
-            sun_distance_degrees,
-            moon_distance_degrees,
-            jupiter_distance_degrees,
-            lst_degrees,
-            lst_radians: lst_degrees.to_radians(),
+            az_deg: azimuth_degrees,
+            alt_deg: altitude_degrees,
+            zenith_angle_deg: zenith_angle_degrees,
+            az_rad: azimuth_degrees.to_radians(),
+            alt_rad: altitude_degrees.to_radians(),
+            zenith_angle_rad: zenith_angle_degrees.to_radians(),
+            sun_alt_deg: sun_altitude_degrees,
+            sun_distance_deg: sun_distance_degrees,
+            moon_distance_deg: moon_distance_degrees,
+            jupiter_distance_deg: jupiter_distance_degrees,
+            lst_deg: lst_degrees,
+            lst_rad: lst_degrees.to_radians(),
             hour_angle_string,
             grid_name,
             grid_number,
             creator,
             project_id,
-            observation_name,
+            obs_name: observation_name,
             mode,
-            correlator_fine_channel_width_hz: fine_channel_width_hz,
-            correlator_integration_time_milliseconds: integration_time_milliseconds,
-            num_fine_channels_per_coarse,
+            corr_fine_chan_width_hz: fine_chan_width_hz,
+            corr_int_time_ms: integration_time_ms,
+            num_corr_fine_chans_per_coarse: num_fine_chans_per_coarse,
             receivers,
             delays,
             global_analogue_attenuation_db,
-            quack_time_duration_milliseconds,
-            good_time_unix_milliseconds,
-            num_antennas,
+            quack_time_duration_ms,
+            good_time_unix_ms,
+            num_ants: num_antennas,
             antennas,
             num_rf_inputs,
             rf_inputs,
-            num_antenna_pols,
-            num_coarse_channels,
-            observation_bandwidth_hz,
-            coarse_channel_width_hz,
+            num_ant_pols: num_antenna_pols,
+            num_coarse_chans,
+            obs_bandwidth_hz: observation_bandwidth_hz,
+            coarse_chan_width_hz,
             metafits_centre_freq_hz,
             metafits_filename: metafits
                 .as_ref()
@@ -505,27 +501,27 @@ impl fmt::Display for MetafitsContext {
 
     metafits filename:        {meta},
 )"#,
-            mwa_lat = self.mwa_latitude_radians.to_degrees(),
-            mwa_lon = self.mwa_longitude_radians.to_degrees(),
-            mwa_alt = self.mwa_altitude_metres,
-            obsid = self.obsid,
+            mwa_lat = self.mwa_lat_radians.to_degrees(),
+            mwa_lon = self.mwa_long_radians.to_degrees(),
+            mwa_alt = self.mwa_alt_metres,
+            obsid = self.obs_id,
             creator = self.creator,
             project_id = self.project_id,
-            obs_name = self.observation_name,
+            obs_name = self.obs_name,
             receivers = self.receivers,
             delays = self.delays,
             atten = self.global_analogue_attenuation_db,
-            sched_start_unix = self.scheduled_start_unix_time_milliseconds as f64 / 1e3,
-            sched_end_unix = self.scheduled_end_unix_time_milliseconds as f64 / 1e3,
-            sched_start_gps = self.scheduled_start_gps_time_milliseconds as f64 / 1e3,
-            sched_end_gps = self.scheduled_end_gps_time_milliseconds as f64 / 1e3,
-            sched_start_utc = self.scheduled_start_utc,
-            sched_end_utc = self.scheduled_end_utc,
-            sched_start_mjd = self.scheduled_start_mjd,
-            sched_end_mjd = self.scheduled_end_mjd,
-            sched_duration = self.scheduled_duration_milliseconds as f64 / 1e3,
-            quack_duration = self.quack_time_duration_milliseconds as f64 / 1e3,
-            good_time = self.good_time_unix_milliseconds as f64 / 1e3,
+            sched_start_unix = self.sched_start_unix_time_ms as f64 / 1e3,
+            sched_end_unix = self.sched_end_unix_time_ms as f64 / 1e3,
+            sched_start_gps = self.sched_start_gps_time_ms as f64 / 1e3,
+            sched_end_gps = self.sched_end_gps_time_ms as f64 / 1e3,
+            sched_start_utc = self.sched_start_utc,
+            sched_end_utc = self.sched_end_utc,
+            sched_start_mjd = self.sched_start_mjd,
+            sched_end_mjd = self.sched_end_mjd,
+            sched_duration = self.sched_duration_ms as f64 / 1e3,
+            quack_duration = self.quack_time_duration_ms as f64 / 1e3,
+            good_time = self.good_time_unix_ms as f64 / 1e3,
             rtpc = self.ra_tile_pointing_degrees,
             dtpc = self.dec_tile_pointing_degrees,
             rppc = if let Some(rppc) = self.ra_phase_center_degrees {
@@ -538,26 +534,26 @@ impl fmt::Display for MetafitsContext {
             } else {
                 "N/A".to_string()
             },
-            az = self.azimuth_degrees,
-            alt = self.altitude_degrees,
-            sun_alt = self.sun_altitude_degrees,
-            sun_dis = self.sun_distance_degrees,
-            moon_dis = self.moon_distance_degrees,
-            jup_dis = self.jupiter_distance_degrees,
-            lst = self.lst_degrees,
+            az = self.az_deg,
+            alt = self.alt_deg,
+            sun_alt = self.sun_alt_deg,
+            sun_dis = self.sun_distance_deg,
+            moon_dis = self.moon_distance_deg,
+            jup_dis = self.jupiter_distance_deg,
+            lst = self.lst_deg,
             ha = self.hour_angle_string,
             grid = self.grid_name,
             grid_n = self.grid_number,
-            n_ants = self.num_antennas,
+            n_ants = self.num_ants,
             ants = self.antennas,
             rfs = self.rf_inputs,
-            n_aps = self.num_antenna_pols,
+            n_aps = self.num_ant_pols,
             n_bls = self.num_baselines,
-            bl01 = self.baselines[0].antenna1_index,
-            bl02 = self.baselines[0].antenna2_index,
-            bll1 = self.baselines[self.num_baselines - 1].antenna1_index,
-            bll2 = self.baselines[self.num_baselines - 1].antenna2_index,
-            n_ccs = self.num_baselines - self.num_antennas,
+            bl01 = self.baselines[0].ant1_index,
+            bl02 = self.baselines[0].ant2_index,
+            bll1 = self.baselines[self.num_baselines - 1].ant1_index,
+            bll2 = self.baselines[self.num_baselines - 1].ant2_index,
+            n_ccs = self.num_baselines - self.num_ants,
             n_vps = self.num_visibility_pols,
             vp0 = self.visibility_pols[0].polarisation,
             vp1 = self.visibility_pols[1].polarisation,
@@ -565,9 +561,9 @@ impl fmt::Display for MetafitsContext {
             vp3 = self.visibility_pols[3].polarisation,
             freqcent = self.metafits_centre_freq_hz as f64 / 1e6,
             mode = self.mode,
-            fcw = self.correlator_fine_channel_width_hz as f64 / 1e3,
-            nfcpc = self.num_fine_channels_per_coarse,
-            int_time = self.correlator_integration_time_milliseconds as f64 / 1e3,
+            fcw = self.corr_fine_chan_width_hz as f64 / 1e3,
+            nfcpc = self.num_corr_fine_chans_per_coarse,
+            int_time = self.corr_int_time_ms as f64 / 1e3,
             meta = self.metafits_filename,
         )
     }
@@ -584,11 +580,11 @@ mod test;
         assert_eq!(context.num_visibility_pols, 4);
         // Correlator Mode:
         // fine channel resolution:  10 kHz,
-        assert_eq!(context.fine_channel_width_hz, 10_000);
+        assert_eq!(context.fine_chan_width_hz, 10_000);
 
         // integration time:         2.00 s
-        assert_eq!(context.integration_time_milliseconds, 2000);
+        assert_eq!(context.integration_time_ms, 2000);
 
         // num fine channels/coarse: 128,
-        assert_eq!(context.num_fine_channels_per_coarse, 128);
+        assert_eq!(context.num_fine_chans_per_coarse, 128);
 */

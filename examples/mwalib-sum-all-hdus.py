@@ -39,7 +39,7 @@ mwalib.mwalib_correlator_context_free.argtypes = (ct.POINTER(CorrelatorContextS)
 mwalib.mwalib_correlator_context_read_by_baseline.argtypes = \
     (ct.POINTER(CorrelatorContextS), # context
      ct.c_size_t,                # input timestep_index
-     ct.c_size_t,                # input coarse_channel_index
+     ct.c_size_t,                # input coarse_chan_index
      ct.POINTER(ct.c_float),     # buffer_ptr
      ct.c_size_t,                # buffer_len
      ct.c_char_p,                # error message
@@ -49,7 +49,7 @@ mwalib.mwalib_correlator_context_read_by_baseline.restype = ct.c_int32
 mwalib.mwalib_correlator_context_read_by_frequency.argtypes = \
     (ct.POINTER(CorrelatorContextS), # context
      ct.c_size_t,                # input timestep_index
-     ct.c_size_t,                # input coarse_channel_index
+     ct.c_size_t,                # input coarse_chan_index
      ct.POINTER(ct.c_float),     # buffer_ptr
      ct.c_size_t,                # buffer_len
      ct.c_char_p,               # error message
@@ -86,28 +86,28 @@ class MWAlibContext:
     def __exit__(self, exc_type, exc_value, traceback):
         mwalib.mwalib_correlator_context_free(self.correlator_context)
 
-    def read_by_baseline(self, timestep_index, coarse_channel_index):
+    def read_by_baseline(self, timestep_index, coarse_chan_index):
         error_message = " ".encode("utf-8") * ERROR_MESSAGE_LEN
 
         float_buffer_type = ct.c_float * self.num_floats
         buffer = float_buffer_type()
 
         if mwalib.mwalib_correlator_context_read_by_baseline(self.correlator_context, ct.c_size_t(timestep_index),
-                                                 ct.c_size_t(coarse_channel_index),
+                                                 ct.c_size_t(coarse_chan_index),
                                                  buffer, self.num_floats,
                                                  error_message, ERROR_MESSAGE_LEN) != 0:
             raise Exception(f"Error reading data: {error_message.decode('utf-8').rstrip()}")
         else:
             return npct.as_array(buffer, shape=(self.num_floats,))
 
-    def read_by_frequency(self, timestep_index, coarse_channel_index):
+    def read_by_frequency(self, timestep_index, coarse_chan_index):
         error_message = " ".encode("utf-8") * ERROR_MESSAGE_LEN
 
         float_buffer_type = ct.c_float * self.num_floats
         buffer = float_buffer_type()
 
         if mwalib.mwalib_correlator_context_read_by_baseline(self.correlator_context, ct.c_size_t(timestep_index),
-                                                 ct.c_size_t(coarse_channel_index),
+                                                 ct.c_size_t(coarse_chan_index),
                                                  buffer, self.num_floats,
                                                  error_message, ERROR_MESSAGE_LEN) != 0:
             raise Exception(f"Error reading data: {error_message.decode('utf-8').rstrip()}")
@@ -127,12 +127,12 @@ if __name__ == "__main__":
 
     with MWAlibContext(args.metafits, args.gpuboxes) as context:
         num_timesteps = context.num_timesteps
-        num_coarse_channels = 1
-        num_fine_channels = 128
+        num_coarse_chans = 1
+        num_fine_chans = 128
         num_baselines = 8256
         num_vis_pols = 4
         #num_floats = num_baselines * \
-        #    num_fine_channels * num_vis_pols * 2
+        #    num_fine_chans * num_vis_pols * 2
 
         sum = 0.0
 
@@ -142,10 +142,10 @@ if __name__ == "__main__":
             for timestep_index in range(0, num_timesteps):
                 this_sum = 0
 
-                for coarse_channel_index in range(0, num_coarse_channels):
+                for coarse_chan_index in range(0, num_coarse_chans):
                     try:
                         data = context.read_by_baseline(timestep_index,
-                                                        coarse_channel_index)
+                                                        coarse_chan_index)
                     except Exception as e:
                         print(f"Error: {e}")
                         exit(-1)
@@ -174,10 +174,10 @@ if __name__ == "__main__":
             for timestep_index in range(0, num_timesteps):
                 this_sum = 0
 
-                for coarse_channel_index in range(0, num_coarse_channels):
+                for coarse_chan_index in range(0, num_coarse_chans):
                     try:
                         data = context.read_by_frequency(timestep_index,
-                                                         coarse_channel_index)
+                                                         coarse_chan_index)
                     except Exception as e:
                         print(f"Error: {e}")
                         exit(-1)

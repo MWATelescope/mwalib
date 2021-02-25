@@ -32,7 +32,7 @@ fn fine_pfb_reorder(input: usize) -> usize {
 }
 
 /// Structure for storing where in the input visibilities to get the specified baseline when converting
-pub struct LegacyConversionBaseline {
+pub(crate) struct LegacyConversionBaseline {
     pub baseline: usize,    // baseline index
     pub ant1: usize,        // antenna1 index
     pub ant2: usize,        // antenna2 index
@@ -63,15 +63,7 @@ impl LegacyConversionBaseline {
     /// * Returns a Result containing a populated
     ///LegacyConversionBaseline if Ok.
     ///
-    pub fn new(
-        baseline: usize,
-        ant1: usize,
-        ant2: usize,
-        xx: i32,
-        xy: i32,
-        yx: i32,
-        yy: i32,
-    ) -> Self {
+    fn new(baseline: usize, ant1: usize, ant2: usize, xx: i32, xy: i32, yx: i32, yy: i32) -> Self {
         Self {
             baseline,
             ant1,
@@ -203,7 +195,9 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
 ///LegacyConversionBaseline`s which tell us, for a specific output baseline, where in the input HDU
 /// to get data from (and whether it needs to be conjugated).
 ///
-pub fn generate_conversion_array(rf_inputs: &mut Vec<RFInput>) -> Vec<LegacyConversionBaseline> {
+pub(crate) fn generate_conversion_array(
+    rf_inputs: &mut Vec<RFInput>,
+) -> Vec<LegacyConversionBaseline> {
     // Sort the rf_inputs by "Input / metafits" order
     rf_inputs.sort_by(|a, b| a.input.cmp(&b.input));
 
@@ -274,7 +268,7 @@ pub fn generate_conversion_array(rf_inputs: &mut Vec<RFInput>) -> Vec<LegacyConv
 ///
 /// * `output_buffer` - Float vector to write converted data into.
 ///
-/// * `num_fine_channels` - Number of file channels in this observation.
+/// * `num_fine_chans` - Number of file channels in this observation.
 ///
 ///
 /// # Returns
@@ -282,25 +276,25 @@ pub fn generate_conversion_array(rf_inputs: &mut Vec<RFInput>) -> Vec<LegacyConv
 /// * Nothing
 ///
 ///
-pub fn convert_legacy_hdu_to_mwax_baseline_order(
+pub(crate) fn convert_legacy_hdu_to_mwax_baseline_order(
     conversion_table: &[LegacyConversionBaseline],
     input_buffer: &[f32],
     output_buffer: &mut [f32],
-    num_fine_channels: usize,
+    num_fine_chans: usize,
 ) {
     // Note: hardcoded values are safe here because they are only for the case where we are using the
     // legacy correlator which ALWAYS has 128 tiles
     let num_baselines = get_baseline_count(128);
 
     // Striding for input array
-    let floats_per_baseline_fine_channel = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
-    let floats_per_fine_channel = num_baselines * floats_per_baseline_fine_channel; // All floats for all baselines and 1 fine channel
+    let floats_per_baseline_fine_chan = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
+    let floats_per_fine_chan = num_baselines * floats_per_baseline_fine_chan; // All floats for all baselines and 1 fine channel
 
     // Striding for output array
-    let floats_per_baseline = floats_per_baseline_fine_channel * num_fine_channels;
+    let floats_per_baseline = floats_per_baseline_fine_chan * num_fine_chans;
 
     // Read from the input buffer and write into the temp buffer
-    for fine_chan_index in 0..num_fine_channels {
+    for fine_chan_index in 0..num_fine_chans {
         // convert one fine channel at a time
         for (baseline_index, baseline) in conversion_table.iter().enumerate() {
             // Input visibilities are in [fine_chan][baseline][pol][real][imag] order so we need to stride
@@ -312,12 +306,12 @@ pub fn convert_legacy_hdu_to_mwax_baseline_order(
             // We need to work out where to start indexing the source data
             // Go "down" the fine channels as if they are rows
             // Go "across" the baselines as if they are columns
-            let source_index = fine_chan_index * floats_per_fine_channel;
+            let source_index = fine_chan_index * floats_per_fine_chan;
             // We need to work out where to start indexing the destination data
             // Go "down" the baselines as if they are rows
             // Go "across" the fine channels as if they are columns
             let destination_index = (baseline_index * floats_per_baseline)
-                + (fine_chan_index * floats_per_baseline_fine_channel);
+                + (fine_chan_index * floats_per_baseline_fine_chan);
             // xx_r
             output_buffer[destination_index] = input_buffer[source_index + baseline.xx_index];
             // xx_i
@@ -372,7 +366,7 @@ pub fn convert_legacy_hdu_to_mwax_baseline_order(
 ///
 /// * `output_buffer` - Float vector to write converted data into.
 ///
-/// * `num_fine_channels` - Number of file channels in this observation.
+/// * `num_fine_chans` - Number of file channels in this observation.
 ///
 ///
 /// # Returns
@@ -380,32 +374,31 @@ pub fn convert_legacy_hdu_to_mwax_baseline_order(
 /// * Nothing
 ///
 ///
-pub fn convert_legacy_hdu_to_mwax_frequency_order(
+pub(crate) fn convert_legacy_hdu_to_mwax_frequency_order(
     conversion_table: &[LegacyConversionBaseline],
     input_buffer: &[f32],
     output_buffer: &mut [f32],
-    num_fine_channels: usize,
+    num_fine_chans: usize,
 ) {
     // Note: hardcoded values are safe here because they are only for the case where we are using the
     // legacy correlator which ALWAYS has 128 tiles
     let num_baselines = get_baseline_count(128);
 
     // Striding for input array
-    let floats_per_baseline_fine_channel = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
-    let floats_per_fine_channel = num_baselines * floats_per_baseline_fine_channel; // All floats for all baselines and 1 fine channel
-                                                                                    // Read from the input buffer and write into the temp buffer
-    for fine_chan_index in 0..num_fine_channels {
+    let floats_per_baseline_fine_chan = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
+    let floats_per_fine_chan = num_baselines * floats_per_baseline_fine_chan; // All floats for all baselines and 1 fine channel
+                                                                              // Read from the input buffer and write into the temp buffer
+    for fine_chan_index in 0..num_fine_chans {
         // convert one fine channel at a time
         for (baseline_index, baseline) in conversion_table.iter().enumerate() {
             // Input visibilities are in [fine_chan][baseline][pol][real][imag] order
             // We need to work out where to start indexing the source data
             // Go "down" the fine channels as if they are rows
             // Go "across" the baselines as if they are columns
-            let source_index = fine_chan_index * floats_per_fine_channel;
+            let source_index = fine_chan_index * floats_per_fine_chan;
             // Since the destination is also to be in [fine_chan][baseline][pol][real][imag] order
             // For the destination, we have to stride along each baseline for this channel
-            let destination_index =
-                source_index + (baseline_index * floats_per_baseline_fine_channel);
+            let destination_index = source_index + (baseline_index * floats_per_baseline_fine_chan);
 
             // xx_r
             output_buffer[destination_index] = input_buffer[source_index + baseline.xx_index];
@@ -460,7 +453,7 @@ pub fn convert_legacy_hdu_to_mwax_frequency_order(
 ///
 /// * `num_baselines` - Number of baselines in this observation.
 ///
-/// * `num_fine_channels` - Number of file channels in this observation.
+/// * `num_fine_chans` - Number of file channels in this observation.
 ///
 ///
 /// # Returns
@@ -468,38 +461,37 @@ pub fn convert_legacy_hdu_to_mwax_frequency_order(
 /// * Nothing
 ///
 ///
-pub fn convert_mwax_hdu_to_frequency_order(
+pub(crate) fn convert_mwax_hdu_to_frequency_order(
     input_buffer: &[f32],
     output_buffer: &mut [f32],
     num_baselines: usize,
-    num_fine_channels: usize,
+    num_fine_chans: usize,
     num_visibility_pols: usize,
 ) {
     // Striding for input array
-    let floats_per_baseline_fine_channel = num_visibility_pols * 2; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
-    let floats_per_baseline = num_fine_channels * floats_per_baseline_fine_channel; // All floats for 1 baseline and all fine channels
-    let floats_per_fine_channel = num_baselines * floats_per_baseline_fine_channel; // All floats for all baselines and 1 fine channel
-                                                                                    // Read from the input buffer and write into the temp buffer
+    let floats_per_baseline_fine_chan = num_visibility_pols * 2; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
+    let floats_per_baseline = num_fine_chans * floats_per_baseline_fine_chan; // All floats for 1 baseline and all fine channels
+    let floats_per_fine_chan = num_baselines * floats_per_baseline_fine_chan; // All floats for all baselines and 1 fine channel
+                                                                              // Read from the input buffer and write into the temp buffer
     for baseline_index in 0..num_baselines {
         // convert one baseline at a time
-        for fine_chan_index in 0..num_fine_channels {
+        for fine_chan_index in 0..num_fine_chans {
             // Input visibilities are in [baseline][fine_chan][pol][real][imag] order
             //
             // We need to work out where to start indexing the source data
             // Go "down" the baselines as if they are rows
-            // Go "across" the fine_channels as if they are columns
+            // Go "across" the fine_chans as if they are columns
             let source_index = (baseline_index * floats_per_baseline)
-                + (fine_chan_index * floats_per_baseline_fine_channel);
+                + (fine_chan_index * floats_per_baseline_fine_chan);
             // The destination is to be in [fine_chan][baseline][pol][real][imag] order
             // For the destination, we have to stride along each fine channel for this baseline
-            let destination_index = (fine_chan_index * floats_per_fine_channel)
-                + (baseline_index * floats_per_baseline_fine_channel);
+            let destination_index = (fine_chan_index * floats_per_fine_chan)
+                + (baseline_index * floats_per_baseline_fine_chan);
             // for each polarisation (r,i) => xx_r, xx_i, xy_r, xy_i, ... copy input to output
             // Copy source into dest
-            output_buffer
-                [destination_index..(floats_per_baseline_fine_channel + destination_index)]
+            output_buffer[destination_index..(floats_per_baseline_fine_chan + destination_index)]
                 .clone_from_slice(
-                    &input_buffer[source_index..(floats_per_baseline_fine_channel + source_index)],
+                    &input_buffer[source_index..(floats_per_baseline_fine_chan + source_index)],
                 );
         }
     }
@@ -648,7 +640,7 @@ mod tests {
 
         // Check it
         // Vector is in:
-        // [baseline][fine_channel][pol][r/i] order
+        // [baseline][fine_chan][pol][r/i] order
         //
         assert_eq!(
             mwalib_hdu.len(),
@@ -792,7 +784,7 @@ mod tests {
 
         // Check it
         // Vector is in:
-        // [fine_channel][baseline][pol][r/i] order
+        // [fine_chan][baseline][pol][r/i] order
         //
         assert_eq!(
             mwalib_hdu.len(),
@@ -841,9 +833,9 @@ mod tests {
                 None => panic!("baseline {} is not valid!", baseline),
             }
 
-            // Ensure channel is <= num_fine_channels
+            // Ensure channel is <= num_fine_chans
             assert_eq!(
-                fine_chan <= context.metafits_context.num_fine_channels_per_coarse,
+                fine_chan <= context.metafits_context.num_corr_fine_chans_per_coarse,
                 true
             );
 
@@ -971,11 +963,11 @@ mod tests {
 
         // We will walk through the visibilities and compare them
         for b in 0..context.metafits_context.num_baselines {
-            for f in 0..context.metafits_context.num_fine_channels_per_coarse {
+            for f in 0..context.metafits_context.num_corr_fine_chans_per_coarse {
                 // At this point we have 1 baseline and 1 fine channel which == (num_floats_per_baseline_fine_chan)
                 // locate this block of data in both hdus
                 let fits_index = (b
-                    * (context.metafits_context.num_fine_channels_per_coarse
+                    * (context.metafits_context.num_corr_fine_chans_per_coarse
                         * num_floats_per_baseline_fine_chan))
                     + (f * num_floats_per_baseline_fine_chan);
                 let mwalib_index = (f

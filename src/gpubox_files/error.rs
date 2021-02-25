@@ -63,18 +63,18 @@ maybe you have a mix of different files?"#)]
         naxis2: usize,
     },
 
-    #[error("NAXIS2 in first gpubox image HDU {naxis2} does not match expected value {calculated_naxis2} (metafits fine chans per coarse [{metafits_fine_channels_per_coarse}])")]
+    #[error("NAXIS2 in first gpubox image HDU {naxis2} does not match expected value {calculated_naxis2} (metafits fine chans per coarse [{metafits_fine_chans_per_coarse}])")]
     LegacyNAXIS2Mismatch {
         naxis2: usize,
         calculated_naxis2: i32,
-        metafits_fine_channels_per_coarse: usize,
+        metafits_fine_chans_per_coarse: usize,
     },
 
-    #[error("NAXIS1 in first gpubox image HDU {naxis1} does not match expected value {calculated_naxis1} (metafits fine chans per coarse [{metafits_fine_channels_per_coarse}] * pols [{visibility_pols}] * 2 [r,i]. NAXIS2={naxis2})")]
+    #[error("NAXIS1 in first gpubox image HDU {naxis1} does not match expected value {calculated_naxis1} (metafits fine chans per coarse [{metafits_fine_chans_per_coarse}] * pols [{visibility_pols}] * 2 [r,i]. NAXIS2={naxis2})")]
     MwaxNAXIS1Mismatch {
         naxis1: usize,
         calculated_naxis1: i32,
-        metafits_fine_channels_per_coarse: usize,
+        metafits_fine_chans_per_coarse: usize,
         visibility_pols: usize,
         naxis2: usize,
     },

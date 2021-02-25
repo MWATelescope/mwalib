@@ -27,43 +27,43 @@ pub struct VoltageContext {
     pub corr_version: CorrelatorVersion,
     /// The proper start of the observation (the time that is common to all
     /// provided voltage files).
-    pub start_gps_time_milliseconds: u64,
-    /// `end_gps_time_milliseconds` is the actual end time of the observation    
+    pub start_gps_time_ms: u64,
+    /// `end_gps_time_ms` is the actual end time of the observation    
     /// i.e. start time of last common timestep plus length of a voltage file (1 sec for MWA Legacy, 8 secs for MWAX).
-    pub end_gps_time_milliseconds: u64,
-    /// `start_gps_time_milliseconds` but in UNIX time (milliseconds)
-    pub start_unix_time_milliseconds: u64,
-    /// `end_gps_time_milliseconds` but in UNIX time (milliseconds)
-    pub end_unix_time_milliseconds: u64,
+    pub end_gps_time_ms: u64,
+    /// `start_gps_time_ms` but in UNIX time (milliseconds)
+    pub start_unix_time_ms: u64,
+    /// `end_gps_time_ms` but in UNIX time (milliseconds)
+    pub end_unix_time_ms: u64,
     /// Total duration of observation (based on voltage files)
-    pub duration_milliseconds: u64,
+    pub duration_ms: u64,
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
     /// length in millseconds of each timestep
-    pub timestep_duration_milliseconds: u64,
+    pub timestep_duration_ms: u64,
     /// Number of samples in each timestep
     pub num_samples_per_timestep: usize,
     /// This is an array of all timesteps we have data for
     pub timesteps: Vec<TimeStep>,
     /// Number of coarse channels after we've validated the input voltage files
-    pub num_coarse_channels: usize,
+    pub num_coarse_chans: usize,
     /// Vector of coarse channel structs
-    pub coarse_channels: Vec<CoarseChannel>,
+    pub coarse_chans: Vec<CoarseChannel>,
     /// Total bandwidth of observation (of the coarse channels we have)
     pub bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
-    pub coarse_channel_width_hz: u32,
-    /// Volatge fine_channel_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
-    pub fine_channel_width_hz: u32,
+    pub coarse_chan_width_hz: u32,
+    /// Volatge fine_chan_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
+    pub fine_chan_width_hz: u32,
     /// Number of fine channels in each coarse channel
-    pub num_fine_channels_per_coarse: usize,
+    pub num_fine_chans_per_coarse: usize,
 
     /// `voltage_batches` *must* be sorted appropriately. See
     /// `voltage::determine_voltage_batches`. The order of the filenames
     /// corresponds directly to other voltage-related objects
     /// (e.g. `voltage_hdu_limits`). Structured:
     /// `voltage_batches[batch][filename]`.
-    pub voltage_batches: Vec<VoltageFileBatch>,
+    pub(crate) voltage_batches: Vec<VoltageFileBatch>,
 
     /// We assume as little as possible about the data layout in the voltage
     /// files; here, a `BTreeMap` contains each unique GPS time from every
@@ -71,7 +71,7 @@ pub struct VoltageContext {
     /// voltage number with a voltage batch number and HDU index. The voltage
     /// number, batch number and HDU index are everything needed to find the
     /// correct HDU out of all voltage files.
-    pub voltage_time_map: VoltageFileTimeMap,
+    pub(crate) voltage_time_map: VoltageFileTimeMap,
 }
 
 impl VoltageContext {
@@ -109,64 +109,58 @@ impl VoltageContext {
         // Populate the start and end times of the observation.
         // Start= start of first timestep
         // End  = start of last timestep + integration time
-        let (start_gps_time_milliseconds, end_gps_time_milliseconds, duration_milliseconds) = {
+        let (start_gps_time_ms, end_gps_time_ms, duration_ms) = {
             let o = determine_obs_times(
                 &voltage_info.time_map,
-                voltage_info.voltage_file_interval_milliseconds,
+                voltage_info.voltage_file_interval_ms,
             )?;
-            (
-                o.start_gps_time_milliseconds,
-                o.end_gps_time_milliseconds,
-                o.duration_milliseconds,
-            )
+            (o.start_gps_time_ms, o.end_gps_time_ms, o.duration_ms)
         };
 
         // Populate coarse channels
-        let (coarse_channels, num_coarse_channels, coarse_channel_width_hz) =
-            coarse_channel::CoarseChannel::populate_voltage_coarse_channels(
+        let (coarse_chans, num_coarse_chans, coarse_chan_width_hz) =
+            coarse_channel::CoarseChannel::populate_voltage_coarse_chans(
                 &mut metafits_fptr,
                 &metafits_hdu,
                 voltage_info.corr_format,
-                metafits_context.observation_bandwidth_hz,
+                metafits_context.obs_bandwidth_hz,
                 &voltage_info.time_map,
             )?;
 
         // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1.28 MHz (unchannelised)
-        let fine_channel_width_hz: u32 = match voltage_info.corr_format {
+        let fine_chan_width_hz: u32 = match voltage_info.corr_format {
             CorrelatorVersion::Legacy => 10_000,
             CorrelatorVersion::OldLegacy => 10_000,
             CorrelatorVersion::V2 => {
-                metafits_context.observation_bandwidth_hz
-                    / metafits_context.num_coarse_channels as u32
+                metafits_context.obs_bandwidth_hz / metafits_context.num_coarse_chans as u32
             }
         };
 
         // Determine the number of fine channels per coarse channel.
-        let num_fine_channels_per_coarse =
-            (coarse_channel_width_hz / fine_channel_width_hz) as usize;
+        let num_fine_chans_per_coarse = (coarse_chan_width_hz / fine_chan_width_hz) as usize;
 
-        let bandwidth_hz = (num_coarse_channels as u32) * coarse_channel_width_hz;
+        let bandwidth_hz = (num_coarse_chans as u32) * coarse_chan_width_hz;
 
         // We can unwrap here because the `voltage_time_map` can't be empty if
         // `voltages` isn't empty.
         let timesteps = TimeStep::populate_voltage_timesteps(
-            start_gps_time_milliseconds,
-            end_gps_time_milliseconds,
-            voltage_info.voltage_file_interval_milliseconds,
-            metafits_context.scheduled_start_gps_time_milliseconds,
-            metafits_context.scheduled_start_unix_time_milliseconds,
+            start_gps_time_ms,
+            end_gps_time_ms,
+            voltage_info.voltage_file_interval_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
         );
 
         // Convert the real start and end times to UNIX time
-        let start_unix_time_milliseconds = misc::convert_gpstime_to_unixtime(
-            start_gps_time_milliseconds,
-            metafits_context.scheduled_start_gps_time_milliseconds,
-            metafits_context.scheduled_start_unix_time_milliseconds,
+        let start_unix_time_ms = misc::convert_gpstime_to_unixtime(
+            start_gps_time_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
         );
-        let end_unix_time_milliseconds = misc::convert_gpstime_to_unixtime(
-            end_gps_time_milliseconds,
-            metafits_context.scheduled_start_gps_time_milliseconds,
-            metafits_context.scheduled_start_unix_time_milliseconds,
+        let end_unix_time_ms = misc::convert_gpstime_to_unixtime(
+            end_gps_time_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
         );
 
         // The number of samples this timestep represents. For correlator, this would be 1. For voltage capture it will be many.
@@ -177,7 +171,7 @@ impl VoltageContext {
         };
 
         // Length of this timestep in milliseconds
-        let timestep_duration_milliseconds = match voltage_info.corr_format {
+        let timestep_duration_ms = match voltage_info.corr_format {
             CorrelatorVersion::OldLegacy => 1000,
             CorrelatorVersion::Legacy => 1000,
             CorrelatorVersion::V2 => 8000,
@@ -188,21 +182,21 @@ impl VoltageContext {
         Ok(VoltageContext {
             metafits_context,
             corr_version: voltage_info.corr_format,
-            start_gps_time_milliseconds,
-            end_gps_time_milliseconds,
-            start_unix_time_milliseconds,
-            end_unix_time_milliseconds,
-            duration_milliseconds,
+            start_gps_time_ms,
+            end_gps_time_ms,
+            start_unix_time_ms,
+            end_unix_time_ms,
+            duration_ms,
             num_timesteps,
             timesteps,
             num_samples_per_timestep,
-            timestep_duration_milliseconds,
-            num_coarse_channels,
-            coarse_channels,
-            fine_channel_width_hz,
+            timestep_duration_ms,
+            num_coarse_chans,
+            coarse_chans,
+            fine_chan_width_hz,
             bandwidth_hz,
-            coarse_channel_width_hz,
-            num_fine_channels_per_coarse,
+            coarse_chan_width_hz,
+            num_fine_chans_per_coarse,
             voltage_batches: voltage_info.gpstime_batches,
             voltage_time_map: voltage_info.time_map,
         })
@@ -220,8 +214,8 @@ impl VoltageContext {
     ///                      to the element within VoltageContext.timesteps. For mwa legacy each index
     ///                      represents 1 second increments, for mwax it is 8 second increments.
     ///
-    /// * `coarse_channel_index` - index within the coarse_channel array for the desired coarse channel. This corresponds
-    ///                      to the element within VoltageContext.coarse_channels.
+    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+    ///                      to the element within VoltageContext.coarse_chans.
     ///
     ///
     /// # Returns
@@ -232,20 +226,20 @@ impl VoltageContext {
     pub fn read(
         &mut self,
         timestep_index: usize,
-        coarse_channel_index: usize,
+        coarse_chan_index: usize,
     ) -> Result<Vec<u8>, VoltageFileError> {
         if self.voltage_batches.is_empty() {
             return Err(VoltageFileError::NoVoltageFiles);
         }
 
         // Lookup the coarse channel we need
-        let coarse_channel = self.coarse_channels[coarse_channel_index].receiver_channel_number;
+        let coarse_chan = self.coarse_chans[coarse_chan_index].rec_chan_number;
 
         // Lookup the timestep we need
-        let timestep = self.timesteps[timestep_index].gps_time_milliseconds;
+        let timestep = self.timesteps[timestep_index].gps_time_ms;
 
         // Get the filename for this timestep and coarse channel
-        let filename: &String = &self.voltage_time_map[&timestep][&coarse_channel];
+        let filename: &String = &self.voltage_time_map[&timestep][&coarse_chan];
 
         // Open the file
         let mut file_handle = File::open(&filename).expect("no file found");
@@ -307,7 +301,7 @@ impl fmt::Display for VoltageContext {
             num timesteps:            {n_timesteps},
             timesteps:                {timesteps:?},
             num samples / ts:         {num_samples_per_timestep},
-            timestep duration ms,     {timestep_duration_milliseconds}
+            timestep duration ms,     {timestep_duration_ms}
 
             num antennas:             {n_ants},
 
@@ -322,21 +316,21 @@ impl fmt::Display for VoltageContext {
         )"#,
             metafits_context = self.metafits_context,
             corr_ver = self.corr_version,
-            start_unix = self.start_unix_time_milliseconds as f64 / 1e3,
-            end_unix = self.end_unix_time_milliseconds as f64 / 1e3,
-            start_gps = self.start_gps_time_milliseconds as f64 / 1e3,
-            end_gps = self.end_gps_time_milliseconds as f64 / 1e3,
-            duration = self.duration_milliseconds as f64 / 1e3,
+            start_unix = self.start_unix_time_ms as f64 / 1e3,
+            end_unix = self.end_unix_time_ms as f64 / 1e3,
+            start_gps = self.start_gps_time_ms as f64 / 1e3,
+            end_gps = self.end_gps_time_ms as f64 / 1e3,
+            duration = self.duration_ms as f64 / 1e3,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,
             num_samples_per_timestep = self.num_samples_per_timestep,
-            timestep_duration_milliseconds = self.timestep_duration_milliseconds,
-            n_ants = self.metafits_context.num_antennas,
+            timestep_duration_ms = self.timestep_duration_ms,
+            n_ants = self.metafits_context.num_ants,
             obw = self.bandwidth_hz as f64 / 1e6,
-            n_coarse = self.num_coarse_channels,
-            coarse = self.coarse_channels,
-            fcw = self.fine_channel_width_hz as f64 / 1e3,
-            nfcpc = self.num_fine_channels_per_coarse,
+            n_coarse = self.num_coarse_chans,
+            coarse = self.coarse_chans,
+            fcw = self.fine_chan_width_hz as f64 / 1e3,
+            nfcpc = self.num_fine_chans_per_coarse,
             batches = self.voltage_batches,
         )
     }
@@ -445,42 +439,36 @@ mod tests {
         assert_eq!(context.corr_version, CorrelatorVersion::Legacy);
 
         // Actual gps start time:   1_101_503_312,
-        assert_eq!(context.start_gps_time_milliseconds, 1_101_503_312_000);
+        assert_eq!(context.start_gps_time_ms, 1_101_503_312_000);
 
         // Actual gps end time:     1_101_503_314,
-        assert_eq!(context.end_gps_time_milliseconds, 1_101_503_314_000);
+        assert_eq!(context.end_gps_time_ms, 1_101_503_314_000);
 
         // Actual duration:          2 s,
-        assert_eq!(context.duration_milliseconds, 2_000);
+        assert_eq!(context.duration_ms, 2_000);
 
         // num timesteps:            2,
         assert_eq!(context.num_timesteps, 2);
 
         // timesteps:
-        assert_eq!(
-            context.timesteps[0].gps_time_milliseconds,
-            1_101_503_312_000
-        );
-        assert_eq!(
-            context.timesteps[1].gps_time_milliseconds,
-            1_101_503_313_000
-        );
+        assert_eq!(context.timesteps[0].gps_time_ms, 1_101_503_312_000);
+        assert_eq!(context.timesteps[1].gps_time_ms, 1_101_503_313_000);
 
         // num coarse channels,      2,
-        assert_eq!(context.num_coarse_channels, 2);
+        assert_eq!(context.num_coarse_chans, 2);
 
         // observation bandwidth:    2.56 MHz,
         assert_eq!(context.bandwidth_hz, 1_280_000 * 2);
 
         // coarse channels:
-        assert_eq!(context.coarse_channels[0].receiver_channel_number, 123);
-        assert_eq!(context.coarse_channels[0].channel_centre_hz, 157_440_000);
-        assert_eq!(context.coarse_channels[1].receiver_channel_number, 124);
-        assert_eq!(context.coarse_channels[1].channel_centre_hz, 158_720_000);
+        assert_eq!(context.coarse_chans[0].rec_chan_number, 123);
+        assert_eq!(context.coarse_chans[0].chan_centre_hz, 157_440_000);
+        assert_eq!(context.coarse_chans[1].rec_chan_number, 124);
+        assert_eq!(context.coarse_chans[1].chan_centre_hz, 158_720_000);
         // fine channel resolution:  10 kHz,
-        assert_eq!(context.fine_channel_width_hz, 10_000);
+        assert_eq!(context.fine_chan_width_hz, 10_000);
         // num fine channels/coarse: 128,
-        assert_eq!(context.num_fine_channels_per_coarse, 128);
+        assert_eq!(context.num_fine_chans_per_coarse, 128);
         assert_eq!(context.voltage_batches.len(), 2);
     }
 
@@ -520,42 +508,36 @@ mod tests {
         assert_eq!(context.corr_version, CorrelatorVersion::V2);
 
         // Actual gps start time:   1_101_503_312,
-        assert_eq!(context.start_gps_time_milliseconds, 1_101_503_312_000);
+        assert_eq!(context.start_gps_time_ms, 1_101_503_312_000);
 
         // Actual gps end time:     1_101_503_328,
-        assert_eq!(context.end_gps_time_milliseconds, 1_101_503_328_000);
+        assert_eq!(context.end_gps_time_ms, 1_101_503_328_000);
 
         // Actual duration:          16 s,
-        assert_eq!(context.duration_milliseconds, 16_000);
+        assert_eq!(context.duration_ms, 16_000);
 
         // num timesteps:            2,
         assert_eq!(context.num_timesteps, 2);
 
         // timesteps:
-        assert_eq!(
-            context.timesteps[0].gps_time_milliseconds,
-            1_101_503_312_000
-        );
-        assert_eq!(
-            context.timesteps[1].gps_time_milliseconds,
-            1_101_503_320_000
-        );
+        assert_eq!(context.timesteps[0].gps_time_ms, 1_101_503_312_000);
+        assert_eq!(context.timesteps[1].gps_time_ms, 1_101_503_320_000);
 
         // num coarse channels,      2,
-        assert_eq!(context.num_coarse_channels, 2);
+        assert_eq!(context.num_coarse_chans, 2);
 
         // observation bandwidth:    2.56 MHz,
         assert_eq!(context.bandwidth_hz, 1_280_000 * 2);
 
         // coarse channels:
-        assert_eq!(context.coarse_channels[0].receiver_channel_number, 123);
-        assert_eq!(context.coarse_channels[0].channel_centre_hz, 157_440_000);
-        assert_eq!(context.coarse_channels[1].receiver_channel_number, 124);
-        assert_eq!(context.coarse_channels[1].channel_centre_hz, 158_720_000);
+        assert_eq!(context.coarse_chans[0].rec_chan_number, 123);
+        assert_eq!(context.coarse_chans[0].chan_centre_hz, 157_440_000);
+        assert_eq!(context.coarse_chans[1].rec_chan_number, 124);
+        assert_eq!(context.coarse_chans[1].chan_centre_hz, 158_720_000);
         // fine channel resolution:  1.28 MHz,
-        assert_eq!(context.fine_channel_width_hz, 1_280_000);
+        assert_eq!(context.fine_chan_width_hz, 1_280_000);
         // num fine channels/coarse: 1,
-        assert_eq!(context.num_fine_channels_per_coarse, 1);
+        assert_eq!(context.num_fine_chans_per_coarse, 1);
         assert_eq!(context.voltage_batches.len(), 2);
     }
 }

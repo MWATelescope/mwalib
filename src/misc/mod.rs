@@ -243,28 +243,28 @@ pub fn get_baseline_from_antenna_names(
 ///
 /// # Arguments
 ///
-/// * `gpstime_milliseconds` - GPS time (in ms) you want to convert to UNIX timestamp
+/// * `gpstime_ms` - GPS time (in ms) you want to convert to UNIX timestamp
 ///
-/// * `mwa_start_gps_time_milliseconds` - Scheduled GPS start time (in ms) of observation according to metafits.
+/// * `mwa_start_gps_time_ms` - Scheduled GPS start time (in ms) of observation according to metafits.
 ///
-/// * `mwa_start_unix_time_milliseconds` - Scheduled UNIX start time (in ms) according to the metafits (GOODTIM-QUACKTIM).
+/// * `mwa_start_unix_time_ms` - Scheduled UNIX start time (in ms) according to the metafits (GOODTIM-QUACKTIM).
 ///    
 ///
 /// # Returns
 ///
-/// * The UNIX time (in ms) converted from the `gpstime_milliseconds`.
+/// * The UNIX time (in ms) converted from the `gpstime_ms`.
 ///
 pub fn convert_gpstime_to_unixtime(
-    gpstime_milliseconds: u64,
-    mwa_start_gpstime_milliseconds: u64,
-    mwa_start_unixtime_milliseconds: u64,
+    gpstime_ms: u64,
+    mwa_start_gpstime_ms: u64,
+    mwa_start_unixtime_ms: u64,
 ) -> u64 {
     // We have a UNIX time reference and a gpstime reference
     // Compute an offset
-    let offset_milliseconds = mwa_start_unixtime_milliseconds - mwa_start_gpstime_milliseconds;
+    let offset_ms = mwa_start_unixtime_ms - mwa_start_gpstime_ms;
 
     // The new converted Unix time is gpstime + offset
-    gpstime_milliseconds + offset_milliseconds
+    gpstime_ms + offset_ms
 }
 
 /// Returns a UNIX time given a GPStime
@@ -273,28 +273,28 @@ pub fn convert_gpstime_to_unixtime(
 ///
 /// # Arguments
 ///
-/// * `unixtime_milliseconds` - GPS time (in ms) you want to convert to UNIX timestamp
+/// * `unixtime_ms` - GPS time (in ms) you want to convert to UNIX timestamp
 ///
-/// * `mwa_start_gps_time_milliseconds` - Scheduled GPS start time (in ms) of observation according to metafits.
+/// * `mwa_start_gps_time_ms` - Scheduled GPS start time (in ms) of observation according to metafits.
 ///
-/// * `mwa_start_unix_time_milliseconds` - Scheduled UNIX start time (in ms) according to the metafits (GOODTIM-QUACKTIM).
+/// * `mwa_start_unix_time_ms` - Scheduled UNIX start time (in ms) according to the metafits (GOODTIM-QUACKTIM).
 ///    
 ///
 /// # Returns
 ///
-/// * The GPS time (in ms) converted from the `unixtime_milliseconds`.
+/// * The GPS time (in ms) converted from the `unixtime_ms`.
 ///
 pub fn convert_unixtime_to_gpstime(
-    unixtime_milliseconds: u64,
-    mwa_start_gpstime_milliseconds: u64,
-    mwa_start_unixtime_milliseconds: u64,
+    unixtime_ms: u64,
+    mwa_start_gpstime_ms: u64,
+    mwa_start_unixtime_ms: u64,
 ) -> u64 {
     // We have a UNIX time reference and a gpstime reference
     // Compute an offset
-    let offset_milliseconds = mwa_start_unixtime_milliseconds - mwa_start_gpstime_milliseconds;
+    let offset_ms = mwa_start_unixtime_ms - mwa_start_gpstime_ms;
 
     // The new converted gps time is unix time - offset
-    unixtime_milliseconds - offset_milliseconds
+    unixtime_ms - offset_ms
 }
 
 #[cfg(test)]
@@ -307,31 +307,25 @@ mod tests {
     #[test]
     fn test_convert_gpstime_to_unixtime() {
         // Tested using https://www.andrews.edu/~tzs/timeconv/timedisplay.php
-        let gpstime_milliseconds = 1298013490_000;
-        let mwa_start_gpstime_milliseconds = 1242552568_000;
-        let mwa_start_unixtime_milliseconds = 1558517350_000;
+        let gpstime_ms = 1298013490_000;
+        let mwa_start_gpstime_ms = 1242552568_000;
+        let mwa_start_unixtime_ms = 1558517350_000;
 
-        let new_unixtime_milliseconds = convert_gpstime_to_unixtime(
-            gpstime_milliseconds,
-            mwa_start_gpstime_milliseconds,
-            mwa_start_unixtime_milliseconds,
-        );
-        assert_eq!(new_unixtime_milliseconds, 1613978272_000);
+        let new_unixtime_ms =
+            convert_gpstime_to_unixtime(gpstime_ms, mwa_start_gpstime_ms, mwa_start_unixtime_ms);
+        assert_eq!(new_unixtime_ms, 1613978272_000);
     }
 
     #[test]
     fn test_convert_unixtime_to_gpstime() {
         // Tested using https://www.andrews.edu/~tzs/timeconv/timedisplay.php
-        let unixtime_milliseconds = 1613978272_000;
-        let mwa_start_gpstime_milliseconds = 1242552568_000;
-        let mwa_start_unixtime_milliseconds = 1558517350_000;
+        let unixtime_ms = 1613978272_000;
+        let mwa_start_gpstime_ms = 1242552568_000;
+        let mwa_start_unixtime_ms = 1558517350_000;
 
-        let new_unixtime_milliseconds = convert_unixtime_to_gpstime(
-            unixtime_milliseconds,
-            mwa_start_gpstime_milliseconds,
-            mwa_start_unixtime_milliseconds,
-        );
-        assert_eq!(new_unixtime_milliseconds, 1298013490_000);
+        let new_unixtime_ms =
+            convert_unixtime_to_gpstime(unixtime_ms, mwa_start_gpstime_ms, mwa_start_unixtime_ms);
+        assert_eq!(new_unixtime_ms, 1298013490_000);
     }
 
     #[test]
@@ -364,7 +358,7 @@ mod tests {
         // We need a dummy rf inputs
         let dummy_rf_input_x = RFInput {
             input: 0,
-            antenna: 0,
+            ant: 0,
             tile_id: 0,
             tile_name: String::from("dummy1"),
             pol: Pol::X,
@@ -378,13 +372,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 1,
-            receiver_slot_number: 0,
+            rec_number: 1,
+            rec_slot_number: 0,
         };
 
         let dummy_rf_input_y = RFInput {
             input: 1,
-            antenna: 0,
+            ant: 0,
             tile_id: 1,
             tile_name: String::from("dummy1"),
             pol: Pol::Y,
@@ -398,12 +392,12 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 1,
-            receiver_slot_number: 1,
+            rec_number: 1,
+            rec_slot_number: 1,
         };
 
         ants.push(Antenna {
-            antenna: 101,
+            ant: 101,
             tile_id: 101,
             tile_name: String::from("tile101"),
             x_pol: dummy_rf_input_x.clone(),
@@ -411,7 +405,7 @@ mod tests {
         });
 
         ants.push(Antenna {
-            antenna: 102,
+            ant: 102,
             tile_id: 102,
             tile_name: String::from("tile102"),
             x_pol: dummy_rf_input_x.clone(),
@@ -419,7 +413,7 @@ mod tests {
         });
 
         ants.push(Antenna {
-            antenna: 103,
+            ant: 103,
             tile_id: 103,
             tile_name: String::from("tile103"),
             x_pol: dummy_rf_input_x.clone(),
@@ -427,7 +421,7 @@ mod tests {
         });
 
         ants.push(Antenna {
-            antenna: 104,
+            ant: 104,
             tile_id: 104,
             tile_name: String::from("tile104"),
             x_pol: dummy_rf_input_x.clone(),
@@ -435,7 +429,7 @@ mod tests {
         });
 
         ants.push(Antenna {
-            antenna: 105,
+            ant: 105,
             tile_id: 105,
             tile_name: String::from("tile105"),
             x_pol: dummy_rf_input_x.clone(),
@@ -443,7 +437,7 @@ mod tests {
         });
 
         ants.push(Antenna {
-            antenna: 106,
+            ant: 106,
             tile_id: 106,
             tile_name: String::from("tile106"),
             x_pol: dummy_rf_input_x.clone(),
@@ -451,7 +445,7 @@ mod tests {
         });
 
         ants.push(Antenna {
-            antenna: 107,
+            ant: 107,
             tile_id: 107,
             tile_name: String::from("tile107"),
             x_pol: dummy_rf_input_x.clone(),
@@ -459,7 +453,7 @@ mod tests {
         });
 
         ants.push(Antenna {
-            antenna: 108,
+            ant: 108,
             tile_id: 108,
             tile_name: String::from("tile108"),
             x_pol: dummy_rf_input_x,
@@ -523,7 +517,7 @@ mod tests {
         // We need a dummy rf inputs
         let dummy_rf_input_x = RFInput {
             input: 0,
-            antenna: 0,
+            ant: 0,
             tile_id: 0,
             tile_name: String::from("dummy1"),
             pol: Pol::X,
@@ -537,13 +531,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 1,
-            receiver_slot_number: 0,
+            rec_number: 1,
+            rec_slot_number: 0,
         };
 
         let dummy_rf_input_y = RFInput {
             input: 1,
-            antenna: 0,
+            ant: 0,
             tile_id: 1,
             tile_name: String::from("dummy1"),
             pol: Pol::Y,
@@ -557,12 +551,12 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 1,
-            receiver_slot_number: 1,
+            rec_number: 1,
+            rec_slot_number: 1,
         };
 
         ants.push(Antenna {
-            antenna: 101,
+            ant: 101,
             tile_id: 101,
             tile_name: String::from("tile101"),
             x_pol: dummy_rf_input_x.clone(),
@@ -570,7 +564,7 @@ mod tests {
         });
 
         ants.push(Antenna {
-            antenna: 102,
+            ant: 102,
             tile_id: 102,
             tile_name: String::from("tile102"),
             x_pol: dummy_rf_input_x,
@@ -594,7 +588,7 @@ mod tests {
         // We need a dummy rf inputs
         let dummy_rf_input_x = RFInput {
             input: 0,
-            antenna: 0,
+            ant: 0,
             tile_id: 0,
             tile_name: String::from("dummy2"),
             pol: Pol::X,
@@ -608,13 +602,13 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 1,
-            receiver_slot_number: 0,
+            rec_number: 1,
+            rec_slot_number: 0,
         };
 
         let dummy_rf_input_y = RFInput {
             input: 1,
-            antenna: 0,
+            ant: 0,
             tile_id: 1,
             tile_name: String::from("dummy2"),
             pol: Pol::Y,
@@ -628,12 +622,12 @@ mod tests {
             digital_gains: vec![],
             dipole_gains: vec![],
             dipole_delays: vec![],
-            receiver_number: 1,
-            receiver_slot_number: 1,
+            rec_number: 1,
+            rec_slot_number: 1,
         };
 
         ants.push(Antenna {
-            antenna: 101,
+            ant: 101,
             tile_id: 101,
             tile_name: String::from("tile101"),
             x_pol: dummy_rf_input_x.clone(),
@@ -641,7 +635,7 @@ mod tests {
         });
 
         ants.push(Antenna {
-            antenna: 102,
+            ant: 102,
             tile_id: 102,
             tile_name: String::from("tile102"),
             x_pol: dummy_rf_input_x,

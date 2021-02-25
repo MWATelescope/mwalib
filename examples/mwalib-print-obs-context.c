@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    printf("Retrieved metadata for obsid: %d\n", metafits_metadata->obsid);
+    printf("Retrieved metadata for obs_id: %d\n", metafits_metadata->obs_id);
 
     if (mwalib_correlator_context_display(correlator_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
     {
         printf("%lu antennas returned\n", nants);
 
-        for (int i = 0; i < metafits_metadata->num_antennas; i++)
+        for (int i = 0; i < metafits_metadata->num_ants; i++)
         {
             printf("antenna %d is %s\n", i, ants[i].tile_name);
         }
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     }
 
     // Clean up antennas
-    mwalib_antennas_free(ants, metafits_metadata->num_antennas);
+    mwalib_antennas_free(ants, metafits_metadata->num_ants);
 
     // Example of using baselines
     Baseline *bls = NULL;
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 
         for (int i = 0; i < metafits_metadata->num_baselines; i++)
         {
-            printf("Baseline %d is ant %lu vs ant %lu\n", i, bls[i].antenna1_index, bls[i].antenna2_index);
+            printf("Baseline %d is ant %lu vs ant %lu\n", i, bls[i].ant1_index, bls[i].ant2_index);
         }
     }
     else
@@ -120,9 +120,9 @@ int main(int argc, char *argv[])
     {
         printf("%lu Coarse Channels returned\n", nccs);
 
-        for (int i = 0; i < corr_metadata->num_coarse_channels; i++)
+        for (int i = 0; i < corr_metadata->num_coarse_chans; i++)
         {
-            printf("Coarse Channel %d is %.2f MHz\n", i, (float)ccs[i].channel_centre_hz / 1000000.);
+            printf("Coarse Channel %d is %.2f MHz\n", i, (float)ccs[i].chan_centre_hz / 1000000.);
         }
     }
     else
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
     }
 
     // Clean up coarse channels
-    mwalib_coarse_channels_free(ccs, corr_metadata->num_coarse_channels);
+    mwalib_coarse_channels_free(ccs, corr_metadata->num_coarse_chans);
 
     // Example of using rf_inputs
     RFInput *rfs = NULL;
@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
 
         for (int i = 0; i < corr_metadata->num_timesteps; i++)
         {
-            printf("Timestep %d is %.2f\n", i, ts[i].unix_time_milliseconds / 1000.);
+            printf("Timestep %d is %.2f\n", i, ts[i].unix_time_ms / 1000.);
         }
     }
     else
