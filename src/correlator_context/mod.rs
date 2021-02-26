@@ -76,9 +76,9 @@ impl CorrelatorContext {
     ///
     /// # Arguments
     ///
-    /// * `metafits` - filename of metafits file as a path or string.
+    /// * `metafits_filename` - filename of metafits file as a path or string.
     ///
-    /// * `gpuboxes` - slice of filenames of gpubox files as paths or strings.
+    /// * `gpubox_filenames` - slice of filenames of gpubox files as paths or strings.
     ///
     ///
     /// # Returns
@@ -191,6 +191,167 @@ impl CorrelatorContext {
             num_gpubox_files: gpubox_filenames.len(),
             legacy_conversion_table,
         })
+    }
+
+    /// Read a single timestep for a single coarse channel
+    /// The output visibilities are in order:
+    /// [baseline][frequency][pol][r][i]
+    ///
+    /// # Arguments
+    ///
+    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+    ///                      to the element within mwalibContext.timesteps.
+    ///
+    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+    ///                      to the element within mwalibContext.coarse_chans.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * A Result containing vector of 32 bit floats containing the data in [baseline][frequency][pol][r][i] order, if Ok.
+    ///
+    ///
+    pub fn read_by_baseline(
+        &mut self,
+        timestep_index: usize,
+        coarse_chan_index: usize,
+    ) -> Result<Vec<f32>, GpuboxError> {
+        // Validate the timestep
+        if timestep_index > self.num_timesteps - 1 {
+            return Err(GpuboxError::InvalidTimeStepIndex(self.num_timesteps - 1));
+        }
+
+        // Validate the coarse chan
+        if coarse_chan_index > self.num_coarse_chans - 1 {
+            return Err(GpuboxError::InvalidCoarseChanIndex(
+                self.num_coarse_chans - 1,
+            ));
+        }
+
+        // Output buffer for read in data
+        let output_buffer: Vec<f32>;
+
+        // Lookup the coarse channel we need
+        let coarse_chan = self.coarse_chans[coarse_chan_index].gpubox_number;
+        let (batch_index, hdu_index) =
+            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_chan];
+
+        if self.gpubox_batches.is_empty() {
+            return Err(GpuboxError::NoGpuboxes);
+        }
+        let mut fptr =
+            fits_open!(&self.gpubox_batches[batch_index].gpubox_files[coarse_chan_index].filename)?;
+        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
+        output_buffer = get_fits_image!(&mut fptr, &hdu)?;
+        // If legacy correlator, then convert the HDU into the correct output format
+        if self.corr_version == CorrelatorVersion::OldLegacy
+            || self.corr_version == CorrelatorVersion::Legacy
+        {
+            // Prepare temporary buffer, if we are reading legacy correlator files
+            let mut temp_buffer = vec![
+                0.;
+                self.metafits_context.num_corr_fine_chans_per_coarse
+                    * self.metafits_context.num_visibility_pols
+                    * self.metafits_context.num_baselines
+                    * 2
+            ];
+
+            convert::convert_legacy_hdu_to_mwax_baseline_order(
+                &self.legacy_conversion_table,
+                &output_buffer,
+                &mut temp_buffer,
+                self.metafits_context.num_corr_fine_chans_per_coarse,
+            );
+
+            Ok(temp_buffer)
+        } else {
+            Ok(output_buffer)
+        }
+    }
+
+    /// Read a single timestep for a single coarse channel
+    /// The output visibilities are in order:
+    /// [frequency][baseline][pol][r][i]
+    ///
+    /// # Arguments
+    ///
+    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+    ///                      to the element within mwalibContext.timesteps.
+    ///
+    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+    ///                      to the element within mwalibContext.coarse_chans.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * A Result containing vector of 32 bit floats containing the data in [frequency][baseline][pol][r][i] order, if Ok.
+    ///
+    ///
+    pub fn read_by_frequency(
+        &mut self,
+        timestep_index: usize,
+        coarse_chan_index: usize,
+    ) -> Result<Vec<f32>, GpuboxError> {
+        // Validate the timestep
+        if timestep_index > self.num_timesteps - 1 {
+            return Err(GpuboxError::InvalidTimeStepIndex(self.num_timesteps - 1));
+        }
+
+        // Validate the coarse chan
+        if coarse_chan_index > self.num_coarse_chans - 1 {
+            return Err(GpuboxError::InvalidCoarseChanIndex(
+                self.num_coarse_chans - 1,
+            ));
+        }
+
+        // Output buffer for read in data
+        let output_buffer: Vec<f32>;
+
+        // Prepare temporary buffer
+        let mut temp_buffer = vec![
+            0.;
+            self.metafits_context.num_corr_fine_chans_per_coarse
+                * self.metafits_context.num_visibility_pols
+                * self.metafits_context.num_baselines
+                * 2
+        ];
+
+        // Lookup the coarse channel we need
+        let coarse_chan = self.coarse_chans[coarse_chan_index].gpubox_number;
+        let (batch_index, hdu_index) =
+            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_chan];
+
+        if self.gpubox_batches.is_empty() {
+            return Err(GpuboxError::NoGpuboxes);
+        }
+        let mut fptr =
+            fits_open!(&self.gpubox_batches[batch_index].gpubox_files[coarse_chan_index].filename)?;
+        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
+        output_buffer = get_fits_image!(&mut fptr, &hdu)?;
+        // If legacy correlator, then convert the HDU into the correct output format
+        if self.corr_version == CorrelatorVersion::OldLegacy
+            || self.corr_version == CorrelatorVersion::Legacy
+        {
+            convert::convert_legacy_hdu_to_mwax_frequency_order(
+                &self.legacy_conversion_table,
+                &output_buffer,
+                &mut temp_buffer,
+                self.metafits_context.num_corr_fine_chans_per_coarse,
+            );
+
+            Ok(temp_buffer)
+        } else {
+            // Do conversion for mwax (it is in baseline order, we want it in freq order)
+            convert::convert_mwax_hdu_to_frequency_order(
+                &output_buffer,
+                &mut temp_buffer,
+                self.metafits_context.num_baselines,
+                self.metafits_context.num_corr_fine_chans_per_coarse,
+                self.metafits_context.num_visibility_pols,
+            );
+
+            Ok(temp_buffer)
+        }
     }
 
     /// Validates the first HDU of a gpubox file against metafits metadata
@@ -321,149 +482,6 @@ impl CorrelatorContext {
 
         Ok(())
     }
-
-    /// Read a single timestep for a single coarse channel
-    /// The output visibilities are in order:
-    /// [baseline][frequency][pol][r][i]
-    ///
-    /// # Arguments
-    ///
-    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within mwalibContext.timesteps.
-    ///
-    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within mwalibContext.coarse_chans.
-    ///
-    ///
-    /// # Returns
-    ///
-    /// * A Result containing vector of 32 bit floats containing the data in [baseline][frequency][pol][r][i] order, if Ok.
-    ///
-    ///
-    pub fn read_by_baseline(
-        &mut self,
-        timestep_index: usize,
-        coarse_chan_index: usize,
-    ) -> Result<Vec<f32>, GpuboxError> {
-        // Output buffer for read in data
-        let output_buffer: Vec<f32>;
-
-        // Prepare temporary buffer, if we are reading legacy correlator files
-        let mut temp_buffer = if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
-        {
-            vec![
-                0.;
-                self.metafits_context.num_corr_fine_chans_per_coarse
-                    * self.metafits_context.num_visibility_pols
-                    * self.metafits_context.num_baselines
-                    * 2
-            ]
-        } else {
-            Vec::new()
-        };
-
-        // Lookup the coarse channel we need
-        let coarse_chan = self.coarse_chans[coarse_chan_index].gpubox_number;
-        let (batch_index, hdu_index) =
-            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_chan];
-
-        if self.gpubox_batches.is_empty() {
-            return Err(GpuboxError::NoGpuboxes);
-        }
-        let mut fptr =
-            fits_open!(&self.gpubox_batches[batch_index].gpubox_files[coarse_chan_index].filename)?;
-        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
-        output_buffer = get_fits_image!(&mut fptr, &hdu)?;
-        // If legacy correlator, then convert the HDU into the correct output format
-        if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
-        {
-            convert::convert_legacy_hdu_to_mwax_baseline_order(
-                &self.legacy_conversion_table,
-                &output_buffer,
-                &mut temp_buffer,
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-            );
-
-            Ok(temp_buffer)
-        } else {
-            Ok(output_buffer)
-        }
-    }
-
-    /// Read a single timestep for a single coarse channel
-    /// The output visibilities are in order:
-    /// [frequency][baseline][pol][r][i]
-    ///
-    /// # Arguments
-    ///
-    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within mwalibContext.timesteps.
-    ///
-    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within mwalibContext.coarse_chans.
-    ///
-    ///
-    /// # Returns
-    ///
-    /// * A Result containing vector of 32 bit floats containing the data in [frequency][baseline][pol][r][i] order, if Ok.
-    ///
-    ///
-    pub fn read_by_frequency(
-        &mut self,
-        timestep_index: usize,
-        coarse_chan_index: usize,
-    ) -> Result<Vec<f32>, GpuboxError> {
-        // Output buffer for read in data
-        let output_buffer: Vec<f32>;
-
-        // Prepare temporary buffer, if we are reading legacy correlator files
-        let mut temp_buffer = vec![
-            0.;
-            self.metafits_context.num_corr_fine_chans_per_coarse
-                * self.metafits_context.num_visibility_pols
-                * self.metafits_context.num_baselines
-                * 2
-        ];
-
-        // Lookup the coarse channel we need
-        let coarse_chan = self.coarse_chans[coarse_chan_index].gpubox_number;
-        let (batch_index, hdu_index) =
-            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_chan];
-
-        if self.gpubox_batches.is_empty() {
-            return Err(GpuboxError::NoGpuboxes);
-        }
-        let mut fptr =
-            fits_open!(&self.gpubox_batches[batch_index].gpubox_files[coarse_chan_index].filename)?;
-        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
-        output_buffer = get_fits_image!(&mut fptr, &hdu)?;
-        // If legacy correlator, then convert the HDU into the correct output format
-        if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
-        {
-            convert::convert_legacy_hdu_to_mwax_frequency_order(
-                &self.legacy_conversion_table,
-                &output_buffer,
-                &mut temp_buffer,
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-            );
-
-            Ok(temp_buffer)
-        } else {
-            // Do conversion for mwax (it is in baseline order, we want it in freq order)
-            convert::convert_mwax_hdu_to_frequency_order(
-                &output_buffer,
-                &mut temp_buffer,
-                self.metafits_context.num_baselines,
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-                self.metafits_context.num_visibility_pols,
-            );
-
-            Ok(temp_buffer)
-        }
-    }
 }
 
 /// Implements fmt::Display for CorrelatorContext struct
@@ -559,7 +577,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::cognitive_complexity)]
     fn test_context_legacy_v1() {
         // Open the test mwax file
         let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
@@ -610,6 +627,97 @@ mod tests {
         // metafits filename:        ../test_files/1101503312_1_timestep/1101503312.metafits,
         // gpubox batches:           [
         // batch_number=0 gpubox_files=[filename=../test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits channelidentifier=1]
+    }
+
+    #[test]
+    fn test_read_by_frequency_invalid_inputs() {
+        let mwax_metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+        let mwax_filename =
+            "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
+
+        // Open a context and load in a test metafits and gpubox file
+        let gpuboxfiles = vec![mwax_filename];
+        let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+            .expect("Failed to create CorrelatorContext");
+
+        // 99999 is invalid as a timestep for this observation
+        let result_invalid_timestep = context.read_by_frequency(99999, 0);
+
+        assert!(matches!(
+            result_invalid_timestep.unwrap_err(),
+            GpuboxError::InvalidTimeStepIndex(_)
+        ));
+
+        // 99999 is invalid as a coarse_chan for this observation
+        let result_invalid_coarse_chan = context.read_by_frequency(0, 99999);
+
+        assert!(matches!(
+            result_invalid_coarse_chan.unwrap_err(),
+            GpuboxError::InvalidCoarseChanIndex(_)
+        ));
+    }
+
+    #[test]
+    fn test_read_by_baseline_invalid_inputs() {
+        let mwax_metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+        let mwax_filename =
+            "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
+
+        // Open a context and load in a test metafits and gpubox file
+        let gpuboxfiles = vec![mwax_filename];
+        let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+            .expect("Failed to create CorrelatorContext");
+
+        // 99999 is invalid as a timestep for this observation
+        let result_invalid_timestep = context.read_by_baseline(99999, 0);
+
+        assert!(matches!(
+            result_invalid_timestep.unwrap_err(),
+            GpuboxError::InvalidTimeStepIndex(_)
+        ));
+
+        // 99999 is invalid as a coarse_chan for this observation
+        let result_invalid_coarse_chan = context.read_by_baseline(0, 99999);
+
+        assert!(matches!(
+            result_invalid_coarse_chan.unwrap_err(),
+            GpuboxError::InvalidCoarseChanIndex(_)
+        ));
+    }
+
+    #[test]
+    fn test_mwa_legacy_read() {
+        // Open the test mwa file
+        // a) using mwalib (by baseline) (data will be ordered [baseline][freq][pol][r][i])
+        // b) using mwalib (by frequency) (data will be ordered [freq][baseline][pol][r][i])
+        // Then check b) is the same as a) and
+        let mwax_metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+        let mwax_filename =
+            "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+
+        //
+        // Read the mwax file by frequency using mwalib
+        //
+        // Open a context and load in a test metafits and gpubox file
+        let gpuboxfiles = vec![mwax_filename];
+        let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+            .expect("Failed to create CorrelatorContext");
+
+        // Read and convert first HDU by baseline
+        let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+
+        // Read and convert first HDU by frequency
+        let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+
+        let sum_freq: f64 = mwalib_hdu_data_by_freq
+            .iter()
+            .fold(0., |sum, x| sum + *x as f64);
+        let sum_bl: f64 = mwalib_hdu_data_by_bl
+            .iter()
+            .fold(0., |sum, x| sum + *x as f64);
+
+        // Check sums match
+        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default());
     }
 
     #[test]

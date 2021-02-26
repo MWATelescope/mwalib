@@ -10,6 +10,12 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum GpuboxError {
+    #[error("Invalid timestep index provided. The timestep index must be between 0 and {0}")]
+    InvalidTimeStepIndex(usize),
+
+    #[error("Invalid coarse chan index provided. The coarse chan index must be between 0 and {0}")]
+    InvalidCoarseChanIndex(usize),
+
     #[error("No gpubox / mwax fits files were supplied")]
     NoGpuboxes,
 
