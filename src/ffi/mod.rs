@@ -726,13 +726,13 @@ pub struct MetafitsMetadata {
     /// ALTITUDE
     pub alt_deg: f64,
     /// Zenith angle of the pointing centre in degrees
-    pub zenith_angle_deg: f64,
+    pub za_deg: f64,
     /// AZIMUTH of the pointing centre in radians
     pub az_rad: f64,
     /// ALTITUDE (a.k.a. elevation) of the pointing centre in radians
     pub alt_rad: f64,
     /// Zenith angle of the pointing centre in radians
-    pub zenith_angle_rad: f64,
+    pub za_rad: f64,
     /// Altitude of Sun
     pub sun_alt_deg: f64,
     /// Distance from pointing center to Sun
@@ -898,12 +898,12 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             dec_tile_pointing_degrees,
             ra_phase_center_degrees,
             dec_phase_center_degrees,
-            az_deg: azimuth_degrees,
-            alt_deg: altitude_degrees,
-            zenith_angle_deg,
+            az_deg,
+            alt_deg,
+            za_deg,
             az_rad,
             alt_rad,
-            zenith_angle_rad,
+            za_rad,
             sun_alt_deg,
             sun_distance_deg,
             moon_distance_deg,
@@ -956,12 +956,12 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 Some(v) => v,
                 None => 0.,
             },
-            az_deg: *azimuth_degrees,
-            alt_deg: *altitude_degrees,
-            zenith_angle_deg: *zenith_angle_deg,
+            az_deg: *az_deg,
+            alt_deg: *alt_deg,
+            za_deg: *za_deg,
             az_rad: *az_rad,
             alt_rad: *alt_rad,
-            zenith_angle_rad: *zenith_angle_rad,
+            za_rad: *za_rad,
             sun_alt_deg: *sun_alt_deg,
             sun_distance_deg: *sun_distance_deg,
             moon_distance_deg: *moon_distance_deg,

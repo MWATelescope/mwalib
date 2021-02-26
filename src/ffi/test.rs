@@ -1,6 +1,7 @@
 use super::*;
 use std::fs::File;
 use std::io::{Error, Write};
+use std::mem;
 
 //
 // Helper methods for many tests
@@ -206,6 +207,19 @@ fn ffi_boxed_slice_to_array<T>(ptr: *mut T, len: usize) -> Vec<T> {
     }
 }
 
+fn ffi_array_to_boxed_slice<T>(rust_vector_or_slice: Vec<T>) -> (*mut T, usize) {
+    let mut boxed_slice: Box<[T]> = rust_vector_or_slice.into_boxed_slice();
+    let array_ptr: *mut T = boxed_slice.as_mut_ptr();
+    let array_ptr_len: usize = boxed_slice.len();
+    assert_eq!(array_ptr_len, array_ptr_len);
+
+    // Prevent the slice from being destroyed (Leak the memory).
+    // This is because we are using our ffi code to free the memory
+    mem::forget(boxed_slice);
+
+    (array_ptr, array_ptr_len)
+}
+
 // Helper fuction to generate (small) test voltage files
 fn generate_test_voltage_file(
     temp_dir: &tempdir::TempDir,
@@ -306,6 +320,12 @@ fn test_mwalib_metafits_context_new_valid() {
         // Check we got valid MetafitsContext pointer
         let context_ptr = metafits_context_ptr.as_mut();
         assert!(context_ptr.is_some());
+
+        // Now ensure we can free the rust memory
+        assert_eq!(mwalib_metafits_context_free(context_ptr.unwrap()), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_metafits_context_free(std::ptr::null_mut()), 0);
     }
 }
 
@@ -348,6 +368,12 @@ fn test_mwalib_correlator_context_new_valid() {
         // Check we got valid CorrelatorContext pointer
         let context_ptr = correlator_context_ptr.as_mut();
         assert!(context_ptr.is_some());
+
+        // Now ensure we can free the rust memory
+        assert_eq!(mwalib_correlator_context_free(context_ptr.unwrap()), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_correlator_context_free(std::ptr::null_mut()), 0);
     }
 }
 
@@ -407,6 +433,12 @@ fn test_mwalib_voltage_context_new_valid() {
         // Check we got valid VoltageContext pointer
         let context_ptr = voltage_context_ptr.as_mut();
         assert!(context_ptr.is_some());
+
+        // Now ensure we can free the rust memory
+        assert_eq!(mwalib_voltage_context_free(context_ptr.unwrap()), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_voltage_context_free(std::ptr::null_mut()), 0);
     }
 }
 
@@ -456,6 +488,15 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
 
         // We should get a valid obsid and no error message
         assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
+
+        // Now ensure we can free the rust memory
+        assert_eq!(
+            mwalib_metafits_metadata_free(Box::into_raw(metafits_metadata)),
+            0
+        );
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_metafits_metadata_free(std::ptr::null_mut()), 0);
     }
 }
 
@@ -519,6 +560,15 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
 
         // We should get a valid obsid and no error message
         assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
+
+        // Now ensure we can free the rust memory
+        assert_eq!(
+            mwalib_metafits_metadata_free(Box::into_raw(metafits_metadata)),
+            0
+        );
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_metafits_metadata_free(std::ptr::null_mut()), 0);
     }
 }
 
@@ -554,11 +604,20 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
             "mwalib_metafits_metadata_get did not return success"
         );
 
-        // Get the mwalibMetadata struct from the pointer
+        // Get the metafits metadata struct from the pointer
         let metafits_metadata = Box::from_raw(*metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
         assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
+
+        // Now ensure we can free the rust memory
+        assert_eq!(
+            mwalib_metafits_metadata_free(Box::into_raw(metafits_metadata)),
+            0
+        );
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_metafits_metadata_free(std::ptr::null_mut()), 0);
     }
 }
 
@@ -592,11 +651,20 @@ fn test_mwalib_correlator_metadata_get_valid() {
             "mwalib_correlator_metadata_get did not return success"
         );
 
-        // Get the mwalibMetadata struct from the pointer
+        // Get the correlator metadata struct from the pointer
         let correlator_metadata = Box::from_raw(*correlator_metadata_ptr);
 
-        // We should get a valid timestep and no error message
+        // We should get a valid number of coarse channels and no error message
         assert_eq!(correlator_metadata.num_coarse_chans, 1);
+
+        // Now ensure we can free the rust memory
+        assert_eq!(
+            mwalib_correlator_metadata_free(Box::into_raw(correlator_metadata)),
+            0
+        );
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_correlator_metadata_free(std::ptr::null_mut()), 0);
     }
 }
 
@@ -614,6 +682,76 @@ fn test_mwalib_correlator_metadata_get_null_context() {
         let ret_val = mwalib_correlator_metadata_get(
             context_ptr,
             &mut correlator_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // We should get a non-zero return code
+        assert_ne!(ret_val, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_metadata_get_valid() {
+    // This tests for a valid voltage metadata struct being instantiated
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        // Create a VoltageContext
+        let voltage_context_ptr: *mut VoltageContext = get_test_voltage_context();
+
+        // Check we got valid MetafitsContext pointer
+        let context_ptr = voltage_context_ptr.as_mut();
+        assert!(context_ptr.is_some());
+
+        // Populate a VoltageMetadata struct
+        let mut voltage_metadata_ptr: &mut *mut VoltageMetadata = &mut std::ptr::null_mut();
+        let retval = mwalib_voltage_metadata_get(
+            voltage_context_ptr,
+            &mut voltage_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // Check return value
+        assert_eq!(
+            retval, 0,
+            "mwalib_voltage_metadata_get did not return success"
+        );
+
+        // Get the voltage metadata struct from the pointer
+        let voltage_metadata = Box::from_raw(*voltage_metadata_ptr);
+
+        // We should get a valid number of coarse channels and no error message
+        assert_eq!(voltage_metadata.num_coarse_chans, 2);
+
+        // Now ensure we can free the rust memory
+        assert_eq!(
+            mwalib_voltage_metadata_free(Box::into_raw(voltage_metadata)),
+            0
+        );
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_voltage_metadata_free(std::ptr::null_mut()), 0);
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_metadata_get_null_context() {
+    // This tests for passing a null context to the mwalib_voltage_metadata_get() method
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let mut voltage_metadata_ptr: &mut *mut VoltageMetadata = &mut std::ptr::null_mut();
+
+        let context_ptr = std::ptr::null_mut();
+        let ret_val = mwalib_voltage_metadata_get(
+            context_ptr,
+            &mut voltage_metadata_ptr,
             error_message_ptr,
             error_len,
         );
@@ -661,6 +799,16 @@ fn test_mwalib_antennas_get_from_metafits_context_valid() {
         // We should get a valid, populated array
         assert_eq!(array_len, 128, "Array length is not correct");
         assert_eq!(item[index].tile_id, 13);
+
+        // Test freeing the memory
+        // First get a raw pointer and have rust not own that memory
+        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(mwalib_antennas_free(array_to_free, array_to_free_len), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_antennas_free(std::ptr::null_mut(), 0), 0);
     }
 }
 
@@ -701,6 +849,16 @@ fn test_mwalib_antennas_get_from_correlator_context_valid() {
         // We should get a valid, populated array
         assert_eq!(array_len, 128, "Array length is not correct");
         assert_eq!(item[index].tile_id, 13);
+
+        // Test freeing the memory
+        // First get a raw pointer and have rust not own that memory
+        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(mwalib_antennas_free(array_to_free, array_to_free_len), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_antennas_free(std::ptr::null_mut(), 0), 0);
     }
 }
 
@@ -741,6 +899,16 @@ fn test_mwalib_antennas_get_from_voltage_context_valid() {
         // We should get a valid, populated array
         assert_eq!(array_len, 128, "Array length is not correct");
         assert_eq!(item[index].tile_id, 13);
+
+        // Test freeing the memory
+        // First get a raw pointer and have rust not own that memory
+        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(mwalib_antennas_free(array_to_free, array_to_free_len), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_antennas_free(std::ptr::null_mut(), 0), 0);
     }
 }
 
@@ -815,6 +983,16 @@ fn test_mwalib_baselines_get_valid_using_metafits_context() {
         assert_eq!(array_len, 8256, "Array length is not correct");
         assert_eq!(item[index].ant1_index, 0);
         assert_eq!(item[index].ant2_index, 2);
+
+        // Test freeing the memory
+        // First get a raw pointer and have rust not own that memory
+        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(mwalib_baselines_free(array_to_free, array_to_free_len), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_baselines_free(std::ptr::null_mut(), 0), 0);
     }
 }
 
@@ -857,6 +1035,16 @@ fn test_mwalib_baselines_get_valid_using_correlator_context() {
         assert_eq!(array_len, 8256, "Array length is not correct");
         assert_eq!(item[index].ant1_index, 0);
         assert_eq!(item[index].ant2_index, 2);
+
+        // Test freeing the memory
+        // First get a raw pointer and have rust not own that memory
+        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(mwalib_baselines_free(array_to_free, array_to_free_len), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_baselines_free(std::ptr::null_mut(), 0), 0);
     }
 }
 
@@ -899,6 +1087,16 @@ fn test_mwalib_baselines_get_valid_using_voltage_context() {
         assert_eq!(array_len, 8256, "Array length is not correct");
         assert_eq!(item[index].ant1_index, 0);
         assert_eq!(item[index].ant2_index, 2);
+
+        // Test freeing the memory
+        // First get a raw pointer and have rust not own that memory
+        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(mwalib_baselines_free(array_to_free, array_to_free_len), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_baselines_free(std::ptr::null_mut(), 0), 0);
     }
 }
 
@@ -973,6 +1171,19 @@ fn test_mwalib_correlator_coarse_channels_get_valid() {
         // We should get a valid, populated array
         assert_eq!(array_len, 1, "Array length is not correct");
         assert_eq!(item[index].rec_chan_number, 109);
+
+        // Test freeing the memory
+        // First get a raw pointer and have rust not own that memory
+        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(
+            mwalib_coarse_channels_free(array_to_free, array_to_free_len),
+            0
+        );
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_coarse_channels_free(std::ptr::null_mut(), 0), 0);
     }
 }
 
@@ -1046,6 +1257,19 @@ fn test_mwalib_voltage_coarse_channels_get_valid() {
         );
         assert_eq!(item[0].rec_chan_number, 123);
         assert_eq!(item[1].rec_chan_number, 124);
+
+        // Test freeing the memory
+        // First get a raw pointer and have rust not own that memory
+        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(
+            mwalib_coarse_channels_free(array_to_free, array_to_free_len),
+            0
+        );
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_coarse_channels_free(std::ptr::null_mut(), 0), 0);
     }
 }
 
@@ -1128,6 +1352,42 @@ fn test_mwalib_rfinputs_get_from_metafits_context_valid() {
             CString::from_raw(item[index].pol),
             CString::new("X").unwrap()
         );
+    }
+}
+#[test]
+fn test_mwalib_rfinputs_free() {
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let context = get_test_metafits_context();
+
+        // Check we got a context object
+        let context_ptr = context.as_mut();
+        assert!(context_ptr.is_some());
+
+        let mut array_ptr: &mut *mut RFInput = &mut std::ptr::null_mut();
+        let mut array_len: usize = 0;
+
+        let retval = mwalib_rfinputs_get(
+            context,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut array_ptr,
+            &mut array_len,
+            error_message_ptr,
+            error_len,
+        );
+
+        // check ret val is ok
+        assert_eq!(retval, 0, "mwalib_rfinputs_get did not return success");
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(mwalib_rfinputs_free(*array_ptr, array_len), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_rfinputs_free(std::ptr::null_mut(), 0), 0);
     }
 }
 
@@ -1303,6 +1563,16 @@ fn test_mwalib_correlator_timesteps_get_valid() {
         // We should get a valid, populated array
         assert_eq!(array_len, 1, "Array length is not correct");
         assert_eq!(item[index].unix_time_ms, 1_417_468_096_000);
+
+        // Test freeing the memory
+        // First get a raw pointer and have rust not own that memory
+        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(mwalib_timesteps_free(array_to_free, array_to_free_len), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_timesteps_free(std::ptr::null_mut(), 0), 0);
     }
 }
 
@@ -1337,7 +1607,7 @@ fn test_mwalib_correlator_timesteps_get_null_context() {
 
 // Visibility Pols
 #[test]
-fn test_mwalib_correlator_visibility_pols_get_valid_using_metafits_context() {
+fn test_mwalib_visibility_pols_get_valid_using_metafits_context() {
     // This test populates visibility_pols given a metafits context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
@@ -1393,7 +1663,7 @@ fn test_mwalib_correlator_visibility_pols_get_valid_using_metafits_context() {
     }
 }
 #[test]
-fn test_mwalib_correlator_visibility_pols_get_valid_using_correlator_context() {
+fn test_mwalib_visibility_pols_get_valid_using_correlator_context() {
     // This test populates visibility_pols given a correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
@@ -1450,7 +1720,7 @@ fn test_mwalib_correlator_visibility_pols_get_valid_using_correlator_context() {
 }
 
 #[test]
-fn test_mwalib_correlator_visibility_pols_get_valid_using_voltage_context() {
+fn test_mwalib_visibility_pols_get_valid_using_voltage_context() {
     // This test populates visibility_pols given a voltage context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
@@ -1507,7 +1777,47 @@ fn test_mwalib_correlator_visibility_pols_get_valid_using_voltage_context() {
 }
 
 #[test]
-fn test_mwalib_correlator_visibilitypols_get_null_context() {
+fn test_mwalib_visibility_pols_free() {
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let context = get_test_metafits_context();
+
+        // Check we got a context object
+        let context_ptr = context.as_mut();
+        assert!(context_ptr.is_some());
+
+        let mut array_ptr: &mut *mut VisibilityPol = &mut std::ptr::null_mut();
+        let mut array_len: usize = 0;
+
+        let retval = mwalib_visibility_pols_get(
+            context,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut array_ptr,
+            &mut array_len,
+            error_message_ptr,
+            error_len,
+        );
+
+        // check ret val is ok
+        assert_eq!(
+            retval, 0,
+            "mwalib_correlator_visibility_pols_get did not return success"
+        );
+
+        // Now we are good to actually free the memory via our ffi function
+        assert_eq!(mwalib_visibility_pols_free(*array_ptr, array_len), 0);
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_visibility_pols_free(std::ptr::null_mut(), 0), 0);
+    }
+}
+
+#[test]
+fn test_mwalib_visibilitypols_get_null_context() {
     // This tests for a null context passed into the _get method
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();

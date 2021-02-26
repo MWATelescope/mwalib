@@ -100,13 +100,13 @@ pub struct MetafitsContext {
     /// ALTITUDE (a.k.a. elevation) of the pointing centre in degrees
     pub alt_deg: f64,
     /// Zenith angle of the pointing centre in degrees
-    pub zenith_angle_deg: f64,
+    pub za_deg: f64,
     /// AZIMUTH of the pointing centre in radians
     pub az_rad: f64,
     /// ALTITUDE (a.k.a. elevation) of the pointing centre in radians
     pub alt_rad: f64,
     /// Zenith angle of the pointing centre in radians
-    pub zenith_angle_rad: f64,
+    pub za_rad: f64,
     /// Altitude of Sun
     pub sun_alt_deg: f64,
     /// Distance from pointing center to Sun
@@ -374,10 +374,10 @@ impl MetafitsContext {
             dec_phase_center_degrees,
             az_deg: azimuth_degrees,
             alt_deg: altitude_degrees,
-            zenith_angle_deg: zenith_angle_degrees,
+            za_deg: zenith_angle_degrees,
             az_rad: azimuth_degrees.to_radians(),
             alt_rad: altitude_degrees.to_radians(),
-            zenith_angle_rad: zenith_angle_degrees.to_radians(),
+            za_rad: zenith_angle_degrees.to_radians(),
             sun_alt_deg: sun_altitude_degrees,
             sun_distance_deg: sun_distance_degrees,
             moon_distance_deg: moon_distance_degrees,
