@@ -26,15 +26,9 @@ jobs:
     - name: Install Tarpaulin
       run: cargo install cargo-tarpaulin
 
-    - name: Get cfitsio        
+    - name: Build cfitsio        
       run: |
-          wget "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-3.48.tar.gz" -O cfitsio.tar.gz;
-          tar -xvf cfitsio.tar.gz;
-          cd cfitsio-3.48
-          ./configure --prefix=/usr/local --enable-reentrant;
-          make clean && make;
-          sudo make install;
-          sudo ldconfig;    
+          sudo ./build.sh
 
     - name: Run cargo-tarpaulin
       run: cargo tarpaulin --verbose --force-clean --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/
