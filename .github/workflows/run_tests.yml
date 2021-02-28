@@ -23,12 +23,12 @@ jobs:
       run: |
           sudo apt-get install libssl-dev pkg-config cmake zlib1g-dev 
 
+    - name: Build cfitsio
+      run: |
+          sudo ./.github/workflows/build.sh
+
     - name: Install Tarpaulin
       run: cargo install cargo-tarpaulin
-
-    - name: Build cfitsio        
-      run: |
-          sudo ./github/workflows/build.sh
 
     - name: Run cargo-tarpaulin
       run: cargo tarpaulin --verbose --force-clean --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/
