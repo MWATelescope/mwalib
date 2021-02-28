@@ -28,7 +28,7 @@ jobs:
 
     - name: Build cfitsio        
       run: |
-          sudo ./build.sh
+          sudo ./github/workflows/build.sh
 
     - name: Run cargo-tarpaulin
       run: cargo tarpaulin --verbose --force-clean --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/

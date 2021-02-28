@@ -12,6 +12,7 @@ use chrono::{DateTime, Duration, FixedOffset};
 
 use crate::antenna::*;
 use crate::baseline::*;
+use crate::coarse_channel::*;
 use crate::rfinput::*;
 use crate::visibility_pol::*;
 use crate::*;
@@ -180,6 +181,20 @@ pub struct MetafitsContext {
 }
 
 impl MetafitsContext {
+    /// From a path to a metafits file, create a `MetafitsContext`.
+    ///
+    /// The traits on the input parameter allows flexibility to input type.
+    ///
+    /// # Arguments
+    ///
+    /// * `metafits_filename` - filename of metafits file as a path or string.        
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a populated MetafitsContext object if Ok.
+    ///
+    ///
     pub fn new<T: AsRef<std::path::Path>>(metafits: &T) -> Result<Self, MwalibError> {
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
@@ -335,14 +350,13 @@ impl MetafitsContext {
         };
 
         // Populate coarse channels
-        let (num_coarse_chans, coarse_chan_width_hz) =
-            coarse_channel::CoarseChannel::populate_metafits_coarse_chans(
+        // Get metafits info
+        let (metafits_coarse_chan_vec, metafits_coarse_chan_width_hz) =
+            CoarseChannel::get_metafits_coarse_channel_info(
                 &mut metafits_fptr,
                 &metafits_hdu,
                 metafits_observation_bandwidth_hz,
             )?;
-
-        let observation_bandwidth_hz = (num_coarse_chans as u32) * coarse_chan_width_hz;
 
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.
@@ -351,7 +365,8 @@ impl MetafitsContext {
             (fc * 1000.).round() as _
         };
         // Determine the number of fine channels per coarse channel.
-        let num_fine_chans_per_coarse = (coarse_chan_width_hz / fine_chan_width_hz) as usize;
+        let num_corr_fine_chans_per_coarse =
+            (metafits_coarse_chan_width_hz / fine_chan_width_hz) as usize;
 
         Ok(MetafitsContext {
             obs_id: obsid,
@@ -393,7 +408,7 @@ impl MetafitsContext {
             mode,
             corr_fine_chan_width_hz: fine_chan_width_hz,
             corr_int_time_ms: integration_time_ms,
-            num_corr_fine_chans_per_coarse: num_fine_chans_per_coarse,
+            num_corr_fine_chans_per_coarse: num_corr_fine_chans_per_coarse,
             receivers,
             delays,
             global_analogue_attenuation_db,
@@ -404,9 +419,9 @@ impl MetafitsContext {
             num_rf_inputs,
             rf_inputs,
             num_ant_pols: num_antenna_pols,
-            num_coarse_chans,
-            obs_bandwidth_hz: observation_bandwidth_hz,
-            coarse_chan_width_hz,
+            num_coarse_chans: metafits_coarse_chan_vec.len(),
+            obs_bandwidth_hz: metafits_observation_bandwidth_hz,
+            coarse_chan_width_hz: metafits_coarse_chan_width_hz,
             metafits_centre_freq_hz,
             metafits_filename: metafits
                 .as_ref()
@@ -418,6 +433,49 @@ impl MetafitsContext {
             num_visibility_pols,
             visibility_pols,
         })
+    }
+
+    /// Given a hint at the expected `CorrelatorVersion`, return a vector containing the expected
+    /// coarse channels for an existing populated MetafitsContext.
+    ///
+    /// The traits on the input parameters allow flexibility to input types.
+    ///
+    /// # Arguments    
+    ///
+    /// * `corr_version` - Hint, providing the `CorrelatorVersion` info, so the expected `CoarseChannel`s can be returned.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a populated vector of `CoarseChannel`s which represent the expected coarse channels.
+    ///
+    ///
+    pub fn get_expected_coarse_channels(
+        &self,
+        corr_version: CorrelatorVersion,
+    ) -> Result<Vec<CoarseChannel>, MwalibError> {
+        // Reopen metafits
+        let mut metafits_fptr = fits_open!(&self.metafits_filename)?;
+        let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
+
+        // Get metafits info
+        let (metafits_coarse_chan_vec, metafits_coarse_chan_width_hz) =
+            CoarseChannel::get_metafits_coarse_channel_info(
+                &mut metafits_fptr,
+                &metafits_hdu,
+                self.obs_bandwidth_hz,
+            )?;
+
+        // Process the channels based on the gpubox files we have
+        let coarse_chans = CoarseChannel::populate_coarse_channels(
+            corr_version,
+            &metafits_coarse_chan_vec,
+            metafits_coarse_chan_width_hz,
+            None,
+            None,
+        )?;
+
+        Ok(coarse_chans)
     }
 }
 
@@ -571,20 +629,3 @@ impl fmt::Display for MetafitsContext {
 
 #[cfg(test)]
 mod test;
-
-/*
-// num baselines:            8256,
-        assert_eq!(context.num_baselines, 8256);
-
-        // num visibility pols:      4,
-        assert_eq!(context.num_visibility_pols, 4);
-        // Correlator Mode:
-        // fine channel resolution:  10 kHz,
-        assert_eq!(context.fine_chan_width_hz, 10_000);
-
-        // integration time:         2.00 s
-        assert_eq!(context.integration_time_ms, 2000);
-
-        // num fine channels/coarse: 128,
-        assert_eq!(context.num_fine_chans_per_coarse, 128);
-*/

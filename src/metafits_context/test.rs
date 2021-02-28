@@ -2,7 +2,7 @@ use super::*;
 use float_cmp::*;
 
 #[test]
-fn test_obs_context_new_invalid_metafits() {
+fn test_metafits_context_new_invalid() {
     let metafits_filename = "invalid.metafits";
 
     // No gpubox files provided
@@ -12,7 +12,7 @@ fn test_obs_context_new_invalid_metafits() {
 }
 
 #[test]
-fn test_obs_context_legacy_v1() {
+fn test_metafits_context_new_valid() {
     // Open the test mwa v 1 metafits file
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
@@ -184,6 +184,9 @@ fn test_obs_context_legacy_v1() {
     assert_eq!(context.rf_inputs[255].pol, Pol::Y);
     assert_eq!(context.rf_inputs[255].tile_name, "Tile168");
 
+    // num baselines:            8256,
+    assert_eq!(context.num_baselines, 8256);
+
     // num antenna pols:         2,
     assert_eq!(context.num_ant_pols, 2);
 
@@ -192,4 +195,128 @@ fn test_obs_context_legacy_v1() {
 
     // metafits_filename
     assert_eq!(context.metafits_filename, metafits_filename);
+}
+
+#[test]
+fn test_get_expected_coarse_channels_old_legacy() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(&metafits_filename);
+
+    assert!(result.is_ok());
+
+    let context = result.unwrap();
+
+    let ecc_result = context.get_expected_coarse_channels(CorrelatorVersion::OldLegacy);
+
+    assert!(ecc_result.is_ok());
+
+    let chans = ecc_result.unwrap();
+
+    assert_eq!(chans.len(), 24);
+
+    assert_eq!(chans[0].corr_chan_number, 0);
+    assert_eq!(chans[0].rec_chan_number, 109);
+
+    assert_eq!(chans[19].corr_chan_number, 19);
+    assert_eq!(chans[19].rec_chan_number, 128);
+
+    assert_eq!(chans[20].corr_chan_number, 23);
+    assert_eq!(chans[20].rec_chan_number, 129);
+
+    assert_eq!(chans[21].corr_chan_number, 22);
+    assert_eq!(chans[21].rec_chan_number, 130);
+
+    assert_eq!(chans[22].corr_chan_number, 21);
+    assert_eq!(chans[22].rec_chan_number, 131);
+
+    assert_eq!(chans[23].corr_chan_number, 20);
+    assert_eq!(chans[23].rec_chan_number, 132);
+}
+
+#[test]
+fn test_get_expected_coarse_channels_legacy() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(&metafits_filename);
+
+    assert!(result.is_ok());
+
+    let context = result.unwrap();
+
+    let ecc_result = context.get_expected_coarse_channels(CorrelatorVersion::Legacy);
+
+    assert!(ecc_result.is_ok());
+
+    let chans = ecc_result.unwrap();
+
+    assert_eq!(chans.len(), 24);
+
+    assert_eq!(chans[0].corr_chan_number, 0);
+    assert_eq!(chans[0].rec_chan_number, 109);
+
+    assert_eq!(chans[19].corr_chan_number, 19);
+    assert_eq!(chans[19].rec_chan_number, 128);
+
+    assert_eq!(chans[20].corr_chan_number, 23);
+    assert_eq!(chans[20].rec_chan_number, 129);
+
+    assert_eq!(chans[21].corr_chan_number, 22);
+    assert_eq!(chans[21].rec_chan_number, 130);
+
+    assert_eq!(chans[22].corr_chan_number, 21);
+    assert_eq!(chans[22].rec_chan_number, 131);
+
+    assert_eq!(chans[23].corr_chan_number, 20);
+    assert_eq!(chans[23].rec_chan_number, 132);
+}
+
+#[test]
+fn test_get_expected_coarse_channels_v2() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(&metafits_filename);
+
+    assert!(result.is_ok());
+
+    let context = result.unwrap();
+
+    let ecc_result = context.get_expected_coarse_channels(CorrelatorVersion::V2);
+
+    assert!(ecc_result.is_ok());
+
+    let chans = ecc_result.unwrap();
+
+    assert_eq!(chans.len(), 24);
+
+    assert_eq!(chans[0].corr_chan_number, 0);
+    assert_eq!(chans[0].rec_chan_number, 109);
+
+    assert_eq!(chans[19].corr_chan_number, 19);
+    assert_eq!(chans[19].rec_chan_number, 128);
+
+    assert_eq!(chans[20].corr_chan_number, 20);
+    assert_eq!(chans[20].rec_chan_number, 129);
+
+    assert_eq!(chans[21].corr_chan_number, 21);
+    assert_eq!(chans[21].rec_chan_number, 130);
+
+    assert_eq!(chans[22].corr_chan_number, 22);
+    assert_eq!(chans[22].rec_chan_number, 131);
+
+    assert_eq!(chans[23].corr_chan_number, 23);
+    assert_eq!(chans[23].rec_chan_number, 132);
+}
+
+#[test]
+fn test_correlator_version_display() {
+    let cv = CorrelatorVersion::V2;
+
+    assert_eq!(format!("{}", cv), "v2 MWAX");
 }

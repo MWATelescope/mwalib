@@ -1,7 +1,6 @@
 use super::*;
 use std::fs::File;
 use std::io::{Error, Write};
-use std::mem;
 
 //
 // Helper methods for many tests
@@ -19,6 +18,7 @@ use std::mem;
 ///
 /// * a raw pointer to an instantiated MetafitsContext for the test metafits and gpubox file
 ///
+#[cfg(test)]
 fn get_test_metafits_context() -> *mut MetafitsContext {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
@@ -61,6 +61,7 @@ fn get_test_metafits_context() -> *mut MetafitsContext {
 ///
 /// * a raw pointer to an instantiated CorrelatorContext for the test metafits and gpubox file
 ///
+#[cfg(test)]
 fn get_test_correlator_context() -> *mut CorrelatorContext {
     // This tests for a valid correlator context
     let error_len: size_t = 128;
@@ -113,6 +114,7 @@ fn get_test_correlator_context() -> *mut CorrelatorContext {
 ///
 /// * a raw pointer to an instantiated VoltageContext for the test metafits and voltage file
 ///
+#[cfg(test)]
 fn get_test_voltage_context() -> *mut VoltageContext {
     // This tests for a valid voltage context
     let error_len: size_t = 128;
@@ -200,6 +202,7 @@ fn get_test_voltage_context() -> *mut VoltageContext {
 ///
 /// * Array of T expressed as Vec<T>
 ///
+#[cfg(test)]
 fn ffi_boxed_slice_to_array<T>(ptr: *mut T, len: usize) -> Vec<T> {
     unsafe {
         let vec: Vec<T> = Vec::from_raw_parts(ptr, len, len);
@@ -207,20 +210,25 @@ fn ffi_boxed_slice_to_array<T>(ptr: *mut T, len: usize) -> Vec<T> {
     }
 }
 
-fn ffi_array_to_boxed_slice<T>(rust_vector_or_slice: Vec<T>) -> (*mut T, usize) {
-    let mut boxed_slice: Box<[T]> = rust_vector_or_slice.into_boxed_slice();
-    let array_ptr: *mut T = boxed_slice.as_mut_ptr();
-    let array_ptr_len: usize = boxed_slice.len();
-    assert_eq!(array_ptr_len, array_ptr_len);
-
-    // Prevent the slice from being destroyed (Leak the memory).
-    // This is because we are using our ffi code to free the memory
-    mem::forget(boxed_slice);
-
-    (array_ptr, array_ptr_len)
-}
-
-// Helper fuction to generate (small) test voltage files
+/// Helper fuction to generate (small) test voltage files
+///
+///
+/// # Arguments
+///
+/// * `temp_dir` - A `TempDir` object which is already in scope inside which we create ths test file.
+///
+/// * 'filename' - The filename to append to the `TempDir` for this test file.
+///
+/// * `time_samples` - Number of time samples used when generating the file.
+///
+/// * `rf_inputs` - Number of rf inputs used when generating the file.
+///
+///
+/// # Returns
+///
+/// * A Result returning the filename if the temp file was created successfully.
+///
+#[cfg(test)]
 fn generate_test_voltage_file(
     temp_dir: &tempdir::TempDir,
     filename: &str,
@@ -802,10 +810,10 @@ fn test_mwalib_antennas_get_from_metafits_context_valid() {
 
         // Test freeing the memory
         // First get a raw pointer and have rust not own that memory
-        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+        let array_to_free = ffi_array_to_boxed_slice(item);
 
         // Now we are good to actually free the memory via our ffi function
-        assert_eq!(mwalib_antennas_free(array_to_free, array_to_free_len), 0);
+        assert_eq!(mwalib_antennas_free(array_to_free, array_len), 0);
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_antennas_free(std::ptr::null_mut(), 0), 0);
@@ -852,10 +860,10 @@ fn test_mwalib_antennas_get_from_correlator_context_valid() {
 
         // Test freeing the memory
         // First get a raw pointer and have rust not own that memory
-        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+        let array_to_free = ffi_array_to_boxed_slice(item);
 
         // Now we are good to actually free the memory via our ffi function
-        assert_eq!(mwalib_antennas_free(array_to_free, array_to_free_len), 0);
+        assert_eq!(mwalib_antennas_free(array_to_free, array_len), 0);
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_antennas_free(std::ptr::null_mut(), 0), 0);
@@ -902,10 +910,10 @@ fn test_mwalib_antennas_get_from_voltage_context_valid() {
 
         // Test freeing the memory
         // First get a raw pointer and have rust not own that memory
-        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+        let array_to_free = ffi_array_to_boxed_slice(item);
 
         // Now we are good to actually free the memory via our ffi function
-        assert_eq!(mwalib_antennas_free(array_to_free, array_to_free_len), 0);
+        assert_eq!(mwalib_antennas_free(array_to_free, array_len), 0);
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_antennas_free(std::ptr::null_mut(), 0), 0);
@@ -986,10 +994,10 @@ fn test_mwalib_baselines_get_valid_using_metafits_context() {
 
         // Test freeing the memory
         // First get a raw pointer and have rust not own that memory
-        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+        let array_to_free = ffi_array_to_boxed_slice(item);
 
         // Now we are good to actually free the memory via our ffi function
-        assert_eq!(mwalib_baselines_free(array_to_free, array_to_free_len), 0);
+        assert_eq!(mwalib_baselines_free(array_to_free, array_len), 0);
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_baselines_free(std::ptr::null_mut(), 0), 0);
@@ -1038,10 +1046,10 @@ fn test_mwalib_baselines_get_valid_using_correlator_context() {
 
         // Test freeing the memory
         // First get a raw pointer and have rust not own that memory
-        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+        let array_to_free = ffi_array_to_boxed_slice(item);
 
         // Now we are good to actually free the memory via our ffi function
-        assert_eq!(mwalib_baselines_free(array_to_free, array_to_free_len), 0);
+        assert_eq!(mwalib_baselines_free(array_to_free, array_len), 0);
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_baselines_free(std::ptr::null_mut(), 0), 0);
@@ -1090,10 +1098,10 @@ fn test_mwalib_baselines_get_valid_using_voltage_context() {
 
         // Test freeing the memory
         // First get a raw pointer and have rust not own that memory
-        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+        let array_to_free = ffi_array_to_boxed_slice(item);
 
         // Now we are good to actually free the memory via our ffi function
-        assert_eq!(mwalib_baselines_free(array_to_free, array_to_free_len), 0);
+        assert_eq!(mwalib_baselines_free(array_to_free, array_len), 0);
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_baselines_free(std::ptr::null_mut(), 0), 0);
@@ -1174,13 +1182,10 @@ fn test_mwalib_correlator_coarse_channels_get_valid() {
 
         // Test freeing the memory
         // First get a raw pointer and have rust not own that memory
-        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+        let array_to_free = ffi_array_to_boxed_slice(item);
 
         // Now we are good to actually free the memory via our ffi function
-        assert_eq!(
-            mwalib_coarse_channels_free(array_to_free, array_to_free_len),
-            0
-        );
+        assert_eq!(mwalib_coarse_channels_free(array_to_free, array_len), 0);
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_coarse_channels_free(std::ptr::null_mut(), 0), 0);
@@ -1260,13 +1265,10 @@ fn test_mwalib_voltage_coarse_channels_get_valid() {
 
         // Test freeing the memory
         // First get a raw pointer and have rust not own that memory
-        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+        let array_to_free = ffi_array_to_boxed_slice(item);
 
         // Now we are good to actually free the memory via our ffi function
-        assert_eq!(
-            mwalib_coarse_channels_free(array_to_free, array_to_free_len),
-            0
-        );
+        assert_eq!(mwalib_coarse_channels_free(array_to_free, array_len), 0);
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_coarse_channels_free(std::ptr::null_mut(), 0), 0);
@@ -1566,10 +1568,10 @@ fn test_mwalib_correlator_timesteps_get_valid() {
 
         // Test freeing the memory
         // First get a raw pointer and have rust not own that memory
-        let (array_to_free, array_to_free_len) = ffi_array_to_boxed_slice(item);
+        let array_to_free = ffi_array_to_boxed_slice(item);
 
         // Now we are good to actually free the memory via our ffi function
-        assert_eq!(mwalib_timesteps_free(array_to_free, array_to_free_len), 0);
+        assert_eq!(mwalib_timesteps_free(array_to_free, array_len), 0);
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_timesteps_free(std::ptr::null_mut(), 0), 0);

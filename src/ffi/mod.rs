@@ -15,6 +15,7 @@ C).
 use crate::*;
 use libc::{c_char, c_float, size_t};
 use std::ffi::*;
+use std::mem;
 use std::slice;
 
 /// Generic helper function for all FFI modules to take an already allocated C string
@@ -100,7 +101,7 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
     0
 }
 
-/// Boxes for FFI a rust-allocated array of T.
+/// Boxes for FFI a rust-allocated vector of T.
 ///
 ///
 /// # Arguments
@@ -112,12 +113,17 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
 ///
 /// * a raw pointer to the array of T's
 ///
-fn array_to_ffi_boxed_slice<T>(v: Vec<T>) -> *mut T {
-    // Going from Vec<_> to Box<[_]> just drops the (extra) `capacity`
-    let boxed_slice: Box<[T]> = v.into_boxed_slice();
-    let fat_ptr: *mut [T] = Box::into_raw(boxed_slice);
-    let slim_ptr: *mut T = fat_ptr as _;
-    slim_ptr
+fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
+    let mut boxed_slice: Box<[T]> = v.into_boxed_slice();
+    let array_ptr: *mut T = boxed_slice.as_mut_ptr();
+    let array_ptr_len: usize = boxed_slice.len();
+    assert_eq!(array_ptr_len, array_ptr_len);
+
+    // Prevent the slice from being destroyed (Leak the memory).
+    // This is because we are using our ffi code to free the memory
+    mem::forget(boxed_slice);
+
+    array_ptr
 }
 
 /// Create and return a pointer to an `MetafitsContext` struct given only a metafits file
@@ -1454,8 +1460,8 @@ pub unsafe extern "C" fn mwalib_antennas_get(
     }
 
     // Pass back the array and length of the array
-    *out_ants_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_ants_len = metafits_context.antennas.len();
+    *out_ants_len = item_vec.len();
+    *out_ants_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // Return success
     0
@@ -1596,8 +1602,8 @@ pub unsafe extern "C" fn mwalib_baselines_get(
     }
 
     // Pass back the array and length of the array
-    *out_baselines_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_baselines_len = metafits_context.baselines.len();
+    *out_baselines_len = item_vec.len();
+    *out_baselines_ptr = ffi_array_to_boxed_slice(item_vec);
 
     return 0;
 }
@@ -1731,8 +1737,8 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
     }
 
     // Pass back the array and length of the array
-    *out_coarse_chans_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_coarse_chans_len = context.coarse_chans.len();
+    *out_coarse_chans_len = item_vec.len();
+    *out_coarse_chans_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // return success
     0
@@ -1810,8 +1816,8 @@ pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
     }
 
     // Pass back the array and length of the array
-    *out_coarse_chans_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_coarse_chans_len = context.coarse_chans.len();
+    *out_coarse_chans_len = item_vec.len();
+    *out_coarse_chans_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // return success
     0
@@ -2003,8 +2009,8 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
     }
 
     // Pass back the array and length of the array
-    *out_rfinputs_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_rfinputs_len = metafits_context.rf_inputs.len();
+    *out_rfinputs_len = item_vec.len();
+    *out_rfinputs_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // Return success
     0
@@ -2123,8 +2129,8 @@ pub unsafe extern "C" fn mwalib_correlator_timesteps_get(
     }
 
     // Pass back the array and length of the array
-    *out_timesteps_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_timesteps_len = context.timesteps.len();
+    *out_timesteps_len = item_vec.len();
+    *out_timesteps_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // Return success
     0
@@ -2158,7 +2164,7 @@ pub unsafe extern "C" fn mwalib_correlator_timesteps_get(
 pub unsafe extern "C" fn mwalib_voltage_timesteps_get(
     voltage_context_ptr: *mut VoltageContext,
     out_timesteps_ptr: &mut *mut TimeStep,
-    out_timesteps_pols_len: &mut size_t,
+    out_timesteps_len: &mut size_t,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
@@ -2192,8 +2198,8 @@ pub unsafe extern "C" fn mwalib_voltage_timesteps_get(
     }
 
     // Pass back the array and length of the array
-    *out_timesteps_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_timesteps_pols_len = context.timesteps.len();
+    *out_timesteps_len = item_vec.len();
+    *out_timesteps_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // Return success
     0
@@ -2326,8 +2332,8 @@ pub unsafe extern "C" fn mwalib_visibility_pols_get(
     }
 
     // Pass back the array and length of the array
-    *out_visibility_pols_ptr = array_to_ffi_boxed_slice(item_vec);
-    *out_visibility_pols_len = metafits_context.visibility_pols.len();
+    *out_visibility_pols_len = item_vec.len();
+    *out_visibility_pols_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // Return success
     0

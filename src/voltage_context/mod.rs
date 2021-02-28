@@ -88,7 +88,7 @@ impl VoltageContext {
     ///
     /// # Returns
     ///
-    /// * Result containing a populated mwalibContext object if Ok.
+    /// * Result containing a populated VoltageContext object if Ok.
     ///
     ///
     pub fn new<T: AsRef<std::path::Path>>(
@@ -118,14 +118,23 @@ impl VoltageContext {
         };
 
         // Populate coarse channels
-        let (coarse_chans, num_coarse_chans, coarse_chan_width_hz) =
-            coarse_channel::CoarseChannel::populate_voltage_coarse_chans(
+        // Get metafits info
+        let (metafits_coarse_chan_vec, metafits_coarse_chan_width_hz) =
+            CoarseChannel::get_metafits_coarse_channel_info(
                 &mut metafits_fptr,
                 &metafits_hdu,
-                voltage_info.corr_format,
                 metafits_context.obs_bandwidth_hz,
-                &voltage_info.time_map,
             )?;
+
+        // Process the channels based on the gpubox files we have
+        let coarse_chans = CoarseChannel::populate_coarse_channels(
+            voltage_info.corr_format,
+            &metafits_coarse_chan_vec,
+            metafits_coarse_chan_width_hz,
+            None,
+            Some(&voltage_info.time_map),
+        )?;
+        let num_coarse_chans = coarse_chans.len();
 
         // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1.28 MHz (unchannelised)
         let fine_chan_width_hz: u32 = match voltage_info.corr_format {
@@ -137,9 +146,10 @@ impl VoltageContext {
         };
 
         // Determine the number of fine channels per coarse channel.
-        let num_fine_chans_per_coarse = (coarse_chan_width_hz / fine_chan_width_hz) as usize;
+        let num_fine_chans_per_coarse =
+            (metafits_coarse_chan_width_hz / fine_chan_width_hz) as usize;
 
-        let bandwidth_hz = (num_coarse_chans as u32) * coarse_chan_width_hz;
+        let bandwidth_hz = (num_coarse_chans as u32) * metafits_coarse_chan_width_hz;
 
         // We can unwrap here because the `voltage_time_map` can't be empty if
         // `voltages` isn't empty.
@@ -195,7 +205,7 @@ impl VoltageContext {
             coarse_chans,
             fine_chan_width_hz,
             bandwidth_hz,
-            coarse_chan_width_hz,
+            coarse_chan_width_hz: metafits_coarse_chan_width_hz,
             num_fine_chans_per_coarse,
             voltage_batches: voltage_info.gpstime_batches,
             voltage_time_map: voltage_info.time_map,

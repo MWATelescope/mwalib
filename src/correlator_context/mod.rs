@@ -83,7 +83,7 @@ impl CorrelatorContext {
     ///
     /// # Returns
     ///
-    /// * Result containing a populated mwalibContext object if Ok.
+    /// * Result containing a populated CorrelatorContext object if Ok.
     ///
     ///
     pub fn new<T: AsRef<std::path::Path>>(
@@ -115,16 +115,25 @@ impl CorrelatorContext {
         let num_timesteps = timesteps.len();
 
         // Populate coarse channels
-        let (coarse_chans, num_coarse_chans, coarse_chan_width_hz) =
-            coarse_channel::CoarseChannel::populate_correlator_coarse_chans(
+        // Get metafits info
+        let (metafits_coarse_chan_vec, metafits_coarse_chan_width_hz) =
+            CoarseChannel::get_metafits_coarse_channel_info(
                 &mut metafits_fptr,
                 &metafits_hdu,
-                gpubox_info.corr_format,
                 metafits_context.obs_bandwidth_hz,
-                &gpubox_info.time_map,
             )?;
 
-        let bandwidth_hz = (num_coarse_chans as u32) * coarse_chan_width_hz;
+        // Process the channels based on the gpubox files we have
+        let coarse_chans = CoarseChannel::populate_coarse_channels(
+            gpubox_info.corr_format,
+            &metafits_coarse_chan_vec,
+            metafits_coarse_chan_width_hz,
+            Some(&gpubox_info.time_map),
+            None,
+        )?;
+
+        let num_coarse_chans = coarse_chans.len();
+        let bandwidth_hz = (num_coarse_chans as u32) * metafits_coarse_chan_width_hz;
 
         // We have enough information to validate HDU matches metafits
         if !gpubox_filenames.is_empty() {
