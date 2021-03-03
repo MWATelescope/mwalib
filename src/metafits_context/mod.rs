@@ -150,6 +150,8 @@ pub struct MetafitsContext {
     pub quack_time_duration_ms: u64,
     /// OBSID+QUACKTIM as Unix timestamp (first good timestep)
     pub good_time_unix_ms: u64,
+    /// Good time expressed in GPS seconds
+    pub good_time_gps_ms: u64,
     /// Total number of antennas (tiles) in the array
     pub num_ants: usize,
     /// We also have just the antennas
@@ -167,7 +169,7 @@ pub struct MetafitsContext {
     /// Bandwidth of each coarse channel
     pub coarse_chan_width_hz: u32,
     /// The value of the FREQCENT key in the metafits file, but in Hz.
-    pub metafits_centre_freq_hz: u32,
+    pub centre_freq_hz: u32,
     /// Number of baselines stored. This is autos plus cross correlations
     pub num_baselines: usize,
     /// Baslines
@@ -254,7 +256,7 @@ impl MetafitsContext {
         let num_baselines = (num_antennas / 2) * (num_antennas + 1);
 
         // The FREQCENT value in the metafits is in units of kHz - make it Hz.
-        let metafits_centre_freq_hz: u32 = {
+        let centre_freq_hz: u32 = {
             let cf: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FREQCENT")?;
             (cf * 1e6).round() as _
         };
@@ -286,6 +288,8 @@ impl MetafitsContext {
 
         let scheduled_start_unix_time_ms: u64 = good_time_unix_ms - quack_time_duration_ms;
         let scheduled_end_unix_time_ms: u64 = scheduled_start_unix_time_ms + scheduled_duration_ms;
+
+        let good_time_gps_ms: u64 = scheduled_start_gpstime_ms + quack_time_duration_ms;
 
         let ra_tile_pointing_degrees: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "RA")?;
@@ -414,6 +418,7 @@ impl MetafitsContext {
             global_analogue_attenuation_db,
             quack_time_duration_ms,
             good_time_unix_ms,
+            good_time_gps_ms,
             num_ants: num_antennas,
             antennas,
             num_rf_inputs,
@@ -422,7 +427,7 @@ impl MetafitsContext {
             num_coarse_chans: metafits_coarse_chan_vec.len(),
             obs_bandwidth_hz: metafits_observation_bandwidth_hz,
             coarse_chan_width_hz: metafits_coarse_chan_width_hz,
-            metafits_centre_freq_hz,
+            centre_freq_hz: centre_freq_hz,
             metafits_filename: metafits
                 .as_ref()
                 .to_str()
@@ -617,7 +622,7 @@ impl fmt::Display for MetafitsContext {
             vp1 = self.visibility_pols[1].polarisation,
             vp2 = self.visibility_pols[2].polarisation,
             vp3 = self.visibility_pols[3].polarisation,
-            freqcent = self.metafits_centre_freq_hz as f64 / 1e6,
+            freqcent = self.centre_freq_hz as f64 / 1e6,
             mode = self.mode,
             fcw = self.corr_fine_chan_width_hz as f64 / 1e3,
             nfcpc = self.num_corr_fine_chans_per_coarse,

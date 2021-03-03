@@ -400,64 +400,64 @@ mod tests {
             ant: 101,
             tile_id: 101,
             tile_name: String::from("tile101"),
-            x_pol: dummy_rf_input_x.clone(),
-            y_pol: dummy_rf_input_y.clone(),
+            rfinput_x: dummy_rf_input_x.clone(),
+            rfinput_y: dummy_rf_input_y.clone(),
         });
 
         ants.push(Antenna {
             ant: 102,
             tile_id: 102,
             tile_name: String::from("tile102"),
-            x_pol: dummy_rf_input_x.clone(),
-            y_pol: dummy_rf_input_y.clone(),
+            rfinput_x: dummy_rf_input_x.clone(),
+            rfinput_y: dummy_rf_input_y.clone(),
         });
 
         ants.push(Antenna {
             ant: 103,
             tile_id: 103,
             tile_name: String::from("tile103"),
-            x_pol: dummy_rf_input_x.clone(),
-            y_pol: dummy_rf_input_y.clone(),
+            rfinput_x: dummy_rf_input_x.clone(),
+            rfinput_y: dummy_rf_input_y.clone(),
         });
 
         ants.push(Antenna {
             ant: 104,
             tile_id: 104,
             tile_name: String::from("tile104"),
-            x_pol: dummy_rf_input_x.clone(),
-            y_pol: dummy_rf_input_y.clone(),
+            rfinput_x: dummy_rf_input_x.clone(),
+            rfinput_y: dummy_rf_input_y.clone(),
         });
 
         ants.push(Antenna {
             ant: 105,
             tile_id: 105,
             tile_name: String::from("tile105"),
-            x_pol: dummy_rf_input_x.clone(),
-            y_pol: dummy_rf_input_y.clone(),
+            rfinput_x: dummy_rf_input_x.clone(),
+            rfinput_y: dummy_rf_input_y.clone(),
         });
 
         ants.push(Antenna {
             ant: 106,
             tile_id: 106,
             tile_name: String::from("tile106"),
-            x_pol: dummy_rf_input_x.clone(),
-            y_pol: dummy_rf_input_y.clone(),
+            rfinput_x: dummy_rf_input_x.clone(),
+            rfinput_y: dummy_rf_input_y.clone(),
         });
 
         ants.push(Antenna {
             ant: 107,
             tile_id: 107,
             tile_name: String::from("tile107"),
-            x_pol: dummy_rf_input_x.clone(),
-            y_pol: dummy_rf_input_y.clone(),
+            rfinput_x: dummy_rf_input_x.clone(),
+            rfinput_y: dummy_rf_input_y.clone(),
         });
 
         ants.push(Antenna {
             ant: 108,
             tile_id: 108,
             tile_name: String::from("tile108"),
-            x_pol: dummy_rf_input_x,
-            y_pol: dummy_rf_input_y,
+            rfinput_x: dummy_rf_input_x,
+            rfinput_y: dummy_rf_input_y,
         });
 
         // Now do some tests!
@@ -559,16 +559,16 @@ mod tests {
             ant: 101,
             tile_id: 101,
             tile_name: String::from("tile101"),
-            x_pol: dummy_rf_input_x.clone(),
-            y_pol: dummy_rf_input_y.clone(),
+            rfinput_x: dummy_rf_input_x.clone(),
+            rfinput_y: dummy_rf_input_y.clone(),
         });
 
         ants.push(Antenna {
             ant: 102,
             tile_id: 102,
             tile_name: String::from("tile102"),
-            x_pol: dummy_rf_input_x,
-            y_pol: dummy_rf_input_y,
+            rfinput_x: dummy_rf_input_x,
+            rfinput_y: dummy_rf_input_y,
         });
 
         // Now do some tests!
@@ -630,16 +630,16 @@ mod tests {
             ant: 101,
             tile_id: 101,
             tile_name: String::from("tile101"),
-            x_pol: dummy_rf_input_x.clone(),
-            y_pol: dummy_rf_input_y.clone(),
+            rfinput_x: dummy_rf_input_x.clone(),
+            rfinput_y: dummy_rf_input_y.clone(),
         });
 
         ants.push(Antenna {
             ant: 102,
             tile_id: 102,
             tile_name: String::from("tile102"),
-            x_pol: dummy_rf_input_x,
-            y_pol: dummy_rf_input_y,
+            rfinput_x: dummy_rf_input_x,
+            rfinput_y: dummy_rf_input_y,
         });
 
         // Now do some tests!

@@ -23,9 +23,9 @@ pub struct Antenna {
     /// X and Y have the same name
     pub tile_name: String,
     /// Reference to the X pol rf_input
-    pub x_pol: RFInput,
+    pub rfinput_x: RFInput,
     /// Reference to the Y pol rf_input
-    pub y_pol: RFInput,
+    pub rfinput_y: RFInput,
 }
 
 impl Antenna {
@@ -47,8 +47,8 @@ impl Antenna {
             ant: x_pol.ant,
             tile_id: x_pol.tile_id,
             tile_name: x_pol.tile_name.to_string(),
-            x_pol: x_pol.clone(),
-            y_pol: y_pol.clone(),
+            rfinput_x: x_pol.clone(),
+            rfinput_y: y_pol.clone(),
         }
     }
 
@@ -265,10 +265,10 @@ mod tests {
         assert_eq!(antennas.len(), 4);
         assert_eq!(antennas[0].tile_id, 101);
         assert_eq!(antennas[0].ant, 101);
-        assert_eq!(antennas[1].y_pol.pol, Pol::Y);
+        assert_eq!(antennas[1].rfinput_y.pol, Pol::Y);
         assert_eq!(antennas[1].tile_name, "Tile102");
         assert_eq!(antennas[2].tile_name, "Tile103");
-        assert_eq!(antennas[2].x_pol.input, 4);
+        assert_eq!(antennas[2].rfinput_x.input, 4);
         assert_eq!(antennas[3].tile_id, 104);
     }
 

@@ -793,6 +793,8 @@ pub struct MetafitsMetadata {
     pub quack_time_duration_ms: u64,
     /// OBSID+QUACKTIM as Unix timestamp (first good timestep)
     pub good_time_unix_ms: u64,
+    /// Good time expressed as GPS seconds
+    pub good_time_gps_ms: u64,
     /// Total number of antennas (tiles) in the array
     pub num_ants: usize,
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
@@ -810,7 +812,7 @@ pub struct MetafitsMetadata {
     /// Bandwidth of each coarse channel
     pub coarse_chan_width_hz: u32,
     /// Centre frequency of observation
-    pub metafits_centre_freq_hz: u32,
+    pub centre_freq_hz: u32,
     /// filename of metafits file used
     pub metafits_filename: *mut c_char,
 }
@@ -931,6 +933,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             global_analogue_attenuation_db,
             quack_time_duration_ms,
             good_time_unix_ms,
+            good_time_gps_ms,
             num_ants,
             antennas: _, // This is provided by the seperate antenna struct in FFI
             num_rf_inputs,
@@ -943,7 +946,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_coarse_chans,
             obs_bandwidth_hz,
             coarse_chan_width_hz,
-            metafits_centre_freq_hz,
+            centre_freq_hz,
             metafits_filename,
         } => MetafitsMetadata {
             obs_id: *obs_id,
@@ -997,6 +1000,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             sched_duration_ms: *sched_duration_ms,
             quack_time_duration_ms: *quack_time_duration_ms,
             good_time_unix_ms: *good_time_unix_ms,
+            good_time_gps_ms: *good_time_gps_ms,
             num_ants: *num_ants,
             num_rf_inputs: *num_rf_inputs,
             num_ant_pols: *num_ant_pols,
@@ -1005,7 +1009,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_coarse_chans: *num_coarse_chans,
             obs_bandwidth_hz: *obs_bandwidth_hz,
             coarse_chan_width_hz: *coarse_chan_width_hz,
-            metafits_centre_freq_hz: *metafits_centre_freq_hz,
+            centre_freq_hz: *centre_freq_hz,
             metafits_filename: CString::new(String::from(&*metafits_filename))
                 .unwrap()
                 .into_raw(),
@@ -1368,6 +1372,10 @@ pub struct Antenna {
     /// Human readable name of the antenna
     /// X and Y have the same name
     pub tile_name: *mut c_char,
+    /// Index within the array of rfinput structs of the x pol
+    pub rfinput_x: usize,
+    /// Index within the array of rfinput structs of the y pol
+    pub rfinput_y: usize,
 }
 
 /// This passes back an array of structs containing all antennas given a metafits OR correlator context.
@@ -1447,12 +1455,14 @@ pub unsafe extern "C" fn mwalib_antennas_get(
                 ant,
                 tile_id,
                 tile_name,
-                x_pol: _, // not exposed via FFI- caller should use rfinput struct
-                y_pol: _, // not exposed via FFI- caller should use rfinput struct
+                rfinput_x,
+                rfinput_y,
             } => Antenna {
                 ant: *ant,
                 tile_id: *tile_id,
                 tile_name: CString::new(String::from(*&tile_name)).unwrap().into_raw(),
+                rfinput_x: rfinput_x.subfile_order as usize,
+                rfinput_y: rfinput_y.subfile_order as usize,
             },
         };
 
