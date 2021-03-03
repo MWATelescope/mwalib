@@ -17,6 +17,9 @@ use crate::rfinput::*;
 use crate::visibility_pol::*;
 use crate::*;
 
+#[cfg(test)]
+mod test;
+
 /// Enum for all of the known variants of file format based on Correlator version
 ///
 #[repr(C)]
@@ -631,6 +634,3 @@ impl fmt::Display for MetafitsContext {
         )
     }
 }
-
-#[cfg(test)]
-mod test;

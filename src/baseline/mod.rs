@@ -8,6 +8,8 @@ Structs and helper methods for baseline metadata
 use crate::misc;
 use std::fmt;
 
+#[cfg(test)]
+mod test;
 /// This is a struct for our baselines, so callers know the antenna ordering
 #[derive(Clone)]
 pub struct Baseline {
@@ -69,27 +71,5 @@ impl Baseline {
 impl fmt::Debug for Baseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{},{}", self.ant1_index, self.ant2_index,)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_populate_baselines() {
-        let num_ants = 128;
-        let bls = Baseline::populate_baselines(num_ants);
-
-        assert_eq!(bls.len(), 8256);
-
-        assert_eq!(bls[0].ant1_index, 0);
-        assert_eq!(bls[0].ant2_index, 0);
-        assert_eq!(bls[128].ant1_index, 1);
-        assert_eq!(bls[128].ant2_index, 1);
-        assert_eq!(bls[129].ant1_index, 1);
-        assert_eq!(bls[129].ant2_index, 2);
-        assert_eq!(bls[8255].ant1_index, 127);
-        assert_eq!(bls[8255].ant2_index, 127);
     }
 }

@@ -4,12 +4,6 @@
 
 /*!
 This module exists purely for other languages to interface with mwalib.
-
-It's very difficult to provide errors to external callers, as rust's concept of
-ownership means that any strings made by rust must also be deallocated by
-rust. For now, the caller must use these interfaces correctly, and the
-correctness of mwalib is verified by using rust directly (and some testing via
-C).
  */
 
 use crate::*;
@@ -17,6 +11,9 @@ use libc::{c_char, c_float, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
+
+#[cfg(test)]
+mod test;
 
 /// Generic helper function for all FFI modules to take an already allocated C string
 /// and update it with an error message. This is used to pass error messages back to C from Rust.
@@ -2389,6 +2386,3 @@ pub unsafe extern "C" fn mwalib_visibility_pols_free(
     // Return success
     0
 }
-
-#[cfg(test)]
-mod test;

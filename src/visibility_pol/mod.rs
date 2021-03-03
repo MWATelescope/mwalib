@@ -5,8 +5,10 @@
 /*!
 Structs and helper methods for visibility polarisations metadata
 */
-
 use std::fmt;
+
+#[cfg(test)]
+mod test;
 
 /// This is a struct for our visibility polarisations
 #[derive(Clone)]
@@ -59,20 +61,5 @@ impl VisibilityPol {
 impl fmt::Debug for VisibilityPol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "pol={}", self.polarisation,)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_visibility_pol_populate() {
-        let vp = VisibilityPol::populate_visibility_pols();
-
-        assert_eq!(vp[0].polarisation, "XX");
-        assert_eq!(vp[1].polarisation, "XY");
-        assert_eq!(vp[2].polarisation, "YX");
-        assert_eq!(vp[3].polarisation, "YY");
     }
 }
