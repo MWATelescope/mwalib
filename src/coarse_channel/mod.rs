@@ -9,7 +9,7 @@ use crate::gpubox_files::GpuboxTimeMap;
 use crate::voltage_files::VoltageFileTimeMap;
 pub mod error;
 use crate::*;
-pub use error::CoarseChannelError;
+use error::CoarseChannelError;
 use std::fmt;
 
 #[cfg(test)]
