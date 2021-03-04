@@ -2,7 +2,7 @@
 
 Changes in each release are listed below.
 
-## 0.5.0 04-Mar-2021 (Pre-release)
+## 0.5.1 04-Mar-2021 (Pre-release)
 
 * Major refactoring- this will break compatibility with previous mwalib versions.
 * mwalibContext top level object now split into:

@@ -2,11 +2,11 @@
 ![Run Tests](https://github.com/MWATelescope/mwalib/workflows/Run%20Tests/badge.svg)
 [![codecov](https://codecov.io/gh/MWATelescope/mwalib/branch/master/graph/badge.svg)](https://codecov.io/gh/MWATelescope/mwalib)
 <br/>
-MWA library to read raw visibilities and metadata into a common structure. 
+MWA library to read raw visibilities, voltages and metadata into a common structure. 
 mwalib supports the existing "legacy" MWA correlator, as well as the in-development
 "MWAX" correlator. This library strives to provide a single interface to work with 
-all incarnations of MWA correlator formats and abstract away the nitty gritty details
-about reading MWA data.
+all incarnations of MWA metadatam correlator and voltage formats and abstract away 
+the nitty gritty details about reading MWA data.
 
 ## Usage via C
 In the `examples` directory, see `build_c_examples.sh`, `mwalib-print-obs-context.c`, and
@@ -25,18 +25,23 @@ In the `examples` directory, see `mwalib-print-obs-context.rs` and
 the rendered documentation.
 
 ## Usage approach
-- Populate a `mwalibContext` struct
+- Populate a Context struct (`MetafitsContext`, `CorrelatorContext` or `VoltageContext`)
 
-    This struct contains only information on the metafits file and gpubox files
-    associated with an observation. During creation, a number of checks are
-    performed on the MWA data (metadata and gpubox files) to ensure consistency. 
-    Once created, the observation is primed for reading data.
+    `CorrelatorContext` - Use this when you have a metafits file and one or more gpubox files. This struct provides information about the correlator observation and provides access to a `MetafitsContext` for metadata, as well as methods for reading raw visibility data.
+    
+    `MetafitsContext` - an efficient way to get access to most of the observation metadata. Only requires that you pass a valid MWA metafits file.     
+
+    `VoltageContext` - Use this when you have a metafits file and one or more recombined (or MWAX) voltage files. This struct provides information about the VCS observation and provides access to a `MetafitsContext` for metadata, and in an upcoming release- methods for reading raw voltage data.
+
+    During creation of a `CorrelatorContext` or `MetafitsContext`, a number of checks are
+    performed on the metadata and gpubox/voltage files to ensure consistency. 
+    Once created, the context is primed for reading data.
 
 - Read raw data
 
-    The `read_by_baseline` function associated with `mwalibContext` takes in a
-    timestep index (see: `context.timesteps` vector) and a coarse channel index
-    (see: `context.coarse_channels` vector) and will return a vector of 32bit
+    The `read_by_baseline` function associated with `CorrelatorContext` takes in a
+    timestep index (see: `CorrelatorContext.timesteps` vector) and a coarse channel index
+    (see: `CorrelatorContext.coarse_channels` vector) and will return a vector of 32bit
     floats. The data is organised as [baseline][fine_channel][polarisation][r][i].
 
     The `read_by_frequency` function is similar to `read_by_baseline` but outputs
@@ -90,12 +95,7 @@ You can build mwalib from source:
     For an example of using `mwalib` with C or python, look in the `examples`
     directory.
 
-- (Optional) If you are modifying the ffi functions, you'll need to regenerate mwalib.h
-
-    `cbindgen -l c <path/to/mwalib/repo> > mwalib.h`
-
-    Install `cbindgen` with your package manager or via `cargo` with `cargo
-    install cbindgen`.
+- (Optional) If modifying the ffi functions, a `cargo build` will automatically regenerate mwalib.h
 
 ## Installation
 As an alternative to building from source, we produce github releases whenever features or bug fixes are completed as tarballs. In the release you will find everything you need to use mwalib from C/C++/Python or any other language that can utilise shared libraries:
@@ -122,33 +122,9 @@ To install on a regular linux x86/64 distribution, the following would be all th
 - Register the library with ldconfig
     `sudo ldconfig`
 
-## Consistency checks
-(TODO: This is non-exhaustive!)
-
-`mwalib` checks input files for the presence of:
-
-- a metafits file,
-
-- gpubox files,
-
-- "GPSTIME", "NINPUTS", "CHANNELS", "NCHANS" within the metafits file,
-
-- "TIME", "MILLITIM", "NAXIS2" within the gpubox files.
-
-- Consistent number of gpubox files in each batch
-
-    i.e. if `1065880128_20131015134830_gpubox01_00.fits` exists, and there are
-    two batches, then `1065880128_20131015134930_gpubox01_01.fits` also exists,
-    and likewise for all other coarse-band channels.
-
-- Consistent "batch number format"
-
-    i.e. a gpubox file `1065880128_20131015134830_gpubox01_00.fits` can not be
-    used alongside another file like `1065880128_20131015134830_gpubox01.fits`.
-
 ## Example test output
 ```
-mwalibContext (
+CorrelatorContext (
     Correlator version:       v1 Legacy,
 
     MWA latitude:             -26.703319405555554 degrees,
