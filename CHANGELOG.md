@@ -2,6 +2,20 @@
 
 Changes in each release are listed below.
 
+## 0.5.0 04-Mar-2021 (Pre-release)
+
+* Major refactoring- this will break compatibility with previous mwalib versions.
+* mwalibContext top level object now split into:
+    * MetafitsContext (when you only provide a metafits file)
+    * CorrelatorContext (when you provide a metafits and 1 or more gpubox files)
+    * VoltageContext (when you provide a metafits and 1 or more voltage files)
+* FFI interfaces standardised, with struct based functions returning arrays of structs e.g. mwalib_antennas_get returns an array of antennas rather than a single instance.
+* Souce code is broken out into seperate folders with their own test.rs unit tests.
+* TimeStep struct now has GPS time as well as UNIX time.
+* Many new struct members added.
+* Many long named members renamed to use shorter or abbreviated names.
+* NOTE: VoltageContext does not have data reading functions in this release (however, metadata is supported). This will be added in an upcoming release.
+
 ## 0.4.4 08-Jan-2021 (Pre-release)
 
 * Added receiver_number and receiver_slot_number to rfinput struct.
