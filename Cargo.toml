@@ -11,6 +11,7 @@ description = "A library to simplify reading Murchison Widefield Array (MWA) raw
 license = "MPL-2.0"
 keywords = ["radioastronomy", "mwa", "astronomy"]
 categories = ["science","parsing"]
+exclude = ["test_files/*", "tools/*",".github/*"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
