@@ -2,10 +2,15 @@
 name = "mwalib"
 version = "0.5.0"
 homepage = "https://github.com/MWATelescope/mwalib"
+repository = "https://github.com/MWATelescope/mwalib"
+readme = "README.md"
 authors = ["Greg Sleap <greg.sleap@curtin.edu.au>",
            "Christopher H. Jordan <christopherjordan87@gmail.com>"]
 edition = "2018"
+description = "A library to simplify reading Murchison Widefield Array (MWA) raw visibilities, voltages and metadata."
 license = "MPL-2.0"
+keywords = ["radioastronomy", "mwa", "astronomy"]
+categories = ["science","parsing"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

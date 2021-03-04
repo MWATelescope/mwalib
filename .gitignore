@@ -5,3 +5,5 @@ Cargo.lock
 /examples/mwalib-sum-all-hdus
 .vscode
 /coverage
+/tools/release
+include/
