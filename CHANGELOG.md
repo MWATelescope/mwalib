@@ -2,6 +2,12 @@
 
 Changes in each release are listed below.
 
+## 0.6.0 05-Mar-2021 (Pre-release)
+
+* Minor updates to enable packaging and deployment to crates.io.
+* Fixed visibility of library structs and functions.
+* Moved coax_v_factor, mwa_lat_radians, mwa_long_radians and mwa_alt_meters out of metafits_metadata and are now just library constants.
+
 ## 0.5.1 04-Mar-2021 (Pre-release)
 
 * Major refactoring- this will break compatibility with previous mwalib versions.

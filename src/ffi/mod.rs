@@ -706,14 +706,6 @@ pub unsafe extern "C" fn mwalib_voltage_context_free(
 pub struct MetafitsMetadata {
     /// Observation id
     pub obs_id: u32,
-    /// Latitude of centre point of MWA in raidans
-    pub mwa_lat_rad: f64,
-    /// Longitude of centre point of MWA in raidans
-    pub mwa_long_rad: f64,
-    /// Altitude of centre poing of MWA in metres
-    pub mwa_alt_metres: f64,
-    /// the velocity factor of electic fields in RG-6 like coax
-    pub coax_v_factor: f64,
     /// ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
     /// RA tile pointing
@@ -886,10 +878,6 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     let out_context = match &metafits_context {
         MetafitsContext {
             obs_id,
-            mwa_lat_radians,
-            mwa_long_radians,
-            mwa_alt_metres,
-            coax_v_factor,
             sched_start_gps_time_ms,
             sched_end_gps_time_ms,
             sched_start_unix_time_ms,
@@ -947,10 +935,6 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             metafits_filename,
         } => MetafitsMetadata {
             obs_id: *obs_id,
-            mwa_lat_rad: *mwa_lat_radians,
-            mwa_long_rad: *mwa_long_radians,
-            mwa_alt_metres: *mwa_alt_metres,
-            coax_v_factor: *coax_v_factor,
             global_analogue_attenuation_db: *global_analogue_attenuation_db,
             ra_tile_pointing_deg: *ra_tile_pointing_degrees,
             dec_tile_pointing_deg: *dec_tile_pointing_degrees,

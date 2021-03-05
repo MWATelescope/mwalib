@@ -65,14 +65,6 @@ impl fmt::Display for CorrelatorVersion {
 pub struct MetafitsContext {
     /// Observation id
     pub obs_id: u32,
-    /// Latitude of centre point of MWA in raidans
-    pub mwa_lat_radians: f64,
-    /// Longitude of centre point of MWA in raidans
-    pub mwa_long_radians: f64,
-    /// Altitude of centre poing of MWA in metres
-    pub mwa_alt_metres: f64,
-    /// the velocity factor of electic fields in RG-6 like coax
-    pub coax_v_factor: f64,
     /// Scheduled start (gps time) of observation
     pub sched_start_gps_time_ms: u64,
     /// Scheduled end (gps time) of observation
@@ -212,7 +204,6 @@ impl MetafitsContext {
 
         // from MWA_Tools/CONV2UVFITS/convutils.h
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
-        let coax_v_factor: f64 = 1.204;
         let quack_time_duration_ms: u64 = {
             let qt: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "QUACKTIM")?;
             (qt * 1000.).round() as _
@@ -235,7 +226,7 @@ impl MetafitsContext {
             num_rf_inputs,
             &mut metafits_fptr,
             metafits_tile_table_hdu,
-            coax_v_factor,
+            COAX_V_FACTOR,
         )?;
 
         // Sort the rf_inputs back into the correct output order
@@ -377,10 +368,6 @@ impl MetafitsContext {
 
         Ok(MetafitsContext {
             obs_id: obsid,
-            mwa_lat_radians: MWA_LATITUDE_RADIANS,
-            mwa_long_radians: MWA_LONGITUDE_RADIANS,
-            mwa_alt_metres: MWA_ALTITUDE_METRES,
-            coax_v_factor,
             sched_start_gps_time_ms: scheduled_start_gpstime_ms,
             sched_end_gps_time_ms: scheduled_end_gpstime_ms,
             sched_start_unix_time_ms: scheduled_start_unix_time_ms,
@@ -503,11 +490,7 @@ impl fmt::Display for MetafitsContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            r#"MetafitsContext (
-    MWA latitude:             {mwa_lat} degrees,
-    MWA longitude:            {mwa_lon} degrees
-    MWA altitude:             {mwa_alt} m,
-
+            r#"MetafitsContext (    
     obsid:                    {obsid},
     mode:                     {mode},
 
@@ -567,9 +550,6 @@ impl fmt::Display for MetafitsContext {
 
     metafits filename:        {meta},
 )"#,
-            mwa_lat = self.mwa_lat_radians.to_degrees(),
-            mwa_lon = self.mwa_long_radians.to_degrees(),
-            mwa_alt = self.mwa_alt_metres,
             obsid = self.obs_id,
             creator = self.creator,
             project_id = self.project_id,

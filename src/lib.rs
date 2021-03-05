@@ -29,6 +29,8 @@ pub const MWA_LATITUDE_RADIANS: f64 = -0.4660608448386394;
 pub const MWA_LONGITUDE_RADIANS: f64 = 2.0362898668561042;
 /// The MWA's altitude in metres.
 pub const MWA_ALTITUDE_METRES: f64 = 377.827;
+/// the velocity factor of electic fields in RG-6 like coax cable
+pub const COAX_V_FACTOR: f64 = 1.204;
 
 // Re-exports (public to other crates and in a flat structure)
 pub use antenna::Antenna;

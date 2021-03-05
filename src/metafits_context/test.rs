@@ -33,28 +33,6 @@ fn test_metafits_context_new_valid() {
 
     // Test the properties of the context object match what we expect
 
-    // MWA latitude:             -26.703319405555554 degrees,
-    assert!(approx_eq!(
-        f64,
-        context.mwa_lat_radians.to_degrees(),
-        -26.703_319_405_555_554,
-        F64Margin::default()
-    ));
-    // MWA longitude:            116.67081523611111 degrees
-    assert!(approx_eq!(
-        f64,
-        context.mwa_long_radians.to_degrees(),
-        116.670_815_236_111_11,
-        F64Margin::default()
-    ));
-    // MWA altitude:             377.827 m,
-    assert!(approx_eq!(
-        f64,
-        context.mwa_alt_metres,
-        377.827,
-        F64Margin::default()
-    ));
-
     // obsid:                    1101503312,
     assert_eq!(context.obs_id, 1_101_503_312);
 
