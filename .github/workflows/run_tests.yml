@@ -71,6 +71,7 @@ jobs:
 
     - name: Generate test lcov coverage into coverage/ dir
       run: |
+          mkdir -p coverage
           RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests
           rustup run nightly cargo profdata -- merge -sparse json5format-*.profraw -o json5format.profdata
           rustup run nightly cargo cov -- export --format=lcov --ignore-filename-regex='(/.cargo/registry|/rustc|test.rs$)' --instr-profile=json5format.profdata \
