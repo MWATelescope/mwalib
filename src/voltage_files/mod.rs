@@ -167,7 +167,7 @@ pub(crate) struct VoltageFileInfo {
 ///
 fn convert_temp_voltage_files(
     temp_voltage_files: Vec<TempVoltageFile>,
-) -> Result<HashMap<u64, VoltageFileBatch>, VoltageFileError> {
+) -> HashMap<u64, VoltageFileBatch> {
     // unwrap is safe as a check is performed above to ensure that there are
     // some files present.
     let batches = temp_voltage_files.iter().map(|g| g.gps_time);
@@ -187,11 +187,11 @@ fn convert_temp_voltage_files(
 
     // Ensure the output is properly sorted - each batch is sorted by
     // channel_identifier.
-    for (_, v) in &mut voltage_file_batches {
+    for v in voltage_file_batches.values_mut() {
         v.voltage_files
             .sort_unstable_by(|a, b| a.channel_identifier.cmp(&b.channel_identifier));
     }
-    Ok(voltage_file_batches)
+    voltage_file_batches
 }
 
 /// Group input voltage files into gpstime_batches. A "voltage batch" refers to the sub_obs_id
@@ -313,13 +313,11 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
     for (_, (batch_num, num_files)) in batches_and_files.iter().enumerate() {
         // Check that the previous batch + voltage_file_interval_seconds == the current batch number
         // This is our contiguity check
-        if prev_batch_num != 0 {
-            if prev_batch_num + voltage_file_interval_seconds != *batch_num {
-                return Err(VoltageFileError::GpsTimeMissing {
-                    expected: prev_batch_num + voltage_file_interval_seconds,
-                    got: *batch_num,
-                });
-            }
+        if prev_batch_num != 0 && prev_batch_num + voltage_file_interval_seconds != *batch_num {
+            return Err(VoltageFileError::GpsTimeMissing {
+                expected: prev_batch_num + voltage_file_interval_seconds,
+                got: *batch_num,
+            });
         }
         prev_batch_num = *batch_num;
 
@@ -392,15 +390,15 @@ pub(crate) fn examine_voltage_files<T: AsRef<Path>>(
             metafits_context.obs_id as usize,
         )?;
 
-    let time_map = create_time_map(&temp_voltage_files)?;
+    let time_map = create_time_map(&temp_voltage_files);
 
     let mut gpstime_batches: HashMap<u64, VoltageFileBatch> =
-        convert_temp_voltage_files(temp_voltage_files)?;
+        convert_temp_voltage_files(temp_voltage_files);
 
     // Determine the size of each voltage file. mwalib will throw an
     // error if this size is not consistent for all voltage files.
     let mut voltage_file_size: Option<u64> = None;
-    for (_, b) in &mut gpstime_batches {
+    for b in gpstime_batches.values_mut() {
         for v in &mut b.voltage_files {
             let this_size;
             let metadata = std::fs::metadata(&v.filename);
@@ -411,7 +409,7 @@ pub(crate) fn examine_voltage_files<T: AsRef<Path>>(
                 Err(e) => {
                     return Err(VoltageFileError::VoltageFileError(
                         (*v.filename).to_string(),
-                        String::from(format!("{}", e)),
+                        format!("{}", e),
                     ));
                 }
             };
@@ -437,7 +435,7 @@ pub(crate) fn examine_voltage_files<T: AsRef<Path>>(
         corr_format,
         time_map,
         file_size: voltage_file_size.unwrap(),
-        voltage_file_interval_ms: voltage_file_interval_ms,
+        voltage_file_interval_ms,
     })
 }
 
@@ -455,9 +453,7 @@ pub(crate) fn examine_voltage_files<T: AsRef<Path>>(
 /// * A Result containing the Voltage File Time Map or an error.
 ///
 ///
-fn create_time_map(
-    voltage_file_batches: &[TempVoltageFile],
-) -> Result<VoltageFileTimeMap, VoltageFileError> {
+fn create_time_map(voltage_file_batches: &[TempVoltageFile]) -> VoltageFileTimeMap {
     // create a map
     let mut voltage_time_map = BTreeMap::new();
     for voltage_file in voltage_file_batches.iter() {
@@ -465,10 +461,10 @@ fn create_time_map(
             .entry(voltage_file.gps_time)
             .or_insert_with(BTreeMap::new)
             .entry(voltage_file.channel_identifier)
-            .or_insert(voltage_file.filename.to_string());
+            .or_insert_with(|| voltage_file.filename.to_string());
     }
 
-    Ok(voltage_time_map)
+    voltage_time_map
 }
 
 /// Determine the proper start and end times of an observation. In this context,

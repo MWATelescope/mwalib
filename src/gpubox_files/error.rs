@@ -9,6 +9,7 @@ Errors associated with reading in gpubox files.
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum GpuboxError {
     #[error("Invalid timestep index provided. The timestep index must be between 0 and {0}")]
     InvalidTimeStepIndex(usize),

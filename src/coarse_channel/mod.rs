@@ -161,7 +161,7 @@ impl CoarseChannel {
     ///
     pub(crate) fn populate_coarse_channels(
         corr_version: metafits_context::CorrelatorVersion,
-        metafits_coarse_chan_vec: &Vec<usize>,
+        metafits_coarse_chan_vec: &[usize],
         metafits_coarse_chan_width_hz: u32,
         gpubox_time_map: Option<&GpuboxTimeMap>,
         voltage_time_map: Option<&VoltageFileTimeMap>,

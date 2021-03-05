@@ -507,15 +507,11 @@ fn test_convert_temp_voltage_files() {
         gps_time: 1234567000,
     });
 
-    let result = convert_temp_voltage_files(temp_voltage_files);
-
     // The resulting VoltageFileBatches should:
     // * have 2 batches
     // * batches sorted by gpstime
     // * each batch sorted by coarse channel indentifier
-    assert!(result.is_ok());
-
-    let batches: HashMap<u64, VoltageFileBatch> = result.unwrap();
+    let batches: HashMap<u64, VoltageFileBatch> = convert_temp_voltage_files(temp_voltage_files);
 
     assert_eq!(
         batches.len(),

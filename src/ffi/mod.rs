@@ -114,7 +114,7 @@ fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
     let mut boxed_slice: Box<[T]> = v.into_boxed_slice();
     let array_ptr: *mut T = boxed_slice.as_mut_ptr();
     let array_ptr_len: usize = boxed_slice.len();
-    assert_eq!(array_ptr_len, array_ptr_len);
+    assert_eq!(boxed_slice.len(), array_ptr_len);
 
     // Prevent the slice from being destroyed (Leak the memory).
     // This is because we are using our ffi code to free the memory
@@ -860,14 +860,12 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
         if !metafits_context_ptr.is_null() {
             // Caller passed in a metafits context, so use that
             &*metafits_context_ptr
+        } else if !correlator_context_ptr.is_null() {
+            // Caller passed in a correlator context, so use that
+            &(*correlator_context_ptr).metafits_context
         } else {
-            if !correlator_context_ptr.is_null() {
-                // Caller passed in a correlator context, so use that
-                &(&*correlator_context_ptr).metafits_context
-            } else {
-                // Caller passed in a voltage context, so use that
-                &(&*voltage_context_ptr).metafits_context
-            }
+            // Caller passed in a voltage context, so use that
+            &(*voltage_context_ptr).metafits_context
         }
     };
 
@@ -875,8 +873,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    let out_context = match &metafits_context {
-        MetafitsContext {
+    let out_context = {
+        let MetafitsContext {
             obs_id,
             sched_start_gps_time_ms,
             sched_end_gps_time_ms,
@@ -933,19 +931,14 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             coarse_chan_width_hz,
             centre_freq_hz,
             metafits_filename,
-        } => MetafitsMetadata {
+        } = metafits_context;
+        MetafitsMetadata {
             obs_id: *obs_id,
             global_analogue_attenuation_db: *global_analogue_attenuation_db,
             ra_tile_pointing_deg: *ra_tile_pointing_degrees,
             dec_tile_pointing_deg: *dec_tile_pointing_degrees,
-            ra_phase_center_deg: match *ra_phase_center_degrees {
-                Some(v) => v,
-                None => 0.,
-            },
-            dec_phase_center_deg: match *dec_phase_center_degrees {
-                Some(v) => v,
-                None => 0.,
-            },
+            ra_phase_center_deg: (*ra_phase_center_degrees).unwrap_or(0.),
+            dec_phase_center_deg: (*dec_phase_center_degrees).unwrap_or(0.),
             az_deg: *az_deg,
             alt_deg: *alt_deg,
             za_deg: *za_deg,
@@ -994,7 +987,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             metafits_filename: CString::new(String::from(&*metafits_filename))
                 .unwrap()
                 .into_raw(),
-        },
+        }
     };
 
     // Pass back a pointer to the rust owned struct
@@ -1111,8 +1104,8 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    let out_context = match &context {
-        CorrelatorContext {
+    let out_context = {
+        let CorrelatorContext {
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
             corr_version,
             start_unix_time_ms,
@@ -1131,7 +1124,8 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             gpubox_batches: _, // This is currently not provided to FFI as it is private
             gpubox_time_map: _, // This is currently not provided to FFI as it is private
             legacy_conversion_table: _, // This is currently not provided to FFI as it is private
-        } => CorrelatorMetadata {
+        } = context;
+        CorrelatorMetadata {
             corr_version: *corr_version,
             start_unix_time_ms: *start_unix_time_ms,
             end_unix_time_ms: *end_unix_time_ms,
@@ -1144,7 +1138,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             num_timestep_coarse_chan_bytes: *num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats: *num_timestep_coarse_chan_floats,
             num_gpubox_files: *num_gpubox_files,
-        },
+        }
     };
 
     // Pass out the pointer to the rust owned data structure
@@ -1264,8 +1258,8 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    let out_context = match &context {
-        VoltageContext {
+    let out_context = {
+        let VoltageContext {
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
             corr_version,
             start_gps_time_ms,
@@ -1285,7 +1279,8 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             num_fine_chans_per_coarse,
             voltage_batches: _, // This is currently not provided to FFI as it is private
             voltage_time_map: _, // This is currently not provided to FFI as it is private
-        } => VoltageMetadata {
+        } = context;
+        VoltageMetadata {
             corr_version: *corr_version,
             start_gps_time_ms: *start_gps_time_ms,
             end_gps_time_ms: *end_gps_time_ms,
@@ -1300,7 +1295,7 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             coarse_chan_width_hz: *coarse_chan_width_hz,
             fine_chan_width_hz: *fine_chan_width_hz,
             num_fine_chans_per_coarse: *num_fine_chans_per_coarse,
-        },
+        }
     };
 
     // Pass out the pointer to the rust owned data structure
@@ -1414,14 +1409,12 @@ pub unsafe extern "C" fn mwalib_antennas_get(
         if !metafits_context_ptr.is_null() {
             // Caller passed in a metafits context, so use that
             &*metafits_context_ptr
+        } else if !correlator_context_ptr.is_null() {
+            // Caller passed in a correlator context, so use that
+            &(*correlator_context_ptr).metafits_context
         } else {
-            if !correlator_context_ptr.is_null() {
-                // Caller passed in a correlator context, so use that
-                &(&*correlator_context_ptr).metafits_context
-            } else {
-                // Caller passed in a voltage context, so use that
-                &(&*voltage_context_ptr).metafits_context
-            }
+            // Caller passed in a voltage context, so use that
+            &(*voltage_context_ptr).metafits_context
         }
     };
 
@@ -1431,20 +1424,21 @@ pub unsafe extern "C" fn mwalib_antennas_get(
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
     for item in metafits_context.antennas.iter() {
-        let out_item = match &item {
-            antenna::Antenna {
+        let out_item = {
+            let antenna::Antenna {
                 ant,
                 tile_id,
                 tile_name,
                 rfinput_x,
                 rfinput_y,
-            } => Antenna {
+            } = item;
+            Antenna {
                 ant: *ant,
                 tile_id: *tile_id,
-                tile_name: CString::new(String::from(*&tile_name)).unwrap().into_raw(),
+                tile_name: CString::new(tile_name.as_str()).unwrap().into_raw(),
                 rfinput_x: rfinput_x.subfile_order as usize,
                 rfinput_y: rfinput_y.subfile_order as usize,
-            },
+            }
         };
 
         item_vec.push(out_item);
@@ -1485,7 +1479,7 @@ pub unsafe extern "C" fn mwalib_antennas_free(ants_ptr: *mut Antenna, ants_len: 
     // Extract a slice from the pointer
     let slice: &mut [Antenna] = slice::from_raw_parts_mut(ants_ptr, ants_len);
     // Now for each item we need to free anything on the heap
-    for i in slice.into_iter() {
+    for i in slice.iter_mut() {
         drop(Box::from_raw(i.tile_name));
     }
 
@@ -1562,14 +1556,12 @@ pub unsafe extern "C" fn mwalib_baselines_get(
         if !metafits_context_ptr.is_null() {
             // Caller passed in a metafits context, so use that
             &*metafits_context_ptr
+        } else if !correlator_context_ptr.is_null() {
+            // Caller passed in a correlator context, so use that
+            &(*correlator_context_ptr).metafits_context
         } else {
-            if !correlator_context_ptr.is_null() {
-                // Caller passed in a correlator context, so use that
-                &(&*correlator_context_ptr).metafits_context
-            } else {
-                // Caller passed in a voltage context, so use that
-                &(&*voltage_context_ptr).metafits_context
-            }
+            // Caller passed in a voltage context, so use that
+            &(*voltage_context_ptr).metafits_context
         }
     };
 
@@ -1579,14 +1571,15 @@ pub unsafe extern "C" fn mwalib_baselines_get(
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
     for item in metafits_context.baselines.iter() {
-        let out_item = match &item {
-            baseline::Baseline {
+        let out_item = {
+            let baseline::Baseline {
                 ant1_index,
                 ant2_index,
-            } => Baseline {
+            } = item;
+            Baseline {
                 ant1_index: *ant1_index,
                 ant2_index: *ant2_index,
-            },
+            }
         };
 
         item_vec.push(out_item);
@@ -1596,7 +1589,8 @@ pub unsafe extern "C" fn mwalib_baselines_get(
     *out_baselines_len = item_vec.len();
     *out_baselines_ptr = ffi_array_to_boxed_slice(item_vec);
 
-    return 0;
+    // Return success
+    0
 }
 
 /// Free a previously-allocated `Baseline` struct.
@@ -1704,8 +1698,8 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
     for item in context.coarse_chans.iter() {
-        let out_item = match &item {
-            coarse_channel::CoarseChannel {
+        let out_item = {
+            let coarse_channel::CoarseChannel {
                 corr_chan_number,
                 rec_chan_number,
                 gpubox_number,
@@ -1713,7 +1707,8 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
                 chan_start_hz,
                 chan_centre_hz,
                 chan_end_hz,
-            } => CoarseChannel {
+            } = item;
+            CoarseChannel {
                 corr_chan_number: *corr_chan_number,
                 rec_chan_number: *rec_chan_number,
                 gpubox_number: *gpubox_number,
@@ -1721,7 +1716,7 @@ pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
                 chan_start_hz: *chan_start_hz,
                 chan_centre_hz: *chan_centre_hz,
                 chan_end_hz: *chan_end_hz,
-            },
+            }
         };
 
         item_vec.push(out_item);
@@ -1783,8 +1778,8 @@ pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
     for item in context.coarse_chans.iter() {
-        let out_item = match &item {
-            coarse_channel::CoarseChannel {
+        let out_item = {
+            let coarse_channel::CoarseChannel {
                 corr_chan_number,
                 rec_chan_number,
                 gpubox_number,
@@ -1792,7 +1787,8 @@ pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
                 chan_start_hz,
                 chan_centre_hz,
                 chan_end_hz,
-            } => CoarseChannel {
+            } = item;
+            CoarseChannel {
                 corr_chan_number: *corr_chan_number,
                 rec_chan_number: *rec_chan_number,
                 gpubox_number: *gpubox_number,
@@ -1800,7 +1796,7 @@ pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
                 chan_start_hz: *chan_start_hz,
                 chan_centre_hz: *chan_centre_hz,
                 chan_end_hz: *chan_end_hz,
-            },
+            }
         };
 
         item_vec.push(out_item);
@@ -1851,6 +1847,7 @@ pub unsafe extern "C" fn mwalib_coarse_channels_free(
 
 /// Representation in C of an `RFInput` struct
 #[repr(C)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct RFInput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
@@ -1942,14 +1939,12 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
         if !metafits_context_ptr.is_null() {
             // Caller passed in a metafits context, so use that
             &*metafits_context_ptr
+        } else if !correlator_context_ptr.is_null() {
+            // Caller passed in a correlator context, so use that
+            &(*correlator_context_ptr).metafits_context
         } else {
-            if !correlator_context_ptr.is_null() {
-                // Caller passed in a correlator context, so use that
-                &(&*correlator_context_ptr).metafits_context
-            } else {
-                // Caller passed in a voltage context, so use that
-                &(&*voltage_context_ptr).metafits_context
-            }
+            // Caller passed in a voltage context, so use that
+            &(*voltage_context_ptr).metafits_context
         }
     };
 
@@ -1959,8 +1954,8 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
     for item in metafits_context.rf_inputs.iter() {
-        let out_item = match &item {
-            rfinput::RFInput {
+        let out_item = {
+            let rfinput::RFInput {
                 input,
                 ant,
                 tile_id,
@@ -1978,7 +1973,8 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
                 digital_gains: _, // not currently supported via FFI interface
                 dipole_gains: _,  // not currently supported via FFI interface
                 dipole_delays: _, // not currently supported via FFI interface
-            } => RFInput {
+            } = item;
+            RFInput {
                 input: *input,
                 ant: *ant,
                 tile_id: *tile_id,
@@ -1993,7 +1989,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
                 flagged: *flagged,
                 rec_number: *rec_number,
                 rec_slot_number: *rec_slot_number,
-            },
+            }
         };
 
         item_vec.push(out_item);
@@ -2036,7 +2032,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_free(
     // Extract a slice from the pointer
     let slice: &mut [RFInput] = slice::from_raw_parts_mut(rf_inputs_ptr, rf_inputs_len);
     // Now for each item we need to free anything on the heap
-    for i in slice.into_iter() {
+    for i in slice.iter_mut() {
         drop(Box::from_raw(i.tile_name));
         drop(Box::from_raw(i.pol));
     }
@@ -2106,14 +2102,15 @@ pub unsafe extern "C" fn mwalib_correlator_timesteps_get(
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
     for item in context.timesteps.iter() {
-        let out_item = match &item {
-            timestep::TimeStep {
+        let out_item = {
+            let timestep::TimeStep {
                 unix_time_ms,
                 gps_time_ms,
-            } => TimeStep {
+            } = item;
+            TimeStep {
                 unix_time_ms: *unix_time_ms,
                 gps_time_ms: *gps_time_ms,
-            },
+            }
         };
 
         item_vec.push(out_item);
@@ -2175,14 +2172,15 @@ pub unsafe extern "C" fn mwalib_voltage_timesteps_get(
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
     for item in context.timesteps.iter() {
-        let out_item = match &item {
-            timestep::TimeStep {
+        let out_item = {
+            let timestep::TimeStep {
                 unix_time_ms,
                 gps_time_ms,
-            } => TimeStep {
+            } = item;
+            TimeStep {
                 unix_time_ms: *unix_time_ms,
                 gps_time_ms: *gps_time_ms,
-            },
+            }
         };
 
         item_vec.push(out_item);
@@ -2295,14 +2293,12 @@ pub unsafe extern "C" fn mwalib_visibility_pols_get(
         if !metafits_context_ptr.is_null() {
             // Caller passed in a metafits context, so use that
             &*metafits_context_ptr
+        } else if !correlator_context_ptr.is_null() {
+            // Caller passed in a correlator context, so use that
+            &(*correlator_context_ptr).metafits_context
         } else {
-            if !correlator_context_ptr.is_null() {
-                // Caller passed in a correlator context, so use that
-                &(&*correlator_context_ptr).metafits_context
-            } else {
-                // Caller passed in a voltage context, so use that
-                &(&*voltage_context_ptr).metafits_context
-            }
+            // Caller passed in a voltage context, so use that
+            &(*voltage_context_ptr).metafits_context
         }
     };
     let mut item_vec: Vec<VisibilityPol> = Vec::new();
@@ -2311,12 +2307,13 @@ pub unsafe extern "C" fn mwalib_visibility_pols_get(
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
     for item in metafits_context.visibility_pols.iter() {
-        let out_item = match &item {
-            visibility_pol::VisibilityPol { polarisation } => VisibilityPol {
+        let out_item = {
+            let visibility_pol::VisibilityPol { polarisation } = item;
+            VisibilityPol {
                 polarisation: CString::new(String::from(&*polarisation))
                     .unwrap()
                     .into_raw(),
-            },
+            }
         };
 
         item_vec.push(out_item);
@@ -2360,7 +2357,7 @@ pub unsafe extern "C" fn mwalib_visibility_pols_free(
     let slice: &mut [VisibilityPol] =
         slice::from_raw_parts_mut(visibility_pols_ptr, visibility_pols_len);
     // Now for each item we need to free anything on the heap
-    for i in slice.into_iter() {
+    for i in slice.iter_mut() {
         drop(Box::from_raw(i.polarisation));
     }
 

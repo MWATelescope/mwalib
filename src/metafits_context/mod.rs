@@ -401,7 +401,7 @@ impl MetafitsContext {
             mode,
             corr_fine_chan_width_hz: fine_chan_width_hz,
             corr_int_time_ms: integration_time_ms,
-            num_corr_fine_chans_per_coarse: num_corr_fine_chans_per_coarse,
+            num_corr_fine_chans_per_coarse,
             receivers,
             delays,
             global_analogue_attenuation_db,
@@ -416,7 +416,7 @@ impl MetafitsContext {
             num_coarse_chans: metafits_coarse_chan_vec.len(),
             obs_bandwidth_hz: metafits_observation_bandwidth_hz,
             coarse_chan_width_hz: metafits_coarse_chan_width_hz,
-            centre_freq_hz: centre_freq_hz,
+            centre_freq_hz,
             metafits_filename: metafits
                 .as_ref()
                 .to_str()

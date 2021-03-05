@@ -28,21 +28,20 @@ impl VisibilityPol {
     /// * A populated vector of visibility polarisations for the MWA
     ///
     pub(crate) fn populate_visibility_pols() -> Vec<Self> {
-        let mut pols: Vec<VisibilityPol> = Vec::with_capacity(4);
-        pols.push(VisibilityPol {
-            polarisation: String::from("XX"),
-        });
-        pols.push(VisibilityPol {
-            polarisation: String::from("XY"),
-        });
-        pols.push(VisibilityPol {
-            polarisation: String::from("YX"),
-        });
-        pols.push(VisibilityPol {
-            polarisation: String::from("YY"),
-        });
-
-        pols
+        vec![
+            VisibilityPol {
+                polarisation: String::from("XX"),
+            },
+            VisibilityPol {
+                polarisation: String::from("XY"),
+            },
+            VisibilityPol {
+                polarisation: String::from("YX"),
+            },
+            VisibilityPol {
+                polarisation: String::from("YY"),
+            },
+        ]
     }
 }
 

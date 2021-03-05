@@ -30,6 +30,7 @@ pub(crate) struct ObsTimes {
 
 /// This represents one group of gpubox files with the same "batch" identitifer.
 /// e.g. obsid_datetime_chan_batch
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) struct GPUBoxBatch {
     pub batch_number: usize,           // 00,01,02..n
     pub gpubox_files: Vec<GPUBoxFile>, // Vector storing the details of each gpubox file in this batch
@@ -55,6 +56,7 @@ impl fmt::Debug for GPUBoxBatch {
 }
 
 /// This represents one gpubox file
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) struct GPUBoxFile {
     /// Filename of gpubox file
     pub filename: String,
@@ -86,6 +88,7 @@ impl std::cmp::PartialEq for GPUBoxFile {
 
 /// A temporary representation of a gpubox file
 #[derive(Clone, Debug)]
+#[allow(clippy::upper_case_acronyms)]
 struct TempGPUBoxFile<'a> {
     /// Filename of gpubox file
     filename: &'a str,
@@ -158,9 +161,7 @@ pub(crate) struct GpuboxInfo {
 /// * A Result containing a vector of `GPUBoxBatch`.
 ///
 ///
-fn convert_temp_gpuboxes(
-    temp_gpuboxes: Vec<TempGPUBoxFile>,
-) -> Result<Vec<GPUBoxBatch>, FitsError> {
+fn convert_temp_gpuboxes(temp_gpuboxes: Vec<TempGPUBoxFile>) -> Vec<GPUBoxBatch> {
     // unwrap is safe as a check is performed above to ensure that there are
     // some files present.
     let num_batches = temp_gpuboxes.iter().map(|g| g.batch_number).max().unwrap() + 1;
@@ -187,7 +188,7 @@ fn convert_temp_gpuboxes(
     // Sort the batches by batch number
     gpubox_batches.sort_by_key(|b| b.batch_number);
 
-    Ok(gpubox_batches)
+    gpubox_batches
 }
 
 /// This function unpacks the metadata associated with input gpubox files. The
@@ -233,7 +234,7 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
 
     let time_map = create_time_map(&temp_gpuboxes, corr_format)?;
 
-    let mut batches = convert_temp_gpuboxes(temp_gpuboxes)?;
+    let mut batches = convert_temp_gpuboxes(temp_gpuboxes);
 
     // Determine the size of each gpubox's image on HDU 1. mwalib will throw an
     // error if this size is not consistent for all gpubox files.

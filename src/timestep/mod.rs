@@ -38,8 +38,8 @@ impl TimeStep {
     ///
     fn new(unix_time_ms: u64, gps_time_ms: u64) -> Self {
         TimeStep {
-            unix_time_ms: unix_time_ms,
-            gps_time_ms: gps_time_ms,
+            unix_time_ms,
+            gps_time_ms,
         }
     }
 

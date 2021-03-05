@@ -106,6 +106,7 @@ impl fmt::Display for Pol {
 }
 
 /// Structure to hold one row of the metafits tiledata table
+#[allow(clippy::upper_case_acronyms)]
 struct RFInputMetafitsTableRow {
     /// This is the ordinal index of the rf_input in the metafits file
     input: u32,
@@ -151,6 +152,7 @@ struct RFInputMetafitsTableRow {
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
 #[derive(Clone)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct RFInput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
