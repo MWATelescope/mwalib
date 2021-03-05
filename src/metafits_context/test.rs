@@ -109,6 +109,9 @@ fn test_metafits_context_new_valid() {
     // Altitude:                 90 degrees,
     assert!(approx_eq!(f64, context.alt_deg, 90., F64Margin::default()));
 
+    // Zenith angle (derived from altitude): 0 degrees,
+    assert!(approx_eq!(f64, context.za_deg, 0., F64Margin::default()));
+
     // Sun altitude:             -1.53222775573148 degrees,
     assert!(approx_eq!(
         f64,

@@ -5,7 +5,6 @@
 /*!
 The main interface to MWA data.
  */
-use std::f64::consts::FRAC_PI_2;
 use std::fmt;
 
 use chrono::{DateTime, Duration, FixedOffset};
@@ -297,7 +296,7 @@ impl MetafitsContext {
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "AZIMUTH")?;
         let altitude_degrees: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ALTITUDE")?;
-        let zenith_angle_degrees: f64 = FRAC_PI_2 - altitude_degrees;
+        let zenith_angle_degrees: f64 = 90.0 - altitude_degrees;
         let sun_altitude_degrees: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "SUN-ALT")?;
         let sun_distance_degrees: f64 =
