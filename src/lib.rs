@@ -4,23 +4,24 @@
 
 /*!
 Definitions for what we expose to the library
+Public items will be exposed as mwalib::module.
 */
-pub mod antenna;
-pub mod baseline;
-pub mod coarse_channel;
+mod antenna;
+mod baseline;
+mod coarse_channel;
 mod convert;
-pub mod correlator_context;
-pub mod error;
+mod correlator_context;
+mod error;
 mod ffi;
 mod fits_read;
-pub mod gpubox_files;
-pub mod metafits_context;
-pub mod misc;
-pub mod rfinput;
-pub mod timestep;
-pub mod visibility_pol;
-pub mod voltage_context;
-pub mod voltage_files;
+mod gpubox_files;
+mod metafits_context;
+mod misc;
+mod rfinput;
+mod timestep;
+mod visibility_pol;
+mod voltage_context;
+mod voltage_files;
 
 /// The MWA's latitude on Earth in radians. This is -26d42m11.94986s.
 pub const MWA_LATITUDE_RADIANS: f64 = -0.4660608448386394;
@@ -29,13 +30,18 @@ pub const MWA_LONGITUDE_RADIANS: f64 = 2.0362898668561042;
 /// The MWA's altitude in metres.
 pub const MWA_ALTITUDE_METRES: f64 = 377.827;
 
-// Re-exports.
-pub use antenna::*;
+// Re-exports (public to other crates and in a flat structure)
+pub use antenna::Antenna;
+pub use baseline::Baseline;
+pub use coarse_channel::CoarseChannel;
 pub use correlator_context::CorrelatorContext;
 pub use error::MwalibError;
 pub use fits_read::*;
 pub use metafits_context::{CorrelatorVersion, MetafitsContext};
-pub use rfinput::*;
+pub use misc::*;
+pub use rfinput::{Pol, RFInput};
+pub use timestep::TimeStep;
+pub use visibility_pol::VisibilityPol;
 pub use voltage_context::VoltageContext;
 
 // So that callers don't use a different version of fitsio, export them here.

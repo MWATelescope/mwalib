@@ -68,7 +68,7 @@ fn dump_data<T: AsRef<std::path::Path>>(
         context.metafits_context.num_corr_fine_chans_per_coarse * floats_per_finechan;
 
     let (ant1, ant2) =
-        misc::get_antennas_from_baseline(baseline, context.metafits_context.num_ants).unwrap();
+        get_antennas_from_baseline(baseline, context.metafits_context.num_ants).unwrap();
     let ant1_name: String = context.metafits_context.antennas[ant1]
         .tile_name
         .to_string();
