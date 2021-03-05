@@ -1,10 +1,12 @@
-name: Run Tests
+name: CI
 
-on: [push]
+on: [push, pull_request]
+
+env:
+  RUST_BACKTRACE: 1
 
 jobs:
-  build:
-
+  test_stable:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,14 +17,6 @@ jobs:
           toolchain: stable
           override: true
     
-    - name: Update package manager
-      run: |
-          sudo apt-get -y update
-
-    - name: Install prerequisites for Tarpaulin (for code coverage)        
-      run: |
-          sudo apt-get -y install libssl-dev pkg-config cmake zlib1g-dev 
-
     - name: Build cfitsio
       run: |
           # Install dependencies
@@ -39,11 +33,55 @@ jobs:
           sudo ldconfig
           cd ..
 
-    - name: Install Tarpaulin
-      run: cargo install cargo-tarpaulin
+    - name: Run tests
+      run: MWALIB_LINK_STATIC_CFITSIO=1 cargo test --release --verbose
 
-    - name: Run cargo-tarpaulin which will do a cargo build --release
-      run: MWALIB_LINK_STATIC_CFITSIO=1 cargo tarpaulin --release --verbose --ignore-tests --timeout=360 --out=Lcov --output-dir=./coverage/
+  generate_coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly
+          override: true
+    
+    - name: Build cfitsio
+      run: |
+          # Install dependencies
+          curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-3.48.tar.gz" -o cfitsio.tar.gz
+          tar -xf cfitsio.tar.gz
+          rm cfitsio.tar.gz
+          cd cfitsio-3.48
+          # Enabling SSSE3 could cause portability problems, but it's unlikely that anyone
+          # is using such a CPU...
+          # https://stackoverflow.com/questions/52858556/most-recent-processor-without-support-of-ssse3-instructions
+          CFLAGS="-O3" ./configure --prefix=/usr/local --enable-reentrant --enable-ssse3
+          make -j8
+          sudo make install
+          sudo ldconfig
+          cd ..
+
+    - name: Install cargo cov
+      run: cargo install cargo-cov
+
+    - name: Generate test lcov coverage into coverage/ dir
+      run: |
+          RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests
+          rustup run nightly cargo profdata -- merge -sparse json5format-*.profraw -o json5format.profdata
+          rustup run nightly cargo cov -- export --format=lcov --ignore-filename-regex='(/.cargo/registry|/rustc|test.rs$)' --instr-profile=json5format.profdata \
+          $( \
+              for file in \
+                      $( \
+                          RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests --no-run --message-format=json \
+                                  | jq -r "select(.profile.test == true) | .filenames[]" \
+                                  | grep -v dSYM - \
+                  ); \
+                do \
+                    printf "%s %s " -object $file; \
+                done \
+          ) > coverage/coverage.lcov
 
     - name: codecov
       run: bash <(curl -s https://codecov.io/bash)
