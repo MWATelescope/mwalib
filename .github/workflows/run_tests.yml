@@ -66,6 +66,12 @@ jobs:
     - name: Install cargo cov
       run: cargo install cargo-cov
 
+    - name: Install llvm-tools-preview component
+      run: rustup component add llvm-tools-preview
+
+    - name: Install cargo profdata
+      run: cargo install cargo-binutils
+
     - name: Generate test lcov coverage into coverage/ dir
       run: |
           RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests
