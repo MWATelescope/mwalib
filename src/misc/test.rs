@@ -44,25 +44,25 @@ where
 #[test]
 fn test_convert_gpstime_to_unixtime() {
     // Tested using https://www.andrews.edu/~tzs/timeconv/timedisplay.php
-    let gpstime_ms = 1298013490_000;
-    let mwa_start_gpstime_ms = 1242552568_000;
-    let mwa_start_unixtime_ms = 1558517350_000;
+    let gpstime_ms = 1_298_013_490_000;
+    let mwa_start_gpstime_ms = 1_242_552_568_000;
+    let mwa_start_unixtime_ms = 1_558_517_350_000;
 
     let new_unixtime_ms =
         convert_gpstime_to_unixtime(gpstime_ms, mwa_start_gpstime_ms, mwa_start_unixtime_ms);
-    assert_eq!(new_unixtime_ms, 1613978272_000);
+    assert_eq!(new_unixtime_ms, 1_613_978_272_000);
 }
 
 #[test]
 fn test_convert_unixtime_to_gpstime() {
     // Tested using https://www.andrews.edu/~tzs/timeconv/timedisplay.php
-    let unixtime_ms = 1613978272_000;
-    let mwa_start_gpstime_ms = 1242552568_000;
-    let mwa_start_unixtime_ms = 1558517350_000;
+    let unixtime_ms = 1_613_978_272_000;
+    let mwa_start_gpstime_ms = 1_242_552_568_000;
+    let mwa_start_unixtime_ms = 1_558_517_350_000;
 
     let new_unixtime_ms =
         convert_unixtime_to_gpstime(unixtime_ms, mwa_start_gpstime_ms, mwa_start_unixtime_ms);
-    assert_eq!(new_unixtime_ms, 1298013490_000);
+    assert_eq!(new_unixtime_ms, 1_298_013_490_000);
 }
 
 #[test]

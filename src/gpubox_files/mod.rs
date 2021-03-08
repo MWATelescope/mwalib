@@ -30,13 +30,12 @@ pub(crate) struct ObsTimes {
 
 /// This represents one group of gpubox files with the same "batch" identitifer.
 /// e.g. obsid_datetime_chan_batch
-#[allow(clippy::upper_case_acronyms)]
-pub(crate) struct GPUBoxBatch {
+pub(crate) struct GpuBoxBatch {
     pub batch_number: usize,           // 00,01,02..n
-    pub gpubox_files: Vec<GPUBoxFile>, // Vector storing the details of each gpubox file in this batch
+    pub gpubox_files: Vec<GpuBoxFile>, // Vector storing the details of each gpubox file in this batch
 }
 
-impl GPUBoxBatch {
+impl GpuBoxBatch {
     pub fn new(batch_number: usize) -> Self {
         Self {
             batch_number,
@@ -45,7 +44,7 @@ impl GPUBoxBatch {
     }
 }
 
-impl fmt::Debug for GPUBoxBatch {
+impl fmt::Debug for GpuBoxBatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -56,15 +55,14 @@ impl fmt::Debug for GPUBoxBatch {
 }
 
 /// This represents one gpubox file
-#[allow(clippy::upper_case_acronyms)]
-pub(crate) struct GPUBoxFile {
+pub(crate) struct GpuBoxFile {
     /// Filename of gpubox file
     pub filename: String,
     /// channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
     pub channel_identifier: usize,
 }
 
-impl fmt::Debug for GPUBoxFile {
+impl fmt::Debug for GpuBoxFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -74,13 +72,13 @@ impl fmt::Debug for GPUBoxFile {
     }
 }
 
-impl std::cmp::PartialEq for GPUBoxBatch {
+impl std::cmp::PartialEq for GpuBoxBatch {
     fn eq(&self, other: &Self) -> bool {
         self.batch_number == other.batch_number && self.gpubox_files == other.gpubox_files
     }
 }
 
-impl std::cmp::PartialEq for GPUBoxFile {
+impl std::cmp::PartialEq for GpuBoxFile {
     fn eq(&self, other: &Self) -> bool {
         self.filename == other.filename && self.channel_identifier == other.channel_identifier
     }
@@ -88,8 +86,7 @@ impl std::cmp::PartialEq for GPUBoxFile {
 
 /// A temporary representation of a gpubox file
 #[derive(Clone, Debug)]
-#[allow(clippy::upper_case_acronyms)]
-struct TempGPUBoxFile<'a> {
+struct TempGpuBoxFile<'a> {
     /// Filename of gpubox file
     filename: &'a str,
     /// Channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
@@ -98,7 +95,7 @@ struct TempGPUBoxFile<'a> {
     batch_number: usize,
 }
 
-impl<'a> std::cmp::PartialEq for TempGPUBoxFile<'a> {
+impl<'a> std::cmp::PartialEq for TempGpuBoxFile<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.filename == other.filename
             && self.channel_identifier == other.channel_identifier
@@ -135,7 +132,7 @@ pub(crate) type GpuboxTimeMap = BTreeMap<u64, BTreeMap<usize, (usize, usize)>>;
 /// A little struct to help us not get confused when dealing with the returned
 /// values from complex functions.
 pub(crate) struct GpuboxInfo {
-    pub batches: Vec<GPUBoxBatch>,
+    pub batches: Vec<GpuBoxBatch>,
     pub corr_format: CorrelatorVersion,
     pub time_map: GpuboxTimeMap,
     pub hdu_size: usize,
@@ -161,17 +158,17 @@ pub(crate) struct GpuboxInfo {
 /// * A Result containing a vector of `GPUBoxBatch`.
 ///
 ///
-fn convert_temp_gpuboxes(temp_gpuboxes: Vec<TempGPUBoxFile>) -> Vec<GPUBoxBatch> {
+fn convert_temp_gpuboxes(temp_gpuboxes: Vec<TempGpuBoxFile>) -> Vec<GpuBoxBatch> {
     // unwrap is safe as a check is performed above to ensure that there are
     // some files present.
     let num_batches = temp_gpuboxes.iter().map(|g| g.batch_number).max().unwrap() + 1;
-    let mut gpubox_batches: Vec<GPUBoxBatch> = Vec::with_capacity(num_batches);
+    let mut gpubox_batches: Vec<GpuBoxBatch> = Vec::with_capacity(num_batches);
     for b in 0..num_batches {
-        gpubox_batches.push(GPUBoxBatch::new(b));
+        gpubox_batches.push(GpuBoxBatch::new(b));
     }
 
     for temp_g in temp_gpuboxes.into_iter() {
-        let g = GPUBoxFile {
+        let g = GpuBoxFile {
             filename: temp_g.filename.to_string(),
             channel_identifier: temp_g.channel_identifier,
         };
@@ -309,12 +306,12 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
 ///
 fn determine_gpubox_batches<T: AsRef<Path>>(
     gpubox_filenames: &[T],
-) -> Result<(Vec<TempGPUBoxFile>, CorrelatorVersion, usize), GpuboxError> {
+) -> Result<(Vec<TempGpuBoxFile>, CorrelatorVersion, usize), GpuboxError> {
     if gpubox_filenames.is_empty() {
         return Err(GpuboxError::NoGpuboxes);
     }
     let mut format = None;
-    let mut temp_gpuboxes: Vec<TempGPUBoxFile> = Vec::with_capacity(gpubox_filenames.len());
+    let mut temp_gpuboxes: Vec<TempGpuBoxFile> = Vec::with_capacity(gpubox_filenames.len());
 
     for g_path in gpubox_filenames {
         // So that we can pass along useful error messages, convert the input
@@ -338,7 +335,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
 
                 // The following unwraps are safe, because the regex wouldn't
                 // work if they couldn't be parsed into ints.
-                temp_gpuboxes.push(TempGPUBoxFile {
+                temp_gpuboxes.push(TempGpuBoxFile {
                     filename: g,
                     channel_identifier: caps["channel"].parse().unwrap(),
                     batch_number: caps["batch"].parse().unwrap(),
@@ -354,7 +351,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
                         _ => return Err(GpuboxError::Mixture),
                     }
 
-                    temp_gpuboxes.push(TempGPUBoxFile {
+                    temp_gpuboxes.push(TempGpuBoxFile {
                         filename: g,
                         channel_identifier: caps["band"].parse().unwrap(),
                         batch_number: caps["batch"].parse().unwrap(),
@@ -370,7 +367,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
                             _ => return Err(GpuboxError::Mixture),
                         }
 
-                        temp_gpuboxes.push(TempGPUBoxFile {
+                        temp_gpuboxes.push(TempGpuBoxFile {
                             filename: g,
                             channel_identifier: caps["band"].parse().unwrap(),
                             // There's only one batch.
@@ -596,7 +593,7 @@ fn validate_gpubox_metadata_obs_id(
 ///
 ///
 fn create_time_map(
-    gpuboxes: &[TempGPUBoxFile],
+    gpuboxes: &[TempGpuBoxFile],
     correlator_version: CorrelatorVersion,
 ) -> Result<GpuboxTimeMap, GpuboxError> {
     // Ugly hack to open up all the HDUs of the gpubox files in parallel. We

@@ -10,6 +10,7 @@ use super::*;
 use crate::misc::test::*;
 use crate::*;
 use fitsio::tables::{ColumnDataType, ColumnDescription};
+use float_cmp::*;
 
 #[test]
 fn test_get_vcs_order() {
@@ -83,7 +84,7 @@ fn test_read_metafits_values_from_row_0() {
     let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
 
     // Get values from row 1
-    let row: RFInputMetafitsTableRow =
+    let row: RfInputMetafitsTableRow =
         RFInput::read_metafits_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0).unwrap();
     assert_eq!(row.input, 0);
     assert_eq!(row.antenna, 75);
@@ -94,19 +95,19 @@ fn test_read_metafits_values_from_row_0() {
     assert!(float_cmp::approx_eq!(
         f64,
         row.north_m,
-        -101.529_998_779_296_88 as f64,
+        -101.529_998_779_296_88,
         float_cmp::F64Margin::default()
     ));
     assert!(float_cmp::approx_eq!(
         f64,
         row.east_m,
-        -585.674_987_792_968_8 as f64,
+        -585.674_987_792_968_8,
         float_cmp::F64Margin::default()
     ));
     assert!(float_cmp::approx_eq!(
         f64,
         row.height_m,
-        375.212_005_615_234_4 as f64,
+        375.212_005_615_234_4,
         float_cmp::F64Margin::default()
     ));
     assert_eq!(row.flag, 1);
@@ -167,23 +168,29 @@ fn test_populate_rf_inputs() {
     assert_eq!(rfinput[0].tile_id, 104);
     assert_eq!(rfinput[0].tile_name, "Tile104");
     assert_eq!(rfinput[0].pol, Pol::Y);
-    assert_eq!(rfinput[0].electrical_length_m, -756.49);
+    assert!(approx_eq!(
+        f64,
+        rfinput[0].electrical_length_m,
+        -756.49,
+        F64Margin::default()
+    ));
+
     assert!(float_cmp::approx_eq!(
         f64,
         rfinput[0].north_m,
-        -101.529_998_779_296_88 as f64,
+        -101.529_998_779_296_88,
         float_cmp::F64Margin::default()
     ));
     assert!(float_cmp::approx_eq!(
         f64,
         rfinput[0].east_m,
-        -585.674_987_792_968_8 as f64,
+        -585.674_987_792_968_8,
         float_cmp::F64Margin::default()
     ));
     assert!(float_cmp::approx_eq!(
         f64,
         rfinput[0].height_m,
-        375.212_005_615_234_4 as f64,
+        375.212_005_615_234_4,
         float_cmp::F64Margin::default()
     ));
     assert_eq!(rfinput[0].flagged, true);

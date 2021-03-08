@@ -338,6 +338,7 @@ fn test_validate_hdu_axes_naxis_mismatches_oldlegacy() {
     let metafits_fine_chans_per_coarse = 128;
     let metafits_baselines = 8256;
     let visibility_pols = 4;
+    let values = 1;
 
     // Check for NAXIS1 mismatch
     let result_bad1 = CorrelatorContext::validate_hdu_axes(
@@ -345,7 +346,7 @@ fn test_validate_hdu_axes_naxis_mismatches_oldlegacy() {
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
-        8256 * 4 * 1,
+        metafits_baselines * visibility_pols * values,
         128,
     );
 
@@ -385,6 +386,7 @@ fn test_validate_hdu_axes_naxis_mismatches_legacy() {
     let metafits_fine_chans_per_coarse = 128;
     let metafits_baselines = 8256;
     let visibility_pols = 4;
+    let values = 1;
 
     // Check for NAXIS1 mismatch
     let result_bad1 = CorrelatorContext::validate_hdu_axes(
@@ -392,7 +394,7 @@ fn test_validate_hdu_axes_naxis_mismatches_legacy() {
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
-        8256 * 4 * 1,
+        metafits_baselines * visibility_pols * values,
         128,
     );
 
@@ -432,6 +434,7 @@ fn test_validate_hdu_axes_naxis_mismatches_v2() {
     let metafits_fine_chans_per_coarse = 128;
     let metafits_baselines = 8256;
     let visibility_pols = 4;
+    let values = 2;
 
     // Check for NAXIS1 mismatch
     let result_bad1 = CorrelatorContext::validate_hdu_axes(
@@ -439,7 +442,7 @@ fn test_validate_hdu_axes_naxis_mismatches_v2() {
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
-        128 * 4 * 1,
+        metafits_fine_chans_per_coarse * visibility_pols,
         8256,
     );
 
@@ -460,7 +463,7 @@ fn test_validate_hdu_axes_naxis_mismatches_v2() {
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
-        128 * 4 * 2,
+        metafits_fine_chans_per_coarse * visibility_pols * values,
         8257,
     );
 

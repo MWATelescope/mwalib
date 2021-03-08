@@ -25,17 +25,17 @@ fn test_determine_gpubox_batches_proper_format() {
     assert_eq!(num_batches, 3);
 
     let expected_gpuboxes = vec![
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "1065880128_20131015134930_gpubox01_00.fits",
             channel_identifier: 1,
             batch_number: 0,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "1065880128_20131015134930_gpubox20_01.fits",
             channel_identifier: 20,
             batch_number: 1,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "1065880128_20131015134930_gpubox15_02.fits",
             channel_identifier: 15,
             batch_number: 2,
@@ -58,17 +58,17 @@ fn test_determine_gpubox_batches_proper_format2() {
     assert_eq!(corr_format, CorrelatorVersion::Legacy);
     assert_eq!(num_batches, 3);
     let expected_batches = vec![
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
             channel_identifier: 1,
             batch_number: 0,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/gs/1065880128_20131015134930_gpubox20_01.fits",
             channel_identifier: 20,
             batch_number: 1,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/var/cache/1065880128_20131015134930_gpubox15_02.fits",
             channel_identifier: 15,
             batch_number: 2,
@@ -95,32 +95,32 @@ fn test_determine_gpubox_batches_proper_format3() {
     assert_eq!(num_batches, 3);
 
     let expected_batches = vec![
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
             channel_identifier: 1,
             batch_number: 0,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox02_00.fits",
             channel_identifier: 2,
             batch_number: 0,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox19_01.fits",
             channel_identifier: 19,
             batch_number: 1,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox20_01.fits",
             channel_identifier: 20,
             batch_number: 1,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox14_02.fits",
             channel_identifier: 14,
             batch_number: 2,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox15_02.fits",
             channel_identifier: 15,
             batch_number: 2,
@@ -147,32 +147,32 @@ fn test_determine_gpubox_batches_proper_format4() {
     assert_eq!(num_batches, 3);
 
     let expected_batches = vec![
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
             channel_identifier: 1,
             batch_number: 0,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134929_gpubox02_00.fits",
             channel_identifier: 2,
             batch_number: 0,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox19_01.fits",
             channel_identifier: 19,
             batch_number: 1,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134929_gpubox20_01.fits",
             channel_identifier: 20,
             batch_number: 1,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134931_gpubox14_02.fits",
             channel_identifier: 14,
             batch_number: 2,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox15_02.fits",
             channel_identifier: 15,
             batch_number: 2,
@@ -242,17 +242,17 @@ fn test_determine_gpubox_batches_old_format() {
     assert_eq!(num_batches, 1);
 
     let expected_batches = vec![
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "1065880128_20131015134930_gpubox01.fits",
             channel_identifier: 1,
             batch_number: 0,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "1065880128_20131015134930_gpubox15.fits",
             channel_identifier: 15,
             batch_number: 0,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "1065880128_20131015134930_gpubox20.fits",
             channel_identifier: 20,
             batch_number: 0,
@@ -277,22 +277,22 @@ fn test_determine_gpubox_batches_new_format() {
     assert_eq!(num_batches, 2);
 
     let expected_batches = vec![
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "1065880128_20131015134930_ch101_000.fits",
             channel_identifier: 101,
             batch_number: 0,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "1065880128_20131015134930_ch102_000.fits",
             channel_identifier: 102,
             batch_number: 0,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "1065880128_20131015135030_ch101_001.fits",
             channel_identifier: 101,
             batch_number: 1,
         },
-        TempGPUBoxFile {
+        TempGpuBoxFile {
             filename: "1065880128_20131015135030_ch102_001.fits",
             channel_identifier: 102,
             batch_number: 1,

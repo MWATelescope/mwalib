@@ -2,6 +2,12 @@
 
 Changes in each release are listed below.
 
+## 0.6.1 08-Mar-2021 (Pre-release)
+
+* Fixed za (zenith angle) calculation.
+* Added more comprehensive testing for some coarse_channel methods.
+* Addressed many clippy lints.
+
 ## 0.6.0 05-Mar-2021 (Pre-release)
 
 * Minor updates to enable packaging and deployment to crates.io.

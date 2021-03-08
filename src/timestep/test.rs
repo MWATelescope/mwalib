@@ -32,8 +32,8 @@ fn test_populate_correlator_timesteps() {
     }
 
     // Get a vector timesteps
-    let scheduled_start_gpstime_ms = 1065880139_000;
-    let scheduled_start_unix_ms = 1381844923_000;
+    let scheduled_start_gpstime_ms = 1_065_880_139_000;
+    let scheduled_start_unix_ms = 1_381_844_923_000;
     let timesteps = TimeStep::populate_correlator_timesteps(
         &gpubox_time_map,
         scheduled_start_gpstime_ms,

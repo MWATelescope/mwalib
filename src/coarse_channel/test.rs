@@ -259,6 +259,15 @@ fn test_process_coarse_chans_no_time_maps_legacy() {
     let coarse_chan_array = result.unwrap();
 
     assert_eq!(coarse_chan_array.len(), 3);
+    assert_eq!(coarse_chan_array[0].rec_chan_number, 133);
+    assert_eq!(coarse_chan_array[0].corr_chan_number, 2);
+    assert_eq!(coarse_chan_array[0].gpubox_number, 3);
+    assert_eq!(coarse_chan_array[1].rec_chan_number, 134);
+    assert_eq!(coarse_chan_array[1].corr_chan_number, 1);
+    assert_eq!(coarse_chan_array[1].gpubox_number, 2);
+    assert_eq!(coarse_chan_array[2].rec_chan_number, 135);
+    assert_eq!(coarse_chan_array[2].corr_chan_number, 0);
+    assert_eq!(coarse_chan_array[2].gpubox_number, 1);
 }
 
 #[test]
@@ -280,6 +289,15 @@ fn test_process_coarse_chans_no_time_maps_mwax_v2() {
     let coarse_chan_array = result.unwrap();
 
     assert_eq!(coarse_chan_array.len(), 3);
+    assert_eq!(coarse_chan_array[0].rec_chan_number, 133);
+    assert_eq!(coarse_chan_array[0].corr_chan_number, 0);
+    assert_eq!(coarse_chan_array[0].gpubox_number, 133);
+    assert_eq!(coarse_chan_array[1].rec_chan_number, 134);
+    assert_eq!(coarse_chan_array[1].corr_chan_number, 1);
+    assert_eq!(coarse_chan_array[1].gpubox_number, 134);
+    assert_eq!(coarse_chan_array[2].rec_chan_number, 135);
+    assert_eq!(coarse_chan_array[2].corr_chan_number, 2);
+    assert_eq!(coarse_chan_array[2].gpubox_number, 135);
 }
 
 #[test]

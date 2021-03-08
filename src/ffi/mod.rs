@@ -1847,7 +1847,6 @@ pub unsafe extern "C" fn mwalib_coarse_channels_free(
 
 /// Representation in C of an `RFInput` struct
 #[repr(C)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct RFInput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,

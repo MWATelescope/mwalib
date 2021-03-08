@@ -61,7 +61,7 @@ pub struct CorrelatorContext {
     /// corresponds directly to other gpubox-related objects
     /// (e.g. `gpubox_hdu_limits`). Structured:
     /// `gpubox_batches[batch][filename]`.
-    pub(crate) gpubox_batches: Vec<GPUBoxBatch>,
+    pub(crate) gpubox_batches: Vec<GpuBoxBatch>,
     /// We assume as little as possible about the data layout in the gpubox
     /// files; here, a `BTreeMap` contains each unique UNIX time from every
     /// gpubox, which is associated with another `BTreeMap`, associating each

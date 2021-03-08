@@ -106,8 +106,7 @@ impl fmt::Display for Pol {
 }
 
 /// Structure to hold one row of the metafits tiledata table
-#[allow(clippy::upper_case_acronyms)]
-struct RFInputMetafitsTableRow {
+struct RfInputMetafitsTableRow {
     /// This is the ordinal index of the rf_input in the metafits file
     input: u32,
     /// This is the antenna number.
@@ -152,7 +151,6 @@ struct RFInputMetafitsTableRow {
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
 #[derive(Clone)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct RFInput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
@@ -220,7 +218,7 @@ impl RFInput {
         metafits_fptr: &mut fitsio::FitsFile,
         metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
         row: usize,
-    ) -> Result<RFInputMetafitsTableRow, RfinputError> {
+    ) -> Result<RfInputMetafitsTableRow, RfinputError> {
         let input = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Input", row)?;
         let antenna = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Antenna", row)?;
         let tile_id = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Tile", row)?;
@@ -269,7 +267,7 @@ impl RFInput {
             .map(|&delay| if delay == 32 { 0.0 } else { 1.0 })
             .collect();
 
-        Ok(RFInputMetafitsTableRow {
+        Ok(RfInputMetafitsTableRow {
             input,
             antenna,
             tile_id,
