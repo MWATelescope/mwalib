@@ -1,9 +1,10 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 /*!
 Errors associated with reading in fits files.
-*/
+ */
 
 use thiserror::Error;
 
@@ -14,7 +15,7 @@ pub enum FitsError {
     Open {
         fits_error: fitsio::errors::Error,
         fits_filename: String,
-        source_file: String,
+        source_file: &'static str,
         source_line: u32,
     },
 
@@ -24,7 +25,7 @@ pub enum FitsError {
         key: String,
         fits_filename: String,
         hdu_num: usize,
-        source_file: String,
+        source_file: &'static str,
         source_line: u32,
     },
 
@@ -33,7 +34,7 @@ pub enum FitsError {
     NotImage {
         fits_filename: String,
         hdu_num: usize,
-        source_file: String,
+        source_file: &'static str,
         source_line: u32,
     },
 
@@ -43,7 +44,7 @@ pub enum FitsError {
         key: String,
         fits_filename: String,
         hdu_num: usize,
-        source_file: String,
+        source_file: &'static str,
         source_line: u32,
     },
 
@@ -53,7 +54,7 @@ pub enum FitsError {
         fits_error: fitsio::errors::Error,
         fits_filename: String,
         hdu_num: usize,
-        source_file: String,
+        source_file: &'static str,
         source_line: u32,
     },
 
@@ -63,7 +64,7 @@ pub enum FitsError {
         key: String,
         fits_filename: String,
         hdu_num: usize,
-        source_file: String,
+        source_file: &'static str,
         source_line: u32,
     },
 }

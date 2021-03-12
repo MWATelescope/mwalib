@@ -254,7 +254,7 @@ macro_rules! get_fits_image {
 #[doc(hidden)]
 pub fn _open_fits<T: AsRef<std::path::Path>>(
     file: &T,
-    source_file: &str,
+    source_file: &'static str,
     source_line: u32,
 ) -> Result<FitsFile, FitsError> {
     match FitsFile::open(file) {
@@ -262,7 +262,7 @@ pub fn _open_fits<T: AsRef<std::path::Path>>(
         Err(e) => Err(FitsError::Open {
             fits_error: e,
             fits_filename: file.as_ref().to_str().unwrap().to_string(),
-            source_file: source_file.to_string(),
+            source_file,
             source_line,
         }),
     }
@@ -275,7 +275,7 @@ pub fn _open_fits<T: AsRef<std::path::Path>>(
 pub fn _open_hdu(
     fits_fptr: &mut FitsFile,
     hdu_num: usize,
-    source_file: &str,
+    source_file: &'static str,
     source_line: u32,
 ) -> Result<FitsHdu, FitsError> {
     match fits_fptr.hdu(hdu_num) {
@@ -284,7 +284,7 @@ pub fn _open_hdu(
             fits_error: e,
             fits_filename: fits_fptr.filename.clone(),
             hdu_num: hdu_num + 1,
-            source_file: source_file.to_string(),
+            source_file,
             source_line,
         }),
     }
@@ -305,7 +305,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
     fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
-    source_file: &str,
+    source_file: &'static str,
     source_line: u32,
 ) -> Result<Option<T>, FitsError> {
     let unparsed_value: String = match hdu.read_key(fits_fptr, keyword) {
@@ -318,7 +318,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
                         fits_error: e,
                         fits_filename: fits_fptr.filename.clone(),
                         hdu_num: hdu.number + 1,
-                        source_file: source_file.to_string(),
+                        source_file,
                         source_line,
                     })
                 }
@@ -328,7 +328,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
                     fits_error: e,
                     fits_filename: fits_fptr.filename.clone(),
                     hdu_num: hdu.number + 1,
-                    source_file: source_file.to_string(),
+                    source_file,
                     source_line,
                 })
             }
@@ -341,7 +341,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
             key: keyword.to_string(),
             fits_filename: fits_fptr.filename.to_string(),
             hdu_num: hdu.number + 1,
-            source_file: source_file.to_string(),
+            source_file,
             source_line,
         }),
     }
@@ -355,7 +355,7 @@ pub fn _get_required_fits_key<T: std::str::FromStr>(
     fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
-    source_file: &str,
+    source_file: &'static str,
     source_line: u32,
 ) -> Result<T, FitsError> {
     match _get_optional_fits_key(fits_fptr, hdu, keyword, source_file, source_line) {
@@ -364,7 +364,7 @@ pub fn _get_required_fits_key<T: std::str::FromStr>(
             key: keyword.to_string(),
             fits_filename: fits_fptr.filename.to_string(),
             hdu_num: hdu.number + 1,
-            source_file: source_file.to_string(),
+            source_file,
             source_line,
         }),
         Err(error) => Err(error),
@@ -379,7 +379,7 @@ pub fn _get_fits_col<T: fitsio::tables::ReadsCol>(
     fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
-    source_file: &str,
+    source_file: &'static str,
     source_line: u32,
 ) -> Result<Vec<T>, FitsError> {
     match hdu.read_col(fits_fptr, keyword) {
@@ -388,7 +388,7 @@ pub fn _get_fits_col<T: fitsio::tables::ReadsCol>(
             fits_error,
             fits_filename: fits_fptr.filename.clone(),
             hdu_num: hdu.number + 1,
-            source_file: source_file.to_string(),
+            source_file,
             source_line,
         }),
     }
@@ -408,7 +408,7 @@ pub fn _get_optional_fits_key_long_string(
     fits_fptr: &mut fitsio::FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
-    source_file: &str,
+    source_file: &'static str,
     source_line: u32,
 ) -> Result<Option<String>, FitsError> {
     // Read the long string.
@@ -420,7 +420,7 @@ pub fn _get_optional_fits_key_long_string(
             key: keyword.to_string(),
             fits_filename: fits_fptr.filename.clone(),
             hdu_num: hdu.number + 1,
-            source_file: source_file.to_string(),
+            source_file,
             source_line,
         }),
     }
@@ -440,7 +440,7 @@ pub fn _get_required_fits_key_long_string(
     fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
-    source_file: &str,
+    source_file: &'static str,
     source_line: u32,
 ) -> Result<String, FitsError> {
     match _get_optional_fits_key_long_string(fits_fptr, hdu, keyword, source_file, source_line) {
@@ -449,7 +449,7 @@ pub fn _get_required_fits_key_long_string(
             key: keyword.to_string(),
             fits_filename: fits_fptr.filename.clone(),
             hdu_num: hdu.number + 1,
-            source_file: source_file.to_string(),
+            source_file,
             source_line,
         }),
         Err(error) => Err(error),
@@ -463,7 +463,7 @@ pub fn _get_required_fits_key_long_string(
 pub fn _get_hdu_image_size(
     fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
-    source_file: &str,
+    source_file: &'static str,
     source_line: u32,
 ) -> Result<Vec<usize>, FitsError> {
     match &hdu.info {
@@ -471,7 +471,7 @@ pub fn _get_hdu_image_size(
         _ => Err(FitsError::NotImage {
             fits_filename: fits_fptr.filename.clone(),
             hdu_num: hdu.number + 1,
-            source_file: source_file.to_string(),
+            source_file,
             source_line,
         }),
     }
@@ -484,7 +484,7 @@ pub fn _get_hdu_image_size(
 pub fn _get_fits_image<T: fitsio::images::ReadImage>(
     fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
-    source_file: &str,
+    source_file: &'static str,
     source_line: u32,
 ) -> Result<T, FitsError> {
     match &hdu.info {
@@ -494,14 +494,14 @@ pub fn _get_fits_image<T: fitsio::images::ReadImage>(
                 fits_error: e,
                 fits_filename: fits_fptr.filename.clone(),
                 hdu_num: hdu.number + 1,
-                source_file: source_file.to_string(),
+                source_file,
                 source_line,
             }),
         },
         _ => Err(FitsError::NotImage {
             fits_filename: fits_fptr.filename.clone(),
             hdu_num: hdu.number + 1,
-            source_file: source_file.to_string(),
+            source_file,
             source_line,
         }),
     }
