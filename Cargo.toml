@@ -13,16 +13,19 @@ keywords = ["radioastronomy", "mwa", "astronomy"]
 categories = ["science","parsing"]
 exclude = ["test_files/*", "tools/*",".github/*"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [profile.release]
 lto = true
-codegen-units = 1   # Set this to 1 in Cargo.toml to allow for maximum size reduction optimizations
+# Allow for maximum size reduction optimizations
+codegen-units = 1
 
 # Make a rust library, as well as static and C-compatible dynamic libraries
 # available as "libmwalib.a" and "libmwalib.so".
 [lib]
 crate-type = ["rlib", "staticlib", "cdylib"]
+
+[features]
+# Compile cfitsio from source and link it statically.
+cfitsio-static = ["fitsio-sys/fitsio-src"]
 
 [dependencies]
 chrono = "0.4.*"
@@ -30,7 +33,7 @@ fitsio = "0.17.*"
 fitsio-sys = "0.4.*"
 lazy_static = "1.4.*"
 libc = "0.2.*"
-# rayon needs to be consistent across other projects such as Hyperdrive
+# Allow downstream users to select the rayon version to use.
 rayon = ">=1.3,<1.6"
 regex = "1.4.*"
 thiserror = "1.0.*"
