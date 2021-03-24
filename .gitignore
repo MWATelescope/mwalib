@@ -7,3 +7,5 @@ Cargo.lock
 /coverage
 /tools/release
 include/
+/tools/comparison_tools/*.csv
+/tools/comparison_tools/.python-version

@@ -47,6 +47,7 @@ pub(crate) struct LegacyConversionBaseline {
     pub yx_conjugate: bool, // if true, we need to conjugate this visibility
     pub yy_index: usize,    // index of where complex xx is in the input buffer
     pub yy_conjugate: bool, // if true, we need to conjugate this visibility
+    pub is_cross: bool,     // if true, we need to conjugate this visibility AGAIN
 }
 
 impl LegacyConversionBaseline {
@@ -79,6 +80,7 @@ impl LegacyConversionBaseline {
             yx_conjugate: yx < 0,
             yy_index: yy.abs() as usize,
             yy_conjugate: yy < 0,
+            is_cross: ant1 != ant2,
         }
     }
 }
@@ -354,6 +356,14 @@ pub(crate) fn convert_legacy_hdu_to_mwax_baseline_order(
             } else {
                 input_buffer[source_index + baseline.yy_index + 1]
             };
+
+            // Finally if we are a cross correlaton, take the conjugate
+            if baseline.is_cross {
+                output_buffer[destination_index + 1] = -output_buffer[destination_index + 1];
+                output_buffer[destination_index + 3] = -output_buffer[destination_index + 3];
+                output_buffer[destination_index + 5] = -output_buffer[destination_index + 5];
+                output_buffer[destination_index + 7] = -output_buffer[destination_index + 7];
+            }
         }
     }
 }
@@ -442,6 +452,14 @@ pub(crate) fn convert_legacy_hdu_to_mwax_frequency_order(
             } else {
                 input_buffer[source_index + baseline.yy_index + 1]
             };
+
+            // Finally if we are a cross correlaton, take the conjugate
+            if baseline.is_cross {
+                output_buffer[destination_index + 1] = -output_buffer[destination_index + 1];
+                output_buffer[destination_index + 3] = -output_buffer[destination_index + 3];
+                output_buffer[destination_index + 5] = -output_buffer[destination_index + 5];
+                output_buffer[destination_index + 7] = -output_buffer[destination_index + 7];
+            }
         }
     }
 }
