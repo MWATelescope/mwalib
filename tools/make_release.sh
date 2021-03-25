@@ -13,7 +13,7 @@ rm -rf ../target
 rm -rf release
 echo "Building mwalib..."
 export MWALIB_LINK_STATIC_CFITSIO=1
-cargo build --release -v
+cargo build --release
 echo "Packaging up mwalib..."
 mkdir -p release
 mkdir -p release/lib

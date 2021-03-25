@@ -2,6 +2,17 @@
 
 Changes in each release are listed below.
 
+## 0.6.2 25-Mar-2021 (Pre-release)
+
+* Modified MWA Legacy read code to produce cotter-compatible visibilities:
+ * mwalib differs from cotter: cotter produces 0+0j for XY on auto's, mwalib provides the values.
+ * mwalib and cotter differ from pyuvdata: mwalib/cotter visibilities are conjugated with respect to pyuvdata for cross correlations.
+* Added cotter validation data and test to ensure conversion code produces cotter equivalent visibilities (with the above exception).
+* Provide rust-fitsio's cfitsio-static feature. 
+* Bumped fitsio dependency to 0.17.* and  changed fitsio-sys to ^0 to ensure fitsio and mwalib use the same fitsio-sys version always.
+* Updated CI pipeline: bumped install of cfitsio to v3.49.
+* Made error handling code a little lighter. 
+
 ## 0.6.1 08-Mar-2021 (Pre-release)
 
 * Fixed za (zenith angle) calculation.

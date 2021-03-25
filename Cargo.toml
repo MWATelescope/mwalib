@@ -30,7 +30,7 @@ cfitsio-static = ["fitsio-sys/fitsio-src"]
 [dependencies]
 chrono = "0.4.*"
 fitsio = "0.17.*"
-fitsio-sys = "0.4.*"
+fitsio-sys = "^0"  # fitsio also uses fitsio-sys so ensure we both use the same
 lazy_static = "1.4.*"
 libc = "0.2.*"
 # Allow downstream users to select the rayon version to use.

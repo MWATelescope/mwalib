@@ -2,6 +2,8 @@
 
 set -eux
 
+cargo build --release
+
 # Compile the example C code
 gcc -O3 \
     mwalib-print-obs-context.c \
