@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "0.6.1"
+version = "0.6.2"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
@@ -26,8 +26,8 @@ crate-type = ["rlib", "staticlib", "cdylib"]
 
 [dependencies]
 chrono = "0.4.*"
-fitsio = "0.16.*"
-fitsio-sys = "0.3.*"
+fitsio = "0.17.*"
+fitsio-sys = "0.4.*"
 lazy_static = "1.4.*"
 libc = "0.2.*"
 # rayon needs to be consistent across other projects such as Hyperdrive

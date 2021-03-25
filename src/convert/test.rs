@@ -541,7 +541,7 @@ fn test_conversion_of_legacy_hdu_to_mwax_baseline_order_vs_cotter() {
 
             // Cotter always sets a value of 0 in the real and imaginary values for the XY pol in an autocorrelation
             // mwalib *does* provide the value, so we will alter the test value provided by mwalib to reflect that
-            let mwalib_value = if ant1 == ant2 {
+            let mwalib_value = if ant1 == ant2 && (i == 2 || i == 3) {
                 0.
             } else {
                 mwalib_hdu[mwalib_dest_index] as f64
