@@ -1,0 +1,4 @@
+numpy
+pyuvdata
+pymwalib
+python-casacore
