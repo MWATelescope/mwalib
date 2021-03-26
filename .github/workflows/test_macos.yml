@@ -39,4 +39,4 @@ jobs:
           cd ..
 
     - name: Run tests
-      run: MWALIB_LINK_STATIC_CFITSIO=1 cargo test --release --verbose
+      run: MWALIB_LINK_STATIC_CFITSIO=1 PKG_CONFIG_PATH=/Users/runner/work/mwalib/mwalib/cfitsio-3.49/lib/pkgconfig cargo test --release --verbose

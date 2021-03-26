@@ -98,7 +98,7 @@ jobs:
           cd ..
 
     - name: Build mwalib release
-      run: MWALIB_LINK_STATIC_CFITSIO=1 cargo build --release
+      run: MWALIB_LINK_STATIC_CFITSIO=1 PKG_CONFIG_PATH=/Users/runner/work/mwalib/mwalib/cfitsio-3.49/lib/pkgconfig cargo build --release
 
     - name: Create release tarball
       run: |
