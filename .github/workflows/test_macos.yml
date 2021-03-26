@@ -22,9 +22,9 @@ jobs:
           toolchain: stable
           override: true
     
-    - name: Install cfitsio
+    - name: Install curl and cfitsio
       run: |
-          brew install cfitsio
+          brew install curl-openssl cfitsio
 
     - name: Run tests
       run: MWALIB_LINK_STATIC_CFITSIO=1 cargo test --release --verbose
