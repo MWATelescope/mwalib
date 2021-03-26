@@ -83,7 +83,7 @@ jobs:
     
     - name: Install curl and cfitsio
       run: |
-          brew uninstall curl
+          brew uninstall --ignore-dependencies curl
           brew install curl-openssl cfitsio
 
     - name: Build mwalib release
