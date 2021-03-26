@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 env:
   RUST_BACKTRACE: 1
+  LDFLAGS: "-L/usr/local/opt/curl/lib"
 
 jobs:
   test_macos:
