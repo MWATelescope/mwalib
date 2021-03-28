@@ -3,9 +3,7 @@ name: MacOS Tests
 on: [push, pull_request]
 
 env:
-  RUST_BACKTRACE: 1
-  LIBCURL_CFLAGS: "-I/usr/local/opt/curl/include" 
-  LIBCURL_LIBS: "-L/usr/local/opt/curl/lib -lcurl"
+  RUST_BACKTRACE: 1  
 
 jobs:
   test_macos:
@@ -25,10 +23,8 @@ jobs:
           override: true
     
     - name: Install curl and cfitsio
-      run: |
-          brew update
-          brew upgrade curl          
-          brew install cfitsio
+      run: |          
+          brew install cfitsio --with-reentrant --disable-curl
 
     - name: Run tests
       run: MWALIB_LINK_STATIC_CFITSIO=1 cargo test --release --verbose
