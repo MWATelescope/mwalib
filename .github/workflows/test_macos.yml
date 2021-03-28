@@ -3,8 +3,7 @@ name: MacOS Tests
 on: [push, pull_request]
 
 env:
-  RUST_BACKTRACE: 1
-  PKG_CONFIG_PATH: "/Users/runner/work/mwalib/mwalib/cfitsio-3.49/lib/pkgconfig"
+  RUST_BACKTRACE: 1  
 
 jobs:
   test_macos:
@@ -34,8 +33,8 @@ jobs:
           # is using such a CPU...
           # https://stackoverflow.com/questions/52858556/most-recent-processor-without-support-of-ssse3-instructions
           # Disabling curl just means you cannot fits_open() using a URL.
-          CFLAGS="-O3" ./configure --enable-reentrant --enable-sse2 --enable-ssse3 --disable-curl          
-          make shared
+          CFLAGS="-O3" ./configure --prefix=/usr/local --enable-reentrant --enable-sse2 --enable-ssse3 --disable-curl          
+          sudo make shared
           sudo make install
           cd ..
 
