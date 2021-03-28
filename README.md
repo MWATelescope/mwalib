@@ -1,18 +1,21 @@
 # mwalib
+
 ![Run Tests](https://github.com/MWATelescope/mwalib/workflows/Run%20Tests/badge.svg)
 [![codecov](https://codecov.io/gh/MWATelescope/mwalib/branch/master/graph/badge.svg)](https://codecov.io/gh/MWATelescope/mwalib)
-<br/>
-MWA library to read raw visibilities, voltages and metadata into a common structure. 
+
+MWA library to read raw visibilities, voltages and metadata into a common structure.
 mwalib supports the existing "legacy" MWA correlator, as well as the in-development
-"MWAX" correlator. This library strives to provide a single interface to work with 
-all incarnations of MWA metadatam correlator and voltage formats and abstract away 
+"MWAX" correlator. This library strives to provide a single interface to work with
+all incarnations of MWA metadatam correlator and voltage formats and abstract away
 the nitty gritty details about reading MWA data.
 
 ## Usage via C
+
 In the `examples` directory, see `build_c_examples.sh`, `mwalib-print-obs-context.c`, and
 `mwalib-sum-all-hdus.c` for examples of usage.
 
 ## Usage via Python
+
 The primary Python interface to `mwalib` is
 [`pymwalib`](https://github.com/MWATelescope/pymwalib).
 
@@ -20,21 +23,23 @@ There are also a couple of simple examples Python scripts here that use mwalib's
 `examples/mwalib-print-obs-context.py`, and `examples/mwalib-sum-all-hdus.py`.
 
 ## Usage in Rust
+
 In the `examples` directory, see `mwalib-print-obs-context.rs` and
 `mwalib-print-obs-context.rs` for examples. Also run `cargo doc --open` to see
 the rendered documentation.
 
 ## Usage approach
+
 - Populate a Context struct (`MetafitsContext`, `CorrelatorContext` or `VoltageContext`)
 
     `CorrelatorContext` - Use this when you have a metafits file and one or more gpubox files. This struct provides information about the correlator observation and provides access to a `MetafitsContext` for metadata, as well as methods for reading raw visibility data.
-    
-    `MetafitsContext` - an efficient way to get access to most of the observation metadata. Only requires that you pass a valid MWA metafits file.     
+
+    `MetafitsContext` - an efficient way to get access to most of the observation metadata. Only requires that you pass a valid MWA metafits file.
 
     `VoltageContext` - Use this when you have a metafits file and one or more recombined (or MWAX) voltage files. This struct provides information about the VCS observation and provides access to a `MetafitsContext` for metadata, and in an upcoming release- methods for reading raw voltage data.
 
     During creation of a `CorrelatorContext` or `MetafitsContext`, a number of checks are
-    performed on the metadata and gpubox/voltage files to ensure consistency. 
+    performed on the metadata and gpubox/voltage files to ensure consistency.
     Once created, the context is primed for reading data.
 
 - Read raw data
@@ -48,6 +53,7 @@ the rendered documentation.
     data in [fine_channel][baseline][polarisation][r][i] order.
 
 ## Concepts
+
 - gpubox "batches"
 
     gpubox batches refers to the different gpubox outputs for the same
@@ -68,7 +74,9 @@ the rendered documentation.
     number of antennas).
 
 ## Building From Source
+
 You can build mwalib from source:
+
 - Install rust
 
     `https://www.rust-lang.org/tools/install`
@@ -76,7 +84,8 @@ You can build mwalib from source:
 - Install cfitsio
     If using a package manager install the `cfitsio-dev` package.
     If building from source ensure you build it with with `--enable-reentrant` option.
-       See: https://heasarc.gsfc.nasa.gov/fitsio/
+       See: [FITSIO Homepage](https://heasarc.gsfc.nasa.gov/fitsio/)
+    Alternatively get the fitsio-sys crate to compile cfitsio for you by adding `--features cfitsio-static` to your cargo build command (below).
 
 - Compile the source
 
@@ -98,33 +107,50 @@ You can build mwalib from source:
 - (Optional) If modifying the ffi functions, a `cargo build` will automatically regenerate mwalib.h
 
 ## Installation
+
 As an alternative to building from source, we produce github releases whenever features or bug fixes are completed as tarballs. In the release you will find everything you need to use mwalib from C/C++/Python or any other language that can utilise shared libraries:
-* lib/libmwalib.a    (Statically compiled library)
-* lib/libmwalib.so   (Dynamic library)
-* include/mwalib.h   (C Header file)
-* CHANGELOG.md       (Change log for this and previous relases)
-* LICENSE            (License for using mwalib in your projects)
-* LICENSE-cfitsio    (Since libcfitsio is statically compiled into our static and dynamic libraries, we also include it's license)
 
-NOTE: from release 0.3.2 onwards, libcfitsio is statically linked to mwalib in order to reduce issues with conflicting/incompatible versions of cfitsio. Therefore, there is no need for you to have cfitsio installed on your machine.
+- lib/libmwalib.a      (Statically compiled library)
+- lib/libmwalib.so     (Dynamic library for Linux)
+- lib/libmwalib.dylib  (Dynamic library for MacOS)
+- include/mwalib.h     (C Header file)
+- CHANGELOG.md         (Change log for this and previous relases)
+- LICENSE              (License for using mwalib in your projects)
+- LICENSE-cfitsio      (Since libcfitsio is statically compiled into our static and dynamic libraries, we also include it's license)
 
-To install on a regular linux x86/64 distribution, the following would be all that is needed:
-- Download release from mwalib [github releases](https://github.com/MWATelescope/mwalib/releases).
-    `wget "https://github.com/MWATelescope/mwalib/releases/download/v0.3.1/libmwalib-0.3.1-linux_x86_64.tar.gz" -O mwalib.tar.gz`
+NOTE: from release 0.3.2 onwards, libcfitsio is statically linked to mwalib in order to reduce issues with conflicting/incompatible versions of cfitsio. Therefore, there is no need for you to have cfitsio installed on your machine unless you are compiling from source.
+
+To install on most Linux x86/64 distributions, the following would be all that is needed:
+
+- Download release from mwalib [github releases](https://github.com/MWATelescope/mwalib/releases). (Where X.Y.Z is the current release version)
+
+   ```bash
+   wget "https://github.com/MWATelescope/mwalib/releases/download/vX.Y.Z/libmwalib-X.Y.Z-linux_x86_64.tar.gz" -O mwalib.tar.gz
+   ```
 
 - Untar the tarball
-    `mkdir mwalib; tar xvf mwalib.tar.gz -C mwalib`
+
+   ```bash
+   mkdir mwalib
+   tar xvf mwalib.tar.gz -C mwalib
+   ```
 
 - Install
-    `sudo cp mwalib/lib/libmwalib.* /usr/local/lib`
-    `sudo cp mwalib/include/libmwalib.h /usr/local/include`
+  
+  ```bash
+  sudo cp mwalib/lib/libmwalib.* /usr/local/lib
+  sudo cp mwalib/include/libmwalib.h /usr/local/include
+  ```
 
 - Register the library with ldconfig
-    `sudo ldconfig`
+
+ ```bash
+ sudo ldconfig
+ ```
 
 ## Example test output
-```
-CorrelatorContext (
+
+```CorrelatorContext (
     Correlator version:       v1 Legacy,
 
     MWA latitude:             -26.703319405555554 degrees,
