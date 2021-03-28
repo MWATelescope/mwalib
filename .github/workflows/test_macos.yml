@@ -20,7 +20,12 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
-          override: true    
+          override: true
+    
+    - name: Uninstall curl and install cfitsio
+      run: |
+          brew uninstall --ignore-dependencies curl
+          brew install cfitsio
 
-    - name: Run tests 
-      run: MWALIB_LINK_STATIC_CFITSIO=1 cargo test --features cfitsio-static --release --verbose
+    - name: Run tests
+      run: MWALIB_LINK_STATIC_CFITSIO=1 cargo test --release --verbose
