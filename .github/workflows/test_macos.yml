@@ -4,7 +4,8 @@ on: [push, pull_request]
 
 env:
   RUST_BACKTRACE: 1
-  LDFLAGS: "-L/usr/local/opt/curl/lib"
+  LIBCURL_CFLAGS: "-I/usr/local/opt/curl/include" 
+  LIBCURL_LIBS: "-L/usr/local/opt/curl/lib -lcurl"
 
 jobs:
   test_macos:
@@ -25,8 +26,9 @@ jobs:
     
     - name: Install curl and cfitsio
       run: |
-          brew uninstall --ignore-dependencies curl
-          brew install curl-openssl cfitsio
+          brew update
+          brew upgrade curl          
+          brew install cfitsio
 
     - name: Run tests
       run: MWALIB_LINK_STATIC_CFITSIO=1 cargo test --release --verbose
