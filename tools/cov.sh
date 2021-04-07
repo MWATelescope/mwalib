@@ -18,5 +18,18 @@ $( \
           printf "%s %s " -object $file; \
        done \
 ) > coverage/coverage.lcov
+echo Exported coverage.lcov
+rustup run nightly cargo cov -- report --ignore-filename-regex='(/.cargo/registry|/rustc|test.rs$)' --instr-profile=json5format.profdata \
+$( \
+     for file in \
+            $( \
+                 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests --no-run --message-format=json \
+                         | jq -r "select(.profile.test == true) | .filenames[]" \
+                         | grep -v dSYM - \
+         ); \
+       do \
+          printf "%s %s " -object $file; \
+       done \
+)
 rm *.profraw
 rm *.profdata
