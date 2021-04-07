@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
     mwalib_coarse_channels_free(ccs, corr_metadata->num_coarse_chans);
 
     // Example of using rf_inputs
-    RFInput *rfs = NULL;
+    Rfinput *rfs = NULL;
     size_t nrfs = 0;
 
     if (mwalib_rfinputs_get(NULL, correlator_context, NULL, &rfs, &nrfs, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
