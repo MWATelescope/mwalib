@@ -451,7 +451,7 @@ impl CorrelatorContext {
                 let calculated_naxis2: i32 = metafits_fine_chans_per_coarse as i32;
 
                 if calculated_naxis1 != naxis1 as i32 {
-                    return Err(GpuboxError::LegacyNAXIS1Mismatch {
+                    return Err(GpuboxError::LegacyNaxis1Mismatch {
                         naxis1,
                         calculated_naxis1,
                         metafits_baselines,
@@ -460,7 +460,7 @@ impl CorrelatorContext {
                     });
                 }
                 if calculated_naxis2 != naxis2 as i32 {
-                    return Err(GpuboxError::LegacyNAXIS2Mismatch {
+                    return Err(GpuboxError::LegacyNaxis2Mismatch {
                         naxis2,
                         calculated_naxis2,
                         metafits_fine_chans_per_coarse,
@@ -475,7 +475,7 @@ impl CorrelatorContext {
                 let calculated_naxis2: i32 = metafits_baselines as i32;
 
                 if calculated_naxis1 != naxis1 as i32 {
-                    return Err(GpuboxError::MwaxNAXIS1Mismatch {
+                    return Err(GpuboxError::MwaxNaxis1Mismatch {
                         naxis1,
                         calculated_naxis1,
                         metafits_fine_chans_per_coarse,
@@ -484,7 +484,7 @@ impl CorrelatorContext {
                     });
                 }
                 if calculated_naxis2 != naxis2 as i32 {
-                    return Err(GpuboxError::MwaxNAXIS2Mismatch {
+                    return Err(GpuboxError::MwaxNaxis2Mismatch {
                         naxis2,
                         calculated_naxis2,
                         metafits_baselines,

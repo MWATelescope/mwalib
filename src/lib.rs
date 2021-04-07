@@ -41,7 +41,7 @@ pub use error::MwalibError;
 pub use fits_read::*;
 pub use metafits_context::{CorrelatorVersion, MetafitsContext};
 pub use misc::*;
-pub use rfinput::{Pol, RFInput};
+pub use rfinput::{Pol, Rfinput};
 pub use timestep::TimeStep;
 pub use visibility_pol::VisibilityPol;
 pub use voltage_context::VoltageContext;

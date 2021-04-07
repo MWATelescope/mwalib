@@ -43,10 +43,10 @@ maybe you have a mix of different files?"#)]
     },
 
     #[error("Failed to read key CORR_VER from MWAX gpubox file {0}")]
-    MWAXCorrVerMissing(String),
+    MwaxCorrVerMissing(String),
 
     #[error("MWAX gpubox file {0} had a CORR_VER not equal to 2")]
-    MWAXCorrVerMismatch(String),
+    MwaxCorrVerMismatch(String),
 
     #[error("HDU sizes in gpubox files are not equal")]
     UnequalHduSizes,
@@ -61,7 +61,7 @@ maybe you have a mix of different files?"#)]
     EmptyBTreeMap,
 
     #[error("NAXIS1 in first gpubox image HDU {naxis1} does not match expected value {calculated_naxis1} (metafits baselines [{metafits_baselines}] * pols [{visibility_pols}] * 2 [r,i]). NAXIS2={naxis2}")]
-    LegacyNAXIS1Mismatch {
+    LegacyNaxis1Mismatch {
         naxis1: usize,
         calculated_naxis1: i32,
         metafits_baselines: usize,
@@ -70,14 +70,14 @@ maybe you have a mix of different files?"#)]
     },
 
     #[error("NAXIS2 in first gpubox image HDU {naxis2} does not match expected value {calculated_naxis2} (metafits fine chans per coarse [{metafits_fine_chans_per_coarse}])")]
-    LegacyNAXIS2Mismatch {
+    LegacyNaxis2Mismatch {
         naxis2: usize,
         calculated_naxis2: i32,
         metafits_fine_chans_per_coarse: usize,
     },
 
     #[error("NAXIS1 in first gpubox image HDU {naxis1} does not match expected value {calculated_naxis1} (metafits fine chans per coarse [{metafits_fine_chans_per_coarse}] * pols [{visibility_pols}] * 2 [r,i]. NAXIS2={naxis2})")]
-    MwaxNAXIS1Mismatch {
+    MwaxNaxis1Mismatch {
         naxis1: usize,
         calculated_naxis1: i32,
         metafits_fine_chans_per_coarse: usize,
@@ -86,7 +86,7 @@ maybe you have a mix of different files?"#)]
     },
 
     #[error("NAXIS2 in first gpubox image HDU {naxis2} does not match expected value {calculated_naxis2} (metafits baselines [{metafits_baselines}]")]
-    MwaxNAXIS2Mismatch {
+    MwaxNaxis2Mismatch {
         naxis2: usize,
         calculated_naxis2: i32,
         metafits_baselines: usize,

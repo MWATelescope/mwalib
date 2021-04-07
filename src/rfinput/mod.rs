@@ -151,7 +151,7 @@ struct RfInputMetafitsTableRow {
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
 #[derive(Clone)]
-pub struct RFInput {
+pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
     /// This is the antenna number.
@@ -198,7 +198,7 @@ pub struct RFInput {
     pub rec_slot_number: u32,
 }
 
-impl RFInput {
+impl Rfinput {
     /// This method just reads a row from the metafits tiledata table to create a new, populated mwalibCoarseChannel struct
     ///
     /// # Arguments
@@ -449,7 +449,7 @@ fn read_cell_array(
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Debug for RFInput {
+impl fmt::Debug for Rfinput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.tile_name, self.pol)
     }

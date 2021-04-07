@@ -85,7 +85,7 @@ fn test_read_metafits_values_from_row_0() {
 
     // Get values from row 1
     let row: RfInputMetafitsTableRow =
-        RFInput::read_metafits_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0).unwrap();
+        Rfinput::read_metafits_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0).unwrap();
     assert_eq!(row.input, 0);
     assert_eq!(row.antenna, 75);
     assert_eq!(row.tile_id, 104);
@@ -139,7 +139,7 @@ fn test_read_metafits_values_from_invalid_metafits() {
 
         // Get values from row 1
         let metafits_result =
-            RFInput::read_metafits_values(metafits_fptr, &metafits_tile_table_hdu, 0);
+            Rfinput::read_metafits_values(metafits_fptr, &metafits_tile_table_hdu, 0);
 
         assert_eq!(metafits_result.is_err(), true);
     });
@@ -157,7 +157,7 @@ fn test_populate_rf_inputs() {
     let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
     let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
     let result =
-        RFInput::populate_rf_inputs(256, &mut metafits_fptr, metafits_tile_table_hdu, 1.204);
+        Rfinput::populate_rf_inputs(256, &mut metafits_fptr, metafits_tile_table_hdu, 1.204);
 
     assert!(result.is_ok());
 

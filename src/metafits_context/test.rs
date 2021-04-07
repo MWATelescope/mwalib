@@ -304,7 +304,7 @@ fn test_get_expected_coarse_channels_v2() {
 }
 
 #[test]
-fn test_correlator_version_display() {
+fn test_correlator_version_display_v2() {
     let cv = CorrelatorVersion::V2;
 
     assert_eq!(format!("{}", cv), "v2 MWAX");

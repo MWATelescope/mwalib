@@ -26,9 +26,9 @@ pub struct Antenna {
     /// X and Y have the same name
     pub tile_name: String,
     /// Reference to the X pol rf_input
-    pub rfinput_x: RFInput,
+    pub rfinput_x: Rfinput,
     /// Reference to the Y pol rf_input
-    pub rfinput_y: RFInput,
+    pub rfinput_y: Rfinput,
 }
 
 impl Antenna {
@@ -45,7 +45,7 @@ impl Antenna {
     ///
     /// * An Result containing a populated Antenna struct or an Error
     ///
-    pub(crate) fn new(x_pol: &RFInput, y_pol: &RFInput) -> Self {
+    pub(crate) fn new(x_pol: &Rfinput, y_pol: &Rfinput) -> Self {
         Self {
             ant: x_pol.ant,
             tile_id: x_pol.tile_id,
@@ -65,7 +65,7 @@ impl Antenna {
     ///
     /// * A vector of populated Antenna structs.
     ///
-    pub(crate) fn populate_antennas(rf_inputs: &[RFInput]) -> Vec<Antenna> {
+    pub(crate) fn populate_antennas(rf_inputs: &[Rfinput]) -> Vec<Antenna> {
         let mut antennas: Vec<Antenna> = Vec::with_capacity(rf_inputs.len() / 2);
         for index in (0..rf_inputs.len()).step_by(2) {
             antennas.push(Antenna::new(&rf_inputs[index], &rf_inputs[index + 1]));

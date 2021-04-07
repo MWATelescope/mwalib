@@ -470,42 +470,38 @@ fn test_voltage_file_batch_partialeq() {
 
 #[test]
 fn test_convert_temp_voltage_files() {
-    let mut temp_voltage_files: Vec<TempVoltageFile> = Vec::new();
-
-    temp_voltage_files.push(TempVoltageFile {
-        filename: "1234567000_1234567000_123.sub",
-        obs_id: 1234567000,
-        channel_identifier: 123,
-        gps_time: 1234567000,
-    });
-
-    temp_voltage_files.push(TempVoltageFile {
-        filename: "1234567890_1234567008_124.sub",
-        obs_id: 1234567000,
-        channel_identifier: 124,
-        gps_time: 1234567008,
-    });
-
-    temp_voltage_files.push(TempVoltageFile {
-        filename: "1234567890_1234567008_123.sub",
-        obs_id: 1234567000,
-        channel_identifier: 123,
-        gps_time: 1234567008,
-    });
-
-    temp_voltage_files.push(TempVoltageFile {
-        filename: "1234567890_1234567008_125.sub",
-        obs_id: 1234567000,
-        channel_identifier: 125,
-        gps_time: 1234567008,
-    });
-
-    temp_voltage_files.push(TempVoltageFile {
-        filename: "1234567000_1234567000_124.sub",
-        obs_id: 1234567000,
-        channel_identifier: 124,
-        gps_time: 1234567000,
-    });
+    let temp_voltage_files: Vec<TempVoltageFile> = vec![
+        TempVoltageFile {
+            filename: "1234567000_1234567000_123.sub",
+            obs_id: 1234567000,
+            channel_identifier: 123,
+            gps_time: 1234567000,
+        },
+        TempVoltageFile {
+            filename: "1234567890_1234567008_124.sub",
+            obs_id: 1234567000,
+            channel_identifier: 124,
+            gps_time: 1234567008,
+        },
+        TempVoltageFile {
+            filename: "1234567890_1234567008_123.sub",
+            obs_id: 1234567000,
+            channel_identifier: 123,
+            gps_time: 1234567008,
+        },
+        TempVoltageFile {
+            filename: "1234567890_1234567008_125.sub",
+            obs_id: 1234567000,
+            channel_identifier: 125,
+            gps_time: 1234567008,
+        },
+        TempVoltageFile {
+            filename: "1234567000_1234567000_124.sub",
+            obs_id: 1234567000,
+            channel_identifier: 124,
+            gps_time: 1234567000,
+        },
+    ];
 
     // The resulting VoltageFileBatches should:
     // * have 2 batches
@@ -541,11 +537,12 @@ fn test_examine_voltage_files_valid() {
     let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
 
     // Populate vector of filenames
-    let mut voltage_filenames: Vec<String> = Vec::new();
-    voltage_filenames.push(String::from("1101503312_1101503312_123.sub"));
-    voltage_filenames.push(String::from("1101503312_1101503312_124.sub"));
-    voltage_filenames.push(String::from("1101503312_1101503320_123.sub"));
-    voltage_filenames.push(String::from("1101503312_1101503320_124.sub"));
+    let voltage_filenames: Vec<String> = vec![
+        String::from("1101503312_1101503312_123.sub"),
+        String::from("1101503312_1101503312_124.sub"),
+        String::from("1101503312_1101503320_123.sub"),
+        String::from("1101503312_1101503320_124.sub"),
+    ];
 
     let mut temp_filenames: Vec<String> = Vec::new();
 
@@ -580,11 +577,12 @@ fn test_examine_voltage_files_error_mismatched_sizes() {
     let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
 
     // Populate vector of filenames
-    let mut voltage_filenames: Vec<String> = Vec::new();
-    voltage_filenames.push(String::from("1101503312_1101503312_123.sub"));
-    voltage_filenames.push(String::from("1101503312_1101503312_124.sub"));
-    voltage_filenames.push(String::from("1101503312_1101503320_123.sub"));
-    voltage_filenames.push(String::from("1101503312_1101503320_124.sub"));
+    let voltage_filenames: Vec<String> = vec![
+        String::from("1101503312_1101503312_123.sub"),
+        String::from("1101503312_1101503312_124.sub"),
+        String::from("1101503312_1101503320_123.sub"),
+        String::from("1101503312_1101503320_124.sub"),
+    ];
 
     let mut temp_filenames: Vec<String> = Vec::new();
 
@@ -627,12 +625,13 @@ fn test_examine_voltage_files_error_gpstime_gaps() {
     let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
 
     // Populate vector of filenames
-    let mut voltage_filenames: Vec<String> = Vec::new();
-    voltage_filenames.push(String::from("1101503312_1101503312_123.sub"));
-    voltage_filenames.push(String::from("1101503312_1101503312_124.sub"));
-    // Gap of 8 seconds here
-    voltage_filenames.push(String::from("1101503312_1101503328_123.sub"));
-    voltage_filenames.push(String::from("1101503312_1101503328_124.sub"));
+    // NOTE: Gap of 8 seconds between elements 0,1 and 2,3
+    let voltage_filenames: Vec<String> = vec![
+        String::from("1101503312_1101503312_123.sub"),
+        String::from("1101503312_1101503312_124.sub"),
+        String::from("1101503312_1101503328_123.sub"),
+        String::from("1101503312_1101503328_124.sub"),
+    ];
 
     let mut temp_filenames: Vec<String> = Vec::new();
 
@@ -667,19 +666,12 @@ fn test_examine_voltage_files_error_file_not_found() {
         MetafitsContext::new(&metafits_filename).expect("Failed to create MetafitsContext");
 
     // Populate vector of filenames
-    let mut voltage_filenames: Vec<String> = Vec::new();
-    voltage_filenames.push(String::from(
-        "test_files_invalid/1101503312_1101503312_123.sub",
-    ));
-    voltage_filenames.push(String::from(
-        "test_files_invalid/1101503312_1101503312_124.sub",
-    ));
-    voltage_filenames.push(String::from(
-        "test_files_invalid/1101503312_1101503320_123.sub",
-    ));
-    voltage_filenames.push(String::from(
-        "test_files_invalid/1101503312_1101503320_124.sub",
-    ));
+    let voltage_filenames: Vec<String> = vec![
+        String::from("test_files_invalid/1101503312_1101503312_123.sub"),
+        String::from("test_files_invalid/1101503312_1101503312_124.sub"),
+        String::from("test_files_invalid/1101503312_1101503320_123.sub"),
+        String::from("test_files_invalid/1101503312_1101503320_124.sub"),
+    ];
 
     let result = examine_voltage_files(&context, &voltage_filenames);
 

@@ -352,7 +352,7 @@ fn test_validate_hdu_axes_naxis_mismatches_oldlegacy() {
 
     assert!(matches!(
         result_bad1.unwrap_err(),
-        GpuboxError::LegacyNAXIS1Mismatch {
+        GpuboxError::LegacyNaxis1Mismatch {
             metafits_baselines: _,
             visibility_pols: _,
             naxis1: _,
@@ -373,7 +373,7 @@ fn test_validate_hdu_axes_naxis_mismatches_oldlegacy() {
 
     assert!(matches!(
         result_bad2.unwrap_err(),
-        GpuboxError::LegacyNAXIS2Mismatch {
+        GpuboxError::LegacyNaxis2Mismatch {
             metafits_fine_chans_per_coarse: _,
             naxis2: _,
             calculated_naxis2: _
@@ -400,7 +400,7 @@ fn test_validate_hdu_axes_naxis_mismatches_legacy() {
 
     assert!(matches!(
         result_bad1.unwrap_err(),
-        GpuboxError::LegacyNAXIS1Mismatch {
+        GpuboxError::LegacyNaxis1Mismatch {
             metafits_baselines: _,
             visibility_pols: _,
             naxis1: _,
@@ -421,7 +421,7 @@ fn test_validate_hdu_axes_naxis_mismatches_legacy() {
 
     assert!(matches!(
         result_bad2.unwrap_err(),
-        GpuboxError::LegacyNAXIS2Mismatch {
+        GpuboxError::LegacyNaxis2Mismatch {
             metafits_fine_chans_per_coarse: _,
             naxis2: _,
             calculated_naxis2: _
@@ -448,7 +448,7 @@ fn test_validate_hdu_axes_naxis_mismatches_v2() {
 
     assert!(matches!(
         result_bad1.unwrap_err(),
-        GpuboxError::MwaxNAXIS1Mismatch {
+        GpuboxError::MwaxNaxis1Mismatch {
             metafits_fine_chans_per_coarse: _,
             visibility_pols: _,
             naxis1: _,
@@ -469,7 +469,7 @@ fn test_validate_hdu_axes_naxis_mismatches_v2() {
 
     assert!(matches!(
         result_bad2.unwrap_err(),
-        GpuboxError::MwaxNAXIS2Mismatch {
+        GpuboxError::MwaxNaxis2Mismatch {
             metafits_baselines: _,
             naxis2: _,
             calculated_naxis2: _

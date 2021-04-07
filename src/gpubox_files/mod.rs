@@ -514,10 +514,10 @@ fn validate_gpubox_metadata_correlator_version(
 
     match correlator_version {
         CorrelatorVersion::V2 => match gpu_corr_version {
-            None => Err(GpuboxError::MWAXCorrVerMissing(gpubox_filename.to_string())),
+            None => Err(GpuboxError::MwaxCorrVerMissing(gpubox_filename.to_string())),
             Some(gpu_corr_version_value) => match gpu_corr_version_value {
                 2 => Ok(()),
-                _ => Err(GpuboxError::MWAXCorrVerMismatch(
+                _ => Err(GpuboxError::MwaxCorrVerMismatch(
                     gpubox_filename.to_string(),
                 )),
             },
@@ -618,7 +618,7 @@ fn create_time_map(
             if correlator_version == CorrelatorVersion::V2 {
                 let v: u8 = get_required_fits_key!(&mut fptr, &hdu, "CORR_VER")?;
                 if v != 2 {
-                    return Err(GpuboxError::MWAXCorrVerMismatch(g.filename.to_string()));
+                    return Err(GpuboxError::MwaxCorrVerMismatch(g.filename.to_string()));
                 }
             }
 

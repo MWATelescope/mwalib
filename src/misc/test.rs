@@ -93,7 +93,7 @@ fn test_get_baseline_from_antenna_names1() {
     let mut ants: Vec<Antenna> = Vec::new();
 
     // We need a dummy rf inputs
-    let dummy_rf_input_x = RFInput {
+    let dummy_rf_input_x = Rfinput {
         input: 0,
         ant: 0,
         tile_id: 0,
@@ -113,7 +113,7 @@ fn test_get_baseline_from_antenna_names1() {
         rec_slot_number: 0,
     };
 
-    let dummy_rf_input_y = RFInput {
+    let dummy_rf_input_y = Rfinput {
         input: 1,
         ant: 0,
         tile_id: 1,
@@ -232,7 +232,7 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
     let mut ants: Vec<Antenna> = Vec::new();
 
     // We need a dummy rf inputs
-    let dummy_rf_input_x = RFInput {
+    let dummy_rf_input_x = Rfinput {
         input: 0,
         ant: 0,
         tile_id: 0,
@@ -252,7 +252,7 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         rec_slot_number: 0,
     };
 
-    let dummy_rf_input_y = RFInput {
+    let dummy_rf_input_y = Rfinput {
         input: 1,
         ant: 0,
         tile_id: 1,
@@ -300,7 +300,7 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
     let mut ants: Vec<Antenna> = Vec::new();
 
     // We need a dummy rf inputs
-    let dummy_rf_input_x = RFInput {
+    let dummy_rf_input_x = Rfinput {
         input: 0,
         ant: 0,
         tile_id: 0,
@@ -320,7 +320,7 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         rec_slot_number: 0,
     };
 
-    let dummy_rf_input_y = RFInput {
+    let dummy_rf_input_y = Rfinput {
         input: 1,
         ant: 0,
         tile_id: 1,

@@ -83,8 +83,8 @@ fn get_test_correlator_context() -> *mut CorrelatorContext {
     let gpubox_file =
         CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
             .unwrap();
-    let mut gpubox_files: Vec<*const c_char> = Vec::new();
-    gpubox_files.push(gpubox_file.as_ptr());
+    let gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
+
     let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
 
     unsafe {
@@ -154,11 +154,12 @@ fn get_test_voltage_context() -> *mut VoltageContext {
         generate_test_voltage_file(&temp_dir, "1101503312_1101503320_124.sub", 2, 256).unwrap(),
     )
     .unwrap();
-    let mut input_voltage_files: Vec<*const c_char> = Vec::new();
-    input_voltage_files.push(new_voltage_filename1.as_ptr());
-    input_voltage_files.push(new_voltage_filename2.as_ptr());
-    input_voltage_files.push(new_voltage_filename3.as_ptr());
-    input_voltage_files.push(new_voltage_filename4.as_ptr());
+    let input_voltage_files: Vec<*const c_char> = vec![
+        new_voltage_filename1.as_ptr(),
+        new_voltage_filename2.as_ptr(),
+        new_voltage_filename3.as_ptr(),
+        new_voltage_filename4.as_ptr(),
+    ];
 
     let voltage_files_ptr = input_voltage_files.as_ptr() as *mut *const c_char;
 
@@ -362,8 +363,8 @@ fn test_mwalib_correlator_context_new_valid() {
     let gpubox_file =
         CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
             .unwrap();
-    let mut gpubox_files: Vec<*const c_char> = Vec::new();
-    gpubox_files.push(gpubox_file.as_ptr());
+    let gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
+
     let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
 
     unsafe {
@@ -416,8 +417,8 @@ fn test_mwalib_voltage_context_new_valid() {
         generate_test_voltage_file(&temp_dir, "1101503312_1101503312_123.sub", 2, 256).unwrap(),
     )
     .unwrap();
-    let mut voltage_files: Vec<*const c_char> = Vec::new();
-    voltage_files.push(voltage_file.as_ptr());
+    let voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
+
     let voltage_files_ptr = voltage_files.as_ptr() as *mut *const c_char;
 
     unsafe {
@@ -1329,7 +1330,7 @@ fn test_mwalib_rfinputs_get_from_metafits_context_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut RFInput = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Rfinput = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_rfinputs_get(
@@ -1346,7 +1347,7 @@ fn test_mwalib_rfinputs_get_from_metafits_context_valid() {
         assert_eq!(retval, 0, "mwalib_rfinputs_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<RFInput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<Rfinput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 256, "Array length is not correct");
@@ -1377,7 +1378,7 @@ fn test_mwalib_rfinputs_free() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut RFInput = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Rfinput = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_rfinputs_get(
@@ -1417,7 +1418,7 @@ fn test_mwalib_rfinputs_get_from_correlator_context_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut RFInput = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Rfinput = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_rfinputs_get(
@@ -1434,7 +1435,7 @@ fn test_mwalib_rfinputs_get_from_correlator_context_valid() {
         assert_eq!(retval, 0, "mwalib_rfinputs_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<RFInput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<Rfinput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 256, "Array length is not correct");
@@ -1469,7 +1470,7 @@ fn test_mwalib_rfinputs_get_from_voltage_context_valid() {
         let context_ptr = context.as_mut();
         assert!(context_ptr.is_some());
 
-        let mut array_ptr: &mut *mut RFInput = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Rfinput = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
         let retval = mwalib_rfinputs_get(
@@ -1486,7 +1487,7 @@ fn test_mwalib_rfinputs_get_from_voltage_context_valid() {
         assert_eq!(retval, 0, "mwalib_rfinputs_get did not return success");
 
         // reconstitute into a vector
-        let item: Vec<RFInput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
+        let item: Vec<Rfinput> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
         assert_eq!(array_len, 256, "Array length is not correct");
@@ -1513,7 +1514,7 @@ fn test_mwalib_rfinputs_get_null_contexts() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut array_ptr: &mut *mut RFInput = &mut std::ptr::null_mut();
+        let mut array_ptr: &mut *mut Rfinput = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
         let retval = mwalib_rfinputs_get(
             std::ptr::null_mut(),

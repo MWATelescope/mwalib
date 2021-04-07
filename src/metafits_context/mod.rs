@@ -153,7 +153,7 @@ pub struct MetafitsContext {
     /// Total number of rf_inputs (tiles * 2 pols X&Y)    
     pub num_rf_inputs: usize,
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
-    pub rf_inputs: Vec<RFInput>,
+    pub rf_inputs: Vec<Rfinput>,
     /// Number of antenna pols. e.g. X and Y
     pub num_ant_pols: usize,
     /// Number of coarse channels we should have
@@ -221,7 +221,7 @@ impl MetafitsContext {
         let num_antennas = num_rf_inputs / 2;
 
         // Create a vector of rf_input structs from the metafits
-        let mut rf_inputs: Vec<RFInput> = RFInput::populate_rf_inputs(
+        let mut rf_inputs: Vec<Rfinput> = Rfinput::populate_rf_inputs(
             num_rf_inputs,
             &mut metafits_fptr,
             metafits_tile_table_hdu,

@@ -1847,7 +1847,7 @@ pub unsafe extern "C" fn mwalib_coarse_channels_free(
 
 /// Representation in C of an `RFInput` struct
 #[repr(C)]
-pub struct RFInput {
+pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
     /// This is the antenna number.
@@ -1916,7 +1916,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
     metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
     voltage_context_ptr: *mut VoltageContext,
-    out_rfinputs_ptr: &mut *mut RFInput,
+    out_rfinputs_ptr: &mut *mut Rfinput,
     out_rfinputs_len: &mut size_t,
     error_message: *const c_char,
     error_message_length: size_t,
@@ -1947,14 +1947,14 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
         }
     };
 
-    let mut item_vec: Vec<RFInput> = Vec::new();
+    let mut item_vec: Vec<Rfinput> = Vec::new();
 
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
     for item in metafits_context.rf_inputs.iter() {
         let out_item = {
-            let rfinput::RFInput {
+            let rfinput::Rfinput {
                 input,
                 ant,
                 tile_id,
@@ -1973,7 +1973,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
                 dipole_gains: _,  // not currently supported via FFI interface
                 dipole_delays: _, // not currently supported via FFI interface
             } = item;
-            RFInput {
+            Rfinput {
                 input: *input,
                 ant: *ant,
                 tile_id: *tile_id,
@@ -2022,14 +2022,14 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
 /// * `rf_input_ptr` must not have already been freed.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_rfinputs_free(
-    rf_inputs_ptr: *mut RFInput,
+    rf_inputs_ptr: *mut Rfinput,
     rf_inputs_len: size_t,
 ) -> i32 {
     if rf_inputs_ptr.is_null() {
         return 0;
     }
     // Extract a slice from the pointer
-    let slice: &mut [RFInput] = slice::from_raw_parts_mut(rf_inputs_ptr, rf_inputs_len);
+    let slice: &mut [Rfinput] = slice::from_raw_parts_mut(rf_inputs_ptr, rf_inputs_len);
     // Now for each item we need to free anything on the heap
     for i in slice.iter_mut() {
         drop(Box::from_raw(i.tile_name));
