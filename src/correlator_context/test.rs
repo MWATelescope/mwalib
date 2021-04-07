@@ -172,7 +172,10 @@ fn test_mwa_legacy_read() {
         .fold(0., |sum, x| sum + *x as f64);
 
     // Check sums match
-    approx_eq!(f64, sum_bl, sum_freq, F64Margin::default());
+    assert_eq!(
+        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()),
+        true
+    );
 }
 
 #[test]

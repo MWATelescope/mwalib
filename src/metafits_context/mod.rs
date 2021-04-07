@@ -519,8 +519,8 @@ impl fmt::Display for MetafitsContext {
 
     R.A. (tile_pointing):     {rtpc} degrees,
     Dec. (tile_pointing):     {dtpc} degrees,
-    R.A. (phase center):      {rppc},
-    Dec. (phase center):      {dppc},
+    R.A. (phase center):      {rppc:?} degrees,
+    Dec. (phase center):      {dppc:?} degrees,
     Azimuth:                  {az} degrees,
     Altitude:                 {alt} degrees,
     Sun altitude:             {sun_alt} degrees,
@@ -569,16 +569,8 @@ impl fmt::Display for MetafitsContext {
             good_time = self.good_time_unix_ms as f64 / 1e3,
             rtpc = self.ra_tile_pointing_degrees,
             dtpc = self.dec_tile_pointing_degrees,
-            rppc = if let Some(rppc) = self.ra_phase_center_degrees {
-                format!("{} degrees", rppc)
-            } else {
-                "N/A".to_string()
-            },
-            dppc = if let Some(dppc) = self.dec_phase_center_degrees {
-                format!("{} degrees", dppc)
-            } else {
-                "N/A".to_string()
-            },
+            rppc = Some(self.ra_phase_center_degrees),
+            dppc = Some(self.dec_phase_center_degrees),
             az = self.az_deg,
             alt = self.alt_deg,
             sun_alt = self.sun_alt_deg,

@@ -7,6 +7,7 @@ Unit tests for ffi module
 */
 #[cfg(test)]
 use super::*;
+use float_cmp::*;
 use std::fs::File;
 use std::io::{Error, Write};
 
@@ -289,10 +290,17 @@ fn test_set_error_message() {
 
 #[test]
 fn test_set_error_message_null_ptr() {
-    let buffer_ptr: *mut i8 = std::ptr::null_mut();
-    unsafe {
-        assert_eq!(mwalib_free_rust_cstring(buffer_ptr), 0);
-    }
+    let buffer_ptr: *mut u8 = std::ptr::null_mut();
+
+    set_error_message("hello world", buffer_ptr, 12);
+}
+
+#[test]
+fn test_set_error_message_buffer_len_too_small() {
+    let buffer = CString::new("H").unwrap();
+    let buffer_ptr = buffer.as_ptr() as *mut u8;
+
+    set_error_message("hello world", buffer_ptr, 1);
 }
 
 #[test]
@@ -302,6 +310,14 @@ fn test_mwalib_free_rust_cstring() {
 
     // into_raw will take garbage collection of the buffer away from rust, so
     // some ffi/C code can free it (like below)
+    unsafe {
+        assert_eq!(mwalib_free_rust_cstring(buffer_ptr), 0);
+    }
+}
+
+#[test]
+fn test_mwalib_free_rust_cstring_null_ptr() {
+    let buffer_ptr: *mut i8 = std::ptr::null_mut();
     unsafe {
         assert_eq!(mwalib_free_rust_cstring(buffer_ptr), 0);
     }
@@ -343,6 +359,76 @@ fn test_mwalib_metafits_context_new_valid() {
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_metafits_context_free(std::ptr::null_mut()), 0);
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_context_new_invalid() {
+    // This tests for an invalid metafitscontext (missing file)
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let metafits_file =
+        CString::new("test_files/1101503312_1_timestep/missing_file.metafits").unwrap();
+    let metafits_file_ptr = metafits_file.as_ptr();
+
+    unsafe {
+        // Create a MetafitsContext
+        let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
+        let retval = mwalib_metafits_context_new(
+            metafits_file_ptr,
+            &mut metafits_context_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // Check return value of mwalib_metafits_context_new
+        assert_ne!(retval, 0);
+
+        // get error message
+        let mut ret_error_message: String = String::new();
+
+        if retval != 0 {
+            let c_str: &CStr = CStr::from_ptr(error_message_ptr);
+            let str_slice: &str = c_str.to_str().unwrap();
+            ret_error_message = str_slice.to_owned();
+        }
+
+        // Check error message
+        assert!(!ret_error_message.is_empty());
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_context_display() {
+    let metafits_context_ptr: *mut MetafitsContext = get_test_metafits_context();
+
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let retval =
+            mwalib_metafits_context_display(metafits_context_ptr, error_message_ptr, error_len);
+
+        assert_eq!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_context_display_null_ptr() {
+    let metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
+
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let retval =
+            mwalib_metafits_context_display(metafits_context_ptr, error_message_ptr, error_len);
+
+        assert_ne!(retval, 0);
     }
 }
 
@@ -391,6 +477,329 @@ fn test_mwalib_correlator_context_new_valid() {
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_correlator_context_free(std::ptr::null_mut()), 0);
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_new_invalid() {
+    // This tests for a invalid correlator context (missing file)
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let metafits_file =
+        CString::new("test_files/1101503312_1_timestep/invalid_filename.metafits").unwrap();
+    let metafits_file_ptr = metafits_file.as_ptr();
+
+    let gpubox_file =
+        CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
+            .unwrap();
+    let gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
+
+    let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
+
+    unsafe {
+        // Create a CorrelatorContext
+        let mut correlator_context_ptr: *mut CorrelatorContext = std::ptr::null_mut();
+        let retval = mwalib_correlator_context_new(
+            metafits_file_ptr,
+            gpubox_files_ptr,
+            1,
+            &mut correlator_context_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // Check return value of mwalib_correlator_context_new
+        assert_ne!(retval, 0);
+
+        // Get error message
+        let mut ret_error_message: String = String::new();
+
+        if retval != 0 {
+            let c_str: &CStr = CStr::from_ptr(error_message_ptr);
+            let str_slice: &str = c_str.to_str().unwrap();
+            ret_error_message = str_slice.to_owned();
+        }
+
+        // Check error message
+        assert!(!ret_error_message.is_empty());
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_display() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_correlator_context();
+
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let retval =
+            mwalib_correlator_context_display(correlator_context_ptr, error_message_ptr, error_len);
+
+        assert_eq!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_display_null_ptr() {
+    let correlator_context_ptr: *mut CorrelatorContext = std::ptr::null_mut();
+
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let retval =
+            mwalib_correlator_context_display(correlator_context_ptr, error_message_ptr, error_len);
+
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_legacy_read_by_baseline_valid() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_correlator_context();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let timestep_index = 0;
+    let coarse_chan_index = 0;
+
+    let buffer_len = 8256 * 128 * 8;
+    unsafe {
+        let buffer: Vec<f32> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f32 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_correlator_context_read_by_baseline(
+            correlator_context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        assert_eq!(retval, 0);
+
+        // Reconstitute the buffer
+        let ret_buffer: Vec<f32> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
+        assert_eq!(
+            approx_eq!(f32, ret_buffer[0], 73189.0, F32Margin::default()),
+            true,
+            "Expected value was {}, should be {}",
+            ret_buffer[0],
+            73189.0
+        );
+        assert_eq!(
+            approx_eq!(f32, ret_buffer[100], -1482.5, F32Margin::default()),
+            true,
+            "Expected value was {}, should be {}",
+            ret_buffer[100],
+            -1482.5
+        );
+        assert_eq!(
+            approx_eq!(f32, ret_buffer[1016], 74300.5, F32Margin::default()),
+            true,
+            "Expected value was {}, should be {}",
+            ret_buffer[1016],
+            74300.5
+        );
+        assert_eq!(
+            approx_eq!(f32, ret_buffer[8385552], -174.5, F32Margin::default()),
+            true,
+            "Expected value was {}, should be {}",
+            ret_buffer[8385552],
+            -174.5
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_legacy_read_by_baseline_null_context() {
+    let correlator_context_ptr: *mut CorrelatorContext = std::ptr::null_mut();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let timestep_index = 0;
+    let coarse_chan_index = 0;
+
+    let buffer_len = 8256 * 128 * 8;
+    unsafe {
+        let buffer: Vec<f32> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f32 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_correlator_context_read_by_baseline(
+            correlator_context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get a non-zero return code
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_legacy_read_by_baseline_null_buffer() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_correlator_context();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let timestep_index = 0;
+    let coarse_chan_index = 0;
+
+    let buffer_len = 8256 * 128 * 8;
+    unsafe {
+        let buffer_ptr: *mut f32 = std::ptr::null_mut();
+
+        let retval = mwalib_correlator_context_read_by_baseline(
+            correlator_context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non zero return code
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_legacy_read_by_frequency_valid() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_correlator_context();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let timestep_index = 0;
+    let coarse_chan_index = 0;
+
+    let buffer_len = 8256 * 128 * 8;
+    unsafe {
+        let buffer: Vec<f32> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f32 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_correlator_context_read_by_frequency(
+            correlator_context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        assert_eq!(retval, 0);
+
+        // Reconstitute the buffer
+        let ret_buffer: Vec<f32> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
+        assert_eq!(
+            approx_eq!(f32, ret_buffer[0], 73189.0, F32Margin::default()),
+            true,
+            "Expected value was {}, should be {}",
+            ret_buffer[0],
+            73189.0
+        );
+        assert_eq!(
+            approx_eq!(f32, ret_buffer[100], 112.0, F32Margin::default()),
+            true,
+            "Expected value was {}, should be {}",
+            ret_buffer[100],
+            -1844.5
+        );
+        assert_eq!(
+            approx_eq!(f32, ret_buffer[1016], 205.5, F32Margin::default()),
+            true,
+            "Expected value was {}, should be {}",
+            ret_buffer[1016],
+            205.5
+        );
+        assert_eq!(
+            approx_eq!(f32, ret_buffer[8385552], -178.0, F32Margin::default()),
+            true,
+            "Expected value was {}, should be {}",
+            ret_buffer[8385552],
+            -178.0
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_legacy_read_by_frequency_null_context() {
+    let correlator_context_ptr: *mut CorrelatorContext = std::ptr::null_mut();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let timestep_index = 0;
+    let coarse_chan_index = 0;
+
+    let buffer_len = 8256 * 128 * 8;
+    unsafe {
+        let buffer: Vec<f32> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f32 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_correlator_context_read_by_frequency(
+            correlator_context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get a non-zero return code
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_legacy_read_by_frequency_null_buffer() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_correlator_context();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let timestep_index = 0;
+    let coarse_chan_index = 0;
+
+    let buffer_len = 8256 * 128 * 8;
+    unsafe {
+        let buffer_ptr: *mut f32 = std::ptr::null_mut();
+
+        let retval = mwalib_correlator_context_read_by_frequency(
+            correlator_context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non zero return code
+        assert_ne!(retval, 0);
     }
 }
 
@@ -456,6 +865,91 @@ fn test_mwalib_voltage_context_new_valid() {
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_voltage_context_free(std::ptr::null_mut()), 0);
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_new_invalid() {
+    // This tests for a invalid voltage context (missing file)
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let metafits_file =
+        CString::new("test_files/1101503312_1_timestep/invalid_filename.metafits").unwrap();
+    let metafits_file_ptr = metafits_file.as_ptr();
+
+    // Create a temp dir for the temp files
+    // Once out of scope the temp dir and it's contents will be deleted
+    let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
+
+    // Create a test file
+    let voltage_file = CString::new(
+        generate_test_voltage_file(&temp_dir, "1101503312_1101503312_123.sub", 2, 256).unwrap(),
+    )
+    .unwrap();
+    let voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
+
+    let voltage_files_ptr = voltage_files.as_ptr() as *mut *const c_char;
+
+    unsafe {
+        // Create a VoltageContext
+        let mut voltage_context_ptr: *mut VoltageContext = std::ptr::null_mut();
+        let retval = mwalib_voltage_context_new(
+            metafits_file_ptr,
+            voltage_files_ptr,
+            1,
+            &mut voltage_context_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // Check return val
+        assert_ne!(retval, 0);
+
+        // Get Error message
+        let mut ret_error_message: String = String::new();
+
+        if retval != 0 {
+            let c_str: &CStr = CStr::from_ptr(error_message_ptr);
+            let str_slice: &str = c_str.to_str().unwrap();
+            ret_error_message = str_slice.to_owned();
+        }
+
+        // Check error message
+        assert!(!ret_error_message.is_empty());
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_display() {
+    let voltage_context_ptr: *mut VoltageContext = get_test_voltage_context();
+
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let retval =
+            mwalib_voltage_context_display(voltage_context_ptr, error_message_ptr, error_len);
+
+        assert_eq!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_display_null_ptr() {
+    let voltage_context_ptr: *mut VoltageContext = std::ptr::null_mut();
+
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let retval =
+            mwalib_voltage_context_display(voltage_context_ptr, error_message_ptr, error_len);
+
+        assert_ne!(retval, 0);
     }
 }
 

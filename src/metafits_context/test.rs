@@ -309,3 +309,17 @@ fn test_correlator_version_display_v2() {
 
     assert_eq!(format!("{}", cv), "v2 MWAX");
 }
+
+#[test]
+fn test_correlator_version_display_legacy() {
+    let cv = CorrelatorVersion::Legacy;
+
+    assert_eq!(format!("{}", cv), "v1 Legacy");
+}
+
+#[test]
+fn test_correlator_version_display_old_legacy() {
+    let cv = CorrelatorVersion::OldLegacy;
+
+    assert_eq!(format!("{}", cv), "v1 Legacy (no file indices)");
+}

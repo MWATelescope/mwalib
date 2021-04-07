@@ -37,8 +37,6 @@ fn test_get_hdu_image_size_image() {
         assert_eq!(size_vec.len(), 2);
         assert_eq!(size_vec[0], 101);
         assert_eq!(size_vec[1], 102);
-        assert_ne!(size_vec[0], 200);
-        assert_ne!(size_vec[1], 200);
     });
 }
 
@@ -65,6 +63,157 @@ fn test_get_hdu_image_size_non_image() {
 
         // Run our test
         get_hdu_image_size!(fptr, &hdu).unwrap_err();
+    });
+}
+
+#[test]
+fn test_get_fits_image_valid_f32() {
+    // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+    with_new_temp_fits_file("test_get_fits_image.fits", |mut fptr| {
+        // Ensure we have 1 hdu
+        fits_open_hdu!(fptr, 0).expect("Couldn't open HDU 0");
+
+        let image_description = ImageDescription {
+            data_type: ImageType::Float,
+            dimensions: &[1, 3],
+        };
+
+        // Create a new image HDU
+        fptr.create_image("EXTNAME".to_string(), &image_description)
+            .unwrap();
+        let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
+
+        // Write some data
+        assert!(hdu.write_image(&mut fptr, &[1.0, 2.0, 3.0]).is_ok());
+
+        // Run our test, check dimensions
+        let size_vec = get_hdu_image_size!(fptr, &hdu).unwrap();
+
+        assert_eq!(size_vec.len(), 2);
+        assert_eq!(size_vec[0], 1);
+        assert_eq!(size_vec[1], 3);
+
+        // Read and check data
+        let result1: Result<Vec<f32>, FitsError> = get_fits_image!(fptr, &hdu);
+        assert!(result1.is_ok());
+        assert_eq!(result1.unwrap(), vec![1.0, 2.0, 3.0]);
+    });
+}
+
+#[test]
+fn test_get_fits_image_valid_i32() {
+    // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+    with_new_temp_fits_file("test_get_fits_image.fits", |mut fptr| {
+        // Ensure we have 1 hdu
+        fits_open_hdu!(fptr, 0).expect("Couldn't open HDU 0");
+
+        let image_description = ImageDescription {
+            data_type: ImageType::Long,
+            dimensions: &[1, 3],
+        };
+
+        // Create a new image HDU
+        fptr.create_image("EXTNAME".to_string(), &image_description)
+            .unwrap();
+        let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
+
+        // Write some data
+        assert!(hdu.write_image(&mut fptr, &[-1, 0, 1]).is_ok());
+
+        // Run our test, check dimensions
+        let size_vec = get_hdu_image_size!(fptr, &hdu).unwrap();
+
+        assert_eq!(size_vec.len(), 2);
+        assert_eq!(size_vec[0], 1);
+        assert_eq!(size_vec[1], 3);
+
+        // Read and check data
+        let result1: Result<Vec<i32>, FitsError> = get_fits_image!(fptr, &hdu);
+        assert!(result1.is_ok());
+        assert_eq!(result1.unwrap(), vec![-1, 0, 1]);
+    });
+}
+
+#[test]
+fn test_get_fits_image_invalid() {
+    // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+    with_new_temp_fits_file("test_get_fits_image.fits", |mut fptr| {
+        // Ensure we have 1 hdu
+        fits_open_hdu!(fptr, 0).expect("Couldn't open HDU 0");
+
+        let image_description = ImageDescription {
+            data_type: ImageType::Long,
+            dimensions: &[1, 3],
+        };
+
+        // Create a new image HDU
+        fptr.create_image("EXTNAME".to_string(), &image_description)
+            .unwrap();
+        let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
+
+        // Write some data
+        assert!(hdu
+            .write_image(&mut fptr, &[-12345678, 0, 12345678])
+            .is_ok());
+
+        // Run our test, check dimensions
+        let size_vec = get_hdu_image_size!(fptr, &hdu).unwrap();
+
+        assert_eq!(size_vec.len(), 2);
+        assert_eq!(size_vec[0], 1);
+        assert_eq!(size_vec[1], 3);
+
+        // Read and check data- this should be an error due to a type mismatch
+        let result1: Result<Vec<u8>, FitsError> = get_fits_image!(fptr, &hdu);
+        assert!(result1.is_err());
+
+        assert!(matches!(
+            result1.unwrap_err(),
+            FitsError::Fitsio {
+                fits_error: _,
+                fits_filename: _,
+                hdu_num: _,
+                source_file: _,
+                source_line: _
+            }
+        ));
+    });
+}
+
+#[test]
+fn test_get_fits_image_not_image() {
+    // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+    with_new_temp_fits_file("test_get_fits_image.fits", |fptr| {
+        // Ensure we have 1 hdu
+        fits_open_hdu!(fptr, 0).expect("Couldn't open HDU 0");
+
+        let first_description = ColumnDescription::new("A")
+            .with_type(ColumnDataType::Int)
+            .create()
+            .unwrap();
+        let second_description = ColumnDescription::new("B")
+            .with_type(ColumnDataType::Long)
+            .create()
+            .unwrap();
+        let descriptions = [first_description, second_description];
+
+        fptr.create_table("EXTNAME".to_string(), &descriptions)
+            .unwrap();
+
+        let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
+
+        // Read image. This should fail with a specific fits error
+        let result1: Result<Vec<f32>, FitsError> = get_fits_image!(fptr, &hdu);
+        assert!(result1.is_err());
+        assert!(matches!(
+            result1.unwrap_err(),
+            FitsError::NotImage {
+                fits_filename: _,
+                hdu_num: _,
+                source_file: _,
+                source_line: _
+            }
+        ));
     });
 }
 
@@ -153,11 +302,11 @@ fn test_get_optional_fits_key() {
         assert_eq!(fits_value_i8.unwrap(), Some(10));
 
         // Can't parse the negative number into a unsigned int.
-        let bar_u8: Result<u8, _> = get_required_fits_key!(fptr, &hdu, "bar");
-        let bar_i8: Result<i8, _> = get_required_fits_key!(fptr, &hdu, "bar");
+        let bar_u8: Result<Option<u8>, _> = get_optional_fits_key!(fptr, &hdu, "bar");
+        let bar_i8: Result<Option<i8>, _> = get_optional_fits_key!(fptr, &hdu, "bar");
         assert!(bar_u8.is_err());
         assert!(bar_i8.is_ok());
-        assert_eq!(bar_i8.unwrap(), -5);
+        assert_eq!(bar_i8.unwrap().unwrap(), -5);
     });
 }
 
@@ -251,6 +400,121 @@ fn test_get_fits_long_string() {
         let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
         assert!(fitsio_str.is_ok());
         assert_eq!(fitsio_str.unwrap(), first_string);
+    });
+}
+
+#[test]
+fn test_get_required_fits_long_string() {
+    // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+    with_new_temp_fits_file("test_get_fits_long_string.fits", |fptr| {
+        let complete_string = "131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154";
+        let first_string = "131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147&";
+
+        // Sadly, rust's `fitsio` library doesn't support writing long strings
+        // with CONTINUE statements. We have to do it for ourselves.
+        unsafe {
+            let fptr_ffi = fptr.as_raw();
+            let keyword_ffi =
+                CString::new("foo").expect("get_fits_long_string: CString::new() failed for 'foo'");
+            let value_ffi = CString::new(complete_string)
+                .expect("get_fits_long_string: CString::new() failed for 'complete_string'");
+            let mut status = 0;
+
+            ffpkls(
+                fptr_ffi,
+                keyword_ffi.as_ptr(),
+                value_ffi.as_ptr(),
+                ptr::null_mut(),
+                &mut status,
+            );
+        }
+
+        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+
+        // Check for a valid long string
+        let result1 = get_required_fits_key_long_string!(fptr, &hdu, "FOO");
+        assert!(result1.is_ok());
+        assert_eq!(result1.unwrap(), complete_string);
+
+        // Try out the `fitsio` read key.
+        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+        let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
+        assert!(fitsio_str.is_ok());
+        assert_eq!(fitsio_str.unwrap(), first_string);
+
+        // A repeated read just returns the first string again.
+        let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
+        assert!(fitsio_str.is_ok());
+        assert_eq!(fitsio_str.unwrap(), first_string);
+
+        // Check for a invalid key long string
+        let result2 = get_required_fits_key_long_string!(fptr, &hdu, "BAR");
+        assert!(matches!(
+            result2.unwrap_err(),
+            FitsError::MissingKey {
+                key: _,
+                fits_filename: _,
+                hdu_num: _,
+                source_file: _,
+                source_line: _
+            }
+        ));
+    });
+}
+
+#[test]
+fn test_get_optional_fits_long_string() {
+    // with_temp_file creates a temp dir and temp file, then removes them once out of scope
+    with_new_temp_fits_file("test_get_fits_long_string.fits", |fptr| {
+        let complete_string = "131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154";
+        let first_string = "131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147&";
+
+        // Sadly, rust's `fitsio` library doesn't support writing long strings
+        // with CONTINUE statements. We have to do it for ourselves.
+        unsafe {
+            let fptr_ffi = fptr.as_raw();
+            let keyword_ffi =
+                CString::new("foo").expect("get_fits_long_string: CString::new() failed for 'foo'");
+            let value_ffi = CString::new(complete_string)
+                .expect("get_fits_long_string: CString::new() failed for 'complete_string'");
+            let mut status = 0;
+
+            ffpkls(
+                fptr_ffi,
+                keyword_ffi.as_ptr(),
+                value_ffi.as_ptr(),
+                ptr::null_mut(),
+                &mut status,
+            );
+        }
+
+        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+
+        // Read a key that IS there
+        let result1 = get_optional_fits_key_long_string!(fptr, &hdu, "FOO");
+        // Check no error
+        assert!(result1.is_ok());
+        let fits_value1_str = result1.unwrap();
+        // Check they match
+        assert_eq!(fits_value1_str.unwrap(), complete_string);
+
+        // Try out the `fitsio` read key.
+        let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
+        assert!(fitsio_str.is_ok());
+        assert_eq!(fitsio_str.unwrap(), first_string);
+
+        // A repeated read just returns the first string again.
+        let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
+        assert!(fitsio_str.is_ok());
+        assert_eq!(fitsio_str.unwrap(), first_string);
+
+        // Now read a key that does NOT exist
+        let result2 = get_optional_fits_key_long_string!(fptr, &hdu, "BAR");
+        // Check no error
+        assert!(result2.is_ok());
+        let fits_value2_str = result2.unwrap();
+        // Check it returns None
+        assert!(fits_value2_str.is_none());
     });
 }
 
