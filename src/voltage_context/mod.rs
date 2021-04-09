@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 /*!
-The main interface to MWA data.
+The main interface to MWA voltage data.
  */
 use crate::coarse_channel::*;
 use crate::error::*;
@@ -12,6 +12,9 @@ use crate::timestep::*;
 use crate::voltage_files::*;
 use crate::*;
 use std::fmt;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::{Read, Seek, SeekFrom};
 
 #[cfg(test)]
 mod test;
@@ -41,8 +44,6 @@ pub struct VoltageContext {
     pub num_timesteps: usize,
     /// length in millseconds of each timestep
     pub timestep_duration_ms: u64,
-    /// Number of samples in each timestep
-    pub num_samples_per_timestep: usize,
     /// This is an array of all timesteps we have data for
     pub timesteps: Vec<TimeStep>,
     /// Number of coarse channels after we've validated the input voltage files
@@ -57,6 +58,23 @@ pub struct VoltageContext {
     pub fine_chan_width_hz: u32,
     /// Number of fine channels in each coarse channel
     pub num_fine_chans_per_coarse: usize,
+
+    /// Number of bytes in each sample (a sample is a complex, thus includes r and i)
+    pub sample_size_bytes: u64,
+    /// Number of voltage blocks per timestep
+    pub num_voltage_blocks_per_timestep: u64,
+    /// Number of voltage blocks of samples in each second of data    
+    pub num_voltage_blocks_per_second: u64,
+    /// Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
+    pub num_samples_per_voltage_block: u64,
+    /// The size of each voltage block    
+    pub voltage_block_size_bytes: u64,
+    /// Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
+    pub delay_block_size_bytes: u64,
+    /// The amount of bytes to skip before getting into real data within the voltage files
+    pub data_file_header_size_bytes: u64,
+    /// Expected voltage file size
+    pub expected_voltage_data_file_size_bytes: u64,
 
     /// `voltage_batches` *must* be sorted appropriately. See
     /// `voltage::determine_voltage_batches`. The order of the filenames
@@ -173,19 +191,65 @@ impl VoltageContext {
             metafits_context.sched_start_unix_time_ms,
         );
 
-        // The number of samples this timestep represents. For correlator, this would be 1. For voltage capture it will be many.
-        let num_samples_per_timestep = match voltage_info.corr_format {
-            CorrelatorVersion::OldLegacy => 10000,
-            CorrelatorVersion::Legacy => 10000,
-            CorrelatorVersion::V2 => 10_240_000, // (64K per 50ms and there are 160 50ms blocks per 8 seconds of MWAX VCS)
-        };
-
-        // Length of this timestep in milliseconds
+        // Length of each timestep in milliseconds
         let timestep_duration_ms = match voltage_info.corr_format {
             CorrelatorVersion::OldLegacy => 1000,
             CorrelatorVersion::Legacy => 1000,
             CorrelatorVersion::V2 => 8000,
         };
+
+        // Number of bytes in each sample
+        let sample_size_bytes: u64 = match voltage_info.corr_format {
+            CorrelatorVersion::OldLegacy => 1, // 4 bits real, 4 bits imag
+            CorrelatorVersion::Legacy => 1,    // 4 bits real, 4 bits imag
+            CorrelatorVersion::V2 => 2,        // 8 bits real, 8 bits imag
+        };
+
+        // Number of voltage blocks per timestep
+        let num_voltage_blocks_per_timestep: u64 = match voltage_info.corr_format {
+            CorrelatorVersion::OldLegacy => 50,
+            CorrelatorVersion::Legacy => 50,
+            CorrelatorVersion::V2 => 160,
+        };
+
+        // Number of voltage blocks of samples in each second of data
+        let num_voltage_blocks_per_second: u64 =
+            num_voltage_blocks_per_timestep / (timestep_duration_ms / 1000);
+
+        // Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
+        // TODO: verify with VCS team
+        let num_samples_per_rf_chain_fine_chan_in_a_voltage_block: u64 =
+            match voltage_info.corr_format {
+                CorrelatorVersion::OldLegacy => 200,
+                CorrelatorVersion::Legacy => 200,
+                CorrelatorVersion::V2 => 64_000, // 64000 per rf_inpit x real|imag (no fine chans)
+            };
+
+        // The size of each voltage block
+        let voltage_block_size_bytes: u64 = num_samples_per_rf_chain_fine_chan_in_a_voltage_block
+            * metafits_context.num_rf_inputs as u64
+            * num_fine_chans_per_coarse as u64
+            * sample_size_bytes;
+
+        // Determine delay_block_size - for MWAX this is the same as a voltage block size, for legacy it is 0
+        let delay_block_size_bytes: u64 = match voltage_info.corr_format {
+            CorrelatorVersion::OldLegacy => 0,
+            CorrelatorVersion::Legacy => 0,
+            CorrelatorVersion::V2 => voltage_block_size_bytes,
+        };
+
+        // The amount of bytes to skip before getting into real data within the voltage files
+        let data_file_header_size_bytes: u64 = match voltage_info.corr_format {
+            CorrelatorVersion::OldLegacy => 0,
+            CorrelatorVersion::Legacy => 0,
+            CorrelatorVersion::V2 => 4096,
+        };
+
+        // Expected voltage file size
+        // MWAX 128T should be 4096+32768000+(32768000 * 160) == 5275652096
+        let expected_voltage_data_file_size_bytes: u64 = data_file_header_size_bytes
+            + delay_block_size_bytes
+            + (voltage_block_size_bytes * num_voltage_blocks_per_timestep);
 
         // Get number of timesteps
         let num_timesteps = timesteps.len();
@@ -199,7 +263,6 @@ impl VoltageContext {
             duration_ms,
             num_timesteps,
             timesteps,
-            num_samples_per_timestep,
             timestep_duration_ms,
             num_coarse_chans,
             coarse_chans,
@@ -207,16 +270,45 @@ impl VoltageContext {
             bandwidth_hz,
             coarse_chan_width_hz: metafits_coarse_chan_width_hz,
             num_fine_chans_per_coarse,
+            sample_size_bytes,
+            num_voltage_blocks_per_timestep,
+            num_voltage_blocks_per_second,
+            num_samples_per_voltage_block: num_samples_per_rf_chain_fine_chan_in_a_voltage_block,
+            voltage_block_size_bytes,
+            delay_block_size_bytes,
+            data_file_header_size_bytes,
+            expected_voltage_data_file_size_bytes,
             voltage_batches: voltage_info.gpstime_batches,
             voltage_time_map: voltage_info.time_map,
         })
     }
 
-    /*
-    /// Read a single gps time / coarse channel worth of data
-    /// The output data are in order:
-    /// antenna[0]|pol[0]|s[0]...s[63999]|pol[0]
-    /// Each sample is a byte.
+    /// Read a single timestep / coarse channel worth of data
+    /// The output data are in the format:
+    /// MWA Recombined VCS:
+    /// antenna[0]|pol[0]|finechan[0]|sample[0]...sample[63999]
+    /// antenna[0]|pol[0]|finechan[1]|sample[0]...sample[63999]
+    /// ...
+    /// antenna[0]|pol[1]|finechan[0]|sample[0]...sample[63999]
+    /// antenna[0]|pol[1]|finechan[1]|sample[0]...sample[63999]
+    /// ...
+    /// antenna[1]|pol[0]|finechan[0]|sample[0_real][0_imag]...sample[63999_real][63999_imag]
+    /// antenna[1]|pol[0]|finechan[1]|sample[0_real][0_imag]...sample[63999_real][63999_imag]
+    ///
+    ///
+    /// MWAX:
+    /// antenna[0]|pol[0]|sample[0]...sample[63999]
+    /// antenna[0]|pol[1]|sample[0]...sample[63999]
+    /// antenna[1]|pol[0]|sample[0]...sample[63999]
+    /// antenna[1]|pol[1]|sample[0]...sample[63999]
+    /// ...
+    ///
+    /// File format information:
+    /// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
+    /// =====================================================================================================================================================
+    /// Lgeacy  128     2       128     1           200             6553600     50      0       0           327680000   327680000   1               327680000
+    /// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
+    /// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
     ///
     /// # Arguments
     ///
@@ -230,7 +322,7 @@ impl VoltageContext {
     ///
     /// # Returns
     ///
-    /// * A Result containing vector of bytes containing the data in antenna[0]|pol[0]|s[0]...s[63999]|pol[0] order, if Ok.
+    /// * A Result containing vector of bytes containing the data, if Ok.
     ///
     ///
     pub fn read(
@@ -242,44 +334,79 @@ impl VoltageContext {
             return Err(VoltageFileError::NoVoltageFiles);
         }
 
-        // Lookup the coarse channel we need
-        let coarse_chan = self.coarse_chans[coarse_chan_index].rec_chan_number;
+        // Validate the timestep
+        if timestep_index > self.num_timesteps - 1 {
+            return Err(VoltageFileError::InvalidTimeStepIndex(
+                self.num_timesteps - 1,
+            ));
+        }
 
-        // Lookup the timestep we need
-        let timestep = self.timesteps[timestep_index].gps_time_ms;
+        // Validate the coarse chan
+        if coarse_chan_index > self.num_coarse_chans - 1 {
+            return Err(VoltageFileError::InvalidCoarseChanIndex(
+                self.num_coarse_chans - 1,
+            ));
+        }
+
+        // Work out how much to read at once
+        let chunk_size: usize = self.voltage_block_size_bytes as usize; // This will be the size of a voltage block
 
         // Get the filename for this timestep and coarse channel
-        let filename: &String = &self.voltage_time_map[&timestep][&coarse_chan];
+        let filename: &String =
+            &self.voltage_batches[timestep_index].voltage_files[coarse_chan_index].filename;
 
         // Open the file
-        let mut file_handle = File::open(&filename).expect("no file found");
+        let file_handle = File::open(&filename).expect("no file found");
 
         // Obtain metadata
         let metadata = std::fs::metadata(&filename).expect("unable to read metadata");
 
+        // Check file is as big as we expect
+        // normally we would compare the file len to context.expected_voltage_data_file_size_bytes,
+        // but in our tests we override the voltage_block_size_bytes because our test files only have 1 tile
+        assert_eq!(
+            metadata.len(),
+            self.data_file_header_size_bytes
+                + self.delay_block_size_bytes
+                + (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep)
+        );
+
         // Create an output buffer big enough
-        let mut buffer = vec![0; metadata.len() as usize];
+        let mut buffer = vec![
+            0;
+            (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep)
+                as usize
+        ];
 
-        // Determine delay_block_size
-        let delay_block_size: u64 = self.metafits_context.num_rf_inputs as u64 * 128000;
+        // Open a buffer reader
+        let mut reader = BufReader::with_capacity(chunk_size, file_handle);
 
-        // Determine where the data starts
-        let skip_pos = match self.corr_version {
-            CorrelatorVersion::V2 => 4096 + delay_block_size,
-            CorrelatorVersion::Legacy => 0,
-            CorrelatorVersion::OldLegacy => 0,
-        };
-
-        // Skip to the data
-        file_handle
-            .seek(SeekFrom::Start(skip_pos))
+        // Skip header
+        reader
+            .by_ref()
+            .seek(SeekFrom::Start(
+                self.data_file_header_size_bytes + self.delay_block_size_bytes,
+            ))
             .expect("Unable to seek to data in voltage file");
 
-        // Read data into the buffer
-        file_handle.read(&mut buffer).expect("buffer overflow");
+        // Read the data into the final output buffer in blocks, spaced out with delay blocks (possibly)
+        let mut start_pos: usize = 0;
+        let mut end_pos: usize = chunk_size as usize;
+
+        // Loop until all data is read into our buffer
+        for _ in 0..self.num_voltage_blocks_per_timestep {
+            let chunk = &mut buffer[start_pos..end_pos];
+            let bytes_read = reader.by_ref().read(chunk).expect("Error");
+
+            assert_eq!(bytes_read, chunk_size);
+
+            // Set new start and end pos
+            start_pos = end_pos;
+            end_pos = start_pos + chunk_size;
+        }
 
         Ok(buffer)
-    }*/
+    }
 }
 
 /// Implements fmt::Display for VoltageContext struct
@@ -309,9 +436,8 @@ impl fmt::Display for VoltageContext {
             Actual duration:          {duration} s,
 
             num timesteps:            {n_timesteps},
-            timesteps:                {timesteps:?},
-            num samples / ts:         {num_samples_per_timestep},
-            timestep duration ms,     {timestep_duration_ms}
+            timesteps:                {timesteps:?},            
+            timestep duration ms:     {timestep_duration_ms} ms,
 
             num antennas:             {n_ants},
 
@@ -321,6 +447,15 @@ impl fmt::Display for VoltageContext {
 
             fine channel resolution:  {fcw} Hz,
             num fine channels/coarse: {nfcpc},
+
+            Number of bytes/sample:          {ssb} bytes,
+            Voltage block/timestep:          {vbpts},
+            Voltage blocks/sec:              {vbps}, 
+            Samples per voltage_blocks for each second of data per rf_input,fine_chan,r|i: {sprffcvb},
+            Size per voltage block:          {vbsb} bytes,
+            Delay block size:                {dbsb} bytes,
+            Data file header size:           {dfhsb} bytes,
+            Expected voltage data file size: {evdfsb} bytes,
             
             voltage batches:          {batches:#?},
         )"#,
@@ -333,7 +468,6 @@ impl fmt::Display for VoltageContext {
             duration = self.duration_ms as f64 / 1e3,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,
-            num_samples_per_timestep = self.num_samples_per_timestep,
             timestep_duration_ms = self.timestep_duration_ms,
             n_ants = self.metafits_context.num_ants,
             obw = self.bandwidth_hz as f64 / 1e6,
@@ -341,6 +475,14 @@ impl fmt::Display for VoltageContext {
             coarse = self.coarse_chans,
             fcw = self.fine_chan_width_hz as f64 / 1e3,
             nfcpc = self.num_fine_chans_per_coarse,
+            ssb = self.sample_size_bytes,
+            vbpts = self.num_voltage_blocks_per_timestep,
+            vbps = self.num_voltage_blocks_per_second,
+            sprffcvb = self.num_samples_per_voltage_block,
+            vbsb = self.voltage_block_size_bytes,
+            dbsb = self.delay_block_size_bytes,
+            dfhsb = self.data_file_header_size_bytes,
+            evdfsb = self.expected_voltage_data_file_size_bytes,
             batches = self.voltage_batches,
         )
     }

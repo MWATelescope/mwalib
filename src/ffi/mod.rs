@@ -1200,8 +1200,6 @@ pub struct VoltageMetadata {
     pub num_timesteps: usize,
     /// The number of millseconds interval between timestep indices
     pub timestep_duration_ms: u64,
-    /// The number of samples in each timestep
-    pub num_samples_per_timestep: usize,
     /// Number of coarse channels after we've validated the input voltage files
     pub num_coarse_chans: usize,
     /// Total bandwidth of observation (of the coarse channels we have)
@@ -1212,6 +1210,22 @@ pub struct VoltageMetadata {
     pub fine_chan_width_hz: u32,
     /// Number of fine channels in each coarse channel
     pub num_fine_chans_per_coarse: usize,
+    /// Number of bytes in each sample (a sample is a complex, thus includes r and i)
+    pub sample_size_bytes: u64,
+    /// Number of voltage blocks per timestep
+    pub num_voltage_blocks_per_timestep: u64,
+    /// Number of voltage blocks of samples in each second of data    
+    pub num_voltage_blocks_per_second: u64,
+    /// Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
+    pub num_samples_per_voltage_block: u64,
+    /// The size of each voltage block    
+    pub voltage_block_size_bytes: u64,
+    /// Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
+    pub delay_block_size_bytes: u64,
+    /// The amount of bytes to skip before getting into real data within the voltage files
+    pub data_file_header_size_bytes: u64,
+    /// Expected voltage file size
+    pub expected_voltage_data_file_size_bytes: u64,
 }
 
 /// This returns a struct containing the `VoltageContext` metadata
@@ -1270,13 +1284,20 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             num_timesteps,
             timesteps: _, // This is provided by the seperate timestep struct in FFI
             timestep_duration_ms,
-            num_samples_per_timestep,
             num_coarse_chans,
             coarse_chans: _, // This is provided by the seperate coarse_chan struct in FFI
             bandwidth_hz,
             coarse_chan_width_hz,
             fine_chan_width_hz,
             num_fine_chans_per_coarse,
+            sample_size_bytes,
+            num_voltage_blocks_per_timestep,
+            num_voltage_blocks_per_second,
+            num_samples_per_voltage_block,
+            voltage_block_size_bytes,
+            delay_block_size_bytes,
+            data_file_header_size_bytes,
+            expected_voltage_data_file_size_bytes,
             voltage_batches: _, // This is currently not provided to FFI as it is private
             voltage_time_map: _, // This is currently not provided to FFI as it is private
         } = context;
@@ -1289,12 +1310,19 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             duration_ms: *duration_ms,
             num_timesteps: *num_timesteps,
             timestep_duration_ms: *timestep_duration_ms,
-            num_samples_per_timestep: *num_samples_per_timestep,
             num_coarse_chans: *num_coarse_chans,
             bandwidth_hz: *bandwidth_hz,
             coarse_chan_width_hz: *coarse_chan_width_hz,
             fine_chan_width_hz: *fine_chan_width_hz,
             num_fine_chans_per_coarse: *num_fine_chans_per_coarse,
+            sample_size_bytes: *sample_size_bytes,
+            num_voltage_blocks_per_timestep: *num_voltage_blocks_per_timestep,
+            num_voltage_blocks_per_second: *num_voltage_blocks_per_second,
+            num_samples_per_voltage_block: *num_samples_per_voltage_block,
+            voltage_block_size_bytes: *voltage_block_size_bytes,
+            delay_block_size_bytes: *delay_block_size_bytes,
+            data_file_header_size_bytes: *data_file_header_size_bytes,
+            expected_voltage_data_file_size_bytes: *expected_voltage_data_file_size_bytes,
         }
     };
 
