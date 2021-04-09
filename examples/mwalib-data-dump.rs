@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::Write;
 use structopt::StructOpt;
 
-#[cfg(not(tarpaulin_include))]
 #[derive(StructOpt, Debug)]
 #[structopt(name = "mwalib-data-dump", author)]
 struct Opt {
@@ -45,7 +44,6 @@ struct Opt {
     dump_filename: std::path::PathBuf,
 }
 
-#[cfg(not(tarpaulin_include))]
 fn dump_data<T: AsRef<std::path::Path>>(
     metafits: &T,
     files: &[T],

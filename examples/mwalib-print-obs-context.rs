@@ -9,7 +9,6 @@ use structopt::StructOpt;
 
 use mwalib::*;
 
-#[cfg(not(tarpaulin_include))]
 #[derive(StructOpt, Debug)]
 #[structopt(name = "mwalib-print-obs-context", author)]
 struct Opt {
@@ -22,15 +21,9 @@ struct Opt {
     files: Vec<std::path::PathBuf>,
 }
 
-#[cfg(not(tarpaulin_include))]
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
-    let mut context = CorrelatorContext::new(&opts.metafits, &opts.files)?;
-
-    context
-        .metafits_context
-        .rf_inputs
-        .sort_by_key(|k| k.subfile_order);
+    let context = CorrelatorContext::new(&opts.metafits, &opts.files)?;
 
     println!("{}", context);
 

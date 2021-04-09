@@ -8,7 +8,6 @@ use structopt::StructOpt;
 
 use mwalib::*;
 
-#[cfg(not(tarpaulin_include))]
 #[derive(StructOpt, Debug)]
 #[structopt(name = "mwalib-sum-gpubox-hdus", author)]
 struct Opt {
@@ -27,7 +26,6 @@ struct Opt {
     files: Vec<std::path::PathBuf>,
 }
 
-#[cfg(not(tarpaulin_include))]
 fn sum_direct(files: Vec<std::path::PathBuf>) -> Result<(), anyhow::Error> {
     println!("Summing directly from HDUs...");
     let mut sum: f64 = 0.0;
@@ -50,7 +48,6 @@ fn sum_direct(files: Vec<std::path::PathBuf>) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-#[cfg(not(tarpaulin_include))]
 fn sum_mwalib<T: AsRef<std::path::Path>>(metafits: &T, files: &[T]) -> Result<(), anyhow::Error> {
     println!("Summing via mwalib using read_by_baseline()...");
     let mut context = CorrelatorContext::new(metafits, files)?;
@@ -86,7 +83,6 @@ fn sum_mwalib<T: AsRef<std::path::Path>>(metafits: &T, files: &[T]) -> Result<()
     Ok(())
 }
 
-#[cfg(not(tarpaulin_include))]
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
     if opts.direct {
