@@ -60,5 +60,7 @@ jobs:
                 done \
           ) > coverage/coverage.lcov
 
-    - name: codecov
-      run: bash <(curl -s https://codecov.io/bash)
+    - name: Upload reports to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
