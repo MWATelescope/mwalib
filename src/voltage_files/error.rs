@@ -18,6 +18,20 @@ pub enum VoltageFileError {
     #[error("No voltage files were supplied")]
     NoVoltageFiles,
 
+    #[error("Provided buffer of {0} bytes is not the correct size (should be {1} bytes)")]
+    InvalidBufferSize(usize, usize),
+
+    #[error("Invalid gps_second_start (should be between {0} and {1} inclusive)")]
+    InvalidGpsSecondStart(u64, u64),
+
+    #[error("Invalid voltage file size {0} (expected {1} bytes, was {2} bytes)")]
+    InvalidVoltageFileSize(u64, String, u64),
+
+    #[error(
+        "Invalid gps_second_count (gps second start {0} + count {1} cannot be greater than {1})"
+    )]
+    InvalidGpsSecondCount(u64, usize, u64),
+
     #[error("Voltage file {0} error: {1}")]
     VoltageFileError(String, String),
 

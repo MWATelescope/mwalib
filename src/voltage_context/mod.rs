@@ -283,18 +283,71 @@ impl VoltageContext {
         })
     }
 
+    /// Validates gps time start and gps seconds count, and returns the end gps time or an Error.
+    ///
+    /// # Arguments
+    ///
+    /// * `gps_second_start` - The gps start time
+    ///
+    /// * `gps_second_count` - The number of gps seconds
+    ///    
+    ///
+    /// # Returns
+    ///
+    /// * A Result the end gps second if the gps time range is within the VoltageContext's range or Error if not.
+    ///
+    fn validate_gps_time_parameters(
+        &mut self,
+        gps_second_start: u64,
+        gps_second_count: usize,
+    ) -> Result<u64, VoltageFileError> {
+        // Validate the gpstime
+        let gps_time_observation_max_ms =
+            self.timesteps[self.num_timesteps - 1].gps_time_ms + self.timestep_duration_ms;
+
+        // Validate the start time
+        if gps_second_start * 1000 < self.timesteps[0].gps_time_ms
+            || gps_second_start * 1000 > gps_time_observation_max_ms
+        {
+            return Err(VoltageFileError::InvalidGpsSecondStart(
+                self.timesteps[0].gps_time_ms / 1000,
+                gps_time_observation_max_ms / 1000,
+            ));
+        }
+
+        // Validate the end time
+        let gps_second_end: u64 = gps_second_start + gps_second_count as u64;
+        if gps_second_end * 1000 > gps_time_observation_max_ms {
+            return Err(VoltageFileError::InvalidGpsSecondCount(
+                self.timesteps[0].gps_time_ms / 1000,
+                gps_second_count,
+                gps_time_observation_max_ms / 1000,
+            ));
+        }
+
+        Ok(gps_second_end)
+    }
+
     /// Read a single timestep / coarse channel worth of data
     /// The output data are in the format:
     /// MWA Recombined VCS:
-    /// antenna[0]|pol[0]|finechan[0]|sample[0]...sample[63999]
-    /// antenna[0]|pol[0]|finechan[1]|sample[0]...sample[63999]
-    /// ...
-    /// antenna[0]|pol[1]|finechan[0]|sample[0]...sample[63999]
-    /// antenna[0]|pol[1]|finechan[1]|sample[0]...sample[63999]
-    /// ...
-    /// antenna[1]|pol[0]|finechan[0]|sample[0_real][0_imag]...sample[63999_real][63999_imag]
-    /// antenna[1]|pol[0]|finechan[1]|sample[0_real][0_imag]...sample[63999_real][63999_imag]
     ///
+    /// NOTE: antennas are in tile_id order for recombined VCS...
+    ///
+    /// sample[0]|finechan[0]|antenna[0]|X|real
+    /// sample[0]|finechan[0]|antenna[0]|Y|imag    
+    /// ...
+    /// sample[0]|finechan[0]|antenna[127]|X|real
+    /// sample[0]|finechan[0]|antenna[127]|Y|imag
+    /// ...
+    /// sample[0]|finechan[1]|antenna[0]|X|real
+    /// sample[0]|finechan[1]|antenna[0]|Y|imag
+    /// ...
+    /// sample[0]|finechan[127]|antenna[127]|X|real
+    /// sample[0]|finechan[127]|antenna[127]|Y|imag
+    /// ...
+    /// sample[1]|finechan[0]|antenna[0]|X|real
+    /// sample[1]|finechan[0]|antenna[0]|Y|imag        
     ///
     /// MWAX:
     /// antenna[0]|pol[0]|sample[0]...sample[63999]
@@ -306,7 +359,7 @@ impl VoltageContext {
     /// File format information:
     /// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
     /// =====================================================================================================================================================
-    /// Lgeacy  128     2       128     1           200             6553600     50      0       0           327680000   327680000   1               327680000
+    /// Lgeacy  128     2       128     1           10000           327680000   1       0       0           327680000   327680000   1               327680000
     /// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
     /// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
     ///
@@ -319,17 +372,190 @@ impl VoltageContext {
     /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
     ///                      to the element within VoltageContext.coarse_chans.
     ///
+    /// * `buffer` - a mutable reference to an already exitsing, initialised slice `[u8]` which will be filled with the data from one data file/block.
     ///
     /// # Returns
     ///
     /// * A Result containing vector of bytes containing the data, if Ok.
     ///
     ///
-    pub fn read(
+    pub fn read_second(
+        &mut self,
+        gps_second_start: u64,
+        gps_second_count: usize,
+        coarse_chan_index: usize,
+        buffer: &mut [u8],
+    ) -> Result<(), VoltageFileError> {
+        if self.voltage_batches.is_empty() {
+            return Err(VoltageFileError::NoVoltageFiles);
+        }
+
+        // Validate the coarse chan
+        if coarse_chan_index > self.num_coarse_chans - 1 {
+            return Err(VoltageFileError::InvalidCoarseChanIndex(
+                self.num_coarse_chans - 1,
+            ));
+        }
+
+        // Validate the gpstime
+        let gps_second_end =
+            VoltageContext::validate_gps_time_parameters(self, gps_second_start, gps_second_count)?;
+
+        // Determine which timestep(s) we need to cover the start and end gps times.
+        // NOTE: mwax has 8 gps seconds per timestep, legacy vcs has 1
+        let timestep_index_start: usize = (((gps_second_start * 1000)
+            - self.timesteps[0].gps_time_ms) as f64
+            / self.timestep_duration_ms as f64)
+            .floor() as usize;
+        // Get end timestep which includes the end gps time
+        let timestep_index_end: usize = (((gps_second_end * 1000) - self.timesteps[0].gps_time_ms)
+            as f64
+            / self.timestep_duration_ms as f64)
+            .floor() as usize;
+
+        // Check output buffer is big enough
+        let expected_buffer_size = (self.voltage_block_size_bytes
+            * self.num_voltage_blocks_per_second) as usize
+            * gps_second_count;
+
+        if buffer.len() != expected_buffer_size {
+            return Err(VoltageFileError::InvalidBufferSize(
+                buffer.len(),
+                expected_buffer_size,
+            ));
+        }
+
+        // Calculate expected data file size (for use later)
+        // normally we would compare the file len to context.expected_voltage_data_file_size_bytes,
+        // but in our unit tests we override the voltage_block_size_bytes because our test files only have 1 tile
+        let calc_file_size = self.data_file_header_size_bytes
+            + self.delay_block_size_bytes
+            + (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep);
+
+        // Work out how much to read at once
+        let chunk_size: usize = self.voltage_block_size_bytes as usize; // This will be the size of a voltage block
+
+        // Variables to keep track of where in the buffer we are writing to
+        let mut start_pos: usize = 0;
+        let mut end_pos: usize = chunk_size as usize;
+
+        // Loop through the timesteps / files
+        for timestep_index in timestep_index_start..timestep_index_end + 1 {
+            // Get the filename for this timestep and coarse channel
+            let filename: &String =
+                &self.voltage_batches[timestep_index].voltage_files[coarse_chan_index].filename;
+
+            // Open the file
+            let file_handle = File::open(&filename).expect("no file found");
+
+            // Obtain metadata
+            let metadata = std::fs::metadata(&filename).expect("unable to read metadata");
+
+            // Check file is as big as we expect
+            if metadata.len() != calc_file_size {
+                return Err(VoltageFileError::InvalidVoltageFileSize(
+                    metadata.len(),
+                    String::from(filename),
+                    calc_file_size,
+                ));
+            }
+
+            // Open a buffer reader
+            let mut reader = BufReader::with_capacity(chunk_size, file_handle);
+
+            // Skip header
+            reader
+                .by_ref()
+                .seek(SeekFrom::Start(
+                    self.data_file_header_size_bytes + self.delay_block_size_bytes,
+                ))
+                .expect("Unable to seek to data in voltage file");
+
+            // Loop until all data is read into our buffer
+            //
+            // in mwax 1 file	= 8 gps seconds
+            // in legacy 1 file	= 1 gps seconds
+            //
+            for block_index in 0..self.num_voltage_blocks_per_timestep {
+                // We may only be reading a portion of this file, so determine if we want to read this block
+                let current_gps_time_ms = self.timesteps[timestep_index].gps_time_ms
+                    + (block_index as f64 / self.num_voltage_blocks_per_second as f64).floor()
+                        as u64;
+
+                if current_gps_time_ms >= gps_second_start && current_gps_time_ms <= gps_second_end
+                {
+                    let chunk = &mut buffer[start_pos..end_pos];
+                    let bytes_read = reader.by_ref().read(chunk).expect("Error");
+
+                    assert_eq!(bytes_read, chunk_size);
+
+                    // Set new start and end pos
+                    start_pos = end_pos;
+                    end_pos = start_pos + chunk_size;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Read a single timestep / coarse channel worth of data
+    /// The output data are in the format:
+    /// MWA Recombined VCS:
+    ///
+    /// NOTE: antennas are in tile_id order for recombined VCS...
+    ///
+    /// sample[0]|finechan[0]|antenna[0]|X|real
+    /// sample[0]|finechan[0]|antenna[0]|Y|imag    
+    /// ...
+    /// sample[0]|finechan[0]|antenna[127]|X|real
+    /// sample[0]|finechan[0]|antenna[127]|Y|imag
+    /// ...
+    /// sample[0]|finechan[1]|antenna[0]|X|real
+    /// sample[0]|finechan[1]|antenna[0]|Y|imag
+    /// ...
+    /// sample[0]|finechan[127]|antenna[127]|X|real
+    /// sample[0]|finechan[127]|antenna[127]|Y|imag
+    /// ...
+    /// sample[1]|finechan[0]|antenna[0]|X|real
+    /// sample[1]|finechan[0]|antenna[0]|Y|imag        
+    ///
+    /// MWAX:
+    /// antenna[0]|pol[0]|sample[0]...sample[63999]
+    /// antenna[0]|pol[1]|sample[0]...sample[63999]
+    /// antenna[1]|pol[0]|sample[0]...sample[63999]
+    /// antenna[1]|pol[1]|sample[0]...sample[63999]
+    /// ...
+    ///
+    /// File format information:
+    /// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
+    /// =====================================================================================================================================================
+    /// Lgeacy  128     2       128     1           10000           327680000   1       0       0           327680000   327680000   1               327680000
+    /// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
+    /// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
+    ///
+    /// # Arguments
+    ///
+    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+    ///                      to the element within VoltageContext.timesteps. For mwa legacy each index
+    ///                      represents 1 second increments, for mwax it is 8 second increments.
+    ///
+    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+    ///                      to the element within VoltageContext.coarse_chans.
+    ///
+    /// * `buffer` - a mutable reference to an already exitsing, initialised slice `[u8]` which will be filled with the data from one VCS data file.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * A Result containing vector of bytes containing the data, if Ok.
+    ///
+    ///
+    pub fn read_file(
         &mut self,
         timestep_index: usize,
         coarse_chan_index: usize,
-    ) -> Result<Vec<u8>, VoltageFileError> {
+        buffer: &mut [u8],
+    ) -> Result<(), VoltageFileError> {
         if self.voltage_batches.is_empty() {
             return Err(VoltageFileError::NoVoltageFiles);
         }
@@ -364,6 +590,7 @@ impl VoltageContext {
         // Check file is as big as we expect
         // normally we would compare the file len to context.expected_voltage_data_file_size_bytes,
         // but in our tests we override the voltage_block_size_bytes because our test files only have 1 tile
+        // TODO: This should be an Error type
         assert_eq!(
             metadata.len(),
             self.data_file_header_size_bytes
@@ -371,12 +598,16 @@ impl VoltageContext {
                 + (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep)
         );
 
-        // Create an output buffer big enough
-        let mut buffer = vec![
-            0;
-            (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep)
-                as usize
-        ];
+        // Check buffer is big enough
+        let expected_buffer_size =
+            (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep) as usize;
+
+        if buffer.len() != expected_buffer_size {
+            return Err(VoltageFileError::InvalidBufferSize(
+                buffer.len(),
+                expected_buffer_size,
+            ));
+        }
 
         // Open a buffer reader
         let mut reader = BufReader::with_capacity(chunk_size, file_handle);
@@ -405,7 +636,7 @@ impl VoltageContext {
             end_pos = start_pos + chunk_size;
         }
 
-        Ok(buffer)
+        Ok(())
     }
 }
 
