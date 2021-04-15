@@ -11,6 +11,7 @@ use std::fs::File;
 use std::io::{Error, Write};
 use std::sync::Once;
 
+// Define two static "once" variables to control creation of VCS test data (so it only happens once, the first time it's needed)
 static VCS_LEGACY_TEST_DATA_CREATED: Once = Once::new();
 static VCS_MWAXV2_TEST_DATA_CREATED: Once = Once::new();
 
@@ -53,15 +54,14 @@ fn generate_test_voltage_file(
     // Write out num_voltage_blocks
     //
     // Each voltage_block has samples_per_rf_fine for each combination of rfinputs x fine_chans
-    // and 1 float for real 1 float for imaginary per second
     let num_bytes_per_voltage_block = samples_per_block * rf_inputs * fine_chans * bytes_per_sample;
 
     // Loop for each voltage block
-    // legacy: 50 blocks per file
-    // mwaxx : 160 blocks per file
-    for _ in 0..num_voltage_blocks {
-        let mut value1: u8 = initial_value;
-        let mut value2: u8 = u8::MAX - initial_value;
+    // legacy: 1 blocks per file
+    // mwax  : 160 blocks per file
+    for b in 0..num_voltage_blocks {
+        let mut value1: u8;
+        let mut value2: u8;
 
         // Allocate a buffer
         let mut voltage_block_buffer: Vec<u8> = vec![0; num_bytes_per_voltage_block];
@@ -72,72 +72,39 @@ fn generate_test_voltage_file(
         match corr_version {
             CorrelatorVersion::V2 => {
                 // Data should be written in the following order (slowest to fastest axis)
-                // voltage_block (time1), rf_input, fine_chan, sample (time2), value (complex)
-                for _ in 0..rf_inputs {
-                    for _ in 0..fine_chans {
-                        for _ in 0..samples_per_block {
-                            match bytes_per_sample {
-                                2 => {
-                                    // Byte 1
-                                    voltage_block_buffer[bptr] = value1;
-                                    bptr += 1;
-                                    // Byte 2
-                                    voltage_block_buffer[bptr] = value2;
-                                    bptr += 1;
-                                }
-                                1 => {
-                                    // In this case 1 byte is split into 4bits real and 4bits imag
-                                    voltage_block_buffer[bptr] = value1;
-                                    bptr += 1;
-                                }
-                                _ => panic!("Wrong bytes per sample!"),
-                            }
+                // voltage_block (time1), rf_input, sample (time2), value (complex)
+                for r in 0..rf_inputs {
+                    for s in 0..samples_per_block {
+                        // Encode the data location (plus inital value)
+                        value1 =
+                            ((initial_value as u64 + (b * 5 + r * 4 + s * 2) as u64) % 256) as u8;
 
-                            // Increment/decrement values
-                            value1 = match value1 == u8::MAX {
-                                true => u8::MIN,
-                                false => value1 + 1,
-                            };
-                            value2 = match value2 == u8::MIN {
-                                true => u8::MAX,
-                                false => value2 - 1,
-                            };
-                        }
+                        // Value 2 is the reverse
+                        value2 = 255 - value1;
+
+                        // Byte 1
+                        voltage_block_buffer[bptr] = value1;
+                        bptr += 1;
+
+                        // Byte 2
+                        voltage_block_buffer[bptr] = value2;
+                        bptr += 1;
                     }
                 }
             }
             CorrelatorVersion::Legacy => {
                 // Data should be written in the following order (slowest to fastest axis)
                 // sample (time1), fine_chan, rf_input, value (complex)
-                for _ in 0..samples_per_block {
-                    for _ in 0..fine_chans {
-                        for _ in 0..rf_inputs {
-                            match bytes_per_sample {
-                                2 => {
-                                    // Byte 1
-                                    voltage_block_buffer[bptr] = value1;
-                                    bptr += 1;
-                                    // Byte 2
-                                    voltage_block_buffer[bptr] = value2;
-                                    bptr += 1;
-                                }
-                                1 => {
-                                    // In this case 1 byte is split into 4bits real and 4bits imag
-                                    voltage_block_buffer[bptr] = value1;
-                                    bptr += 1;
-                                }
-                                _ => panic!("Wrong bytes per sample!"),
-                            }
+                for s in 0..samples_per_block {
+                    for f in 0..fine_chans {
+                        for r in 0..rf_inputs {
+                            // Encode the data location (plus inital value)
+                            value1 = ((initial_value as u64 + (s * 4 + f * 3 + r * 2) as u64) % 256)
+                                as u8;
 
-                            // Increment/decrement values
-                            value1 = match value1 == u8::MAX {
-                                true => u8::MIN,
-                                false => value1 + 1,
-                            };
-                            value2 = match value2 == u8::MIN {
-                                true => u8::MAX,
-                                false => value2 - 1,
-                            };
+                            // In this case 1 byte is split into 4bits real and 4bits imag
+                            voltage_block_buffer[bptr] = value1;
+                            bptr += 1;
                         }
                     }
                 }
@@ -166,8 +133,8 @@ fn generate_test_voltage_file_legacy_recombined(
         CorrelatorVersion::Legacy,
         0,
         0,
-        50,
-        200,
+        1,
+        10000,
         2,
         128,
         1,
@@ -181,7 +148,6 @@ fn get_index_for_location_in_test_voltage_file_legacy(
     sample_index: usize,
     fine_chan_index: usize,
     rfinput_index: usize,
-    value_index: usize,
 ) -> usize {
     let num_rfinputs = 2;
     let rf: usize;
@@ -204,7 +170,7 @@ fn get_index_for_location_in_test_voltage_file_legacy(
     rf = rfinput_index * bytes_per_rfinput;
 
     // Return the correct index
-    s + rf + fc + value_index
+    s + rf + fc
 }
 
 #[cfg(test)]
@@ -212,14 +178,12 @@ fn get_index_for_location_in_test_voltage_file_mwaxv2(
     context: &VoltageContext,
     voltage_block_index: usize,
     rfinput_index: usize,
-    fine_chan_index: usize,
     sample_index: usize,
     value_index: usize,
 ) -> usize {
     let num_rfinputs = 2;
     let vb: usize;
     let rf: usize;
-    let fc: usize;
 
     let bytes_per_fine_chan =
         context.num_samples_per_voltage_block as usize * context.sample_size_bytes as usize;
@@ -234,11 +198,8 @@ fn get_index_for_location_in_test_voltage_file_mwaxv2(
     // Now within the block, move to the correct rf_input
     rf = rfinput_index * bytes_per_rfinput;
 
-    // Now within the rfinput, move to the correct fine channel
-    fc = fine_chan_index * bytes_per_fine_chan;
-
     // Return the correct index
-    vb + rf + fc + (sample_index * context.sample_size_bytes as usize) + value_index
+    vb + rf + (sample_index * context.sample_size_bytes as usize) + value_index
 }
 
 #[cfg(test)]
@@ -402,21 +363,27 @@ fn test_context_legacy_v1() {
     // Number of bytes in each sample
     assert_eq!(context.sample_size_bytes, 1);
     // Number of voltage blocks per timestep
-    assert_eq!(context.num_voltage_blocks_per_timestep, 50);
+    assert_eq!(context.num_voltage_blocks_per_timestep, 1);
     // Number of voltage blocks of samples in each second of data
-    assert_eq!(context.num_voltage_blocks_per_second, 50);
+    assert_eq!(context.num_voltage_blocks_per_second, 1);
     // Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
-    assert_eq!(context.num_samples_per_voltage_block, 200);
+    assert_eq!(context.num_samples_per_voltage_block, 10_000);
     // The size of each voltage block
-    assert_eq!(context.voltage_block_size_bytes, 6_553_600);
+    assert_eq!(context.voltage_block_size_bytes, 327_680_000);
     // Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
     assert_eq!(context.delay_block_size_bytes, 0);
     // The amount of bytes to skip before getting into real data within the voltage files
     assert_eq!(context.data_file_header_size_bytes, 0);
     // Expected voltage file size
     assert_eq!(context.expected_voltage_data_file_size_bytes, 327_680_000);
-
+    // Check batches
     assert_eq!(context.voltage_batches.len(), 2);
+
+    // Check rfinput order (for Legacy it is vcs_order, mwax is subfile_order)
+    let mut rf_input_copy = context.metafits_context.rf_inputs.clone();
+    rf_input_copy.sort_by_key(|k| k.vcs_order);
+    // Now compare this copy with the 'real' rf_inputs
+    assert_eq!(&rf_input_copy, &context.metafits_context.rf_inputs);
 }
 
 #[test]
@@ -444,40 +411,40 @@ fn test_context_legacy_v1_read_file() {
     assert!(read_result.is_ok());
 
     // Check for various values
-    // sample: 0, fine_chan: 0, rfinput: 0, value: 0
+    // sample: 0, fine_chan: 0, rfinput: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 0, 0)],
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 0)],
         0
     );
 
-    // sample: 0, fine_chan: 0, rfinput: 1, value: 0
+    // sample: 0, fine_chan: 0, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 1, 0)],
-        1
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 1)],
+        2
     );
 
-    // sample: 0, fine_chan: 1, rfinput: 1, value: 0
+    // sample: 0, fine_chan: 1, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 1, 1, 0)],
-        3
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 1, 1)],
+        5
     );
 
-    // sample: 0, fine_chan: 127, rfinput: 0, value: 0
+    // sample: 0, fine_chan: 127, rfinput: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 127, 0, 0)],
-        254
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 127, 0)],
+        125
     );
 
-    // sample: 1, fine_chan: 32, rfinput: 0, value: 0
+    // sample: 10, fine_chan: 32, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 1, 32, 0, 0)],
-        64
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 10, 32, 1)],
+        138
     );
 
-    // sample: 9999, fine_chan: 127, rfinput: 1, value: 0
+    // sample: 9999, fine_chan: 127, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 9999, 127, 1, 0)],
-        255
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 9999, 127, 1)],
+        187
     );
 
     //
@@ -489,40 +456,40 @@ fn test_context_legacy_v1_read_file() {
     assert!(read_result.is_ok());
 
     // Check for various values
-    // sample: 0, fine_chan: 0, rfinput: 0, value: 0
+    // sample: 0, fine_chan: 0, rfinput: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 0, 0)],
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 0)],
         1
     );
 
-    // sample: 0, fine_chan: 0, rfinput: 1, value: 0
+    // sample: 0, fine_chan: 0, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 1, 0)],
-        2
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 1)],
+        3
     );
 
-    // sample: 0, fine_chan: 1, rfinput: 1, value: 0
+    // sample: 0, fine_chan: 1, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 1, 1, 0)],
-        4
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 1, 1)],
+        6
     );
 
-    // sample: 0, fine_chan: 127, rfinput: 0, value: 0
+    // sample: 0, fine_chan: 127, rfinput: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 127, 0, 0)],
-        255
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 127, 0)],
+        126
     );
 
-    // sample: 1, fine_chan: 32, rfinput: 0, value: 0
+    // sample: 10, fine_chan: 32, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 1, 32, 0, 0)],
-        65
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 10, 32, 1)],
+        139
     );
 
-    // sample: 9999, fine_chan: 127, rfinput: 1, value: 0
+    // sample: 9999, fine_chan: 127, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 9999, 127, 1, 0)],
-        0
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 9999, 127, 1)],
+        188
     );
 
     //
@@ -534,40 +501,40 @@ fn test_context_legacy_v1_read_file() {
     assert!(read_result.is_ok());
 
     // Check for various values
-    // sample: 0, fine_chan: 0, rfinput: 0, value: 0
+    // sample: 0, fine_chan: 0, rfinput: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 0, 0)],
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 0)],
         2
     );
 
-    // sample: 0, fine_chan: 0, rfinput: 1, value: 0
+    // sample: 0, fine_chan: 0, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 1, 0)],
-        3
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 1)],
+        4
     );
 
-    // sample: 0, fine_chan: 1, rfinput: 1, value: 0
+    // sample: 0, fine_chan: 1, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 1, 1, 0)],
-        5
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 1, 1)],
+        7
     );
 
-    // sample: 0, fine_chan: 127, rfinput: 0, value: 0
+    // sample: 0, fine_chan: 127, rfinput: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 127, 0, 0)],
-        0
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 127, 0)],
+        127
     );
 
-    // sample: 1, fine_chan: 32, rfinput: 0, value: 0
+    // sample: 10, fine_chan: 32, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 1, 32, 0, 0)],
-        66
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 10, 32, 1)],
+        140
     );
 
-    // sample: 9999, fine_chan: 127, rfinput: 1, value: 0
+    // sample: 9999, fine_chan: 127, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 9999, 127, 1, 0)],
-        1
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 9999, 127, 1)],
+        189
     );
 
     //
@@ -579,40 +546,40 @@ fn test_context_legacy_v1_read_file() {
     assert!(read_result.is_ok());
 
     // Check for various values
-    // sample: 0, fine_chan: 0, rfinput: 0, value: 0
+    // sample: 0, fine_chan: 0, rfinput: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 0, 0)],
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 0)],
         3
     );
 
-    // sample: 0, fine_chan: 0, rfinput: 1, value: 0
+    // sample: 0, fine_chan: 0, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 1, 0)],
-        4
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 1)],
+        5
     );
 
-    // sample: 0, fine_chan: 1, rfinput: 1, value: 0
+    // sample: 0, fine_chan: 1, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 1, 1, 0)],
-        6
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 1, 1)],
+        8
     );
 
-    // sample: 0, fine_chan: 127, rfinput: 0, value: 0
+    // sample: 0, fine_chan: 127, rfinput: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 127, 0, 0)],
-        1
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 127, 0)],
+        128
     );
 
-    // sample: 1, fine_chan: 32, rfinput: 0, value: 0
+    // sample: 10, fine_chan: 32, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 1, 32, 0, 0)],
-        67
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 10, 32, 1)],
+        141
     );
 
-    // sample: 9999, fine_chan: 127, rfinput: 1, value: 0
+    // sample: 9999, fine_chan: 127, rfinput: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 9999, 127, 1, 0)],
-        2
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 9999, 127, 1)],
+        190
     );
 }
 
@@ -677,6 +644,12 @@ fn test_context_mwax_v2() {
     assert_eq!(context.expected_voltage_data_file_size_bytes, 5_275_652_096);
     // Check number of batches
     assert_eq!(context.voltage_batches.len(), 2);
+
+    // Check rfinput order (for Legacy it is vcs_order, mwax is subfile_order)
+    let mut rf_input_copy = context.metafits_context.rf_inputs.clone();
+    rf_input_copy.sort_by_key(|k| k.subfile_order);
+    // Now compare this copy with the 'real' rf_inputs
+    assert_eq!(&rf_input_copy, &context.metafits_context.rf_inputs);
 }
 
 #[test]
@@ -705,40 +678,46 @@ fn test_context_mwax_v2_read_file() {
     assert!(read_result.is_ok());
 
     // Check for various values
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 0, value: 0
+    // block: 0, rfinput: 0, sample: 0, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 0, 0)],
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 0)],
         0
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 1, value: 1
+    // block: 0, rfinput: 0, sample: 1, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 1, 1)],
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 1, 1)],
+        253
+    );
+
+    // block: 0, rfinput: 0, sample: 255, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 255, 0)],
         254
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 255, value: 0
+    // block: 0, rfinput: 0, sample: 256, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 255, 0)],
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 256, 1)],
         255
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 256, value: 1
+    // block: 1, rfinput: 0, sample: 2, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 256, 1)],
-        255
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 1, 0, 2, 0)],
+        9
     );
 
-    // block: 1, rfinput: 0, fine_chan: 0, sample: 2, value: 0
+    // block: 159, rfinput: 1, sample: 63999, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 1, 0, 0, 2, 0)],
-        2
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 159, 1, 63999, 1)],
+        226
     );
 
-    // block: 159, rfinput: 1, fine_chan: 0, sample: 63999, value: 1
+    // block: 120, rfinput: 0, sample: 0, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 159, 1, 0, 63999, 1)],
-        0
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 120, 0, 0, 0)],
+        88
     );
 
     //
@@ -750,40 +729,40 @@ fn test_context_mwax_v2_read_file() {
     assert!(read_result.is_ok());
 
     // Check for various values
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 0, value: 0
+    // block: 0, rfinput: 0, sample: 0, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 0, 0)],
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 0)],
         1
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 1, value: 1
+    // block: 0, rfinput: 0, sample: 1, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 1, 1)],
-        253
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 1, 1)],
+        252
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 255, value: 0
+    // block: 0, rfinput: 0, sample: 255, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 255, 0)],
-        0
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 255, 0)],
+        255
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 256, value: 1
+    // block: 0, rfinput: 0, sample: 256, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 256, 1)],
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 256, 1)],
         254
     );
 
-    // block: 1, rfinput: 0, fine_chan: 0, sample: 2, value: 0
+    // block: 1, rfinput: 0, sample: 2, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 1, 0, 0, 2, 0)],
-        3
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 1, 0, 2, 0)],
+        10
     );
 
-    // block: 159, rfinput: 1, fine_chan: 0, sample: 63999, value: 1
+    // block: 159, rfinput: 1, sample: 63999, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 159, 1, 0, 63999, 1)],
-        255
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 159, 1, 63999, 1)],
+        225
     );
 
     //
@@ -795,40 +774,40 @@ fn test_context_mwax_v2_read_file() {
     assert!(read_result.is_ok());
 
     // Check for various values
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 0, value: 0
+    // block: 0, rfinput: 0, sample: 0, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 0, 0)],
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 0)],
         2
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 1, value: 1
+    // block: 0, rfinput: 0, sample: 1, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 1, 1)],
-        252
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 1, 1)],
+        251
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 255, value: 0
+    // block: 0, rfinput: 0, sample: 255, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 255, 0)],
-        1
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 255, 0)],
+        0
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 256, value: 1
+    // block: 0, rfinput: 0, sample: 256, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 256, 1)],
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 256, 1)],
         253
     );
 
-    // block: 1, rfinput: 0, fine_chan: 0, sample: 2, value: 0
+    // block: 1, rfinput: 0, sample: 2, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 1, 0, 0, 2, 0)],
-        4
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 1, 0, 2, 0)],
+        11
     );
 
-    // block: 159, rfinput: 1, fine_chan: 0, sample: 63999, value: 1
+    // block: 159, rfinput: 1, sample: 63999, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 159, 1, 0, 63999, 1)],
-        254
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 159, 1, 63999, 1)],
+        224
     );
 
     //
@@ -840,40 +819,40 @@ fn test_context_mwax_v2_read_file() {
     assert!(read_result.is_ok());
 
     // Check for various values
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 0, value: 0
+    // block: 0, rfinput: 0, sample: 0, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 0, 0)],
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 0)],
         3
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 1, value: 1
+    // block: 0, rfinput: 0, sample: 1, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 1, 1)],
-        251
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 1, 1)],
+        250
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 255, value: 0
+    // block: 0, rfinput: 0, sample: 255, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 255, 0)],
-        2
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 255, 0)],
+        1
     );
 
-    // block: 0, rfinput: 0, fine_chan: 0, sample: 256, value: 1
+    // block: 0, rfinput: 0, sample: 256, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 256, 1)],
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 256, 1)],
         252
     );
 
-    // block: 1, rfinput: 0, fine_chan: 0, sample: 2, value: 0
+    // block: 1, rfinput: 0, sample: 2, value: 0
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 1, 0, 0, 2, 0)],
-        5
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 1, 0, 2, 0)],
+        12
     );
 
-    // block: 159, rfinput: 1, fine_chan: 0, sample: 63999, value: 1
+    // block: 159, rfinput: 1, sample: 63999, value: 1
     assert_eq!(
-        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 159, 1, 0, 63999, 1)],
-        253
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 159, 1, 63999, 1)],
+        223
     );
 }
 
@@ -886,7 +865,7 @@ fn test_validate_gps_time_parameters_legacy() {
 
     assert!(result.is_ok(), "Result was {:?}", result);
 
-    assert_eq!(result.unwrap(), 1_101_503_313);
+    assert_eq!(result.unwrap(), 1_101_503_312);
 }
 
 #[test]
@@ -898,7 +877,7 @@ fn test_validate_gps_time_parameters_mwax_v2() {
 
     assert!(result.is_ok(), "Result was {:?}", result);
 
-    assert_eq!(result.unwrap(), 1_101_503_322);
+    assert_eq!(result.unwrap(), 1_101_503_321);
 }
 
 #[test]
@@ -914,7 +893,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_legacy() {
     assert!(
         matches!(
             error,
-            VoltageFileError::InvalidGpsSecondStart(1_101_503_312, 1_101_503_314)
+            VoltageFileError::InvalidGpsSecondStart(1_101_503_312, 1_101_503_313)
         ),
         "Error was {:?}",
         error
@@ -934,7 +913,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
     assert!(
         matches!(
             error,
-            VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 3, 1_101_503_314)
+            VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 3, 1_101_503_313)
         ),
         "Error was {:?}",
         error
@@ -954,7 +933,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_mwax_v2() {
     assert!(
         matches!(
             error,
-            VoltageFileError::InvalidGpsSecondStart(1_101_503_312, 1_101_503_328)
+            VoltageFileError::InvalidGpsSecondStart(1_101_503_312, 1_101_503_327)
         ),
         "Error was {:?}",
         error
@@ -974,7 +953,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_mwax_v2() {
     assert!(
         matches!(
             error,
-            VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 17, 1_101_503_328)
+            VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 17, 1_101_503_327)
         ),
         "Error was {:?}",
         error
@@ -991,9 +970,6 @@ fn test_context_read_second_invalid_coarse_chan_index() {
     //
     context.voltage_block_size_bytes /= 128;
 
-    //
-    // Now do a read of the data from time 0, channel 0
-    //
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
         0;
@@ -1038,9 +1014,6 @@ fn test_context_read_second_invalid_buffer_size() {
     let gps_second_count: usize = 1;
     let coarse_chan_index = 0;
 
-    //
-    // Now do a read of the data from time 0, channel 0
-    //
     // Create output buffer
     // NOTE we are sabotaging this to generate our error, by dividing by 2
     let mut buffer: Vec<u8> = vec![
@@ -1093,7 +1066,7 @@ fn test_context_read_second_legacy_invalid_data_file_size() {
     let coarse_chan_index = 0;
 
     //
-    // Now do a read of the data from time 0, channel 0
+    // Now do a read of the data
     //
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
@@ -1142,7 +1115,7 @@ fn test_context_read_second_mwaxv2_invalid_data_file_size() {
     let coarse_chan_index = 0;
 
     //
-    // Now do a read of the data from time 0, channel 0
+    // Now do a read of the data
     //
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
@@ -1168,6 +1141,85 @@ fn test_context_read_second_mwaxv2_invalid_data_file_size() {
         matches!(error, VoltageFileError::InvalidVoltageFileSize(_, _, _)),
         "Error was {:?}",
         error
+    );
+}
+
+#[test]
+fn test_context_read_second_legacyv1_valid() {
+    //
+    // We will test reading across 2 data files in time
+    // file 0 has gps seconds 1_101_503_312 - 1_101_503_313
+    // file 1 has gps seconds 1_101_503_313 - 1_101_503_314
+    //
+    // We will read the 1 sec from file 0 and the 1 sec from file 1
+    // which is 1_101_503_312, 1_101_503_313
+
+    // Open a context and load in a test metafits and gpubox file
+    let mut context = get_test_voltage_context(CorrelatorVersion::Legacy);
+
+    //
+    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
+    //
+    // In our other tests the below line is uncommented, so the context knows about our smaller test files.
+    // But for this test we want to LEAVE it commented out so it will be expecting the 'real'/full file size
+    //
+    // ** important! **
+    context.voltage_block_size_bytes /= 128;
+    // ** important! **
+
+    let gps_second_start = 1_101_503_312;
+    let gps_second_count: usize = 2;
+    let coarse_chan_index = 0;
+
+    //
+    // Now do a read of the data
+    //
+    // Create output buffer
+    let mut buffer: Vec<u8> = vec![
+        0;
+        (context.voltage_block_size_bytes
+            * context.num_voltage_blocks_per_second
+            * gps_second_count as u64) as usize
+    ];
+
+    // Do the read
+    let read_result: Result<(), VoltageFileError> = context.read_second(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_ok(), "{:?}", read_result);
+
+    // Check values
+    // Sample: 0, fine_chan: 0, rfinput: 0
+    // Second 1_101_503_312
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 0)],
+        0
+    );
+
+    // Second 1_101_503_313 data is offset by +2
+    assert_eq!(
+        buffer[(context.voltage_block_size_bytes * context.num_voltage_blocks_per_second) as usize
+            + get_index_for_location_in_test_voltage_file_legacy(&context, 0, 0, 0)],
+        2
+    );
+
+    // Sample: 1000, fine_chan: 13, rfinput: 1
+    // Second 1_101_503_312
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_legacy(&context, 1000, 13, 1)],
+        201
+    );
+
+    // Second 1_101_503_313 data is offset by +2
+    assert_eq!(
+        buffer[(context.voltage_block_size_bytes * context.num_voltage_blocks_per_second) as usize
+            + get_index_for_location_in_test_voltage_file_legacy(&context, 1000, 13, 1)],
+        203
     );
 }
 
@@ -1199,7 +1251,7 @@ fn test_context_read_second_mwaxv2_valid() {
     let coarse_chan_index = 0;
 
     //
-    // Now do a read of the data from time 0, channel 0
+    // Now do a read of the data
     //
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
@@ -1219,4 +1271,81 @@ fn test_context_read_second_mwaxv2_valid() {
 
     // Ensure read returns correct error
     assert!(read_result.is_ok(), "{:?}", read_result);
+
+    // Check values
+    //
+    // Second 1_101_503_318
+    //
+    // location in buffer: block: 0, rfinput: 0, sample: 0, value: 0
+    // location in file0:  block: 120, rfinput: 0, sample: 0, value: 0
+    //
+    // (this is the 120th block / 7th second of the 8 second block in the FILE, but the first block of the buffer)
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 0)],
+        88
+    );
+
+    // Second 1_101_503_319
+    // location in buffer: block: 20, rfinput: 0, sample: 0, value: 0
+    // location in file0:  block: 140, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 20, 0, 0, 0)],
+        188
+    );
+
+    // Second 1_101_503_320 (now we are in a new data file so the values are incrememented by 2 from the first file)
+    // location in buffer: block: 40+0, rfinput: 0, sample: 0, value: 0
+    // location in file1:  block: 0, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[(2 * context.voltage_block_size_bytes * context.num_voltage_blocks_per_second)
+            as usize
+            + get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 0, 0, 0)],
+        2
+    );
+
+    // Second 1_101_503_321 (now we are in a new data file so the values are incrememented by 2 from the first file)
+    // location in buffer: block: 40+20, rfinput: 0, sample: 0, value: 0
+    // location in file1:  block: 20, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[(2 * context.voltage_block_size_bytes * context.num_voltage_blocks_per_second)
+            as usize
+            + get_index_for_location_in_test_voltage_file_mwaxv2(&context, 20, 0, 0, 0)],
+        102
+    );
+
+    // Second 1_101_503_318 (this is the 7th block / 7th second of the 8 second block in the FILE, but the first block of the buffer)
+    // location in buffer: block: 0, rfinput: 1, sample: 16750, value: 1
+    // location in file0:  block: 120, rfinput: 1, sample: 16750, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 1, 16750, 1)],
+        199,
+    );
+
+    // Second 1_101_503_319
+    // location in buffer: block: 20, rfinput: 1, sample: 16750, value: 1
+    // location in file0:  block: 140, rfinput: 1, sample: 16750, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(&context, 20, 1, 16750, 1)],
+        99
+    );
+
+    // Second 1_101_503_320 (now we are in a new data file so the values are incrememented by 2 from the first file)
+    // location in buffer: block: 40+0, rfinput: 1, sample: 16750, value: 1
+    // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
+    assert_eq!(
+        buffer[(2 * context.voltage_block_size_bytes * context.num_voltage_blocks_per_second)
+            as usize
+            + get_index_for_location_in_test_voltage_file_mwaxv2(&context, 0, 1, 16750, 1)],
+        29
+    );
+
+    // Second 1_101_503_321 (now we are in a new data file so the values are incrememented by 2 from the first file)
+    // location in buffer: block: 40+0, rfinput: 1, sample: 16750, value: 1
+    // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
+    assert_eq!(
+        buffer[(2 * context.voltage_block_size_bytes * context.num_voltage_blocks_per_second)
+            as usize
+            + get_index_for_location_in_test_voltage_file_mwaxv2(&context, 20, 1, 16750, 1)],
+        185
+    );
 }

@@ -113,7 +113,7 @@ impl VoltageContext {
         metafits_filename: &T,
         voltage_filenames: &[T],
     ) -> Result<Self, MwalibError> {
-        let metafits_context = MetafitsContext::new(metafits_filename)?;
+        let mut metafits_context = MetafitsContext::new(metafits_filename)?;
 
         // Re-open metafits file
         let mut metafits_fptr = fits_open!(&metafits_filename)?;
@@ -207,8 +207,8 @@ impl VoltageContext {
 
         // Number of voltage blocks per timestep
         let num_voltage_blocks_per_timestep: u64 = match voltage_info.corr_format {
-            CorrelatorVersion::OldLegacy => 50,
-            CorrelatorVersion::Legacy => 50,
+            CorrelatorVersion::OldLegacy => 1,
+            CorrelatorVersion::Legacy => 1,
             CorrelatorVersion::V2 => 160,
         };
 
@@ -217,11 +217,10 @@ impl VoltageContext {
             num_voltage_blocks_per_timestep / (timestep_duration_ms / 1000);
 
         // Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
-        // TODO: verify with VCS team
         let num_samples_per_rf_chain_fine_chan_in_a_voltage_block: u64 =
             match voltage_info.corr_format {
-                CorrelatorVersion::OldLegacy => 200,
-                CorrelatorVersion::Legacy => 200,
+                CorrelatorVersion::OldLegacy => 10_000,
+                CorrelatorVersion::Legacy => 10_000,
                 CorrelatorVersion::V2 => 64_000, // 64000 per rf_inpit x real|imag (no fine chans)
             };
 
@@ -246,13 +245,22 @@ impl VoltageContext {
         };
 
         // Expected voltage file size
-        // MWAX 128T should be 4096+32768000+(32768000 * 160) == 5275652096
+        // Legacy 128T should be    0+       0+(327,680,000 * 1 block)    == 327,680,000 bytes (for 1 sec of data)
+        // MWAX 128T should be   4096+32768000+(32,768,000  * 160 blocks) == 5,275,652,096 bytes (for 8 secs of data)
         let expected_voltage_data_file_size_bytes: u64 = data_file_header_size_bytes
             + delay_block_size_bytes
             + (voltage_block_size_bytes * num_voltage_blocks_per_timestep);
 
         // Get number of timesteps
         let num_timesteps = timesteps.len();
+
+        // The rf inputs should be sorted depending on the CorrVersion
+        if voltage_info.corr_format == CorrelatorVersion::Legacy
+            || voltage_info.corr_format == CorrelatorVersion::OldLegacy
+        {
+            metafits_context.rf_inputs.sort_by_key(|k| k.vcs_order);
+        }
+
         Ok(VoltageContext {
             metafits_context,
             corr_version: voltage_info.corr_format,
@@ -284,6 +292,9 @@ impl VoltageContext {
     }
 
     /// Validates gps time start and gps seconds count, and returns the end gps time or an Error.
+    /// The gps end second is the START time of the end second, not the END of the second.
+    /// e.g gpstart = 100, count = 1, therefore gpsend = 100.
+    /// e.g gpstart = 100, count = 2, therefore gpsend = 101.
     ///
     /// # Arguments
     ///
@@ -303,7 +314,7 @@ impl VoltageContext {
     ) -> Result<u64, VoltageFileError> {
         // Validate the gpstime
         let gps_time_observation_max_ms =
-            self.timesteps[self.num_timesteps - 1].gps_time_ms + self.timestep_duration_ms;
+            self.timesteps[self.num_timesteps - 1].gps_time_ms + self.timestep_duration_ms - 1000;
 
         // Validate the start time
         if gps_second_start * 1000 < self.timesteps[0].gps_time_ms
@@ -316,7 +327,7 @@ impl VoltageContext {
         }
 
         // Validate the end time
-        let gps_second_end: u64 = gps_second_start + gps_second_count as u64;
+        let gps_second_end: u64 = gps_second_start + gps_second_count as u64 - 1;
         if gps_second_end * 1000 > gps_time_observation_max_ms {
             return Err(VoltageFileError::InvalidGpsSecondCount(
                 self.timesteps[0].gps_time_ms / 1000,
@@ -408,10 +419,10 @@ impl VoltageContext {
             / self.timestep_duration_ms as f64)
             .floor() as usize;
         // Get end timestep which includes the end gps time
-        let timestep_index_end: usize = (((gps_second_end * 1000) - self.timesteps[0].gps_time_ms)
-            as f64
-            / self.timestep_duration_ms as f64)
-            .floor() as usize;
+        let timestep_index_end: usize =
+            ((((gps_second_end * 1000) - self.timesteps[0].gps_time_ms) as f64 + 1.)
+                / self.timestep_duration_ms as f64)
+                .floor() as usize;
 
         // Check output buffer is big enough
         let expected_buffer_size = (self.voltage_block_size_bytes
@@ -463,27 +474,30 @@ impl VoltageContext {
             // Open a buffer reader
             let mut reader = BufReader::with_capacity(chunk_size, file_handle);
 
-            // Skip header
-            reader
-                .by_ref()
-                .seek(SeekFrom::Start(
-                    self.data_file_header_size_bytes + self.delay_block_size_bytes,
-                ))
-                .expect("Unable to seek to data in voltage file");
-
             // Loop until all data is read into our buffer
             //
-            // in mwax 1 file	= 8 gps seconds
+            // in mwax 1 file	= 8 gps seconds broken into 20 voltage blocks per sec
             // in legacy 1 file	= 1 gps seconds
             //
             for block_index in 0..self.num_voltage_blocks_per_timestep {
                 // We may only be reading a portion of this file, so determine if we want to read this block
-                let current_gps_time_ms = self.timesteps[timestep_index].gps_time_ms
+                // i.e. is it part of second we care about?
+                let current_gps_time = (self.timesteps[timestep_index].gps_time_ms / 1000)
                     + (block_index as f64 / self.num_voltage_blocks_per_second as f64).floor()
                         as u64;
 
-                if current_gps_time_ms >= gps_second_start && current_gps_time_ms <= gps_second_end
-                {
+                if current_gps_time >= gps_second_start && current_gps_time <= gps_second_end {
+                    // Skip bytes in the file to this block
+                    // We skip the header, delays and any intervening voltage blocks
+                    reader
+                        .by_ref()
+                        .seek(SeekFrom::Start(
+                            self.data_file_header_size_bytes
+                                + self.delay_block_size_bytes
+                                + (block_index * chunk_size as u64),
+                        ))
+                        .expect("Unable to seek to next data block in voltage file");
+
                     let chunk = &mut buffer[start_pos..end_pos];
                     let bytes_read = reader.by_ref().read(chunk).expect("Error");
 

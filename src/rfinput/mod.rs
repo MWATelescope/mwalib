@@ -150,7 +150,7 @@ struct RfInputMetafitsTableRow {
 }
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,

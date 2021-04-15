@@ -28,7 +28,7 @@ pub enum VoltageFileError {
     InvalidVoltageFileSize(u64, String, u64),
 
     #[error(
-        "Invalid gps_second_count (gps second start {0} + count {1} cannot be greater than {1})"
+        "Invalid gps_second_count (gps second start {0} + count {1} - 1 cannot be greater than {1})"
     )]
     InvalidGpsSecondCount(u64, usize, u64),
 
