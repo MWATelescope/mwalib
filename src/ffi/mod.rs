@@ -7,7 +7,7 @@ This module exists purely for other languages to interface with mwalib.
  */
 
 use crate::*;
-use libc::{c_char, c_float, size_t};
+use libc::{c_char, c_float, c_uchar, c_ulong, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
@@ -355,7 +355,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_display(
 /// Read a single timestep / coarse channel of MWA data.
 ///
 /// This method takes as input a timestep_index and a coarse_chan_index to return one
-/// HDU of data in [baseline][freq][pol][r][i] format
+/// HDU of data in baseline,freq,pol,r,i format
 ///
 /// # Arguments
 ///
@@ -447,7 +447,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
 /// Read a single timestep / coarse channel of MWA data.
 ///
 /// This method takes as input a timestep_index and a coarse_chan_index to return one
-/// HDU of data in [freq][baseline][pol][r][i] format
+/// HDU of data in freq,baseline,pol,r,i format
 ///
 /// # Arguments
 ///
@@ -666,6 +666,175 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
     println!("{}", context);
 
     // Return success
+    0
+}
+
+/// Read a single timestep / coarse channel of MWA voltage data.
+///
+/// This method takes as input a timestep_index and a coarse_chan_index to return one
+/// file-worth of voltage data.
+///
+/// # Arguments
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
+///
+/// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+///                      to TimeStep.get(context, N) where N is timestep_index.
+///
+/// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+///                            to CoarseChannel.get(context, N) where N is coarse_chan_index.
+///
+/// * `buffer_ptr` - pointer to caller-owned and allocated buffer of bytes to write data into. Buffer must be large enough
+///                  for all of the data. Calculate the buffer size in bytes using:
+///                  vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_timestep
+///
+/// * `buffer_len` - length of `buffer_ptr`.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * 0 on success, non-zero on failure
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
+/// * `voltage_context_ptr` must point to a populated object from the `mwalib_voltage_context_new` function.
+/// * Caller *must* call `mwalib_voltage_context_free_read_buffer` function to release the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_voltage_context_read_file(
+    voltage_context_ptr: *mut VoltageContext,
+    timestep_index: size_t,
+    coarse_chan_index: size_t,
+    buffer_ptr: *mut c_uchar,
+    buffer_len: size_t,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    // Load the previously-initialised context and buffer structs. Exit if
+    // either of these are null.
+    let voltage_context = if voltage_context_ptr.is_null() {
+        set_error_message(
+            "mwalib_voltage_context_read_by_file() ERROR: null pointer for voltage_context_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return 1;
+    } else {
+        &mut *voltage_context_ptr
+    };
+
+    // Don't do anything if the buffer pointer is null.
+    if buffer_ptr.is_null() {
+        return 1;
+    }
+
+    let output_slice: &mut [u8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
+
+    // Read data in.
+    let result = voltage_context.read_file(timestep_index, coarse_chan_index, output_slice);
+
+    if result.is_err() {
+        set_error_message(
+            &format!("{}", result.unwrap_err()),
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return 1;
+    }
+
+    // Return Success
+    0
+}
+
+/// Read a single second / coarse channel of MWA voltage data.
+///
+/// This method takes as input a gps_time (in seconds) and a coarse_chan_index to return one
+/// second-worth of voltage data.
+///
+/// # Arguments
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
+///
+/// * `gps_second_start` - GPS second which to start getting data at.
+///
+/// * `gps_second_count` - How many GPS seconds of data to get (inclusive).
+///
+/// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+///                            to CoarseChannel.get(context, N) where N is coarse_chan_index.
+///
+/// * `buffer_ptr` - pointer to caller-owned and allocated buffer of bytes to write data into. Buffer must be large enough
+///                  for all of the data. Calculate the buffer size in bytes using:
+///                  (vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_second) * gps_second_count
+///
+/// * `buffer_len` - length of `buffer_ptr`.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * 0 on success, non-zero on failure
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
+/// * `voltage_context_ptr` must point to a populated object from the `mwalib_voltage_context_new` function.
+/// * Caller *must* call `mwalib_voltage_context_free_read_buffer` function to release the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_voltage_context_read_second(
+    voltage_context_ptr: *mut VoltageContext,
+    gps_second_start: c_ulong,
+    gps_second_count: size_t,
+    coarse_chan_index: size_t,
+    buffer_ptr: *mut c_uchar,
+    buffer_len: size_t,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    // Load the previously-initialised context and buffer structs. Exit if
+    // either of these are null.
+    let voltage_context = if voltage_context_ptr.is_null() {
+        set_error_message(
+            "mwalib_voltage_context_read_by_file() ERROR: null pointer for voltage_context_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return 1;
+    } else {
+        &mut *voltage_context_ptr
+    };
+
+    // Don't do anything if the buffer pointer is null.
+    if buffer_ptr.is_null() {
+        return 1;
+    }
+
+    let output_slice: &mut [u8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
+
+    // Read data in.
+    let result = voltage_context.read_second(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        output_slice,
+    );
+
+    if result.is_err() {
+        set_error_message(
+            &format!("{}", result.unwrap_err()),
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return 1;
+    }
+
+    // Return Success
     0
 }
 

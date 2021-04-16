@@ -17,7 +17,7 @@ use std::io::BufReader;
 use std::io::{Read, Seek, SeekFrom};
 
 #[cfg(test)]
-mod test;
+pub(crate) mod test; // It's pub crate because I reuse some test code in the ffi tests.
 
 ///
 /// `mwalib` voltage captue system (VCS) observation context. This represents the basic metadata for a voltage capture observation.
