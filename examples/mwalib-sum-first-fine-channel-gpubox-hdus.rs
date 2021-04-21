@@ -30,7 +30,7 @@ struct Opt {
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
 
-    let mut context = CorrelatorContext::new(&opts.metafits, &opts.files)?;
+    let context = CorrelatorContext::new(&opts.metafits, &opts.files)?;
     if context.corr_version != CorrelatorVersion::V2 {
         bail!("Input data is not MWAX data; exiting.");
     }

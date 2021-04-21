@@ -139,7 +139,7 @@ fn test_conversion_of_legacy_hdu_to_mwax_baseline_ordervs_pyuvdata() {
     let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
     let gpuboxfiles =
         vec!["test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits"];
-    let mut context = CorrelatorContext::new(&metafits, &gpuboxfiles)
+    let context = CorrelatorContext::new(&metafits, &gpuboxfiles)
         .expect("Failed to create CorrelatorContext");
 
     // Read and convert first HDU
@@ -459,7 +459,7 @@ fn test_conversion_of_legacy_hdu_to_mwax_baseline_order_vs_cotter() {
     let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
     let gpuboxfiles =
         vec!["test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits"];
-    let mut context = CorrelatorContext::new(&metafits, &gpuboxfiles)
+    let context = CorrelatorContext::new(&metafits, &gpuboxfiles)
         .expect("Failed to create CorrelatorContext");
 
     // Read and convert first HDU
