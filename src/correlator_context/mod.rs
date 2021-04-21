@@ -301,7 +301,7 @@ impl CorrelatorContext {
     ///
     ///
     pub fn read_by_frequency(
-        &mut self,
+        &self,
         timestep_index: usize,
         coarse_chan_index: usize,
     ) -> Result<Vec<f32>, GpuboxError> {

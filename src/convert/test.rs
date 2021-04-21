@@ -293,7 +293,7 @@ fn test_conversion_of_legacy_hdu_to_mwax_frequency_order_vs_pyuvdata() {
     let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
     let gpuboxfiles =
         vec!["test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits"];
-    let mut context =
+    let context =
         CorrelatorContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
 
     // Read and convert first HDU
@@ -637,7 +637,7 @@ fn test_mwax_conversion_to_frequency_order() {
     //
     // Open a context and load in a test metafits and gpubox file
     let gpuboxfiles = vec![mwax_filename];
-    let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
         .expect("Failed to create mwalibContext");
 
     // Read and convert first HDU
