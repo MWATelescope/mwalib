@@ -225,7 +225,7 @@ impl CorrelatorContext {
     ///
     ///
     pub fn read_by_baseline(
-        &mut self,
+        &self,
         timestep_index: usize,
         coarse_chan_index: usize,
     ) -> Result<Vec<f32>, GpuboxError> {
@@ -301,7 +301,7 @@ impl CorrelatorContext {
     ///
     ///
     pub fn read_by_frequency(
-        &mut self,
+        &self,
         timestep_index: usize,
         coarse_chan_index: usize,
     ) -> Result<Vec<f32>, GpuboxError> {
@@ -528,11 +528,11 @@ impl fmt::Display for CorrelatorContext {
             Actual duration:          {duration} s,
 
             num timesteps:            {n_timesteps},
-            timesteps:                {timesteps:?},           
+            timesteps:                {timesteps:?},
 
             observation bandwidth:    {obw} MHz,
             num coarse channels,      {n_coarse},
-            coarse channels:          {coarse:?},            
+            coarse channels:          {coarse:?},
 
             gpubox HDU size:          {hdu_size} MiB,
             Memory usage per scan:    {scan_size} MiB,

@@ -93,7 +93,7 @@ fn test_read_by_frequency_invalid_inputs() {
 
     // Open a context and load in a test metafits and gpubox file
     let gpuboxfiles = vec![mwax_filename];
-    let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
         .expect("Failed to create CorrelatorContext");
 
     // 99999 is invalid as a timestep for this observation
@@ -120,7 +120,7 @@ fn test_read_by_baseline_invalid_inputs() {
 
     // Open a context and load in a test metafits and gpubox file
     let gpuboxfiles = vec![mwax_filename];
-    let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
         .expect("Failed to create CorrelatorContext");
 
     // 99999 is invalid as a timestep for this observation
@@ -155,7 +155,7 @@ fn test_mwa_legacy_read() {
     //
     // Open a context and load in a test metafits and gpubox file
     let gpuboxfiles = vec![mwax_filename];
-    let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
         .expect("Failed to create CorrelatorContext");
 
     // Read and convert first HDU by baseline
@@ -202,7 +202,7 @@ fn test_mwax_read() {
     //
     // Open a context and load in a test metafits and gpubox file
     let gpuboxfiles = vec![mwax_filename];
-    let mut context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
         .expect("Failed to create CorrelatorContext");
 
     // Read and convert first HDU by baseline
