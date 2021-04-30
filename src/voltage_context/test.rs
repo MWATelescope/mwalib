@@ -872,9 +872,9 @@ fn test_context_mwax_v2_read_file() {
 #[test]
 fn test_validate_gps_time_parameters_legacy() {
     // Create test files and a test Voltage Context
-    let mut context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let context = get_test_voltage_context(CorrelatorVersion::Legacy);
 
-    let result = VoltageContext::validate_gps_time_parameters(&mut context, 1_101_503_312, 1);
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 1);
 
     assert!(result.is_ok(), "Result was {:?}", result);
 
@@ -884,9 +884,9 @@ fn test_validate_gps_time_parameters_legacy() {
 #[test]
 fn test_validate_gps_time_parameters_mwax_v2() {
     // Create test files and a test Voltage Context
-    let mut context = get_test_voltage_context(CorrelatorVersion::V2);
+    let context = get_test_voltage_context(CorrelatorVersion::V2);
 
-    let result = VoltageContext::validate_gps_time_parameters(&mut context, 1_101_503_312, 10);
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 10);
 
     assert!(result.is_ok(), "Result was {:?}", result);
 
@@ -896,9 +896,9 @@ fn test_validate_gps_time_parameters_mwax_v2() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_start_legacy() {
     // Create test files and a test Voltage Context
-    let mut context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let context = get_test_voltage_context(CorrelatorVersion::Legacy);
 
-    let result = VoltageContext::validate_gps_time_parameters(&mut context, 1_101_503_311, 1);
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_311, 1);
 
     assert!(result.is_err(), "{:?}", result);
 
@@ -916,9 +916,9 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_legacy() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
     // Create test files and a test Voltage Context
-    let mut context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let context = get_test_voltage_context(CorrelatorVersion::Legacy);
 
-    let result = VoltageContext::validate_gps_time_parameters(&mut context, 1_101_503_312, 3);
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 3);
 
     assert!(result.is_err(), "{:?}", result);
 
@@ -936,9 +936,9 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_start_mwax_v2() {
     // Create test files and a test Voltage Context
-    let mut context = get_test_voltage_context(CorrelatorVersion::V2);
+    let context = get_test_voltage_context(CorrelatorVersion::V2);
 
-    let result = VoltageContext::validate_gps_time_parameters(&mut context, 1_101_503_311, 1);
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_311, 1);
 
     assert!(result.is_err(), "{:?}", result);
 
@@ -956,9 +956,9 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_mwax_v2() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_count_mwax_v2() {
     // Create test files and a test Voltage Context
-    let mut context = get_test_voltage_context(CorrelatorVersion::V2);
+    let context = get_test_voltage_context(CorrelatorVersion::V2);
 
-    let result = VoltageContext::validate_gps_time_parameters(&mut context, 1_101_503_312, 17);
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 17);
 
     assert!(result.is_err(), "{:?}", result);
 
@@ -1062,7 +1062,7 @@ fn test_context_read_second_invalid_buffer_size() {
 #[test]
 fn test_context_read_second_legacy_invalid_data_file_size() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let context = get_test_voltage_context(CorrelatorVersion::Legacy);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
@@ -1111,7 +1111,7 @@ fn test_context_read_second_legacy_invalid_data_file_size() {
 #[test]
 fn test_context_read_second_mwaxv2_invalid_data_file_size() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(CorrelatorVersion::V2);
+    let context = get_test_voltage_context(CorrelatorVersion::V2);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes

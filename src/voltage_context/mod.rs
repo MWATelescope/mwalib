@@ -308,7 +308,7 @@ impl VoltageContext {
     /// * A Result the end gps second if the gps time range is within the VoltageContext's range or Error if not.
     ///
     fn validate_gps_time_parameters(
-        &mut self,
+        &self,
         gps_second_start: u64,
         gps_second_count: usize,
     ) -> Result<u64, VoltageFileError> {
@@ -391,7 +391,7 @@ impl VoltageContext {
     ///
     ///
     pub fn read_second(
-        &mut self,
+        &self,
         gps_second_start: u64,
         gps_second_count: usize,
         coarse_chan_index: usize,
@@ -409,8 +409,11 @@ impl VoltageContext {
         }
 
         // Validate the gpstime
-        let gps_second_end =
-            VoltageContext::validate_gps_time_parameters(self, gps_second_start, gps_second_count)?;
+        let gps_second_end = VoltageContext::validate_gps_time_parameters(
+            &self,
+            gps_second_start,
+            gps_second_count,
+        )?;
 
         // Determine which timestep(s) we need to cover the start and end gps times.
         // NOTE: mwax has 8 gps seconds per timestep, legacy vcs has 1
@@ -565,7 +568,7 @@ impl VoltageContext {
     ///
     ///
     pub fn read_file(
-        &mut self,
+        &self,
         timestep_index: usize,
         coarse_chan_index: usize,
         buffer: &mut [u8],

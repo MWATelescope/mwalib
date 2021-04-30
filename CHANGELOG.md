@@ -2,6 +2,14 @@
 
 Changes in each release are listed below.
 
+## 0.7.0 30-Apr-2021 (Pre-release)
+
+* Added support for reading voltage data by file or gps second.
+* Added FFI support for reading voltage data by file or gps second.
+* Removed num_samples_per_timestep from VoltageContext. Added more useful struct members describing the data shape precisely.
+* Removed unneeded muts from correlator and voltage contexts.
+* Minor cleanup of rust examples.
+
 ## 0.6.3 28-Mar-2021 (Pre-release)
 
 * Refactored github actions for a more complete CI workflow with automated releases.
