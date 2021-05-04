@@ -1,6 +1,8 @@
 # mwalib
 
-![Run Tests](https://github.com/MWATelescope/mwalib/workflows/Run%20Tests/badge.svg)
+![Linux Tests](https://github.com/MWATelescope/mwalib/workflows/Linux%20Tests/badge.svg)
+![MacOS Tests](https://github.com/MWATelescope/mwalib/workflows/MacOS%20Tests/badge.svg)
+![Code Coverage](https://github.com/MWATelescope/mwalib/workflows/Code%20Coverage/badge.svg)
 [![codecov](https://codecov.io/gh/MWATelescope/mwalib/branch/master/graph/badge.svg)](https://codecov.io/gh/MWATelescope/mwalib)
 
 MWA library to read raw visibilities, voltages and metadata into a common structure.
