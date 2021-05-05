@@ -9,7 +9,7 @@ gcc -O3 \
     mwalib-print-obs-context.c \
     -o mwalib-print-obs-context \
     -I ../include \
-    -lcfitsio -lm -lpthread -ldl \
+    -lm -lpthread -ldl \
     -L../target/release/ \
     -lmwalib
 
@@ -17,7 +17,15 @@ gcc -O3 \
     mwalib-sum-all-hdus.c \
     -o mwalib-sum-all-hdus \
     -I ../include \
-    -lcfitsio -lm -lpthread -ldl \
+    -lm -lpthread -ldl \
+    -L../target/release/ \
+    -lmwalib
+
+gcc -O3 \
+    mwalib-print-voltage-context.c \
+    -o mwalib-print-voltage-context \
+    -I ../include \
+    -lm -lpthread -ldl \
     -L../target/release/ \
     -lmwalib
 

@@ -129,6 +129,7 @@ int main(int argc, char *argv[])
     // Now sum by freq
     do_sum(2, corr_context, num_floats, num_timesteps, num_coarse_chans);
 
+    mwalib_metafits_metadata_free(metafits_metadata);
     mwalib_correlator_metadata_free(corr_metadata);
     mwalib_correlator_context_free(corr_context);
     free(gpuboxes);

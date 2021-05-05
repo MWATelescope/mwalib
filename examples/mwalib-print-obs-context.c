@@ -197,6 +197,7 @@ int main(int argc, char *argv[])
     mwalib_visibility_pols_free(vis_pol_array, metafits_metadata->num_visibility_pols);
 
     // Clean up
+    mwalib_metafits_metadata_free(metafits_metadata);
     mwalib_correlator_metadata_free(corr_metadata);
     mwalib_correlator_context_free(correlator_context);
 
