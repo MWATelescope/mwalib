@@ -248,6 +248,29 @@ macro_rules! get_fits_image {
     };
 }
 
+/// Given a FITS file pointer and a HDU, read the associated float image.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `hdu` - A reference to the HDU you want to find `keyword` in the header
+/// of.
+///
+/// * `buffer` - Buffer of floats (as a slice) to fill with data from the HDU.
+///
+///
+/// # Returns
+///
+/// * A Result of Ok on success, Err on error.
+///
+#[macro_export]
+macro_rules! get_fits_float_image_into_buffer {
+    ($fptr:expr, $hdu:expr, $buffer:expr) => {
+        _get_fits_float_img_into_buf($fptr, $hdu, $buffer, file!(), line!())
+    };
+}
+
 /// Open a fits file.
 ///
 /// To only be used internally; use the `fits_open!` macro instead.
@@ -505,6 +528,55 @@ pub fn _get_fits_image<T: fitsio::images::ReadImage>(
             source_line,
         }),
     }
+}
+
+/// Direct read of FITS HDU
+#[doc(hidden)]
+pub fn _get_fits_float_img_into_buf(
+    fits_fptr: &mut FitsFile,
+    hdu: &FitsHdu,
+    buffer: &mut [f32],
+    source_file: &'static str,
+    source_line: u32,
+) -> Result<(), FitsError> {
+    unsafe {
+        // Get raw ptr and length to user supplied buffer
+        let buffer_len = buffer.len() as i64;
+        let buffer_ptr = buffer.as_mut_ptr();
+
+        // Ensure we are at the correct HDU
+        let mut hdu_type = 0;
+        let mut status = 0;
+        fitsio_sys::ffmahd(
+            fits_fptr.as_raw(),
+            (hdu.number + 1) as i32,
+            &mut hdu_type,
+            &mut status,
+        );
+
+        if status != 0 {
+            panic!("ffmahd(): Status code was not 0! Status code: {}", status)
+        }
+
+        // Call the underlying cfitsio read function for floats
+        status = 0;
+        fitsio_sys::ffgpv(
+            fits_fptr.as_raw(),
+            fitsio_sys::TFLOAT as _,
+            1,
+            buffer_len,
+            ptr::null_mut(),
+            buffer_ptr as *mut _,
+            ptr::null_mut(),
+            &mut status,
+        );
+
+        if status != 0 {
+            panic!("ffgpv(): Status code was not 0! Status code: {}", status)
+        }
+    }
+
+    Ok(())
 }
 
 /// Get a long string from a FITS file. The supplied FITS file pointer *must* be

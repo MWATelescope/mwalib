@@ -479,3 +479,239 @@ fn test_validate_hdu_axes_naxis_mismatches_v2() {
         }
     ));
 }
+
+#[test]
+fn test_read_by_baseline_into_buffer_mwax() {
+    // Open the test mwa file
+    // a) using mwalib (by baseline) (data will be ordered [baseline][freq][pol][r][i])
+    // b) using mwalib (by frequency) (data will be ordered [freq][baseline][pol][r][i])
+    // Then check b) is the same as a) and
+    let mwax_metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+    let mwax_filename = "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
+
+    //
+    // Read the mwax file by frequency using mwalib
+    //
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![mwax_filename];
+    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+        .expect("Failed to create CorrelatorContext");
+
+    // Read and convert first HDU by baseline
+    let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+
+    // Read and convert first HDU by frequency
+    let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+
+    // Read into buffer by baseline
+    let mut mwalib_hdu_data_by_bl2: Vec<f32> = vec![0.; context.num_timestep_coarse_chan_floats];
+
+    let result_read_bl_buffer =
+        context.read_by_baseline_into_buffer(0, 0, &mut mwalib_hdu_data_by_bl2);
+
+    assert!(result_read_bl_buffer.is_ok());
+
+    let sum_freq: f64 = mwalib_hdu_data_by_freq
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    let sum_bl: f64 = mwalib_hdu_data_by_bl
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    let sum_bl2: f64 = mwalib_hdu_data_by_bl2
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    // Check sums are not 0
+    assert_eq!(approx_eq!(f64, sum_freq, 0., F64Margin::default()), false);
+    assert_eq!(approx_eq!(f64, sum_bl, 0., F64Margin::default()), false);
+    assert_eq!(approx_eq!(f64, sum_bl2, 0., F64Margin::default()), false);
+
+    // Check they all match each other
+    assert_eq!(
+        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()),
+        true
+    );
+
+    assert_eq!(approx_eq!(f64, sum_bl, sum_bl2, F64Margin::default()), true);
+}
+
+#[test]
+fn test_read_by_frequency_into_buffer_mwax() {
+    // Open the test mwa file
+    // a) using mwalib (by baseline) (data will be ordered [baseline][freq][pol][r][i])
+    // b) using mwalib (by frequency) (data will be ordered [freq][baseline][pol][r][i])
+    // Then check b) is the same as a) and
+    let mwax_metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+    let mwax_filename = "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
+
+    //
+    // Read the mwax file by frequency using mwalib
+    //
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![mwax_filename];
+    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+        .expect("Failed to create CorrelatorContext");
+
+    // Read and convert first HDU by baseline
+    let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+
+    // Read and convert first HDU by frequency
+    let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+
+    // Read into buffer by baseline
+    let mut mwalib_hdu_data_by_freq2: Vec<f32> = vec![0.; context.num_timestep_coarse_chan_floats];
+
+    let result_read_bl_buffer =
+        context.read_by_frequency_into_buffer(0, 0, &mut mwalib_hdu_data_by_freq2);
+
+    assert!(result_read_bl_buffer.is_ok());
+
+    let sum_bl: f64 = mwalib_hdu_data_by_bl
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    let sum_freq: f64 = mwalib_hdu_data_by_freq
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    let sum_freq2: f64 = mwalib_hdu_data_by_freq2
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    // Check sums are not 0
+    assert_eq!(approx_eq!(f64, sum_bl, 0., F64Margin::default()), false);
+    assert_eq!(approx_eq!(f64, sum_freq, 0., F64Margin::default()), false);
+    assert_eq!(approx_eq!(f64, sum_freq2, 0., F64Margin::default()), false);
+
+    // Check they all match each other
+    assert_eq!(
+        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()),
+        true
+    );
+
+    assert_eq!(
+        approx_eq!(f64, sum_freq, sum_freq2, F64Margin::default()),
+        true
+    );
+}
+
+#[test]
+fn test_read_by_baseline_into_buffer_legacy() {
+    // Open the test mwa file
+    // a) using mwalib (by baseline) (data will be ordered [baseline][freq][pol][r][i])
+    // b) using mwalib (by frequency) (data will be ordered [freq][baseline][pol][r][i])
+    // Then check b) is the same as a) and
+    let mwax_metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+    let mwax_filename =
+        "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+
+    //
+    // Read the legacy file by frequency using mwalib
+    //
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![mwax_filename];
+    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+        .expect("Failed to create CorrelatorContext");
+
+    // Read and convert first HDU by baseline
+    let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+
+    // Read and convert first HDU by frequency
+    let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+
+    // Read into buffer by baseline
+    let mut mwalib_hdu_data_by_bl2: Vec<f32> = vec![0.; context.num_timestep_coarse_chan_floats];
+
+    let result_read_bl_buffer =
+        context.read_by_baseline_into_buffer(0, 0, &mut mwalib_hdu_data_by_bl2);
+
+    assert!(result_read_bl_buffer.is_ok());
+
+    let sum_freq: f64 = mwalib_hdu_data_by_freq
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    let sum_bl: f64 = mwalib_hdu_data_by_bl
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    let sum_bl2: f64 = mwalib_hdu_data_by_bl2
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    // Check sums are not 0
+    assert_eq!(approx_eq!(f64, sum_freq, 0., F64Margin::default()), false);
+    assert_eq!(approx_eq!(f64, sum_bl, 0., F64Margin::default()), false);
+    assert_eq!(approx_eq!(f64, sum_bl2, 0., F64Margin::default()), false);
+
+    // Check they all match each other
+    assert_eq!(
+        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()),
+        true
+    );
+
+    assert_eq!(approx_eq!(f64, sum_bl, sum_bl2, F64Margin::default()), true);
+}
+
+#[test]
+fn test_read_by_frequency_into_buffer_legacy() {
+    // Open the test mwa file
+    // a) using mwalib (by baseline) (data will be ordered [baseline][freq][pol][r][i])
+    // b) using mwalib (by frequency) (data will be ordered [freq][baseline][pol][r][i])
+    // Then check b) is the same as a) and
+    let mwax_metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+    let mwax_filename =
+        "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+
+    //
+    // Read the legacy file by frequency using mwalib
+    //
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![mwax_filename];
+    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+        .expect("Failed to create CorrelatorContext");
+
+    // Read and convert first HDU by baseline
+    let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+
+    // Read and convert first HDU by frequency
+    let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+
+    // Read into buffer by baseline
+    let mut mwalib_hdu_data_by_freq2: Vec<f32> = vec![0.; context.num_timestep_coarse_chan_floats];
+
+    let result_read_bl_buffer =
+        context.read_by_frequency_into_buffer(0, 0, &mut mwalib_hdu_data_by_freq2);
+
+    assert!(result_read_bl_buffer.is_ok());
+
+    let sum_bl: f64 = mwalib_hdu_data_by_bl
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    let sum_freq: f64 = mwalib_hdu_data_by_freq
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    let sum_freq2: f64 = mwalib_hdu_data_by_freq2
+        .iter()
+        .fold(0., |sum, x| sum + *x as f64);
+
+    // Check sums are not 0
+    assert_eq!(approx_eq!(f64, sum_bl, 0., F64Margin::default()), false);
+    assert_eq!(approx_eq!(f64, sum_freq, 0., F64Margin::default()), false);
+    assert_eq!(approx_eq!(f64, sum_freq2, 0., F64Margin::default()), false);
+
+    // Check they all match each other
+    assert_eq!(
+        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()),
+        true
+    );
+
+    assert_eq!(
+        approx_eq!(f64, sum_freq, sum_freq2, F64Margin::default()),
+        true
+    );
+}
