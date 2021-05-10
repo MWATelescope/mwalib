@@ -36,7 +36,7 @@ fn test_context_new_invalid_metafits() {
 
 #[test]
 fn test_context_legacy_v1() {
-    // Open the test mwax file
+    // Open the test legacy file
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
     let filename = "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
 
@@ -74,16 +74,92 @@ fn test_context_legacy_v1() {
     assert_eq!(context.num_coarse_chans, 1);
 
     // coarse channels:          [gpu=1 corr=0 rec=109 @ 139.520 MHz],
+    assert_eq!(context.coarse_chans[0].corr_chan_number, 0);
     assert_eq!(context.coarse_chans[0].gpubox_number, 1);
     assert_eq!(context.coarse_chans[0].rec_chan_number, 109);
     assert_eq!(context.coarse_chans[0].chan_centre_hz, 139_520_000);
 
-    // gpubox HDU size:          32.25 MiB,
-    // Memory usage per scan:    32.25 MiB,
+    // Check that antenna[0].tile and antenna[1].tile equal rf_input[0] & [1].tile and rf_input[2] & [3].tile respectively
+    assert_eq!(
+        context.metafits_context.antennas[0].tile_id,
+        context.metafits_context.rf_inputs[0].tile_id
+    );
+    assert_eq!(
+        context.metafits_context.antennas[0].tile_id,
+        context.metafits_context.rf_inputs[1].tile_id
+    );
+    assert_eq!(
+        context.metafits_context.antennas[1].tile_id,
+        context.metafits_context.rf_inputs[2].tile_id
+    );
+    assert_eq!(
+        context.metafits_context.antennas[1].tile_id,
+        context.metafits_context.rf_inputs[3].tile_id
+    );
+}
 
-    // metafits filename:        ../test_files/1101503312_1_timestep/1101503312.metafits,
-    // gpubox batches:           [
-    // batch_number=0 gpubox_files=[filename=../test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits channelidentifier=1]
+#[test]
+fn test_context_mwax() {
+    // Open the test mwax file
+    let metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+    let filename = "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
+
+    //
+    // Read the observation using mwalib
+    //
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![filename];
+    let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles)
+        .expect("Failed to create mwalibContext");
+
+    // Test the properties of the context object match what we expect
+    // Correlator version:       v2,
+    assert_eq!(context.corr_version, CorrelatorVersion::V2);
+
+    // Actual UNIX start time:   1560938470,
+    assert_eq!(context.start_unix_time_ms, 1_560_938_470_000);
+
+    // Actual UNIX end time:     1560938471,
+    assert_eq!(context.end_unix_time_ms, 1_560_938_471_000);
+
+    // Actual duration:          1 s,
+    assert_eq!(context.duration_ms, 1000);
+
+    // num timesteps:            1,
+    assert_eq!(context.num_timesteps, 1);
+
+    // timesteps:                [unix=1560938470.000],
+    assert_eq!(context.timesteps[0].unix_time_ms, 1_560_938_470_000);
+
+    // observation bandwidth:    1.28 MHz,
+    assert_eq!(context.bandwidth_hz, 1_280_000);
+
+    // num coarse channels,      1,
+    assert_eq!(context.num_coarse_chans, 1);
+
+    // coarse channels:          [gpu=114 corr=10 rec=114 @  MHz],
+    assert_eq!(context.coarse_chans[0].corr_chan_number, 10);
+    assert_eq!(context.coarse_chans[0].gpubox_number, 114);
+    assert_eq!(context.coarse_chans[0].rec_chan_number, 114);
+    assert_eq!(context.coarse_chans[0].chan_centre_hz, 145_920_000);
+
+    // Check that antenna[0].tile and antenna[1].tile equal rf_input[0] & [1].tile and rf_input[2] & [3].tile respectively
+    assert_eq!(
+        context.metafits_context.antennas[0].tile_id,
+        context.metafits_context.rf_inputs[0].tile_id
+    );
+    assert_eq!(
+        context.metafits_context.antennas[0].tile_id,
+        context.metafits_context.rf_inputs[1].tile_id
+    );
+    assert_eq!(
+        context.metafits_context.antennas[1].tile_id,
+        context.metafits_context.rf_inputs[2].tile_id
+    );
+    assert_eq!(
+        context.metafits_context.antennas[1].tile_id,
+        context.metafits_context.rf_inputs[3].tile_id
+    );
 }
 
 #[test]

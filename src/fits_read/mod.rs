@@ -544,22 +544,8 @@ pub fn _get_fits_float_img_into_buf(
         let buffer_len = buffer.len() as i64;
         let buffer_ptr = buffer.as_mut_ptr();
 
-        // Ensure we are at the correct HDU
-        let mut hdu_type = 0;
-        let mut status = 0;
-        fitsio_sys::ffmahd(
-            fits_fptr.as_raw(),
-            (hdu.number + 1) as i32,
-            &mut hdu_type,
-            &mut status,
-        );
-
-        if status != 0 {
-            panic!("ffmahd(): Status code was not 0! Status code: {}", status)
-        }
-
         // Call the underlying cfitsio read function for floats
-        status = 0;
+        let mut status = 0;
         fitsio_sys::ffgpv(
             fits_fptr.as_raw(),
             fitsio_sys::TFLOAT as _,
@@ -571,8 +557,18 @@ pub fn _get_fits_float_img_into_buf(
             &mut status,
         );
 
-        if status != 0 {
-            panic!("ffgpv(): Status code was not 0! Status code: {}", status)
+        // Check fits call status
+        match fitsio::errors::check_status(status) {
+            Ok(_) => {}
+            Err(e) => {
+                return Err(FitsError::Fitsio {
+                    fits_error: e,
+                    fits_filename: fits_fptr.filename.clone(),
+                    hdu_num: hdu.number + 1,
+                    source_file,
+                    source_line,
+                });
+            }
         }
     }
 

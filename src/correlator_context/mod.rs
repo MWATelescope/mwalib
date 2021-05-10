@@ -229,57 +229,11 @@ impl CorrelatorContext {
         timestep_index: usize,
         coarse_chan_index: usize,
     ) -> Result<Vec<f32>, GpuboxError> {
-        // Validate the timestep
-        if timestep_index > self.num_timesteps - 1 {
-            return Err(GpuboxError::InvalidTimeStepIndex(self.num_timesteps - 1));
-        }
+        let mut return_buffer: Vec<f32> = vec![0.; self.num_timestep_coarse_chan_floats];
 
-        // Validate the coarse chan
-        if coarse_chan_index > self.num_coarse_chans - 1 {
-            return Err(GpuboxError::InvalidCoarseChanIndex(
-                self.num_coarse_chans - 1,
-            ));
-        }
+        self.read_by_baseline_into_buffer(timestep_index, coarse_chan_index, &mut return_buffer)?;
 
-        // Output buffer for read in data
-        let output_buffer: Vec<f32>;
-
-        // Lookup the coarse channel we need
-        let coarse_chan = self.coarse_chans[coarse_chan_index].gpubox_number;
-        let (batch_index, hdu_index) =
-            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_chan];
-
-        if self.gpubox_batches.is_empty() {
-            return Err(GpuboxError::NoGpuboxes);
-        }
-        let mut fptr =
-            fits_open!(&self.gpubox_batches[batch_index].gpubox_files[coarse_chan_index].filename)?;
-        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
-        output_buffer = get_fits_image!(&mut fptr, &hdu)?;
-        // If legacy correlator, then convert the HDU into the correct output format
-        if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
-        {
-            // Prepare temporary buffer, if we are reading legacy correlator files
-            let mut temp_buffer = vec![
-                0.;
-                self.metafits_context.num_corr_fine_chans_per_coarse
-                    * self.metafits_context.num_visibility_pols
-                    * self.metafits_context.num_baselines
-                    * 2
-            ];
-
-            convert::convert_legacy_hdu_to_mwax_baseline_order(
-                &self.legacy_conversion_table,
-                &output_buffer,
-                &mut temp_buffer,
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-            );
-
-            Ok(temp_buffer)
-        } else {
-            Ok(output_buffer)
-        }
+        Ok(return_buffer)
     }
 
     /// Read a single timestep for a single coarse channel
@@ -297,7 +251,7 @@ impl CorrelatorContext {
     ///
     /// # Returns
     ///
-    /// * A Result containing vector of 32 bit floats containing the data in [frequency][baseline][pol][r][i] order, if Ok.
+    /// * A Result containing vector of 32 bit floats containing the data in frequency,baseline,pol,r,i order, if Ok.
     ///
     ///
     pub fn read_by_frequency(
@@ -305,66 +259,11 @@ impl CorrelatorContext {
         timestep_index: usize,
         coarse_chan_index: usize,
     ) -> Result<Vec<f32>, GpuboxError> {
-        // Validate the timestep
-        if timestep_index > self.num_timesteps - 1 {
-            return Err(GpuboxError::InvalidTimeStepIndex(self.num_timesteps - 1));
-        }
+        let mut return_buffer: Vec<f32> = vec![0.; self.num_timestep_coarse_chan_floats];
 
-        // Validate the coarse chan
-        if coarse_chan_index > self.num_coarse_chans - 1 {
-            return Err(GpuboxError::InvalidCoarseChanIndex(
-                self.num_coarse_chans - 1,
-            ));
-        }
+        self.read_by_frequency_into_buffer(timestep_index, coarse_chan_index, &mut return_buffer)?;
 
-        // Output buffer for read in data
-        let output_buffer: Vec<f32>;
-
-        // Prepare temporary buffer
-        let mut temp_buffer = vec![
-            0.;
-            self.metafits_context.num_corr_fine_chans_per_coarse
-                * self.metafits_context.num_visibility_pols
-                * self.metafits_context.num_baselines
-                * 2
-        ];
-
-        // Lookup the coarse channel we need
-        let coarse_chan = self.coarse_chans[coarse_chan_index].gpubox_number;
-        let (batch_index, hdu_index) =
-            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_chan];
-
-        if self.gpubox_batches.is_empty() {
-            return Err(GpuboxError::NoGpuboxes);
-        }
-        let mut fptr =
-            fits_open!(&self.gpubox_batches[batch_index].gpubox_files[coarse_chan_index].filename)?;
-        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
-        output_buffer = get_fits_image!(&mut fptr, &hdu)?;
-        // If legacy correlator, then convert the HDU into the correct output format
-        if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
-        {
-            convert::convert_legacy_hdu_to_mwax_frequency_order(
-                &self.legacy_conversion_table,
-                &output_buffer,
-                &mut temp_buffer,
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-            );
-
-            Ok(temp_buffer)
-        } else {
-            // Do conversion for mwax (it is in baseline order, we want it in freq order)
-            convert::convert_mwax_hdu_to_frequency_order(
-                &output_buffer,
-                &mut temp_buffer,
-                self.metafits_context.num_baselines,
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-                self.metafits_context.num_visibility_pols,
-            );
-
-            Ok(temp_buffer)
-        }
+        Ok(return_buffer)
     }
 
     /// Read a single timestep for a single coarse channel
@@ -429,7 +328,7 @@ impl CorrelatorContext {
             ];
 
             // Read into temp buffer
-            let result = get_fits_float_image_into_buffer!(&mut fptr, &hdu, &mut temp_buffer);
+            get_fits_float_image_into_buffer!(&mut fptr, &hdu, &mut temp_buffer)?;
 
             convert::convert_legacy_hdu_to_mwax_baseline_order(
                 &self.legacy_conversion_table,
@@ -441,7 +340,7 @@ impl CorrelatorContext {
             Ok(())
         } else {
             // Read into caller's buffer
-            let result = get_fits_float_image_into_buffer!(&mut fptr, &hdu, buffer);
+            get_fits_float_image_into_buffer!(&mut fptr, &hdu, buffer)?;
 
             Ok(())
         }
@@ -504,8 +403,8 @@ impl CorrelatorContext {
             fits_open!(&self.gpubox_batches[batch_index].gpubox_files[coarse_chan_index].filename)?;
         let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
 
-        // Read the hud into our temp buffer
-        let result = get_fits_float_image_into_buffer!(&mut fptr, &hdu, &mut temp_buffer);
+        // Read the hdu into our temp buffer
+        get_fits_float_image_into_buffer!(&mut fptr, &hdu, &mut temp_buffer)?;
 
         // If legacy correlator, then convert the HDU into the correct output format
         if self.corr_version == CorrelatorVersion::OldLegacy

@@ -1430,7 +1430,7 @@ fn test_mwalib_antennas_get_from_correlator_context_valid() {
 }
 
 #[test]
-fn test_mwalib_antennas_get_from_voltage_context_valid() {
+fn test_mwalib_antennas_get_from_voltage_context_valid_mwax() {
     // This test populates antennas given a voltage context
     let index = 2; // valid  should be Tile013
     let error_len: size_t = 128;
@@ -1438,7 +1438,7 @@ fn test_mwalib_antennas_get_from_voltage_context_valid() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let context = get_test_ffi_voltage_context(CorrelatorVersion::Legacy);
+        let context = get_test_ffi_voltage_context(CorrelatorVersion::V2);
 
         // Check we got a context object
         let context_ptr = context.as_mut();

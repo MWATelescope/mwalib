@@ -415,33 +415,19 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
 
     let output_slice = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
 
-    // Read data in.
-    let data = match corr_context.read_by_baseline(timestep_index, coarse_chan_index) {
-        Ok(data) => data,
+    // Read data into provided buffer
+    match corr_context.read_by_baseline_into_buffer(timestep_index, coarse_chan_index, output_slice)
+    {
+        Ok(_) => 0,
         Err(e) => {
             set_error_message(
                 &format!("{}", e),
                 error_message as *mut u8,
                 error_message_length,
             );
-            return 1;
+            1
         }
-    };
-
-    // If the data buffer is empty, then just return a null pointer.
-    if data.is_empty() {
-        set_error_message(
-            "mwalib_correlator_context_read_by_baseline() ERROR: no data was returned.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return 1;
     }
-
-    // Populate the buffer which was provided to us by caller
-    output_slice[..data.len()].copy_from_slice(data.as_slice());
-    // Return Success
-    0
 }
 
 /// Read a single timestep / coarse channel of MWA data.
@@ -506,33 +492,22 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
 
     let output_slice = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
 
-    // Read data in.
-    let data = match corr_context.read_by_frequency(timestep_index, coarse_chan_index) {
-        Ok(data) => data,
+    // Read data into provided buffer
+    match corr_context.read_by_frequency_into_buffer(
+        timestep_index,
+        coarse_chan_index,
+        output_slice,
+    ) {
+        Ok(_) => 0,
         Err(e) => {
             set_error_message(
                 &format!("{}", e),
                 error_message as *mut u8,
                 error_message_length,
             );
-            return 1;
+            1
         }
-    };
-
-    // If the data buffer is empty, then just return a null pointer.
-    if data.is_empty() {
-        set_error_message(
-            "mwalib_correlator_context_read_by_frequency() ERROR: no data was returned.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return 1;
     }
-
-    // Populate the buffer which was provided to us by caller
-    output_slice[..data.len()].copy_from_slice(data.as_slice());
-    // Return Success
-    0
 }
 
 /// Free a previously-allocated `CorrelatorContext` struct (and it's members).
