@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "0.7.0"
+version = "0.7.1"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
@@ -47,4 +47,5 @@ tempdir = "0.3.*"
 cbindgen = "0.*"
 
 [build-dependencies]
+built = "0.*"
 cbindgen = "0.*"

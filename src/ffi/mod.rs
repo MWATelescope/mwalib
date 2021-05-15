@@ -7,7 +7,7 @@ This module exists purely for other languages to interface with mwalib.
  */
 
 use crate::*;
-use libc::{c_char, c_float, c_uchar, c_ulong, size_t};
+use libc::{c_char, c_float, c_uchar, c_uint, c_ulong, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
@@ -67,6 +67,57 @@ fn set_error_message(in_message: &str, error_buffer_ptr: *mut u8, error_buffer_l
         // Copy in the bytes
         error_message_slice[..error_message_bytes.len()].copy_from_slice(error_message_bytes);
     }
+}
+
+/// Return the MAJOR version number of mwalib
+///
+/// Uses the built crate in build.rs to generate at build time a built.rs module
+///
+/// # Arguments
+///
+/// * None
+///
+/// # Returns
+///
+/// * u16 representing the major version number of mwalib
+///
+#[no_mangle]
+pub extern "C" fn mwalib_get_version_major() -> c_uint {
+    built_info::PKG_VERSION_MAJOR.parse::<c_uint>().unwrap()
+}
+
+/// Return the MINOR version number of mwalib
+///
+/// Uses the built crate in build.rs to generate at build time a built.rs module
+///
+/// # Arguments
+///
+/// * None
+///
+/// # Returns
+///
+/// * u16 representing the minor version number of mwalib
+///
+#[no_mangle]
+pub extern "C" fn mwalib_get_version_minor() -> c_uint {
+    built_info::PKG_VERSION_MINOR.parse::<c_uint>().unwrap()
+}
+
+/// Return the PATCH version number of mwalib
+///
+/// Uses the built crate in build.rs to generate at build time a built.rs module
+///
+/// # Arguments
+///
+/// * None
+///
+/// # Returns
+///
+/// * u16 representing the patch version number of mwalib
+///
+#[no_mangle]
+pub extern "C" fn mwalib_get_version_patch() -> c_uint {
+    built_info::PKG_VERSION_PATCH.parse::<c_uint>().unwrap()
 }
 
 /// Free a rust-allocated CString.

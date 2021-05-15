@@ -157,6 +157,31 @@ fn ffi_boxed_slice_to_array<T>(ptr: *mut T, len: usize) -> Vec<T> {
     }
 }
 
+/// Test that we can get the version numbers from the built crate
+#[test]
+pub fn test_mwalib_version_major() {
+    assert_eq!(
+        mwalib_get_version_major(),
+        built_info::PKG_VERSION_MAJOR.parse::<c_uint>().unwrap()
+    );
+}
+
+#[test]
+pub fn test_mwalib_version_minor() {
+    assert_eq!(
+        mwalib_get_version_minor(),
+        built_info::PKG_VERSION_MINOR.parse::<c_uint>().unwrap()
+    );
+}
+
+#[test]
+pub fn test_mwalib_version_patch() {
+    assert_eq!(
+        mwalib_get_version_patch(),
+        built_info::PKG_VERSION_PATCH.parse::<c_uint>().unwrap()
+    );
+}
+
 //
 // Simple test of the error message helper
 //

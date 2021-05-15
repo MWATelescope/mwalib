@@ -2,6 +2,14 @@
 
 Changes in each release are listed below.
 
+## 0.7.1 15-May-2021 (Pre-release)
+
+* Implemented _into_buffer variant of read_by_baseline and read_by_frequency so you can allocate your own vector and pass the whole thing or a slice to be filled with the relevant data.
+* The implementation of the ffi read_by_baseline and read_by_freqeuency now use this method, thus reducing an unneeded allocation and copy.
+* Added built crate to allow rust callers to query the mwalib build environment (including the mwalib version number).
+* Exposed major, minor and patch version of mwalib to ffi callers.
+* Pinned rust nightly build in coverage CI to prevent a missing crate error (temporarily?)
+
 ## 0.7.0 30-Apr-2021 (Pre-release)
 
 * Added support for reading voltage data by file or gps second.

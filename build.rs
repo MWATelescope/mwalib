@@ -18,6 +18,9 @@ fn infer_static(name: &str) -> bool {
 }
 
 fn main() {
+    // Gather build time info
+    built::write_built_file().expect("Failed to acquire build-time information");
+
     //
     // Link to shared or static CFITSIO
     //

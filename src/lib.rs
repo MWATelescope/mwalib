@@ -32,6 +32,12 @@ pub const MWA_ALTITUDE_METRES: f64 = 377.827;
 /// the velocity factor of electic fields in RG-6 like coax cable
 pub const COAX_V_FACTOR: f64 = 1.204;
 
+// Include the generated built.rs code into our library
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
 // Re-exports (public to other crates and in a flat structure)
 pub use antenna::Antenna;
 pub use baseline::Baseline;
