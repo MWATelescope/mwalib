@@ -41,8 +41,8 @@ jobs:
     - name: Install Cargo Packages
       run: |
         export DEBIAN_FRONTEND=noninteractive \
-        && apt-get update \
-        && apt-get install -y unzip libssl-dev jq \
+        && sudo apt-get update \
+        && sudo apt-get install -y unzip libssl-dev jq \
         && cargo install --force cargo-make cargo-binutils
         
     - name: Generate test lcov coverage into coverage/ dir
