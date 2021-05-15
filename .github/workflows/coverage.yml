@@ -38,26 +38,32 @@ jobs:
           sudo ldconfig
           cd ..
 
-    - name: Install cargo profdata
-      run: cargo install cargo-binutils
-
-    - name: Generate test lcov coverage into coverage/ dir
-      run: |
+      - name: Install Cargo Packages
+        run: |
+          export DEBIAN_FRONTEND=noninteractive \
+          && apt-get update \
+          && apt-get install -y unzip libssl-dev jq \
+          && cargo install --force cargo-make cargo-binutils
+          
+      - name: Generate test lcov coverage into coverage/ dir
+        env:
+          RUSTFLAGS: -Zinstrument-coverage
+          LLVM_PROFILE_FILE: json5format-%m.profraw
+        run: |
           mkdir -p coverage
-          RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests
-          rustup run nightly cargo profdata -- merge -sparse json5format-*.profraw -o json5format.profdata
-          rustup run nightly cargo cov -- export --format=lcov --ignore-filename-regex='(/.cargo/registry|/rustc|test.rs$)' --instr-profile=json5format.profdata \
-          $( \
-              for file in \
-                      $( \
-                          RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests --no-run --message-format=json \
-                                  | jq -r "select(.profile.test == true) | .filenames[]" \
-                                  | grep -v dSYM - \
-                  ); \
-                do \
-                    printf "%s %s " -object $file; \
-                done \
-          ) > coverage/coverage.lcov
+          cargo test --tests
+          cargo profdata -- \
+            merge -sparse json5format-*.profraw -o json5format.profdata
+          cargo cov -- export --format=lcov \
+            --ignore-filename-regex='(/.cargo/registry|/rustc|test.rs$)' \
+            --instr-profile=json5format.profdata \
+            $(cargo test --tests --no-run --message-format=json | jq -r '
+              select(.profile.test == true)
+              | .filenames[]
+              | select(endswith(".dSYM")|not)
+              | " -object \(.)"
+            ') \
+            > coverage/coverage.lcov
 
     - name: Upload reports to codecov.io
       uses: codecov/codecov-action@v1
