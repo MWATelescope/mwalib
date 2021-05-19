@@ -184,6 +184,12 @@ fn test_metafits_context_new_valid() {
 
     // metafits_filename
     assert_eq!(context.metafits_filename, metafits_filename);
+
+    // Check vispols
+    assert_eq!(VisPol::XX.to_string(), "XX");
+    assert_eq!(VisPol::XY.to_string(), "XY");
+    assert_eq!(VisPol::YX.to_string(), "YX");
+    assert_eq!(VisPol::YY.to_string(), "YY");
 }
 
 #[test]

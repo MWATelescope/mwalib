@@ -13,7 +13,6 @@ use crate::antenna::*;
 use crate::baseline::*;
 use crate::coarse_channel::*;
 use crate::rfinput::*;
-use crate::visibility_pol::*;
 use crate::*;
 
 #[cfg(test)]
@@ -24,12 +23,12 @@ mod test;
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CorrelatorVersion {
-    /// MWAX correlator (v2.0)
-    V2,
-    /// MWA correlator (v1.0), having data files with "gpubox" and batch numbers in their names.
-    Legacy,
     /// MWA correlator (v1.0), having data files without any batch numbers.
-    OldLegacy,
+    OldLegacy = 1,
+    /// MWA correlator (v1.0), having data files with "gpubox" and batch numbers in their names.
+    Legacy = 2,
+    /// MWAX correlator (v2.0)
+    V2 = 3,
 }
 
 /// Implements fmt::Display for CorrelatorVersion struct
@@ -53,6 +52,43 @@ impl fmt::Display for CorrelatorVersion {
                 CorrelatorVersion::V2 => "v2 MWAX",
                 CorrelatorVersion::Legacy => "v1 Legacy",
                 CorrelatorVersion::OldLegacy => "v1 Legacy (no file indices)",
+            }
+        )
+    }
+}
+
+/// Visibility polarisation.
+#[allow(clippy::clippy::upper_case_acronyms)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub enum VisPol {
+    XX = 1,
+    XY = 2,
+    YX = 3,
+    YY = 4,
+}
+/// Implements fmt::Display for VisPol struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+impl fmt::Display for VisPol {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                VisPol::XX => "XX",
+                VisPol::XY => "XY",
+                VisPol::YX => "YX",
+                VisPol::YY => "YY",
             }
         )
     }
@@ -170,8 +206,6 @@ pub struct MetafitsContext {
     pub baselines: Vec<Baseline>,
     /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
     pub num_visibility_pols: usize,
-    /// Visibility polarisations
-    pub visibility_pols: Vec<VisibilityPol>,
     /// Filename of the metafits we were given
     pub metafits_filename: String,
 }
@@ -241,8 +275,7 @@ impl MetafitsContext {
         let baselines = Baseline::populate_baselines(num_antennas);
 
         // Populate the pols that come out of the correlator
-        let visibility_pols = VisibilityPol::populate_visibility_pols();
-        let num_visibility_pols = visibility_pols.len();
+        let num_visibility_pols = 4; // no easy way to get the count of enum variants
 
         // `num_baselines` is the number of cross-correlations + the number of
         // auto-correlations.
@@ -425,7 +458,6 @@ impl MetafitsContext {
             num_baselines,
             baselines,
             num_visibility_pols,
-            visibility_pols,
         })
     }
 
@@ -592,10 +624,10 @@ impl fmt::Display for MetafitsContext {
             bll2 = self.baselines[self.num_baselines - 1].ant2_index,
             n_ccs = self.num_baselines - self.num_ants,
             n_vps = self.num_visibility_pols,
-            vp0 = self.visibility_pols[0].polarisation,
-            vp1 = self.visibility_pols[1].polarisation,
-            vp2 = self.visibility_pols[2].polarisation,
-            vp3 = self.visibility_pols[3].polarisation,
+            vp0 = VisPol::XX.to_string(),
+            vp1 = VisPol::XY.to_string(),
+            vp2 = VisPol::YX.to_string(),
+            vp3 = VisPol::YY.to_string(),
             freqcent = self.centre_freq_hz as f64 / 1e6,
             mode = self.mode,
             fcw = self.corr_fine_chan_width_hz as f64 / 1e3,
