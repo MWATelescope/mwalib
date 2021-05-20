@@ -59,7 +59,7 @@ fn dump_data<T: AsRef<std::path::Path>>(
     let coarse_chan_array = context.coarse_chans.clone();
     let timestep_array = context.timesteps.clone();
 
-    println!("Correlator version: {}", context.corr_version);
+    println!("MWA version: {}", context.mwa_version);
 
     let floats_per_finechan = context.metafits_context.num_visibility_pols * 2;
     let floats_per_baseline =

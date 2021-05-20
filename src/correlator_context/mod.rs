@@ -27,7 +27,7 @@ pub struct CorrelatorContext {
     /// Observation Metadata
     pub metafits_context: MetafitsContext,
     /// Version of the correlator format
-    pub corr_version: CorrelatorVersion,
+    pub mwa_version: MWAVersion,
     /// The proper start of the observation (the time that is common to all
     /// provided gpubox files).
     pub start_unix_time_ms: u64,
@@ -129,7 +129,7 @@ impl CorrelatorContext {
 
         // Process the channels based on the gpubox files we have
         let coarse_chans = CoarseChannel::populate_coarse_channels(
-            gpubox_info.corr_format,
+            gpubox_info.mwa_version,
             &metafits_coarse_chan_vec,
             metafits_coarse_chan_width_hz,
             Some(&gpubox_info.time_map),
@@ -147,7 +147,7 @@ impl CorrelatorContext {
             let mut fptr = fits_open!(&gpubox_info.batches[batch_index].gpubox_files[0].filename)?;
 
             CorrelatorContext::validate_first_hdu(
-                gpubox_info.corr_format,
+                gpubox_info.mwa_version,
                 metafits_context.num_corr_fine_chans_per_coarse,
                 metafits_context.num_baselines,
                 metafits_context.num_visibility_pols,
@@ -177,8 +177,8 @@ impl CorrelatorContext {
 
         // Prepare the conversion array to convert legacy correlator format into mwax format
         // or just leave it empty if we're in any other format
-        let legacy_conversion_table: Vec<LegacyConversionBaseline> = match gpubox_info.corr_format {
-            CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
+        let legacy_conversion_table: Vec<LegacyConversionBaseline> = match gpubox_info.mwa_version {
+            MWAVersion::CorrOldLegacy | MWAVersion::CorrLegacy => {
                 convert::generate_conversion_array(&mut metafits_context.rf_inputs.clone())
             }
             _ => Vec::new(),
@@ -186,7 +186,7 @@ impl CorrelatorContext {
 
         Ok(CorrelatorContext {
             metafits_context,
-            corr_version: gpubox_info.corr_format,
+            mwa_version: gpubox_info.mwa_version,
             start_unix_time_ms,
             end_unix_time_ms,
             start_gps_time_ms,
@@ -315,8 +315,8 @@ impl CorrelatorContext {
         let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
 
         // If legacy correlator, then convert the HDU into the correct output format
-        if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
+        if self.mwa_version == MWAVersion::CorrOldLegacy
+            || self.mwa_version == MWAVersion::CorrLegacy
         {
             // Prepare temporary buffer, if we are reading legacy correlator files
             let mut temp_buffer = vec![
@@ -407,8 +407,8 @@ impl CorrelatorContext {
         get_fits_float_image_into_buffer!(&mut fptr, &hdu, &mut temp_buffer)?;
 
         // If legacy correlator, then convert the HDU into the correct output format
-        if self.corr_version == CorrelatorVersion::OldLegacy
-            || self.corr_version == CorrelatorVersion::Legacy
+        if self.mwa_version == MWAVersion::CorrOldLegacy
+            || self.mwa_version == MWAVersion::CorrLegacy
         {
             convert::convert_legacy_hdu_to_mwax_frequency_order(
                 &self.legacy_conversion_table,
@@ -438,7 +438,7 @@ impl CorrelatorContext {
     ///
     /// # Arguments
     ///
-    /// * `corr_version` - Correlator version of this gpubox file.
+    /// * `mwa_version` - Correlator version of this gpubox file.
     ///
     /// * `metafits_fine_chans_per_coarse` - the number of fine chan per coarse as calculated using info from metafits.
     ///
@@ -454,7 +454,7 @@ impl CorrelatorContext {
     ///
     ///
     fn validate_first_hdu(
-        corr_version: CorrelatorVersion,
+        mwa_version: MWAVersion,
         metafits_fine_chans_per_coarse: usize,
         metafits_baselines: usize,
         visibility_pols: usize,
@@ -467,7 +467,7 @@ impl CorrelatorContext {
         let naxis2 = dimensions[0];
 
         Self::validate_hdu_axes(
-            corr_version,
+            mwa_version,
             metafits_fine_chans_per_coarse,
             metafits_baselines,
             visibility_pols,
@@ -482,7 +482,7 @@ impl CorrelatorContext {
     ///
     /// # Arguments
     ///
-    /// * `corr_version` - Correlator version of this gpubox file.
+    /// * `mwa_version` - Correlator version of this gpubox file.
     ///
     /// * `metafits_fine_chans_per_coarse` - the number of fine chan per coarse as calculated using info from metafits.
     ///
@@ -500,7 +500,7 @@ impl CorrelatorContext {
     ///
     ///
     fn validate_hdu_axes(
-        corr_version: CorrelatorVersion,
+        mwa_version: MWAVersion,
         metafits_fine_chans_per_coarse: usize,
         metafits_baselines: usize,
         visibility_pols: usize,
@@ -508,8 +508,8 @@ impl CorrelatorContext {
         naxis2: usize,
     ) -> Result<(), GpuboxError> {
         // We have different values depending on the version of the correlator
-        match corr_version {
-            CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => {
+        match mwa_version {
+            MWAVersion::CorrOldLegacy | MWAVersion::CorrLegacy => {
                 // NAXIS1 = baselines * visibility_pols * 2
                 // NAXIS2 = fine channels
                 let calculated_naxis1: i32 = metafits_baselines as i32 * visibility_pols as i32 * 2;
@@ -532,7 +532,7 @@ impl CorrelatorContext {
                     });
                 }
             }
-            CorrelatorVersion::V2 => {
+            MWAVersion::CorrMWAXv2 => {
                 // NAXIS1 = fine channels * visibility pols * 2
                 // NAXIS2 = baselines
                 let calculated_naxis1: i32 =
@@ -556,6 +556,7 @@ impl CorrelatorContext {
                     });
                 }
             }
+            _ => return Err(GpuboxError::InvalidMwaVersion { mwa_version }),
         }
 
         Ok(())
@@ -605,7 +606,7 @@ impl fmt::Display for CorrelatorContext {
             gpubox batches:           {batches:#?},
         )"#,
             metafits_context = self.metafits_context,
-            corr_ver = self.corr_version,
+            corr_ver = self.mwa_version,
             start_unix = self.start_unix_time_ms as f64 / 1e3,
             end_unix = self.end_unix_time_ms as f64 / 1e3,
             start_gps = self.start_gps_time_ms as f64 / 1e3,

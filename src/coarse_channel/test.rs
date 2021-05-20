@@ -60,7 +60,7 @@ fn test_process_coarse_chans_legacy_middle_two_gpuboxes() {
 
     // Process coarse channels
     let result = CoarseChannel::populate_coarse_channels(
-        CorrelatorVersion::Legacy,
+        MWAVersion::CorrLegacy,
         &metafits_chan_array,
         1_280_000,
         Some(&gpubox_time_map),
@@ -95,7 +95,7 @@ fn test_process_coarse_chans_legacy_chan_reversal() {
 
     // Process coarse channels
     let result = CoarseChannel::populate_coarse_channels(
-        CorrelatorVersion::Legacy,
+        MWAVersion::CorrLegacy,
         &metafits_chan_array,
         1_280_000,
         Some(&gpubox_time_map),
@@ -143,7 +143,7 @@ fn test_process_coarse_chans_legacy_first_and_last() {
 
     // Process coarse channels
     let result = CoarseChannel::populate_coarse_channels(
-        CorrelatorVersion::Legacy,
+        MWAVersion::CorrLegacy,
         &metafits_chan_array,
         1_280_000,
         Some(&gpubox_time_map),
@@ -178,7 +178,7 @@ fn test_process_coarse_chans_mwax_no_reverse() {
 
     // Process coarse channels
     let result = CoarseChannel::populate_coarse_channels(
-        CorrelatorVersion::V2,
+        MWAVersion::CorrMWAXv2,
         &metafits_chan_array,
         1_280_000,
         Some(&gpubox_time_map),
@@ -217,7 +217,7 @@ fn test_process_coarse_chans_legacy_eor() {
 
     // Process coarse channels
     let result = CoarseChannel::populate_coarse_channels(
-        CorrelatorVersion::Legacy,
+        MWAVersion::CorrLegacy,
         &metafits_chan_array,
         channel_width,
         Some(&gpubox_time_map),
@@ -247,7 +247,7 @@ fn test_process_coarse_chans_no_time_maps_legacy() {
 
     // Process coarse channels
     let result = CoarseChannel::populate_coarse_channels(
-        CorrelatorVersion::Legacy,
+        MWAVersion::CorrLegacy,
         &metafits_chan_array,
         channel_width,
         None,
@@ -277,7 +277,7 @@ fn test_process_coarse_chans_no_time_maps_mwax_v2() {
 
     // Process coarse channels
     let result = CoarseChannel::populate_coarse_channels(
-        CorrelatorVersion::V2,
+        MWAVersion::CorrMWAXv2,
         &metafits_chan_array,
         channel_width,
         None,
@@ -309,7 +309,7 @@ fn test_process_coarse_chans_both_time_maps() {
 
     // Process coarse channels for legacy
     let result1 = CoarseChannel::populate_coarse_channels(
-        CorrelatorVersion::Legacy,
+        MWAVersion::CorrLegacy,
         &metafits_chan_array,
         channel_width,
         Some(&gpubox_time_map),
@@ -323,7 +323,7 @@ fn test_process_coarse_chans_both_time_maps() {
 
     // v2
     let result2 = CoarseChannel::populate_coarse_channels(
-        CorrelatorVersion::V2,
+        MWAVersion::CorrMWAXv2,
         &metafits_chan_array,
         channel_width,
         Some(&gpubox_time_map),

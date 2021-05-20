@@ -27,7 +27,7 @@ pub struct VoltageContext {
     /// Observation Metadata
     pub metafits_context: MetafitsContext,
     /// Version of the correlator format
-    pub corr_version: CorrelatorVersion,
+    pub mwa_version: MWAVersion,
     /// The proper start of the observation (the time that is common to all
     /// provided voltage files).
     pub start_gps_time_ms: u64,
@@ -146,7 +146,7 @@ impl VoltageContext {
 
         // Process the channels based on the gpubox files we have
         let coarse_chans = CoarseChannel::populate_coarse_channels(
-            voltage_info.corr_format,
+            voltage_info.mwa_version,
             &metafits_coarse_chan_vec,
             metafits_coarse_chan_width_hz,
             None,
@@ -155,11 +155,15 @@ impl VoltageContext {
         let num_coarse_chans = coarse_chans.len();
 
         // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1.28 MHz (unchannelised)
-        let fine_chan_width_hz: u32 = match voltage_info.corr_format {
-            CorrelatorVersion::Legacy => 10_000,
-            CorrelatorVersion::OldLegacy => 10_000,
-            CorrelatorVersion::V2 => {
+        let fine_chan_width_hz: u32 = match voltage_info.mwa_version {
+            MWAVersion::VCSLegacyRecombined => 10_000,
+            MWAVersion::VCSMWAXv2 => {
                 metafits_context.obs_bandwidth_hz / metafits_context.num_coarse_chans as u32
+            }
+            _ => {
+                return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
+                    mwa_version: voltage_info.mwa_version,
+                }))
             }
         };
 
@@ -192,24 +196,36 @@ impl VoltageContext {
         );
 
         // Length of each timestep in milliseconds
-        let timestep_duration_ms = match voltage_info.corr_format {
-            CorrelatorVersion::OldLegacy => 1000,
-            CorrelatorVersion::Legacy => 1000,
-            CorrelatorVersion::V2 => 8000,
+        let timestep_duration_ms = match voltage_info.mwa_version {
+            MWAVersion::VCSLegacyRecombined => 1000,
+            MWAVersion::VCSMWAXv2 => 8000,
+            _ => {
+                return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
+                    mwa_version: voltage_info.mwa_version,
+                }))
+            }
         };
 
         // Number of bytes in each sample
-        let sample_size_bytes: u64 = match voltage_info.corr_format {
-            CorrelatorVersion::OldLegacy => 1, // 4 bits real, 4 bits imag
-            CorrelatorVersion::Legacy => 1,    // 4 bits real, 4 bits imag
-            CorrelatorVersion::V2 => 2,        // 8 bits real, 8 bits imag
+        let sample_size_bytes: u64 = match voltage_info.mwa_version {
+            MWAVersion::VCSLegacyRecombined => 1, // 4 bits real, 4 bits imag
+            MWAVersion::VCSMWAXv2 => 2,           // 8 bits real, 8 bits imag
+            _ => {
+                return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
+                    mwa_version: voltage_info.mwa_version,
+                }))
+            }
         };
 
         // Number of voltage blocks per timestep
-        let num_voltage_blocks_per_timestep: u64 = match voltage_info.corr_format {
-            CorrelatorVersion::OldLegacy => 1,
-            CorrelatorVersion::Legacy => 1,
-            CorrelatorVersion::V2 => 160,
+        let num_voltage_blocks_per_timestep: u64 = match voltage_info.mwa_version {
+            MWAVersion::VCSLegacyRecombined => 1,
+            MWAVersion::VCSMWAXv2 => 160,
+            _ => {
+                return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
+                    mwa_version: voltage_info.mwa_version,
+                }))
+            }
         };
 
         // Number of voltage blocks of samples in each second of data
@@ -218,10 +234,14 @@ impl VoltageContext {
 
         // Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
         let num_samples_per_rf_chain_fine_chan_in_a_voltage_block: u64 =
-            match voltage_info.corr_format {
-                CorrelatorVersion::OldLegacy => 10_000,
-                CorrelatorVersion::Legacy => 10_000,
-                CorrelatorVersion::V2 => 64_000, // 64000 per rf_inpit x real|imag (no fine chans)
+            match voltage_info.mwa_version {
+                MWAVersion::VCSLegacyRecombined => 10_000,
+                MWAVersion::VCSMWAXv2 => 64_000, // 64000 per rf_inpit x real|imag (no fine chans)
+                _ => {
+                    return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
+                        mwa_version: voltage_info.mwa_version,
+                    }))
+                }
             };
 
         // The size of each voltage block
@@ -231,17 +251,25 @@ impl VoltageContext {
             * sample_size_bytes;
 
         // Determine delay_block_size - for MWAX this is the same as a voltage block size, for legacy it is 0
-        let delay_block_size_bytes: u64 = match voltage_info.corr_format {
-            CorrelatorVersion::OldLegacy => 0,
-            CorrelatorVersion::Legacy => 0,
-            CorrelatorVersion::V2 => voltage_block_size_bytes,
+        let delay_block_size_bytes: u64 = match voltage_info.mwa_version {
+            MWAVersion::VCSLegacyRecombined => 0,
+            MWAVersion::VCSMWAXv2 => voltage_block_size_bytes,
+            _ => {
+                return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
+                    mwa_version: voltage_info.mwa_version,
+                }))
+            }
         };
 
         // The amount of bytes to skip before getting into real data within the voltage files
-        let data_file_header_size_bytes: u64 = match voltage_info.corr_format {
-            CorrelatorVersion::OldLegacy => 0,
-            CorrelatorVersion::Legacy => 0,
-            CorrelatorVersion::V2 => 4096,
+        let data_file_header_size_bytes: u64 = match voltage_info.mwa_version {
+            MWAVersion::VCSLegacyRecombined => 0,
+            MWAVersion::VCSMWAXv2 => 4096,
+            _ => {
+                return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
+                    mwa_version: voltage_info.mwa_version,
+                }))
+            }
         };
 
         // Expected voltage file size
@@ -255,15 +283,21 @@ impl VoltageContext {
         let num_timesteps = timesteps.len();
 
         // The rf inputs should be sorted depending on the CorrVersion
-        if voltage_info.corr_format == CorrelatorVersion::Legacy
-            || voltage_info.corr_format == CorrelatorVersion::OldLegacy
-        {
-            metafits_context.rf_inputs.sort_by_key(|k| k.vcs_order);
+        match voltage_info.mwa_version {
+            MWAVersion::VCSLegacyRecombined => {
+                metafits_context.rf_inputs.sort_by_key(|k| k.vcs_order);
+            }
+            MWAVersion::VCSMWAXv2 => {}
+            _ => {
+                return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
+                    mwa_version: voltage_info.mwa_version,
+                }))
+            }
         }
 
         Ok(VoltageContext {
             metafits_context,
-            corr_version: voltage_info.corr_format,
+            mwa_version: voltage_info.mwa_version,
             start_gps_time_ms,
             end_gps_time_ms,
             start_unix_time_ms,
@@ -708,7 +742,7 @@ impl fmt::Display for VoltageContext {
             voltage batches:          {batches:#?},
         )"#,
             metafits_context = self.metafits_context,
-            corr_ver = self.corr_version,
+            corr_ver = self.mwa_version,
             start_unix = self.start_unix_time_ms as f64 / 1e3,
             end_unix = self.end_unix_time_ms as f64 / 1e3,
             start_gps = self.start_gps_time_ms as f64 / 1e3,

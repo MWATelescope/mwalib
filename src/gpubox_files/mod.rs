@@ -133,7 +133,7 @@ pub(crate) type GpuboxTimeMap = BTreeMap<u64, BTreeMap<usize, (usize, usize)>>;
 /// values from complex functions.
 pub(crate) struct GpuboxInfo {
     pub batches: Vec<GpuBoxBatch>,
-    pub corr_format: CorrelatorVersion,
+    pub mwa_version: MWAVersion,
     pub time_map: GpuboxTimeMap,
     pub hdu_size: usize,
 }
@@ -194,7 +194,7 @@ fn convert_temp_gpuboxes(temp_gpuboxes: Vec<TempGpuBoxFile>) -> Vec<GpuBoxBatch>
 /// (e.g. `1065880128_20131015134930_gpubox01_XX.fits`). Some older files might
 /// have a "batchless" format
 /// (e.g. `1065880128_20131015134930_gpubox01.fits`). These details are
-/// reflected in the returned `CorrelatorVersion`.
+/// reflected in the returned `MWAVersion`.
 ///
 /// Fail if
 ///
@@ -251,9 +251,9 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
                 }
             }
 
-            // Do another check by looking in the header of each fits file and checking the corr_version is correct
+            // Do another check by looking in the header of each fits file and checking the mwa_version is correct
             let primary_hdu = fits_open_hdu!(&mut fptr, 0)?;
-            validate_gpubox_metadata_correlator_version(
+            validate_gpubox_metadata_mwa_version(
                 &mut fptr,
                 &primary_hdu,
                 &g.filename,
@@ -269,7 +269,7 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
     // is safe to unwrap hdu_size.
     Ok(GpuboxInfo {
         batches,
-        corr_format,
+        mwa_version: corr_format,
         time_map,
         hdu_size: hdu_size.unwrap(),
     })
@@ -300,13 +300,13 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
 /// # Returns
 ///
 /// * A Result containing a vector of `TempGPUBoxFile` structs as well as a
-///   `CorrelatorVersion`, the number of GPUBoxes supplied, and the number of
+///   `MWAVersion`, the number of GPUBoxes supplied, and the number of
 ///   gpubox batches.
 ///
 ///
 fn determine_gpubox_batches<T: AsRef<Path>>(
     gpubox_filenames: &[T],
-) -> Result<(Vec<TempGpuBoxFile>, CorrelatorVersion, usize), GpuboxError> {
+) -> Result<(Vec<TempGpuBoxFile>, MWAVersion, usize), GpuboxError> {
     if gpubox_filenames.is_empty() {
         return Err(GpuboxError::NoGpuboxes);
     }
@@ -328,8 +328,8 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
                 // format. If so, then we've got a mix, and we should exit
                 // early.
                 match format {
-                    None => format = Some(CorrelatorVersion::V2),
-                    Some(CorrelatorVersion::V2) => (),
+                    None => format = Some(MWAVersion::CorrMWAXv2),
+                    Some(MWAVersion::CorrMWAXv2) => (),
                     _ => return Err(GpuboxError::Mixture),
                 }
 
@@ -346,8 +346,8 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
             None => match RE_LEGACY_BATCH.captures(g) {
                 Some(caps) => {
                     match format {
-                        None => format = Some(CorrelatorVersion::Legacy),
-                        Some(CorrelatorVersion::Legacy) => (),
+                        None => format = Some(MWAVersion::CorrLegacy),
+                        Some(MWAVersion::CorrLegacy) => (),
                         _ => return Err(GpuboxError::Mixture),
                     }
 
@@ -362,8 +362,8 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
                 None => match RE_OLD_LEGACY_FORMAT.captures(g) {
                     Some(caps) => {
                         match format {
-                            None => format = Some(CorrelatorVersion::OldLegacy),
-                            Some(CorrelatorVersion::OldLegacy) => (),
+                            None => format = Some(MWAVersion::CorrOldLegacy),
+                            Some(MWAVersion::CorrOldLegacy) => (),
                             _ => return Err(GpuboxError::Mixture),
                         }
 
@@ -449,7 +449,7 @@ fn determine_hdu_time(
 ///
 /// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
 ///
-/// * `correlator_version` - enum telling us which correlator version the observation was created by.
+/// * `mwa_version` - enum telling us which correlator version the observation was created by.
 ///
 ///
 /// # Returns
@@ -459,13 +459,13 @@ fn determine_hdu_time(
 ///
 fn map_unix_times_to_hdus(
     gpubox_fptr: &mut FitsFile,
-    correlator_version: CorrelatorVersion,
+    mwa_version: MWAVersion,
 ) -> Result<BTreeMap<u64, usize>, FitsError> {
     let mut map = BTreeMap::new();
     let last_hdu_index = gpubox_fptr.iter().count();
     // The new correlator has a "weights" HDU in each alternating HDU. Skip
     // those.
-    let step_size = if correlator_version == CorrelatorVersion::V2 {
+    let step_size = if mwa_version == MWAVersion::CorrMWAXv2 {
         2
     } else {
         1
@@ -493,7 +493,7 @@ fn map_unix_times_to_hdus(
 ///
 /// * `gpubox_filename` - The filename of the gpubox file being validated.
 ///
-/// * `correlator_version` - enum telling us which correlator version the observation was created by.
+/// * `mwa_version` - enum telling us which correlator version the observation was created by.
 ///
 ///
 /// # Returns
@@ -501,21 +501,21 @@ fn map_unix_times_to_hdus(
 /// * A Result containing `Ok` or an `MwalibError` if it fails validation.
 ///
 ///
-fn validate_gpubox_metadata_correlator_version(
+fn validate_gpubox_metadata_mwa_version(
     gpubox_fptr: &mut FitsFile,
     gpubox_primary_hdu: &FitsHdu,
     gpubox_filename: &str,
-    correlator_version: CorrelatorVersion,
+    mwa_version: MWAVersion,
 ) -> Result<(), GpuboxError> {
     // New correlator files include a version - check that it is present.
     // For pre v2, ensure the key isn't present
-    let gpu_corr_version: Option<u8> =
+    let gpu_mwa_version: Option<u8> =
         get_optional_fits_key!(gpubox_fptr, &gpubox_primary_hdu, "CORR_VER")?;
 
-    match correlator_version {
-        CorrelatorVersion::V2 => match gpu_corr_version {
+    match mwa_version {
+        MWAVersion::CorrMWAXv2 => match gpu_mwa_version {
             None => Err(GpuboxError::MwaxCorrVerMissing(gpubox_filename.to_string())),
-            Some(gpu_corr_version_value) => match gpu_corr_version_value {
+            Some(gpu_mwa_version_value) => match gpu_mwa_version_value {
                 2 => Ok(()),
                 _ => Err(GpuboxError::MwaxCorrVerMismatch(
                     gpubox_filename.to_string(),
@@ -523,13 +523,14 @@ fn validate_gpubox_metadata_correlator_version(
             },
         },
 
-        CorrelatorVersion::OldLegacy | CorrelatorVersion::Legacy => match gpu_corr_version {
+        MWAVersion::CorrOldLegacy | MWAVersion::CorrLegacy => match gpu_mwa_version {
             None => Ok(()),
             Some(gpu_corr_version_value) => Err(GpuboxError::CorrVerMismatch {
                 gpubox_filename: gpubox_filename.to_string(),
                 gpu_corr_version_value,
             }),
         },
+        _ => Err(GpuboxError::InvalidMwaVersion { mwa_version }),
     }
 }
 
@@ -584,7 +585,7 @@ fn validate_gpubox_metadata_obs_id(
 ///
 /// * `gpubox_batches` - vector of structs describing each gpubox "batch"
 ///
-/// * `correlator_version` - enum telling us which correlator version the observation was created by.
+/// * `mwa_version` - enum telling us which correlator version the observation was created by.
 ///
 ///
 /// # Returns
@@ -594,7 +595,7 @@ fn validate_gpubox_metadata_obs_id(
 ///
 fn create_time_map(
     gpuboxes: &[TempGpuBoxFile],
-    correlator_version: CorrelatorVersion,
+    mwa_version: MWAVersion,
 ) -> Result<GpuboxTimeMap, GpuboxError> {
     // Ugly hack to open up all the HDUs of the gpubox files in parallel. We
     // can't do this over the `GPUBoxBatch` or `GPUBoxFile` structs because they
@@ -615,7 +616,7 @@ fn create_time_map(
             let hdu = fits_open_hdu!(&mut fptr, 0)?;
 
             // New correlator files include a version - check that it is present.
-            if correlator_version == CorrelatorVersion::V2 {
+            if mwa_version == MWAVersion::CorrMWAXv2 {
                 let v: u8 = get_required_fits_key!(&mut fptr, &hdu, "CORR_VER")?;
                 if v != 2 {
                     return Err(GpuboxError::MwaxCorrVerMismatch(g.filename.to_string()));
@@ -623,7 +624,7 @@ fn create_time_map(
             }
 
             // Get the UNIX times from each of the HDUs of this `FitsFile`.
-            map_unix_times_to_hdus(&mut fptr, correlator_version).map_err(GpuboxError::from)
+            map_unix_times_to_hdus(&mut fptr, mwa_version).map_err(GpuboxError::from)
         })
         .collect::<Vec<Result<BTreeMap<u64, usize>, GpuboxError>>>();
 

@@ -21,17 +21,22 @@ mod test;
 /// Enum for all of the known variants of file format based on Correlator version
 ///
 #[repr(C)]
+#[allow(clippy::clippy::upper_case_acronyms)]
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum CorrelatorVersion {
+pub enum MWAVersion {
     /// MWA correlator (v1.0), having data files without any batch numbers.
-    OldLegacy = 1,
+    CorrOldLegacy = 1,
     /// MWA correlator (v1.0), having data files with "gpubox" and batch numbers in their names.
-    Legacy = 2,
+    CorrLegacy = 2,
     /// MWAX correlator (v2.0)
-    V2 = 3,
+    CorrMWAXv2 = 3,
+    /// Legacy VCS Recombined
+    VCSLegacyRecombined = 4,
+    /// MWAX VCS
+    VCSMWAXv2 = 5,
 }
 
-/// Implements fmt::Display for CorrelatorVersion struct
+/// Implements fmt::Display for MWAVersion struct
 ///
 /// # Arguments
 ///
@@ -43,15 +48,17 @@ pub enum CorrelatorVersion {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Display for CorrelatorVersion {
+impl fmt::Display for MWAVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                CorrelatorVersion::V2 => "v2 MWAX",
-                CorrelatorVersion::Legacy => "v1 Legacy",
-                CorrelatorVersion::OldLegacy => "v1 Legacy (no file indices)",
+                MWAVersion::CorrOldLegacy => "Correlator v1 old Legacy (no file indices)",
+                MWAVersion::CorrLegacy => "Correlator v1 Legacy",
+                MWAVersion::CorrMWAXv2 => "Correlator v2 MWAX",
+                MWAVersion::VCSLegacyRecombined => "VCS Legacy Recombined",
+                MWAVersion::VCSMWAXv2 => "VCS MWAX v2",
             }
         )
     }
@@ -461,14 +468,14 @@ impl MetafitsContext {
         })
     }
 
-    /// Given a hint at the expected `CorrelatorVersion`, return a vector containing the expected
+    /// Given a hint at the expected `MWAVersion`, return a vector containing the expected
     /// coarse channels for an existing populated MetafitsContext.
     ///
     /// The traits on the input parameters allow flexibility to input types.
     ///
     /// # Arguments    
     ///
-    /// * `corr_version` - Hint, providing the `CorrelatorVersion` info, so the expected `CoarseChannel`s can be returned.
+    /// * `mwa_version` - Hint, providing the `MWAVersion` info, so the expected `CoarseChannel`s can be returned.
     ///
     ///
     /// # Returns
@@ -478,7 +485,7 @@ impl MetafitsContext {
     ///
     pub fn get_expected_coarse_channels(
         &self,
-        corr_version: CorrelatorVersion,
+        mwa_version: MWAVersion,
     ) -> Result<Vec<CoarseChannel>, MwalibError> {
         // Reopen metafits
         let mut metafits_fptr = fits_open!(&self.metafits_filename)?;
@@ -494,7 +501,7 @@ impl MetafitsContext {
 
         // Process the channels based on the gpubox files we have
         let coarse_chans = CoarseChannel::populate_coarse_channels(
-            corr_version,
+            mwa_version,
             &metafits_coarse_chan_vec,
             metafits_coarse_chan_width_hz,
             None,

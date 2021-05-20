@@ -140,7 +140,7 @@ pub(crate) type VoltageFileTimeMap = BTreeMap<u64, BTreeMap<usize, String>>;
 #[derive(Debug)]
 pub(crate) struct VoltageFileInfo {
     pub gpstime_batches: Vec<VoltageFileBatch>,
-    pub corr_format: CorrelatorVersion,
+    pub mwa_version: MWAVersion,
     pub time_map: VoltageFileTimeMap,
     pub file_size: u64,
     pub voltage_file_interval_ms: u64,
@@ -221,14 +221,14 @@ fn convert_temp_voltage_files(
 /// # Returns
 ///
 /// * A Result containing a vector of `TempVoltageFile` structs as well as a
-///   `CorrelatorVersion`, the number of voltage files supplied, and the number of
+///   `MWAVersion`, the number of voltage files supplied, and the number of
 ///   gps time batches.
 ///
 ///
 fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
     voltage_filenames: &[T],
     metafits_obs_id: usize,
-) -> Result<(Vec<TempVoltageFile>, CorrelatorVersion, usize, u64), VoltageFileError> {
+) -> Result<(Vec<TempVoltageFile>, MWAVersion, usize, u64), VoltageFileError> {
     if voltage_filenames.is_empty() {
         return Err(VoltageFileError::NoVoltageFiles);
     }
@@ -251,8 +251,8 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
                     // format. If so, then we've got a mix, and we should exit
                     // early.
                     match format {
-                        None => format = Some(CorrelatorVersion::V2),
-                        Some(CorrelatorVersion::V2) => (),
+                        None => format = Some(MWAVersion::VCSMWAXv2),
+                        Some(MWAVersion::VCSMWAXv2) => (),
                         _ => return Err(VoltageFileError::Mixture),
                     }
 
@@ -270,8 +270,8 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
                 None => match RE_LEGACY_VCS_RECOMBINED.captures(v) {
                     Some(caps) => {
                         match format {
-                            None => format = Some(CorrelatorVersion::Legacy),
-                            Some(CorrelatorVersion::Legacy) => (),
+                            None => format = Some(MWAVersion::VCSLegacyRecombined),
+                            Some(MWAVersion::VCSLegacyRecombined) => (),
                             _ => return Err(VoltageFileError::Mixture),
                         }
 
@@ -296,10 +296,11 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
     }
 
     // Determine the interval between files
-    let voltage_file_interval_seconds: u64 = match format.unwrap() {
-        CorrelatorVersion::V2 => 8,
-        CorrelatorVersion::Legacy => 1,
-        CorrelatorVersion::OldLegacy => 1,
+    let mwa_version = format.unwrap();
+    let voltage_file_interval_seconds: u64 = match mwa_version {
+        MWAVersion::VCSMWAXv2 => 8,
+        MWAVersion::VCSLegacyRecombined => 1,
+        _ => return Err(VoltageFileError::InvalidMwaVersion { mwa_version }),
     };
 
     // Check batches are contiguous and have equal numbers of files.
@@ -352,7 +353,7 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
 /// (e.g. `1065880128_XXXXXXXXXX_123.sub`). Some older files might
 /// have a different format
 /// (e.g. `1065880128_XXXXXXXXXX_ch123.dat`). These details are
-/// reflected in the returned `CorrelatorVersion`.
+/// reflected in the returned `MWAVersion`.
 ///
 /// Fail if
 ///
@@ -384,7 +385,7 @@ pub(crate) fn examine_voltage_files<T: AsRef<Path>>(
     metafits_context: &MetafitsContext,
     voltage_filenames: &[T],
 ) -> Result<VoltageFileInfo, VoltageFileError> {
-    let (temp_voltage_files, corr_format, _, voltage_file_interval_ms) =
+    let (temp_voltage_files, mwa_version, _, voltage_file_interval_ms) =
         determine_voltage_file_gpstime_batches(
             voltage_filenames,
             metafits_context.obs_id as usize,
@@ -432,7 +433,7 @@ pub(crate) fn examine_voltage_files<T: AsRef<Path>>(
 
     Ok(VoltageFileInfo {
         gpstime_batches: gpstime_batches_vec,
-        corr_format,
+        mwa_version,
         time_map,
         file_size: voltage_file_size.unwrap(),
         voltage_file_interval_ms,

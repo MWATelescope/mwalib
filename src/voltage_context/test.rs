@@ -22,7 +22,7 @@ pub(crate) static VCS_MWAXV2_TEST_DATA_CREATED: Once = Once::new();
 #[allow(clippy::clippy::too_many_arguments)]
 fn generate_test_voltage_file(
     filename: &str,
-    corr_version: CorrelatorVersion,
+    mwa_version: MWAVersion,
     header_bytes: usize,
     delay_block_bytes: usize,
     num_voltage_blocks: usize,
@@ -69,8 +69,8 @@ fn generate_test_voltage_file(
         // Populate the buffer with test data
         let mut bptr: usize = 0; // Keeps track of where we are in the byte array
 
-        match corr_version {
-            CorrelatorVersion::V2 => {
+        match mwa_version {
+            MWAVersion::VCSMWAXv2 => {
                 // Data should be written in the following order (slowest to fastest axis)
                 // voltage_block (time1), rf_input, sample (time2), value (complex)
                 for r in 0..rf_inputs {
@@ -92,7 +92,7 @@ fn generate_test_voltage_file(
                     }
                 }
             }
-            CorrelatorVersion::Legacy => {
+            MWAVersion::VCSLegacyRecombined => {
                 // Data should be written in the following order (slowest to fastest axis)
                 // sample (time1), fine_chan, rf_input, value (complex)
                 for s in 0..samples_per_block {
@@ -130,7 +130,7 @@ pub(crate) fn generate_test_voltage_file_legacy_recombined(
     // The initial value is used to differentiate different timesteps and coarse channels
     generate_test_voltage_file(
         filename,
-        CorrelatorVersion::Legacy,
+        MWAVersion::VCSLegacyRecombined,
         0,
         0,
         1,
@@ -209,7 +209,7 @@ pub(crate) fn generate_test_voltage_file_mwax(
     // The initial value is used to differentiate different timesteps and coarse channels
     generate_test_voltage_file(
         filename,
-        CorrelatorVersion::V2,
+        MWAVersion::VCSMWAXv2,
         4096,
         32_768_000,
         160,
@@ -222,13 +222,13 @@ pub(crate) fn generate_test_voltage_file_mwax(
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_voltage_files(corr_version: CorrelatorVersion) -> Vec<String> {
+pub(crate) fn get_test_voltage_files(mwa_version: MWAVersion) -> Vec<String> {
     // Create some test files
     // Populate vector of filenames
     let test_filenames: Vec<String>;
 
-    match corr_version {
-        CorrelatorVersion::V2 => {
+    match mwa_version {
+        MWAVersion::VCSMWAXv2 => {
             test_filenames = vec![
                 String::from("test_files/1101503312_1_timestep/1101503312_1101503312_123.sub"),
                 String::from("test_files/1101503312_1_timestep/1101503312_1101503312_124.sub"),
@@ -244,7 +244,7 @@ pub(crate) fn get_test_voltage_files(corr_version: CorrelatorVersion) -> Vec<Str
                 }
             });
         }
-        CorrelatorVersion::Legacy => {
+        MWAVersion::VCSLegacyRecombined => {
             test_filenames = vec![
                 String::from("test_files/1101503312_1_timestep/1101503312_1101503312_ch123.dat"),
                 String::from("test_files/1101503312_1_timestep/1101503312_1101503312_ch124.dat"),
@@ -259,8 +259,8 @@ pub(crate) fn get_test_voltage_files(corr_version: CorrelatorVersion) -> Vec<Str
                 }
             });
         }
-        CorrelatorVersion::OldLegacy => {
-            panic!("OldLegacy is not supported for VCS");
+        _ => {
+            panic!("Other mwa_version values are not supported for VCS");
         }
     }
 
@@ -268,13 +268,13 @@ pub(crate) fn get_test_voltage_files(corr_version: CorrelatorVersion) -> Vec<Str
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_voltage_context(corr_version: CorrelatorVersion) -> VoltageContext {
+pub(crate) fn get_test_voltage_context(mwa_version: MWAVersion) -> VoltageContext {
     // Open the test mwax file
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
     // Create some test files
     // Populate vector of filenames
-    let generated_filenames = get_test_voltage_files(corr_version);
+    let generated_filenames = get_test_voltage_files(mwa_version);
 
     let temp_strings = generated_filenames.iter().map(String::as_str);
     let test_filenames: Vec<&str> = temp_strings.collect();
@@ -335,11 +335,11 @@ fn test_context_legacy_v1() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits and gpubox file
-    let context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     // Test the properties of the context object match what we expect
-    // Correlator version:       v1 Legacy,
-    assert_eq!(context.corr_version, CorrelatorVersion::Legacy);
+    // MWA version:       v1 Legacy,
+    assert_eq!(context.mwa_version, MWAVersion::VCSLegacyRecombined);
 
     // Actual gps start time:   1_101_503_312,
     assert_eq!(context.start_gps_time_ms, 1_101_503_312_000);
@@ -402,7 +402,7 @@ fn test_context_legacy_v1() {
 #[test]
 fn test_context_legacy_v1_read_file() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
@@ -599,11 +599,11 @@ fn test_context_legacy_v1_read_file() {
 #[test]
 fn test_context_mwax_v2() {
     // Create voltage context
-    let context = get_test_voltage_context(CorrelatorVersion::V2);
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
 
     // Test the properties of the context object match what we expect
-    // Correlator version:       v2 mwax,
-    assert_eq!(context.corr_version, CorrelatorVersion::V2);
+    // MWA version:       v2 mwax,
+    assert_eq!(context.mwa_version, MWAVersion::VCSMWAXv2);
 
     // Actual gps start time:   1_101_503_312,
     assert_eq!(context.start_gps_time_ms, 1_101_503_312_000);
@@ -668,7 +668,7 @@ fn test_context_mwax_v2() {
 #[test]
 fn test_context_mwax_v2_read_file() {
     // Create voltage context
-    let mut context = get_test_voltage_context(CorrelatorVersion::V2);
+    let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
@@ -872,7 +872,7 @@ fn test_context_mwax_v2_read_file() {
 #[test]
 fn test_validate_gps_time_parameters_legacy() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 1);
 
@@ -884,7 +884,7 @@ fn test_validate_gps_time_parameters_legacy() {
 #[test]
 fn test_validate_gps_time_parameters_mwax_v2() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(CorrelatorVersion::V2);
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 10);
 
@@ -896,7 +896,7 @@ fn test_validate_gps_time_parameters_mwax_v2() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_start_legacy() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_311, 1);
 
@@ -916,7 +916,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_legacy() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 3);
 
@@ -936,7 +936,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_start_mwax_v2() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(CorrelatorVersion::V2);
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_311, 1);
 
@@ -956,7 +956,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_mwax_v2() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_count_mwax_v2() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(CorrelatorVersion::V2);
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 17);
 
@@ -976,7 +976,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_mwax_v2() {
 #[test]
 fn test_context_read_second_invalid_coarse_chan_index() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
@@ -1016,7 +1016,7 @@ fn test_context_read_second_invalid_coarse_chan_index() {
 #[test]
 fn test_context_read_second_invalid_buffer_size() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
@@ -1062,7 +1062,7 @@ fn test_context_read_second_invalid_buffer_size() {
 #[test]
 fn test_context_read_second_legacy_invalid_data_file_size() {
     // Open a context and load in a test metafits and gpubox file
-    let context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
@@ -1111,7 +1111,7 @@ fn test_context_read_second_legacy_invalid_data_file_size() {
 #[test]
 fn test_context_read_second_mwaxv2_invalid_data_file_size() {
     // Open a context and load in a test metafits and gpubox file
-    let context = get_test_voltage_context(CorrelatorVersion::V2);
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
@@ -1168,7 +1168,7 @@ fn test_context_read_second_legacyv1_valid() {
     // which is 1_101_503_312, 1_101_503_313
 
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(CorrelatorVersion::Legacy);
+    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
@@ -1247,7 +1247,7 @@ fn test_context_read_second_mwaxv2_valid() {
     // which is 1_101_503_318, 1_101_503_319, 1_101_503_320, 1_101_503_321
 
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(CorrelatorVersion::V2);
+    let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes

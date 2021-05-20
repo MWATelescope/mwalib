@@ -5,7 +5,7 @@
 /*!
 Structs and helper methods for baseline metadata
 */
-use crate::{misc, Antenna, Rfinput, VisPol};
+use crate::misc;
 use std::fmt;
 
 #[cfg(test)]
@@ -54,46 +54,7 @@ impl Baseline {
 
         bls
     }
-
-    /// Returns the two rfinputs for a baseline and visibilty polarisation.
-    ///    
-    ///
-    /// # Arguments
-    ///
-    /// * `vis_pol` - Enum describing the combination of X and Y required. E.g. XX, XY, YX or YY.
-    ///     
-    /// * `ants` - Slice of all antennas.
-    ///
-    /// # Returns
-    ///
-    /// * A populated Baseline struct
-    ///
-    pub fn get_rf_inputs<'a>(
-        &self,
-        vis_pol: VisPol,
-        ants: &'a [Antenna],
-    ) -> (&'a Rfinput, &'a Rfinput) {
-        match vis_pol {
-            VisPol::XX => (
-                &ants[self.ant1_index].rfinput_x,
-                &ants[self.ant2_index].rfinput_x,
-            ),
-            VisPol::XY => (
-                &ants[self.ant1_index].rfinput_x,
-                &ants[self.ant2_index].rfinput_y,
-            ),
-            VisPol::YX => (
-                &ants[self.ant1_index].rfinput_y,
-                &ants[self.ant2_index].rfinput_x,
-            ),
-            VisPol::YY => (
-                &ants[self.ant1_index].rfinput_y,
-                &ants[self.ant2_index].rfinput_y,
-            ),
-        }
-    }
 }
-
 /// Implements fmt::Debug for Baseline struct
 ///
 /// # Arguments

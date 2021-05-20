@@ -204,7 +204,7 @@ fn test_get_expected_coarse_channels_old_legacy() {
 
     let context = result.unwrap();
 
-    let ecc_result = context.get_expected_coarse_channels(CorrelatorVersion::OldLegacy);
+    let ecc_result = context.get_expected_coarse_channels(MWAVersion::CorrOldLegacy);
 
     assert!(ecc_result.is_ok());
 
@@ -243,7 +243,7 @@ fn test_get_expected_coarse_channels_legacy() {
 
     let context = result.unwrap();
 
-    let ecc_result = context.get_expected_coarse_channels(CorrelatorVersion::Legacy);
+    let ecc_result = context.get_expected_coarse_channels(MWAVersion::CorrLegacy);
 
     assert!(ecc_result.is_ok());
 
@@ -282,7 +282,7 @@ fn test_get_expected_coarse_channels_v2() {
 
     let context = result.unwrap();
 
-    let ecc_result = context.get_expected_coarse_channels(CorrelatorVersion::V2);
+    let ecc_result = context.get_expected_coarse_channels(MWAVersion::CorrMWAXv2);
 
     assert!(ecc_result.is_ok());
 
@@ -310,22 +310,39 @@ fn test_get_expected_coarse_channels_v2() {
 }
 
 #[test]
-fn test_correlator_version_display_v2() {
-    let cv = CorrelatorVersion::V2;
+fn test_mwa_version_display_corr_mwaxv2() {
+    let cv = MWAVersion::CorrMWAXv2;
 
-    assert_eq!(format!("{}", cv), "v2 MWAX");
+    assert_eq!(format!("{}", cv), "Correlator v2 MWAX");
 }
 
 #[test]
-fn test_correlator_version_display_legacy() {
-    let cv = CorrelatorVersion::Legacy;
+fn test_mwa_version_display_corr_legacy() {
+    let cv = MWAVersion::CorrLegacy;
 
-    assert_eq!(format!("{}", cv), "v1 Legacy");
+    assert_eq!(format!("{}", cv), "Correlator v1 Legacy");
 }
 
 #[test]
-fn test_correlator_version_display_old_legacy() {
-    let cv = CorrelatorVersion::OldLegacy;
+fn test_mwa_version_display_corr_old_legacy() {
+    let cv = MWAVersion::CorrOldLegacy;
 
-    assert_eq!(format!("{}", cv), "v1 Legacy (no file indices)");
+    assert_eq!(
+        format!("{}", cv),
+        "Correlator v1 old Legacy (no file indices)"
+    );
+}
+
+#[test]
+fn test_mwa_version_display_vcs_legacy_recombined() {
+    let cv = MWAVersion::VCSLegacyRecombined;
+
+    assert_eq!(format!("{}", cv), "VCS Legacy Recombined");
+}
+
+#[test]
+fn test_mwa_version_display_vcs_mwaxv2() {
+    let cv = MWAVersion::VCSMWAXv2;
+
+    assert_eq!(format!("{}", cv), "VCS MWAX v2");
 }

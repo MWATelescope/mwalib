@@ -79,8 +79,8 @@ fn test_determine_voltage_file_gpstime_batches_proper_legacy_format() {
     ];
     let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
     assert!(result.is_ok(), "{:?}", result.unwrap_err());
-    let (temp_voltage_files, corr_format, num_gputimes, voltage_file_interval_ms) = result.unwrap();
-    assert_eq!(corr_format, CorrelatorVersion::Legacy);
+    let (temp_voltage_files, mwa_version, num_gputimes, voltage_file_interval_ms) = result.unwrap();
+    assert_eq!(mwa_version, MWAVersion::VCSLegacyRecombined);
     assert_eq!(num_gputimes, 3);
     assert_eq!(voltage_file_interval_ms, 1000);
 
@@ -159,8 +159,8 @@ fn test_determine_voltage_file_gpstime_batches_proper_mwax_format() {
     ];
     let result = determine_voltage_file_gpstime_batches(&files, 1065880128);
     assert!(result.is_ok(), "{:?}", result.unwrap_err());
-    let (temp_voltage_files, corr_format, num_gputimes, voltage_file_interval_ms) = result.unwrap();
-    assert_eq!(corr_format, CorrelatorVersion::V2);
+    let (temp_voltage_files, mwa_version, num_gputimes, voltage_file_interval_ms) = result.unwrap();
+    assert_eq!(mwa_version, MWAVersion::VCSMWAXv2);
     assert_eq!(num_gputimes, 3);
     assert_eq!(voltage_file_interval_ms, 8000);
 
@@ -253,7 +253,7 @@ fn test_determine_voltage_file_gpstime_batches_no_files() {
 }
 
 #[test]
-fn test_determine_voltage_file_correlator_version_mismatch() {
+fn test_determine_voltage_file_mwa_version_mismatch() {
     let files = vec![
         "1065880128_1065880129_ch123.dat",
         "1065880128_1065880129_121.sub",

@@ -123,9 +123,9 @@ fn get_test_ffi_correlator_context() -> *mut CorrelatorContext {
 /// * a raw pointer to an instantiated VoltageContext for the test metafits and voltage file
 ///
 #[cfg(test)]
-fn get_test_ffi_voltage_context(corr_version: CorrelatorVersion) -> *mut VoltageContext {
+fn get_test_ffi_voltage_context(mwa_version: MWAVersion) -> *mut VoltageContext {
     // This returns a a valid voltage context
-    let mut context = get_test_voltage_context(corr_version);
+    let mut context = get_test_voltage_context(mwa_version);
 
     //
     // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
@@ -726,7 +726,7 @@ fn test_mwalib_voltage_context_new_valid_mwaxv2() {
 
     // Setup files
     let created_voltage_files =
-        voltage_context::test::get_test_voltage_files(CorrelatorVersion::V2);
+        voltage_context::test::get_test_voltage_files(MWAVersion::VCSMWAXv2);
     let voltage_file = CString::new(created_voltage_files[0].clone()).unwrap();
 
     let voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
@@ -784,7 +784,7 @@ fn test_mwalib_voltage_context_new_invalid() {
 
     // Setup files
     let created_voltage_files =
-        voltage_context::test::get_test_voltage_files(CorrelatorVersion::V2);
+        voltage_context::test::get_test_voltage_files(MWAVersion::VCSMWAXv2);
     let voltage_file = CString::new(created_voltage_files[0].clone()).unwrap();
 
     let voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
@@ -823,7 +823,7 @@ fn test_mwalib_voltage_context_new_invalid() {
 #[test]
 fn test_mwalib_voltage_context_display() {
     let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(CorrelatorVersion::Legacy);
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
@@ -856,7 +856,7 @@ fn test_mwalib_voltage_context_display_null_ptr() {
 #[test]
 fn test_mwalib_voltage_context_legacy_read_file_valid() {
     let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(CorrelatorVersion::Legacy);
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
@@ -942,7 +942,7 @@ fn test_mwalib_voltage_context_legacy_read_file_valid() {
 #[test]
 fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
     let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(CorrelatorVersion::V2);
+        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2);
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
@@ -1172,7 +1172,7 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
     unsafe {
         // Create a VoltageContext
         let voltage_context_ptr: *mut VoltageContext =
-            get_test_ffi_voltage_context(CorrelatorVersion::Legacy);
+            get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
 
         // Check we got valid MetafitsContext pointer
         let context_ptr = voltage_context_ptr.as_mut();
@@ -1292,7 +1292,7 @@ fn test_mwalib_voltage_metadata_get_valid() {
     unsafe {
         // Create a VoltageContext
         let voltage_context_ptr: *mut VoltageContext =
-            get_test_ffi_voltage_context(CorrelatorVersion::Legacy);
+            get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
 
         // Check we got valid MetafitsContext pointer
         let context_ptr = voltage_context_ptr.as_mut();
@@ -1463,7 +1463,7 @@ fn test_mwalib_antennas_get_from_voltage_context_valid_mwax() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let context = get_test_ffi_voltage_context(CorrelatorVersion::V2);
+        let context = get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2);
 
         // Check we got a context object
         let context_ptr = context.as_mut();
@@ -1650,7 +1650,7 @@ fn test_mwalib_baselines_get_valid_using_voltage_context() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let context = get_test_ffi_voltage_context(CorrelatorVersion::Legacy);
+        let context = get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
 
         // Check we got a context object
         let context_ptr = context.as_mut();
@@ -1813,7 +1813,7 @@ fn test_mwalib_voltage_coarse_channels_get_valid() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let context = get_test_ffi_voltage_context(CorrelatorVersion::Legacy);
+        let context = get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
 
         // Check we got a context object
         let context_ptr = context.as_mut();
@@ -2039,7 +2039,7 @@ fn test_mwalib_rfinputs_get_from_voltage_context_valid() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let context = get_test_ffi_voltage_context(CorrelatorVersion::V2);
+        let context = get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2);
 
         // Check we got a context object
         let context_ptr = context.as_mut();

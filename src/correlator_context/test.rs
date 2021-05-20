@@ -50,7 +50,7 @@ fn test_context_legacy_v1() {
 
     // Test the properties of the context object match what we expect
     // Correlator version:       v1 Legacy,
-    assert_eq!(context.corr_version, CorrelatorVersion::Legacy);
+    assert_eq!(context.mwa_version, MWAVersion::CorrLegacy);
 
     // Actual UNIX start time:   1417468096,
     assert_eq!(context.start_unix_time_ms, 1_417_468_096_000);
@@ -114,7 +114,7 @@ fn test_context_mwax() {
 
     // Test the properties of the context object match what we expect
     // Correlator version:       v2,
-    assert_eq!(context.corr_version, CorrelatorVersion::V2);
+    assert_eq!(context.mwa_version, MWAVersion::CorrMWAXv2);
 
     // Actual UNIX start time:   1560938470,
     assert_eq!(context.start_unix_time_ms, 1_560_938_470_000);
@@ -332,7 +332,7 @@ fn test_validate_first_hdu() {
         fits_open!(&context.gpubox_batches[batch_index].gpubox_files[0].filename).unwrap();
 
     let result_valid = CorrelatorContext::validate_first_hdu(
-        context.corr_version,
+        context.mwa_version,
         context.metafits_context.num_corr_fine_chans_per_coarse,
         context.metafits_context.num_baselines,
         context.metafits_context.num_visibility_pols,
@@ -340,7 +340,7 @@ fn test_validate_first_hdu() {
     );
 
     let result_invalid1 = CorrelatorContext::validate_first_hdu(
-        context.corr_version,
+        context.mwa_version,
         context.metafits_context.num_corr_fine_chans_per_coarse + 1,
         context.metafits_context.num_baselines,
         context.metafits_context.num_visibility_pols,
@@ -348,7 +348,7 @@ fn test_validate_first_hdu() {
     );
 
     let result_invalid2 = CorrelatorContext::validate_first_hdu(
-        context.corr_version,
+        context.mwa_version,
         context.metafits_context.num_corr_fine_chans_per_coarse,
         context.metafits_context.num_baselines + 1,
         context.metafits_context.num_visibility_pols,
@@ -356,7 +356,7 @@ fn test_validate_first_hdu() {
     );
 
     let result_invalid3 = CorrelatorContext::validate_first_hdu(
-        context.corr_version,
+        context.mwa_version,
         context.metafits_context.num_corr_fine_chans_per_coarse,
         context.metafits_context.num_baselines,
         context.metafits_context.num_visibility_pols + 1,
@@ -379,7 +379,7 @@ fn test_validate_hdu_axes_good() {
     let metafits_baselines = 8256;
     let visibility_pols = 4;
     let result_good1 = CorrelatorContext::validate_hdu_axes(
-        CorrelatorVersion::OldLegacy,
+        MWAVersion::CorrOldLegacy,
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
@@ -390,7 +390,7 @@ fn test_validate_hdu_axes_good() {
     assert!(result_good1.is_ok());
 
     let result_good2 = CorrelatorContext::validate_hdu_axes(
-        CorrelatorVersion::Legacy,
+        MWAVersion::CorrLegacy,
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
@@ -401,7 +401,7 @@ fn test_validate_hdu_axes_good() {
     assert!(result_good2.is_ok());
 
     let result_good3 = CorrelatorContext::validate_hdu_axes(
-        CorrelatorVersion::V2,
+        MWAVersion::CorrMWAXv2,
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
@@ -421,7 +421,7 @@ fn test_validate_hdu_axes_naxis_mismatches_oldlegacy() {
 
     // Check for NAXIS1 mismatch
     let result_bad1 = CorrelatorContext::validate_hdu_axes(
-        CorrelatorVersion::OldLegacy,
+        MWAVersion::CorrOldLegacy,
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
@@ -442,7 +442,7 @@ fn test_validate_hdu_axes_naxis_mismatches_oldlegacy() {
 
     // Check for NAXIS2 mismatch
     let result_bad2 = CorrelatorContext::validate_hdu_axes(
-        CorrelatorVersion::OldLegacy,
+        MWAVersion::CorrOldLegacy,
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
@@ -469,7 +469,7 @@ fn test_validate_hdu_axes_naxis_mismatches_legacy() {
 
     // Check for NAXIS1 mismatch
     let result_bad1 = CorrelatorContext::validate_hdu_axes(
-        CorrelatorVersion::Legacy,
+        MWAVersion::CorrLegacy,
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
@@ -490,7 +490,7 @@ fn test_validate_hdu_axes_naxis_mismatches_legacy() {
 
     // Check for NAXIS2 mismatch
     let result_bad2 = CorrelatorContext::validate_hdu_axes(
-        CorrelatorVersion::Legacy,
+        MWAVersion::CorrLegacy,
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
@@ -517,7 +517,7 @@ fn test_validate_hdu_axes_naxis_mismatches_v2() {
 
     // Check for NAXIS1 mismatch
     let result_bad1 = CorrelatorContext::validate_hdu_axes(
-        CorrelatorVersion::V2,
+        MWAVersion::CorrMWAXv2,
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,
@@ -538,7 +538,7 @@ fn test_validate_hdu_axes_naxis_mismatches_v2() {
 
     // Check for NAXIS2 mismatch
     let result_bad2 = CorrelatorContext::validate_hdu_axes(
-        CorrelatorVersion::V2,
+        MWAVersion::CorrMWAXv2,
         metafits_fine_chans_per_coarse,
         metafits_baselines,
         visibility_pols,

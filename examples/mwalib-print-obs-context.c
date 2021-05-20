@@ -175,27 +175,6 @@ int main(int argc, char *argv[])
     // Clean up timesteps
     mwalib_timesteps_free(ts, corr_metadata->num_timesteps);
 
-    // Example of using visibility pols
-    VisibilityPol *vis_pol_array = NULL;
-    size_t nvps = 0;
-
-    if (mwalib_visibility_pols_get(NULL, correlator_context, NULL, &vis_pol_array, &nvps, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
-    {
-        printf("%lu visibility pols returned\n", nvps);
-
-        for (int i = 0; i < metafits_metadata->num_visibility_pols; i++)
-        {
-            printf("mwalibVisibilityPols %d is %s\n", i, vis_pol_array[i].polarisation);
-        }
-    }
-    else
-    {
-        printf("Error getting mwalibVisibilityPols: %s\n", error_message);
-        exit(-1);
-    }
-    // Clean up visibility pols
-    mwalib_visibility_pols_free(vis_pol_array, metafits_metadata->num_visibility_pols);
-
     // Clean up
     mwalib_metafits_metadata_free(metafits_metadata);
     mwalib_correlator_metadata_free(corr_metadata);

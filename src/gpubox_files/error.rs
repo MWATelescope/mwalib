@@ -8,6 +8,8 @@ Errors associated with reading in gpubox files.
 
 use thiserror::Error;
 
+use crate::MWAVersion;
+
 #[derive(Error, Debug)]
 pub enum GpuboxError {
     #[error("Invalid timestep index provided. The timestep index must be between 0 and {0}")]
@@ -91,6 +93,9 @@ maybe you have a mix of different files?"#)]
         calculated_naxis2: i32,
         metafits_baselines: usize,
     },
+
+    #[error("Invalid MWA Version value ({mwa_version}) for this method. Only 'Corr' enum values are allowed here.")]
+    InvalidMwaVersion { mwa_version: MWAVersion },
 
     /// An error derived from `FitsError`.
     #[error("{0}")]

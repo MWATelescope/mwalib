@@ -1227,7 +1227,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
 #[repr(C)]
 pub struct CorrelatorMetadata {
     /// Version of the correlator format
-    pub corr_version: CorrelatorVersion,
+    pub mwa_version: MWAVersion,
     /// The proper start of the observation (the time that is common to all
     /// provided gpubox files).
     pub start_unix_time_ms: u64,
@@ -1301,7 +1301,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
     let out_context = {
         let CorrelatorContext {
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
-            corr_version,
+            mwa_version,
             start_unix_time_ms,
             end_unix_time_ms,
             start_gps_time_ms,
@@ -1320,7 +1320,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             legacy_conversion_table: _, // This is currently not provided to FFI as it is private
         } = context;
         CorrelatorMetadata {
-            corr_version: *corr_version,
+            mwa_version: *mwa_version,
             start_unix_time_ms: *start_unix_time_ms,
             end_unix_time_ms: *end_unix_time_ms,
             start_gps_time_ms: *start_gps_time_ms,
@@ -1377,7 +1377,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
 #[repr(C)]
 pub struct VoltageMetadata {
     /// Version of the correlator format
-    pub corr_version: CorrelatorVersion,
+    pub mwa_version: MWAVersion,
     /// The proper start of the observation (the time that is common to all
     /// provided voltage files).
     pub start_gps_time_ms: u64,
@@ -1469,7 +1469,7 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
     let out_context = {
         let VoltageContext {
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
-            corr_version,
+            mwa_version,
             start_gps_time_ms,
             end_gps_time_ms,
             start_unix_time_ms,
@@ -1496,7 +1496,7 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             voltage_time_map: _, // This is currently not provided to FFI as it is private
         } = context;
         VoltageMetadata {
-            corr_version: *corr_version,
+            mwa_version: *mwa_version,
             start_gps_time_ms: *start_gps_time_ms,
             end_gps_time_ms: *end_gps_time_ms,
             start_unix_time_ms: *start_unix_time_ms,

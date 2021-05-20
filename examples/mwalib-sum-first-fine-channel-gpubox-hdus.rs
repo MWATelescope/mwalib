@@ -31,7 +31,7 @@ fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::from_args();
 
     let context = CorrelatorContext::new(&opts.metafits, &opts.files)?;
-    if context.corr_version != CorrelatorVersion::V2 {
+    if context.mwa_version != MWAVersion::CorrMWAXv2 {
         bail!("Input data is not MWAX data; exiting.");
     }
     let floats_per_fine_chan = context.metafits_context.num_visibility_pols * 2;

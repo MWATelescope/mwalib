@@ -143,7 +143,7 @@ impl CoarseChannel {
     ///
     /// # Arguments    
     ///
-    /// `corr_version` - enum representing the version of the correlator this observation was created with.
+    /// `mwa_version` - enum representing the version of the correlator this observation was created with.
     ///
     /// `metafits_coarse_chan_vec` - A vector of receiver channel numbers expected to be in this observation (from the metafits file).
     ///
@@ -160,7 +160,7 @@ impl CoarseChannel {
     ///                       The width in Hz of each coarse channel
     ///
     pub(crate) fn populate_coarse_channels(
-        corr_version: metafits_context::CorrelatorVersion,
+        mwa_version: metafits_context::MWAVersion,
         metafits_coarse_chan_vec: &[usize],
         metafits_coarse_chan_width_hz: u32,
         gpubox_time_map: Option<&GpuboxTimeMap>,
@@ -182,8 +182,10 @@ impl CoarseChannel {
             // Final Correlator channel number is 0 indexed. e.g. 0..N-1
             let mut correlator_chan_number = i;
 
-            match corr_version {
-                CorrelatorVersion::Legacy | CorrelatorVersion::OldLegacy => {
+            match mwa_version {
+                MWAVersion::CorrLegacy
+                | MWAVersion::CorrOldLegacy
+                | MWAVersion::VCSLegacyRecombined => {
                     // Legacy and Old Legacy: if receiver channel number is >128 then the order is reversed
                     if *rec_chan_number > 128 {
                         if first_chan_index_over_128.is_none() {
@@ -240,7 +242,7 @@ impl CoarseChannel {
                         },
                     }
                 }
-                CorrelatorVersion::V2 => {
+                MWAVersion::CorrMWAXv2 | MWAVersion::VCSMWAXv2 => {
                     // If we have the correlator channel number, then add it to
                     // the output vector.
                     match gpubox_time_map {

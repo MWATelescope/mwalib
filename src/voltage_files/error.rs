@@ -5,6 +5,7 @@
 /*!
 Errors associated with reading in voltage files.
 */
+use crate::MWAVersion;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -65,4 +66,7 @@ maybe you have a mix of different files?"#)]
     },
     #[error("Input BTreeMap was empty")]
     EmptyBTreeMap,
+
+    #[error("Invalid MWA Version value ({mwa_version}) for this method. Only 'VCS' enum values are allowed here.")]
+    InvalidMwaVersion { mwa_version: MWAVersion },
 }
