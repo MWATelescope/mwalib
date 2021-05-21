@@ -94,7 +94,7 @@ impl CorrelatorContext {
         metafits_filename: &T,
         gpubox_filenames: &[T],
     ) -> Result<Self, MwalibError> {
-        let metafits_context = MetafitsContext::new(metafits_filename)?;
+        let metafits_context = MetafitsContext::new_internal(metafits_filename)?;
 
         // Re-open metafits file
         let mut metafits_fptr = fits_open!(&metafits_filename)?;

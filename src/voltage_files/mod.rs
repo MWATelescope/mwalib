@@ -298,8 +298,8 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
     // Determine the interval between files
     let mwa_version = format.unwrap();
     let voltage_file_interval_seconds: u64 = match mwa_version {
-        MWAVersion::VCSMWAXv2 => 8,
-        MWAVersion::VCSLegacyRecombined => 1,
+        MWAVersion::VCSMWAXv2 => MWA_VCS_MWAXV2_SUBFILE_SECONDS,
+        MWAVersion::VCSLegacyRecombined => MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS,
         _ => return Err(VoltageFileError::InvalidMwaVersion { mwa_version }),
     };
 

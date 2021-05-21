@@ -6,8 +6,8 @@ cargo build --release
 
 # Compile the example C code
 gcc -O3 \
-    mwalib-print-obs-context.c \
-    -o mwalib-print-obs-context \
+    mwalib-print-context.c \
+    -o mwalib-print-context \
     -I ../include \
     -lm -lpthread -ldl \
     -L../target/release/ \

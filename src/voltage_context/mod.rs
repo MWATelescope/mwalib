@@ -113,7 +113,7 @@ impl VoltageContext {
         metafits_filename: &T,
         voltage_filenames: &[T],
     ) -> Result<Self, MwalibError> {
-        let mut metafits_context = MetafitsContext::new(metafits_filename)?;
+        let mut metafits_context = MetafitsContext::new_internal(metafits_filename)?;
 
         // Re-open metafits file
         let mut metafits_fptr = fits_open!(&metafits_filename)?;
@@ -158,7 +158,8 @@ impl VoltageContext {
         let fine_chan_width_hz: u32 = match voltage_info.mwa_version {
             MWAVersion::VCSLegacyRecombined => 10_000,
             MWAVersion::VCSMWAXv2 => {
-                metafits_context.obs_bandwidth_hz / metafits_context.num_coarse_chans as u32
+                metafits_context.obs_bandwidth_hz
+                    / metafits_context.num_metafits_coarse_chans as u32
             }
             _ => {
                 return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
@@ -175,10 +176,11 @@ impl VoltageContext {
 
         // We can unwrap here because the `voltage_time_map` can't be empty if
         // `voltages` isn't empty.
-        let timesteps = TimeStep::populate_voltage_timesteps(
+        let timesteps = TimeStep::populate_timesteps(
+            &metafits_context,
+            voltage_info.mwa_version,
             start_gps_time_ms,
-            end_gps_time_ms,
-            voltage_info.voltage_file_interval_ms,
+            duration_ms,
             metafits_context.sched_start_gps_time_ms,
             metafits_context.sched_start_unix_time_ms,
         );

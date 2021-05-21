@@ -7,6 +7,7 @@ Unit tests for timestep metadata
 */
 #[cfg(test)]
 use super::*;
+use crate::MetafitsContext;
 
 #[test]
 fn test_populate_correlator_timesteps() {
@@ -81,69 +82,90 @@ fn test_timestep_new() {
 }
 
 #[test]
-fn test_populate_voltage_timesteps_oldlegacy() {
-    let scheduled_start_gpstime_ms = 1_065_880_139_000;
-    let scheduled_start_unix_ms = 1_381_844_923_000;
-    let timesteps = TimeStep::populate_voltage_timesteps(
-        1_065_880_139_000,
-        1_065_880_143_000,
-        1000,
-        scheduled_start_gpstime_ms,
-        scheduled_start_unix_ms,
-    );
-    assert_eq!(timesteps.len(), 4);
-    assert_eq!(timesteps[0].gps_time_ms, 1_065_880_139_000);
-    assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
-    assert_eq!(timesteps[1].gps_time_ms, 1_065_880_140_000);
-    assert_eq!(timesteps[1].unix_time_ms, 1_381_844_924_000);
-    assert_eq!(timesteps[2].gps_time_ms, 1_065_880_141_000);
-    assert_eq!(timesteps[2].unix_time_ms, 1_381_844_925_000);
-    assert_eq!(timesteps[3].gps_time_ms, 1_065_880_142_000);
-    assert_eq!(timesteps[3].unix_time_ms, 1_381_844_926_000);
+fn test_populate_timesteps_metafits_corr() {
+    let metafits_file = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
+
+    let versions: Vec<MWAVersion> = vec![
+        MWAVersion::CorrOldLegacy,
+        MWAVersion::CorrLegacy,
+        MWAVersion::CorrMWAXv2,
+    ];
+
+    for mwa_version in versions {
+        let metafits_context =
+            MetafitsContext::new_internal(&metafits_file).expect("Error creating metafits context");
+
+        let timesteps = TimeStep::populate_timesteps(
+            &metafits_context,
+            mwa_version,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_duration_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
+        );
+
+        assert_eq!(timesteps.len(), 56);
+        assert_eq!(timesteps[0].gps_time_ms, 1_101_503_312_000);
+        assert_eq!(timesteps[0].unix_time_ms, 1_417_468_096_000);
+        assert_eq!(timesteps[1].gps_time_ms, 1_101_503_314_000);
+        assert_eq!(timesteps[1].unix_time_ms, 1_417_468_098_000);
+        assert_eq!(timesteps[2].gps_time_ms, 1_101_503_316_000);
+        assert_eq!(timesteps[2].unix_time_ms, 1_417_468_100_000);
+        assert_eq!(timesteps[55].gps_time_ms, 1_101_503_422_000);
+        assert_eq!(timesteps[55].unix_time_ms, 1_417_468_206_000);
+    }
 }
 
 #[test]
-fn test_populate_voltage_timesteps_legacy() {
-    let scheduled_start_gpstime_ms = 1_065_880_139_000;
-    let scheduled_start_unix_ms = 1_381_844_923_000;
+fn test_populate_timesteps_metafits_vcs_legacy_recombined() {
+    let metafits_file = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
 
-    let timesteps = TimeStep::populate_voltage_timesteps(
-        1_065_880_139_000,
-        1_065_880_143_000,
-        1000,
-        scheduled_start_gpstime_ms,
-        scheduled_start_unix_ms,
+    let metafits_context =
+        MetafitsContext::new_internal(&metafits_file).expect("Error creating metafits context");
+
+    let timesteps = TimeStep::populate_timesteps(
+        &metafits_context,
+        MWAVersion::VCSLegacyRecombined,
+        metafits_context.sched_start_gps_time_ms,
+        metafits_context.sched_duration_ms,
+        metafits_context.sched_start_gps_time_ms,
+        metafits_context.sched_start_unix_time_ms,
     );
-    assert_eq!(timesteps.len(), 4);
-    assert_eq!(timesteps[0].gps_time_ms, 1_065_880_139_000);
-    assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
-    assert_eq!(timesteps[1].gps_time_ms, 1_065_880_140_000);
-    assert_eq!(timesteps[1].unix_time_ms, 1_381_844_924_000);
-    assert_eq!(timesteps[2].gps_time_ms, 1_065_880_141_000);
-    assert_eq!(timesteps[2].unix_time_ms, 1_381_844_925_000);
-    assert_eq!(timesteps[3].gps_time_ms, 1_065_880_142_000);
-    assert_eq!(timesteps[3].unix_time_ms, 1_381_844_926_000);
+
+    assert_eq!(timesteps.len(), 112);
+    assert_eq!(timesteps[0].gps_time_ms, 1_101_503_312_000);
+    assert_eq!(timesteps[0].unix_time_ms, 1_417_468_096_000);
+    assert_eq!(timesteps[1].gps_time_ms, 1_101_503_313_000);
+    assert_eq!(timesteps[1].unix_time_ms, 1_417_468_097_000);
+    assert_eq!(timesteps[2].gps_time_ms, 1_101_503_314_000);
+    assert_eq!(timesteps[2].unix_time_ms, 1_417_468_098_000);
+    assert_eq!(timesteps[111].gps_time_ms, 1_101_503_423_000);
+    assert_eq!(timesteps[111].unix_time_ms, 1_417_468_207_000);
 }
 
 #[test]
-fn test_populate_voltage_timesteps_mwax() {
-    let scheduled_start_gpstime_ms = 1_065_880_139_000;
-    let scheduled_start_unix_ms = 1_381_844_923_000;
-    let timesteps = TimeStep::populate_voltage_timesteps(
-        1_065_880_139_000,
-        1_065_880_171_000,
-        8000,
-        scheduled_start_gpstime_ms,
-        scheduled_start_unix_ms,
+fn test_populate_timesteps_metafits_vcs_mwaxv2() {
+    let metafits_file = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
+
+    let metafits_context =
+        MetafitsContext::new_internal(&metafits_file).expect("Error creating metafits context");
+
+    let timesteps = TimeStep::populate_timesteps(
+        &metafits_context,
+        MWAVersion::VCSMWAXv2,
+        metafits_context.sched_start_gps_time_ms,
+        metafits_context.sched_duration_ms,
+        metafits_context.sched_start_gps_time_ms,
+        metafits_context.sched_start_unix_time_ms,
     );
 
-    assert_eq!(timesteps.len(), 4);
-    assert_eq!(timesteps[0].gps_time_ms, 1_065_880_139_000);
-    assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
-    assert_eq!(timesteps[1].gps_time_ms, 1_065_880_147_000);
-    assert_eq!(timesteps[1].unix_time_ms, 1_381_844_931_000);
-    assert_eq!(timesteps[2].gps_time_ms, 1_065_880_155_000);
-    assert_eq!(timesteps[2].unix_time_ms, 1_381_844_939_000);
-    assert_eq!(timesteps[3].gps_time_ms, 1_065_880_163_000);
-    assert_eq!(timesteps[3].unix_time_ms, 1_381_844_947_000);
+    assert_eq!(timesteps.len(), 14);
+    assert_eq!(timesteps[0].gps_time_ms, 1_101_503_312_000);
+    assert_eq!(timesteps[0].unix_time_ms, 1_417_468_096_000);
+    assert_eq!(timesteps[1].gps_time_ms, 1_101_503_320_000);
+    assert_eq!(timesteps[1].unix_time_ms, 1_417_468_104_000);
+    assert_eq!(timesteps[2].gps_time_ms, 1_101_503_328_000);
+    assert_eq!(timesteps[2].unix_time_ms, 1_417_468_112_000);
+    assert_eq!(timesteps[13].gps_time_ms, 1_101_503_416_000);
+    assert_eq!(timesteps[13].unix_time_ms, 1_417_468_200_000);
 }

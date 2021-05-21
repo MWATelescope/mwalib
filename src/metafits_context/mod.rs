@@ -199,8 +199,14 @@ pub struct MetafitsContext {
     pub rf_inputs: Vec<Rfinput>,
     /// Number of antenna pols. e.g. X and Y
     pub num_ant_pols: usize,
-    /// Number of coarse channels we should have
-    pub num_coarse_chans: usize,
+    /// Number of timesteps defined in the metafits file
+    pub num_metafits_timesteps: usize,
+    /// Vector of timesteps based on the metafits file
+    pub metafits_timesteps: Vec<TimeStep>,
+    /// Number of coarse channels based on the metafits file
+    pub num_metafits_coarse_chans: usize,
+    /// Vector of coarse channels based on the metafits file
+    pub metafits_coarse_chans: Vec<CoarseChannel>,
     /// Total bandwidth of observation assuming we have all coarse channels
     pub obs_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
@@ -218,9 +224,7 @@ pub struct MetafitsContext {
 }
 
 impl MetafitsContext {
-    /// From a path to a metafits file, create a `MetafitsContext`.
-    ///
-    /// The traits on the input parameter allows flexibility to input type.
+    /// From a path to a metafits file, create a `MetafitsContext`.        
     ///
     /// # Arguments
     ///
@@ -232,7 +236,38 @@ impl MetafitsContext {
     /// * Result containing a populated MetafitsContext object if Ok.
     ///
     ///
-    pub fn new<T: AsRef<std::path::Path>>(metafits: &T) -> Result<Self, MwalibError> {
+    pub fn new<T: AsRef<std::path::Path>>(
+        metafits: &T,
+        mwa_version: MWAVersion,
+    ) -> Result<Self, MwalibError> {
+        // Call the internal new metafits method
+        let mut new_context = MetafitsContext::new_internal(metafits)?;
+
+        // Populate the coarse channels
+        new_context.populate_expected_coarse_channels(mwa_version)?;
+
+        // Populate the timesteps
+        new_context.populate_expected_timesteps(mwa_version)?;
+
+        // Return the new context
+        Ok(new_context)
+    }
+
+    /// From a path to a metafits file, create a `MetafitsContext`.
+    ///
+    /// # Arguments
+    ///
+    /// * `metafits_filename` - filename of metafits file as a path or string.        
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a populated MetafitsContext object if Ok.
+    ///
+    ///
+    pub(crate) fn new_internal<T: AsRef<std::path::Path>>(
+        metafits: &T,
+    ) -> Result<Self, MwalibError> {
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
         let mut metafits_fptr = fits_open!(&metafits)?;
@@ -266,7 +301,7 @@ impl MetafitsContext {
             num_rf_inputs,
             &mut metafits_fptr,
             metafits_tile_table_hdu,
-            COAX_V_FACTOR,
+            MWA_COAX_V_FACTOR,
         )?;
 
         // Sort the rf_inputs back into the correct output order
@@ -309,6 +344,10 @@ impl MetafitsContext {
             let ex: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "EXPOSURE")?;
             ex * 1000
         };
+        let num_metafits_timesteps: usize = 0;
+
+        let metafits_timesteps: Vec<TimeStep> = Vec::new();
+
         let scheduled_end_utc =
             scheduled_start_utc + Duration::milliseconds(scheduled_duration_ms as i64);
 
@@ -395,6 +434,9 @@ impl MetafitsContext {
                 metafits_observation_bandwidth_hz,
             )?;
 
+        let metafits_coarse_chans: Vec<CoarseChannel> =
+            Vec::with_capacity(metafits_coarse_chan_vec.len());
+
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.
         let fine_chan_width_hz: u32 = {
@@ -453,7 +495,10 @@ impl MetafitsContext {
             num_rf_inputs,
             rf_inputs,
             num_ant_pols: num_antenna_pols,
-            num_coarse_chans: metafits_coarse_chan_vec.len(),
+            metafits_coarse_chans,
+            num_metafits_timesteps,
+            metafits_timesteps,
+            num_metafits_coarse_chans: metafits_coarse_chan_vec.len(),
             obs_bandwidth_hz: metafits_observation_bandwidth_hz,
             coarse_chan_width_hz: metafits_coarse_chan_width_hz,
             centre_freq_hz,
@@ -468,10 +513,8 @@ impl MetafitsContext {
         })
     }
 
-    /// Given a hint at the expected `MWAVersion`, return a vector containing the expected
+    /// Given a hint at the expected `MWAVersion`, populate the coarse_channel vector with the expected
     /// coarse channels for an existing populated MetafitsContext.
-    ///
-    /// The traits on the input parameters allow flexibility to input types.
     ///
     /// # Arguments    
     ///
@@ -480,13 +523,13 @@ impl MetafitsContext {
     ///
     /// # Returns
     ///
-    /// * Result containing a populated vector of `CoarseChannel`s which represent the expected coarse channels.
+    /// * Result containing ok or an error
     ///
     ///
-    pub fn get_expected_coarse_channels(
-        &self,
+    pub fn populate_expected_coarse_channels(
+        &mut self,
         mwa_version: MWAVersion,
-    ) -> Result<Vec<CoarseChannel>, MwalibError> {
+    ) -> Result<(), MwalibError> {
         // Reopen metafits
         let mut metafits_fptr = fits_open!(&self.metafits_filename)?;
         let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
@@ -500,15 +543,51 @@ impl MetafitsContext {
             )?;
 
         // Process the channels based on the gpubox files we have
-        let coarse_chans = CoarseChannel::populate_coarse_channels(
-            mwa_version,
-            &metafits_coarse_chan_vec,
-            metafits_coarse_chan_width_hz,
-            None,
-            None,
-        )?;
+        self.metafits_coarse_chans.extend(
+            CoarseChannel::populate_coarse_channels(
+                mwa_version,
+                &metafits_coarse_chan_vec,
+                metafits_coarse_chan_width_hz,
+                None,
+                None,
+            )?
+            .into_iter(),
+        );
 
-        Ok(coarse_chans)
+        Ok(())
+    }
+
+    /// Given a hint at the expected `MWAVersion`, populate the timesteps vector with the expected
+    /// timesteps for an existing populated MetafitsContext.
+    ///
+    /// # Arguments    
+    ///
+    /// * `mwa_version` - Hint, providing the `MWAVersion` info, so the expected `TimeStep`s can be returned.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * Result containing ok or an error
+    ///
+    ///
+    pub fn populate_expected_timesteps(
+        &mut self,
+        mwa_version: MWAVersion,
+    ) -> Result<(), MwalibError> {
+        // Process the channels based on the gpubox files we have
+        self.metafits_timesteps.extend(
+            TimeStep::populate_timesteps(
+                self,
+                mwa_version,
+                self.sched_start_gps_time_ms,
+                self.sched_duration_ms,
+                self.sched_start_gps_time_ms,
+                self.sched_start_unix_time_ms,
+            )
+            .into_iter(),
+        );
+
+        Ok(())
     }
 }
 

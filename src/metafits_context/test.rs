@@ -14,7 +14,7 @@ fn test_metafits_context_new_invalid() {
     let metafits_filename = "invalid.metafits";
 
     // No gpubox files provided
-    let context = MetafitsContext::new(&metafits_filename);
+    let context = MetafitsContext::new(&metafits_filename, MWAVersion::CorrMWAXv2);
 
     assert!(context.is_err());
 }
@@ -28,8 +28,8 @@ fn test_metafits_context_new_valid() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context =
-        MetafitsContext::new(&metafits_filename).expect("Failed to create MetafitsContext");
+    let context = MetafitsContext::new(&metafits_filename, MWAVersion::CorrLegacy)
+        .expect("Failed to create MetafitsContext");
 
     // Test the properties of the context object match what we expect
 
@@ -193,120 +193,137 @@ fn test_metafits_context_new_valid() {
 }
 
 #[test]
-fn test_get_expected_coarse_channels_old_legacy() {
+fn test_populate_expected_timesteps() {
+    // Note the timesteps returned are fully tested in the timesteps tests, so this is checking the metafits_context calling of that code
     // Open the test metafits file
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
-    // Open a context and load in a test metafits
-    let result = MetafitsContext::new(&metafits_filename);
+    let mwa_versions: Vec<MWAVersion> = vec![
+        MWAVersion::CorrOldLegacy,
+        MWAVersion::CorrLegacy,
+        MWAVersion::CorrMWAXv2,
+        MWAVersion::VCSLegacyRecombined,
+        MWAVersion::VCSMWAXv2,
+    ];
 
-    assert!(result.is_ok());
+    for mwa_version in mwa_versions {
+        // Open a context and load in a test metafits
+        let result = MetafitsContext::new_internal(&metafits_filename);
 
-    let context = result.unwrap();
+        assert!(result.is_ok());
 
-    let ecc_result = context.get_expected_coarse_channels(MWAVersion::CorrOldLegacy);
+        let mut context = result.unwrap();
 
-    assert!(ecc_result.is_ok());
+        let ets_result = context.populate_expected_timesteps(mwa_version);
 
-    let chans = ecc_result.unwrap();
+        assert!(ets_result.is_ok());
 
-    assert_eq!(chans.len(), 24);
-
-    assert_eq!(chans[0].corr_chan_number, 0);
-    assert_eq!(chans[0].rec_chan_number, 109);
-
-    assert_eq!(chans[19].corr_chan_number, 19);
-    assert_eq!(chans[19].rec_chan_number, 128);
-
-    assert_eq!(chans[20].corr_chan_number, 23);
-    assert_eq!(chans[20].rec_chan_number, 129);
-
-    assert_eq!(chans[21].corr_chan_number, 22);
-    assert_eq!(chans[21].rec_chan_number, 130);
-
-    assert_eq!(chans[22].corr_chan_number, 21);
-    assert_eq!(chans[22].rec_chan_number, 131);
-
-    assert_eq!(chans[23].corr_chan_number, 20);
-    assert_eq!(chans[23].rec_chan_number, 132);
+        // Confirm basic info
+        assert_eq!(
+            context.metafits_timesteps.len(),
+            match mwa_version {
+                MWAVersion::CorrOldLegacy | MWAVersion::CorrLegacy | MWAVersion::CorrMWAXv2 => {
+                    56
+                }
+                MWAVersion::VCSLegacyRecombined => {
+                    112
+                }
+                MWAVersion::VCSMWAXv2 => {
+                    14
+                }
+            }
+        );
+    }
 }
 
 #[test]
-fn test_get_expected_coarse_channels_legacy() {
+fn test_populate_expected_coarse_channels_legacy() {
     // Open the test metafits file
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
-    // Open a context and load in a test metafits
-    let result = MetafitsContext::new(&metafits_filename);
+    let mwa_versions: Vec<MWAVersion> = vec![
+        MWAVersion::CorrOldLegacy,
+        MWAVersion::CorrLegacy,
+        MWAVersion::VCSLegacyRecombined,
+    ];
 
-    assert!(result.is_ok());
+    for mwa_version in mwa_versions {
+        // Open a context and load in a test metafits
+        let result = MetafitsContext::new_internal(&metafits_filename);
 
-    let context = result.unwrap();
+        assert!(result.is_ok());
 
-    let ecc_result = context.get_expected_coarse_channels(MWAVersion::CorrLegacy);
+        let mut context = result.unwrap();
 
-    assert!(ecc_result.is_ok());
+        let ecc_result = context.populate_expected_coarse_channels(mwa_version);
 
-    let chans = ecc_result.unwrap();
+        assert!(ecc_result.is_ok());
 
-    assert_eq!(chans.len(), 24);
+        let chans = context.metafits_coarse_chans;
 
-    assert_eq!(chans[0].corr_chan_number, 0);
-    assert_eq!(chans[0].rec_chan_number, 109);
+        assert_eq!(chans.len(), 24);
 
-    assert_eq!(chans[19].corr_chan_number, 19);
-    assert_eq!(chans[19].rec_chan_number, 128);
+        assert_eq!(chans[0].corr_chan_number, 0);
+        assert_eq!(chans[0].rec_chan_number, 109);
 
-    assert_eq!(chans[20].corr_chan_number, 23);
-    assert_eq!(chans[20].rec_chan_number, 129);
+        assert_eq!(chans[19].corr_chan_number, 19);
+        assert_eq!(chans[19].rec_chan_number, 128);
 
-    assert_eq!(chans[21].corr_chan_number, 22);
-    assert_eq!(chans[21].rec_chan_number, 130);
+        assert_eq!(chans[20].corr_chan_number, 23);
+        assert_eq!(chans[20].rec_chan_number, 129);
 
-    assert_eq!(chans[22].corr_chan_number, 21);
-    assert_eq!(chans[22].rec_chan_number, 131);
+        assert_eq!(chans[21].corr_chan_number, 22);
+        assert_eq!(chans[21].rec_chan_number, 130);
 
-    assert_eq!(chans[23].corr_chan_number, 20);
-    assert_eq!(chans[23].rec_chan_number, 132);
+        assert_eq!(chans[22].corr_chan_number, 21);
+        assert_eq!(chans[22].rec_chan_number, 131);
+
+        assert_eq!(chans[23].corr_chan_number, 20);
+        assert_eq!(chans[23].rec_chan_number, 132);
+    }
 }
 
 #[test]
-fn test_get_expected_coarse_channels_v2() {
+fn test_populate_expected_coarse_channels_corr_mwaxv2() {
     // Open the test metafits file
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
-    // Open a context and load in a test metafits
-    let result = MetafitsContext::new(&metafits_filename);
+    let mwa_versions: Vec<MWAVersion> = vec![MWAVersion::CorrMWAXv2, MWAVersion::VCSMWAXv2];
 
-    assert!(result.is_ok());
+    for mwa_version in mwa_versions {
+        // Open a context and load in a test metafits
+        let result = MetafitsContext::new_internal(&metafits_filename);
 
-    let context = result.unwrap();
+        assert!(result.is_ok());
 
-    let ecc_result = context.get_expected_coarse_channels(MWAVersion::CorrMWAXv2);
+        let mut context = result.unwrap();
 
-    assert!(ecc_result.is_ok());
+        let ecc_result = context.populate_expected_coarse_channels(mwa_version);
 
-    let chans = ecc_result.unwrap();
+        assert!(ecc_result.is_ok());
 
-    assert_eq!(chans.len(), 24);
+        let chans = context.metafits_coarse_chans;
 
-    assert_eq!(chans[0].corr_chan_number, 0);
-    assert_eq!(chans[0].rec_chan_number, 109);
+        assert_eq!(chans.len(), 24);
 
-    assert_eq!(chans[19].corr_chan_number, 19);
-    assert_eq!(chans[19].rec_chan_number, 128);
+        assert_eq!(chans[0].corr_chan_number, 0);
+        assert_eq!(chans[0].rec_chan_number, 109);
 
-    assert_eq!(chans[20].corr_chan_number, 20);
-    assert_eq!(chans[20].rec_chan_number, 129);
+        assert_eq!(chans[19].corr_chan_number, 19);
+        assert_eq!(chans[19].rec_chan_number, 128);
 
-    assert_eq!(chans[21].corr_chan_number, 21);
-    assert_eq!(chans[21].rec_chan_number, 130);
+        assert_eq!(chans[20].corr_chan_number, 20);
+        assert_eq!(chans[20].rec_chan_number, 129);
 
-    assert_eq!(chans[22].corr_chan_number, 22);
-    assert_eq!(chans[22].rec_chan_number, 131);
+        assert_eq!(chans[21].corr_chan_number, 21);
+        assert_eq!(chans[21].rec_chan_number, 130);
 
-    assert_eq!(chans[23].corr_chan_number, 23);
-    assert_eq!(chans[23].rec_chan_number, 132);
+        assert_eq!(chans[22].corr_chan_number, 22);
+        assert_eq!(chans[22].rec_chan_number, 131);
+
+        assert_eq!(chans[23].corr_chan_number, 23);
+        assert_eq!(chans[23].rec_chan_number, 132);
+    }
 }
 
 #[test]

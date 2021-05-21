@@ -19,7 +19,7 @@ use voltage_context::test::get_test_voltage_context;
 ///
 /// # Arguments
 ///
-/// * None
+/// * `mwa_version` - Enum telling mwalib the mwa_version it should be using to interpret the metafits file.
 ///
 ///
 /// # Returns
@@ -27,7 +27,7 @@ use voltage_context::test::get_test_voltage_context;
 /// * a raw pointer to an instantiated MetafitsContext for the test metafits and gpubox file
 ///
 #[cfg(test)]
-fn get_test_ffi_metafits_context() -> *mut MetafitsContext {
+fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut MetafitsContext {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *const c_char;
@@ -41,6 +41,7 @@ fn get_test_ffi_metafits_context() -> *mut MetafitsContext {
         let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
         let retval = mwalib_metafits_context_new(
             metafits_file_ptr,
+            mwa_version,
             &mut metafits_context_ptr,
             error_message_ptr,
             error_len,
@@ -249,6 +250,7 @@ fn test_mwalib_metafits_context_new_valid() {
         let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
         let retval = mwalib_metafits_context_new(
             metafits_file_ptr,
+            MWAVersion::CorrLegacy,
             &mut metafits_context_ptr,
             error_message_ptr,
             error_len,
@@ -285,6 +287,7 @@ fn test_mwalib_metafits_context_new_invalid() {
         let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
         let retval = mwalib_metafits_context_new(
             metafits_file_ptr,
+            MWAVersion::CorrLegacy,
             &mut metafits_context_ptr,
             error_message_ptr,
             error_len,
@@ -309,7 +312,8 @@ fn test_mwalib_metafits_context_new_invalid() {
 
 #[test]
 fn test_mwalib_metafits_context_display() {
-    let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context();
+    let metafits_context_ptr: *mut MetafitsContext =
+        get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
@@ -1042,7 +1046,8 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *const c_char;
     // Create a MetafitsContext
-    let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context();
+    let metafits_context_ptr: *mut MetafitsContext =
+        get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
     unsafe {
         // Check we got valid MetafitsContext pointer
         let context_ptr = metafits_context_ptr.as_mut();
@@ -1363,7 +1368,7 @@ fn test_mwalib_antennas_get_from_metafits_context_valid() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let context = get_test_ffi_metafits_context();
+        let context = get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
 
         // Check we got a context object
         let context_ptr = context.as_mut();
@@ -1546,7 +1551,7 @@ fn test_mwalib_baselines_get_valid_using_metafits_context() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let context = get_test_ffi_metafits_context();
+        let context = get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
 
         // Check we got a context object
         let context_ptr = context.as_mut();
@@ -1899,7 +1904,7 @@ fn test_mwalib_rfinputs_get_from_metafits_context_valid() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let context = get_test_ffi_metafits_context();
+        let context = get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
 
         // Check we got a context object
         let context_ptr = context.as_mut();
@@ -1947,7 +1952,7 @@ fn test_mwalib_rfinputs_free() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let context = get_test_ffi_metafits_context();
+        let context = get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
 
         // Check we got a context object
         let context_ptr = context.as_mut();

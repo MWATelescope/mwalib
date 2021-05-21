@@ -6,6 +6,8 @@
 Structs and helper methods for timestep metadata
 */
 use crate::misc;
+use crate::{metafits_context, MWAVersion, MetafitsContext};
+use crate::{MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS, MWA_VCS_MWAXV2_SUBFILE_SECONDS};
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -89,15 +91,17 @@ impl TimeStep {
         Some(timesteps)
     }
 
-    /// Creates a new, populated vector of TimeStep structs
+    /// This creates a populated vector of `TimeStep` structs
     ///
-    /// # Arguments
+    /// # Arguments    
+    ///
+    /// * `metafits_context` - Reference to populated MetafitsContext
+    ///
+    /// * `mwa_version` - enum representing the version of the correlator this observation was created with.
     ///
     /// * `start_gps_time_ms` - GPS time (in ms) of first common voltage file.
     ///
-    /// * `end_gps_time_ms` - GPS time (in ms) of last common voltage file + voltage_file_interval_ms.
-    ///
-    /// * `voltage_file_interval_ms` - Time interval (in ms) each voltage file represents.
+    /// * `duration_ms` - Duration (in ms).        
     ///
     /// * `scheduled_starttime_gps_ms` - Scheduled start time of the observation based on GPSTIME in the metafits (obsid).
     ///
@@ -105,18 +109,31 @@ impl TimeStep {
     ///
     /// # Returns
     ///
-    /// * A populated vector of TimeStep structs from start to end, spaced by voltage_file_interval_ms.
+    /// * A populated vector of TimeStep structs from start to end.
     ///
-    pub(crate) fn populate_voltage_timesteps(
+    pub(crate) fn populate_timesteps(
+        metafits_context: &MetafitsContext,
+        mwa_version: metafits_context::MWAVersion,
         start_gps_time_ms: u64,
-        end_gps_time_ms: u64,
-        voltage_file_interval_ms: u64,
+        duration_ms: u64,
         scheduled_starttime_gps_ms: u64,
         scheduled_starttime_unix_ms: u64,
     ) -> Vec<Self> {
-        let mut timesteps: Vec<TimeStep> = vec![];
+        // Determine the interval between timesteps
+        let interval_ms: u64 = match mwa_version {
+            MWAVersion::CorrOldLegacy | MWAVersion::CorrLegacy | MWAVersion::CorrMWAXv2 => {
+                metafits_context.corr_int_time_ms
+            }
+            MWAVersion::VCSLegacyRecombined => MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS * 1000,
+            MWAVersion::VCSMWAXv2 => MWA_VCS_MWAXV2_SUBFILE_SECONDS * 1000,
+        };
+
+        // Init our vector
+        let mut timesteps_vec: Vec<Self> = vec![];
+
+        // Populate the vector (note use of ..= here for an INCLUSIVE for loop)
         for gps_time in
-            (start_gps_time_ms..end_gps_time_ms).step_by(voltage_file_interval_ms as usize)
+            (start_gps_time_ms..start_gps_time_ms + duration_ms).step_by(interval_ms as usize)
         {
             let unix_time_ms = misc::convert_gpstime_to_unixtime(
                 gps_time,
@@ -124,10 +141,10 @@ impl TimeStep {
                 scheduled_starttime_unix_ms,
             );
 
-            timesteps.push(Self::new(unix_time_ms, gps_time));
+            timesteps_vec.push(Self::new(unix_time_ms, gps_time));
         }
 
-        timesteps
+        timesteps_vec
     }
 }
 

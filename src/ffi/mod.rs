@@ -180,6 +180,8 @@ fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
 ///
 /// * `metafits_filename` - pointer to char* buffer containing the full path and filename of a metafits file.
 ///
+/// * `mwa_version` - enum providing mwalib with the intended mwa version which the metafits should be interpreted.
+///
 /// * `out_metafits_context_ptr` - A Rust-owned populated `MetafitsContext` pointer. Free with `mwalib_metafits_context_free'.
 ///
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
@@ -198,6 +200,7 @@ fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_metafits_context_new(
     metafits_filename: *const c_char,
+    mwa_version: MWAVersion,
     out_metafits_context_ptr: &mut *mut MetafitsContext,
     error_message: *const c_char,
     error_message_length: size_t,
@@ -206,7 +209,7 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
         .to_str()
         .unwrap()
         .to_string();
-    let context = match MetafitsContext::new(&m) {
+    let context = match MetafitsContext::new(&m, mwa_version) {
         Ok(c) => c,
         Err(e) => {
             set_error_message(
@@ -989,8 +992,10 @@ pub struct MetafitsMetadata {
     pub num_baselines: usize,
     /// Number of visibility_pols
     pub num_visibility_pols: usize,
-    /// Number of coarse channels we should have
-    pub num_coarse_chans: usize,
+    /// Number of coarse channels based on the metafits
+    pub num_metafits_coarse_chans: usize,
+    /// Number of timesteps based on the metafits
+    pub num_metafits_timesteps: usize,
     /// Total bandwidth of observation assuming we have all coarse channels
     pub obs_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
@@ -1120,7 +1125,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_baselines,
             baselines: _, // This is provided by the seperate baseline struct in FFI
             num_visibility_pols,
-            num_coarse_chans,
+            metafits_timesteps: _, // This is provided by the seperate timestep struct in FFI
+            num_metafits_timesteps,
+            metafits_coarse_chans: _, // This is provided by the seperate coarse channel struct in FFI
+            num_metafits_coarse_chans,
             obs_bandwidth_hz,
             coarse_chan_width_hz,
             centre_freq_hz,
@@ -1174,7 +1182,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_ant_pols: *num_ant_pols,
             num_baselines: *num_baselines,
             num_visibility_pols: *num_visibility_pols,
-            num_coarse_chans: *num_coarse_chans,
+            num_metafits_coarse_chans: *num_metafits_coarse_chans,
+            num_metafits_timesteps: *num_metafits_timesteps,
             obs_bandwidth_hz: *obs_bandwidth_hz,
             coarse_chan_width_hz: *coarse_chan_width_hz,
             centre_freq_hz: *centre_freq_hz,
