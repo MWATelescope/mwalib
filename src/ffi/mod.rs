@@ -1758,7 +1758,7 @@ pub struct Baseline {
 ///
 /// # Safety
 /// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
+/// * `metafits_context_ptr`, xor `correlator_context_ptr`, xor `voltage_context_ptr` must point to a populated Context object.
 /// * Caller must call `mwalib_baselines_free` once finished, to free the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_baselines_get(
@@ -1881,11 +1881,15 @@ pub struct CoarseChannel {
     pub chan_end_hz: u32,
 }
 
-/// This passes a pointer to an array of correlator coarse channel
+/// This passes a pointer to an array of coarse channels
 ///
 /// # Arguments
 ///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
+/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
+///
+/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
 ///
 /// * `out_coarse_chans_ptr` - A Rust-owned populated `CoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
 ///
@@ -1903,112 +1907,54 @@ pub struct CoarseChannel {
 ///
 /// # Safety
 /// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `correlator_context_ptr` must point to a populated `mwalibCorrelatorContext` object from the `mwalib_correlator_context_new` function.
+/// * `metafits_context_ptr`, xor `correlator_context_ptr`, xor `voltage_context_ptr` must point to a populated Context object.
 /// * Caller must call `mwalib_coarse_channels_free` once finished, to free the rust memory.
 #[no_mangle]
-pub unsafe extern "C" fn mwalib_correlator_coarse_channels_get(
+pub unsafe extern "C" fn mwalib_coarse_channels_get(
+    metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
+    voltage_context_ptr: *mut VoltageContext,
     out_coarse_chans_ptr: &mut *mut CoarseChannel,
     out_coarse_chans_len: &mut size_t,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    if correlator_context_ptr.is_null() {
+    // Ensure only either metafits XOR correlator XOR voltage context is passed in
+    if !(!metafits_context_ptr.is_null()
+        ^ !correlator_context_ptr.is_null()
+        ^ !voltage_context_ptr.is_null())
+    {
         set_error_message(
-            "mwalib_correlator_coarse_channels_get() ERROR: null pointer for correlator_context_ptr passed in",
+            "mwalib_coarse_channels_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
             error_message as *mut u8,
             error_message_length,
         );
         return 1;
     }
-    let context = &*correlator_context_ptr;
+
+    let context_coarse_chans: &Vec<coarse_channel::CoarseChannel>;
+
+    // Create our metafits context pointer depending on what was passed in
+    if !metafits_context_ptr.is_null() {
+        // Caller passed in a metafits context, so use that
+        let metafits_context = &*metafits_context_ptr;
+        context_coarse_chans = &metafits_context.metafits_coarse_chans;
+    } else if !correlator_context_ptr.is_null() {
+        // Caller passed in a correlator context, so use that
+        let corr_context = &*correlator_context_ptr;
+        context_coarse_chans = &corr_context.coarse_chans;
+    } else {
+        // Caller passed in a voltage context, so use that
+        let volt_context = &*voltage_context_ptr;
+        context_coarse_chans = &volt_context.coarse_chans;
+    }
 
     let mut item_vec: Vec<CoarseChannel> = Vec::new();
 
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    for item in context.coarse_chans.iter() {
-        let out_item = {
-            let coarse_channel::CoarseChannel {
-                corr_chan_number,
-                rec_chan_number,
-                gpubox_number,
-                chan_width_hz,
-                chan_start_hz,
-                chan_centre_hz,
-                chan_end_hz,
-            } = item;
-            CoarseChannel {
-                corr_chan_number: *corr_chan_number,
-                rec_chan_number: *rec_chan_number,
-                gpubox_number: *gpubox_number,
-                chan_width_hz: *chan_width_hz,
-                chan_start_hz: *chan_start_hz,
-                chan_centre_hz: *chan_centre_hz,
-                chan_end_hz: *chan_end_hz,
-            }
-        };
-
-        item_vec.push(out_item);
-    }
-
-    // Pass back the array and length of the array
-    *out_coarse_chans_len = item_vec.len();
-    *out_coarse_chans_ptr = ffi_array_to_boxed_slice(item_vec);
-
-    // return success
-    0
-}
-
-/// This passes a pointer to an array of voltage coarse channel
-///
-/// # Arguments
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
-///
-/// * `out_coarse_chans_ptr` - A Rust-owned populated `CoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
-///
-/// * `out_coarse_chans_len` - Coarse channel array length.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * 0 on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `voltage_context_ptr` must point to a populated `mwalibVoltageContext` object from the `mwalib_voltage_context_new` function.
-/// * Caller must call `mwalib_coarse_channels_free` once finished, to free the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
-    voltage_context_ptr: *mut VoltageContext,
-    out_coarse_chans_ptr: &mut *mut CoarseChannel,
-    out_coarse_chans_len: &mut usize,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    if voltage_context_ptr.is_null() {
-        set_error_message(
-            "mwalib_voltage_coarse_channels_get() ERROR: null pointer for voltage_context_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return 1;
-    }
-    let context = &*voltage_context_ptr;
-
-    let mut item_vec: Vec<CoarseChannel> = Vec::new();
-
-    // We explicitly break out the attributes so at compile time it will let us know
-    // if there have been new fields added to the rust struct, then we can choose to
-    // ignore them (with _) or add that field to the FFI struct.
-    for item in context.coarse_chans.iter() {
+    for item in context_coarse_chans.iter() {
         let out_item = {
             let coarse_channel::CoarseChannel {
                 corr_chan_number,
@@ -2057,7 +2003,7 @@ pub unsafe extern "C" fn mwalib_voltage_coarse_channels_get(
 ///
 /// # Safety
 /// * This must be called once caller is finished with the `CoarseChannel` array
-/// * `coarse_chan_ptr` must point to a populated `CoarseChannel` array from the `mwalib_correlator_coarse_channels_get` function.
+/// * `coarse_chan_ptr` must point to a populated `CoarseChannel` array from the `mwalib_coarse_channels_get` function.
 /// * `coarse_chan_ptr` must not have already been freed.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_coarse_channels_free(
@@ -2288,7 +2234,11 @@ pub struct TimeStep {
 ///
 /// # Arguments
 ///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
+/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
+///
+/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
 ///
 /// * `out_timesteps_ptr` - A Rust-owned populated `TimeStep` struct. Free with `mwalib_timestep_free`.
 ///
@@ -2306,102 +2256,54 @@ pub struct TimeStep {
 ///
 /// # Safety
 /// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
+/// * `metafits_context_ptr`, xor `correlator_context_ptr`, xor `voltage_context_ptr` must point to a populated Context object.
 /// * Caller must call `mwalib_timestep_free` once finished, to free the rust memory.
 #[no_mangle]
-pub unsafe extern "C" fn mwalib_correlator_timesteps_get(
+pub unsafe extern "C" fn mwalib_timesteps_get(
+    metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
-    out_timesteps_ptr: &mut *mut TimeStep,
-    out_timesteps_len: &mut size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    if correlator_context_ptr.is_null() {
-        set_error_message(
-            "mwalib_correlator_timesteps_get() ERROR: null pointer for correlator_context_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return 1;
-    }
-    let context = &*correlator_context_ptr;
-
-    let mut item_vec: Vec<TimeStep> = Vec::new();
-
-    // We explicitly break out the attributes so at compile time it will let us know
-    // if there have been new fields added to the rust struct, then we can choose to
-    // ignore them (with _) or add that field to the FFI struct.
-    for item in context.timesteps.iter() {
-        let out_item = {
-            let timestep::TimeStep {
-                unix_time_ms,
-                gps_time_ms,
-            } = item;
-            TimeStep {
-                unix_time_ms: *unix_time_ms,
-                gps_time_ms: *gps_time_ms,
-            }
-        };
-
-        item_vec.push(out_item);
-    }
-
-    // Pass back the array and length of the array
-    *out_timesteps_len = item_vec.len();
-    *out_timesteps_ptr = ffi_array_to_boxed_slice(item_vec);
-
-    // Return success
-    0
-}
-
-/// This passes a pointer to an array of timesteps
-///
-/// # Arguments
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
-///
-/// * `out_timesteps_ptr` - A Rust-owned populated `TimeStep` struct. Free with `mwalib_timestep_free`.
-///
-/// * `out_timesteps_len` - Timesteps array length.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * 0 on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `voltage_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_voltage_context_new` function.
-/// * Caller must call `mwalib_timestep_free` once finished, to free the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_timesteps_get(
     voltage_context_ptr: *mut VoltageContext,
     out_timesteps_ptr: &mut *mut TimeStep,
     out_timesteps_len: &mut size_t,
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    if voltage_context_ptr.is_null() {
+    // Ensure only either metafits XOR correlator XOR voltage context is passed in
+    if !(!metafits_context_ptr.is_null()
+        ^ !correlator_context_ptr.is_null()
+        ^ !voltage_context_ptr.is_null())
+    {
         set_error_message(
-            "mwalib_voltage_timesteps_get() ERROR: null pointer for voltage_context_ptr passed in",
+            "mwalib_timesteps_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
             error_message as *mut u8,
             error_message_length,
         );
         return 1;
     }
-    let context = &*voltage_context_ptr;
+
+    let context_timesteps: &Vec<timestep::TimeStep>;
+
+    // Create our metafits context pointer depending on what was passed in
+    if !metafits_context_ptr.is_null() {
+        // Caller passed in a metafits context, so use that
+        let metafits_context = &*metafits_context_ptr;
+        context_timesteps = &metafits_context.metafits_timesteps;
+    } else if !correlator_context_ptr.is_null() {
+        // Caller passed in a correlator context, so use that
+        let corr_context = &*correlator_context_ptr;
+        context_timesteps = &corr_context.timesteps;
+    } else {
+        // Caller passed in a voltage context, so use that
+        let volt_context = &*voltage_context_ptr;
+        context_timesteps = &volt_context.timesteps;
+    }
 
     let mut item_vec: Vec<TimeStep> = Vec::new();
 
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    for item in context.timesteps.iter() {
+    for item in context_timesteps.iter() {
         let out_item = {
             let timestep::TimeStep {
                 unix_time_ms,
