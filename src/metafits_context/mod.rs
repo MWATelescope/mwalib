@@ -101,6 +101,57 @@ impl fmt::Display for VisPol {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum GeometricDelaysApplied {
+    /// None
+    None = 0,
+    Zenith = 1,
+    TilePointing = 2,
+    AzElTracking = 3,
+}
+
+/// Implements fmt::Display for GeometricDelaysApplied struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+impl fmt::Display for GeometricDelaysApplied {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                GeometricDelaysApplied::None => "None",
+                GeometricDelaysApplied::Zenith => "Zenith",
+                GeometricDelaysApplied::TilePointing => "Tile Pointing",
+                GeometricDelaysApplied::AzElTracking => "Az/El Tracking",
+            }
+        )
+    }
+}
+
+impl std::str::FromStr for GeometricDelaysApplied {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<GeometricDelaysApplied, Self::Err> {
+        match input {
+            "None" => Ok(GeometricDelaysApplied::None),
+            "Zenith" => Ok(GeometricDelaysApplied::Zenith),
+            "Tile Pointing" => Ok(GeometricDelaysApplied::TilePointing),
+            "Az/El Tracking" => Ok(GeometricDelaysApplied::AzElTracking),
+            _ => Err(()),
+        }
+    }
+}
+
 /// `mwalib` metafits context. This represents the basic metadata for the observation.
 ///
 #[derive(Clone, Debug)]
@@ -171,6 +222,12 @@ pub struct MetafitsContext {
     pub obs_name: String,
     /// MWA observation mode
     pub mode: String,
+    /// Which Geometric delays have been applied to the data?
+    pub geometric_delays_applied: GeometricDelaysApplied,
+    /// Have cable delays been applied to the data?    
+    pub cable_delays_applied: bool,
+    /// Have calibration delays and gains been applied to the data?
+    pub calibration_delays_and_gains_applied: bool,
     /// Correlator fine_chan_resolution
     pub corr_fine_chan_width_hz: u32,
     /// Correlator mode dump time
@@ -393,6 +450,20 @@ impl MetafitsContext {
         let observation_name =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FILENAME")?;
         let mode = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MODE")?;
+
+        let geometric_delays_applied =
+            match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GEODEL")? {
+                Some(g) => g,
+                None => GeometricDelaysApplied::None,
+            };
+
+        let cable_delays_applied: bool =
+            (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CABLEDEL")?)
+                .unwrap_or(false);
+        let calibration_delays_and_gains_applied: bool =
+            (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CALIBDEL")?)
+                .unwrap_or(false);
+
         // We need to get the correlator integration time
         let integration_time_ms: u64 = {
             let it: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "INTTIME")?;
@@ -481,6 +552,9 @@ impl MetafitsContext {
             project_id,
             obs_name: observation_name,
             mode,
+            geometric_delays_applied,
+            cable_delays_applied,
+            calibration_delays_and_gains_applied,
             corr_fine_chan_width_hz: fine_chan_width_hz,
             corr_int_time_ms: integration_time_ms,
             num_corr_fine_chans_per_coarse,
@@ -616,6 +690,10 @@ impl fmt::Display for MetafitsContext {
     integration time:         {int_time:.2} s
     num fine channels/coarse: {nfcpc},
 
+    Geometric delays applied          : {geodel},
+    Cable length corrections applied  : {cabledel},
+    Calibration delays & gains applied: {calibdel},
+
     Creator:                  {creator},
     Project ID:               {project_id},
     Observation Name:         {obs_name},
@@ -716,6 +794,9 @@ impl fmt::Display for MetafitsContext {
             vp3 = VisPol::YY.to_string(),
             freqcent = self.centre_freq_hz as f64 / 1e6,
             mode = self.mode,
+            geodel = self.geometric_delays_applied,
+            cabledel = self.cable_delays_applied,
+            calibdel = self.calibration_delays_and_gains_applied,
             fcw = self.corr_fine_chan_width_hz as f64 / 1e3,
             nfcpc = self.num_corr_fine_chans_per_coarse,
             int_time = self.corr_int_time_ms as f64 / 1e3,

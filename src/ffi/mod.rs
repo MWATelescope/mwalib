@@ -952,6 +952,12 @@ pub struct MetafitsMetadata {
     pub obs_name: *mut c_char,
     /// MWA observation mode
     pub mode: *mut c_char,
+    /// Which Geometric delays have been applied to the data
+    pub geometric_delays_applied: GeometricDelaysApplied,
+    /// Have cable delays been applied to the data?    
+    pub cable_delays_applied: bool,
+    /// Have calibration delays and gains been applied to the data?
+    pub calibration_delays_and_gains_applied: bool,
     /// Correlator fine_chan_resolution
     pub corr_fine_chan_width_hz: u32,
     /// Correlator mode dump time
@@ -1108,6 +1114,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             project_id,
             obs_name,
             mode,
+            geometric_delays_applied,
+            cable_delays_applied,
+            calibration_delays_and_gains_applied,
             corr_fine_chan_width_hz,
             corr_int_time_ms,
             num_corr_fine_chans_per_coarse,
@@ -1162,6 +1171,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             project_id: CString::new(String::from(&*project_id)).unwrap().into_raw(),
             obs_name: CString::new(String::from(&*obs_name)).unwrap().into_raw(),
             mode: CString::new(String::from(&*mode)).unwrap().into_raw(),
+            geometric_delays_applied: *geometric_delays_applied,
+            cable_delays_applied: *cable_delays_applied,
+            calibration_delays_and_gains_applied: *calibration_delays_and_gains_applied,
             corr_fine_chan_width_hz: *corr_fine_chan_width_hz,
             corr_int_time_ms: *corr_int_time_ms,
             num_corr_fine_chans_per_coarse: *num_corr_fine_chans_per_coarse,

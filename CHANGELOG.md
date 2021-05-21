@@ -2,6 +2,18 @@
 
 Changes in each release are listed below.
 
+## 0.8.0 XX-May-2021 (Pre-release)
+
+* Removed VisibilityPol struct, replaced with VisPol enum to simplify.
+* Renamed CorrelatorVersion enum to MWAVersion. This now incorporates Correlator version (OldLegacy, Legacy and MWAXv2, as well as VCSRecombined and MWAXVCS).
+* MetafitsContext struct now requires an extra parameter: mwa_version in order to correctlty interpret the metadata when only a metafits file is supplied (and no data files).
+* Renamed COAX_V_FACTOR to MWA_COAX_V_FACTOR to bring it in line with other mwalib consts.
+* Added metafits_coarse_chans to MetafitsContext which represent all the coarse channels that the metafits file defines.
+* Added metafits_timesteps to MetafitsContext which represent all the timesteps that the metafits file defines.
+* Added geometric_delays_applied enum to MetafitsContext & FFI to inform the caller if and what type of geometric delays have been applied to the data.
+* Added cable_delays_applied bool to MetafitsContext & FFI to inform the caller if cable length corrections have been made to the data.
+* Added calibration_delays_and_gains_applied bool to MetafitsContext & FFI to inform the caller if calibration delays and gains have been applied to the data.
+
 ## 0.7.1 15-May-2021 (Pre-release)
 
 * Implemented _into_buffer variant of read_by_baseline and read_by_frequency so you can allocate your own vector and pass the whole thing or a slice to be filled with the relevant data.

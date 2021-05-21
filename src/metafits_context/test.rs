@@ -5,6 +5,8 @@
 /*!
 Unit tests for metafits context
 */
+use std::str::FromStr;
+
 #[cfg(test)]
 use super::*;
 use float_cmp::*;
@@ -181,6 +183,17 @@ fn test_metafits_context_new_valid() {
 
     // Mode:                     HW_LFILES,
     assert_eq!(context.mode, "HW_LFILES");
+
+    // Geometric delays - this old metafits has none of these keys so it will be None
+    assert_eq!(
+        context.geometric_delays_applied,
+        GeometricDelaysApplied::None
+    );
+    // Cable delays applied - this old metafits has none of these keys so it will be false
+    assert_eq!(context.cable_delays_applied, false);
+
+    // Calibration delays & gains applied  - this old metafits has none of these keys so it will be false
+    assert_eq!(context.calibration_delays_and_gains_applied, false);
 
     // metafits_filename
     assert_eq!(context.metafits_filename, metafits_filename);
@@ -362,4 +375,23 @@ fn test_mwa_version_display_vcs_mwaxv2() {
     let cv = MWAVersion::VCSMWAXv2;
 
     assert_eq!(format!("{}", cv), "VCS MWAX v2");
+}
+
+#[test]
+fn test_geometric_delays_applied_enum() {
+    let none = GeometricDelaysApplied::None;
+    let zen = GeometricDelaysApplied::Zenith;
+    let tile = GeometricDelaysApplied::TilePointing;
+    let azel = GeometricDelaysApplied::AzElTracking;
+
+    assert_eq!(format!("{}", none), "None");
+    assert_eq!(format!("{}", zen), "Zenith");
+    assert_eq!(format!("{}", tile), "Tile Pointing");
+    assert_eq!(format!("{}", azel), "Az/El Tracking");
+
+    assert!(GeometricDelaysApplied::from_str("None").is_ok());
+    assert!(GeometricDelaysApplied::from_str("Zenith").is_ok());
+    assert!(GeometricDelaysApplied::from_str("Tile Pointing").is_ok());
+    assert!(GeometricDelaysApplied::from_str("Az/El Tracking").is_ok());
+    assert!(GeometricDelaysApplied::from_str("something invalid").is_err());
 }
