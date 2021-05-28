@@ -36,7 +36,7 @@ pub enum MWAVersion {
     VCSMWAXv2 = 5,
 }
 
-/// Implements fmt::Display for MWAVersion struct
+/// Implements fmt::Display for MWAVersion enum
 ///
 /// # Arguments
 ///
@@ -74,7 +74,7 @@ pub enum VisPol {
     YX = 3,
     YY = 4,
 }
-/// Implements fmt::Display for VisPol struct
+/// Implements fmt::Display for VisPol enum
 ///
 /// # Arguments
 ///
@@ -111,7 +111,7 @@ pub enum GeometricDelaysApplied {
     AzElTracking = 3,
 }
 
-/// Implements fmt::Display for GeometricDelaysApplied struct
+/// Implements fmt::Display for GeometricDelaysApplied enum
 ///
 /// # Arguments
 ///
@@ -147,6 +147,108 @@ impl std::str::FromStr for GeometricDelaysApplied {
             "Zenith" => Ok(GeometricDelaysApplied::Zenith),
             "Tile Pointing" => Ok(GeometricDelaysApplied::TilePointing),
             "Az/El Tracking" => Ok(GeometricDelaysApplied::AzElTracking),
+            _ => Err(()),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, PartialEq, Clone, Copy)]
+#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
+pub enum MWAMode {
+    No_Capture = 0,
+    Burst_Vsib = 1,
+    Sw_Cor_Vsib = 2,
+    Hw_Cor_Pkts = 3,
+    Rts_32t = 4,
+    Hw_Lfiles = 5,
+    Hw_Lfiles_Nomentok = 6,
+    Sw_Cor_Vsib_Nomentok = 7,
+    Burst_Vsib_Synced = 8,
+    Burst_Vsib_Raw = 9,
+    Lfiles_Client = 16,
+    No_Capture_Burst = 17,
+    Enter_Burst = 18,
+    Enter_Channel = 19,
+    Voltage_Raw = 20,
+    Corr_Mode_Change = 21,
+    Voltage_Start = 22,
+    Voltage_Stop = 23,
+    Voltage_Buffer = 24,
+    Mwax_Correlator = 30,
+    Mwax_Vcs = 31,
+}
+
+/// Implements fmt::Display for MWAMode enum
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+impl fmt::Display for MWAMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                MWAMode::No_Capture => "NO_CAPTURE",
+                MWAMode::Burst_Vsib => "BURST_VSIB",
+                MWAMode::Sw_Cor_Vsib => "SW_COR_VSIB",
+                MWAMode::Hw_Cor_Pkts => "HW_COR_PKTS",
+                MWAMode::Rts_32t => "RTS_32T",
+                MWAMode::Hw_Lfiles => "HW_LFILES",
+                MWAMode::Hw_Lfiles_Nomentok => "HW_LFILES_NOMENTOK",
+                MWAMode::Sw_Cor_Vsib_Nomentok => "SW_COR_VSIB_NOMENTOK",
+                MWAMode::Burst_Vsib_Synced => "BURST_VSIB_SYNCED",
+                MWAMode::Burst_Vsib_Raw => "BURST_VSIB_RAW",
+                MWAMode::Lfiles_Client => "LFILES_CLIENT",
+                MWAMode::No_Capture_Burst => "NO_CAPTURE_BURST",
+                MWAMode::Enter_Burst => "ENTER_BURST",
+                MWAMode::Enter_Channel => "ENTER_CHANNEL",
+                MWAMode::Voltage_Raw => "VOLTAGE_RAW",
+                MWAMode::Corr_Mode_Change => "CORR_MODE_CHANGE",
+                MWAMode::Voltage_Start => "VOLTAGE_START",
+                MWAMode::Voltage_Stop => "VOLTAGE_STOP",
+                MWAMode::Voltage_Buffer => "VOLTAGE_BUFFER",
+                MWAMode::Mwax_Correlator => "MWAX_CORRELATOR",
+                MWAMode::Mwax_Vcs => "MWAX_VCS",
+            }
+        )
+    }
+}
+
+impl std::str::FromStr for MWAMode {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<MWAMode, Self::Err> {
+        match input {
+            "NO_CAPTURE" => Ok(MWAMode::No_Capture),
+            "BURST_VSIB" => Ok(MWAMode::Burst_Vsib),
+            "SW_COR_VSIB" => Ok(MWAMode::Sw_Cor_Vsib),
+            "HW_COR_PKTS" => Ok(MWAMode::Hw_Cor_Pkts),
+            "RTS_32T" => Ok(MWAMode::Rts_32t),
+            "HW_LFILES" => Ok(MWAMode::Hw_Lfiles),
+            "HW_LFILES_NOMENTOK" => Ok(MWAMode::Hw_Lfiles_Nomentok),
+            "SW_COR_VSIB_NOMENTOK" => Ok(MWAMode::Sw_Cor_Vsib_Nomentok),
+            "BURST_VSIB_SYNCED" => Ok(MWAMode::Burst_Vsib_Synced),
+            "BURST_VSIB_RAW" => Ok(MWAMode::Burst_Vsib_Raw),
+            "LFILES_CLIENT" => Ok(MWAMode::Lfiles_Client),
+            "NO_CAPTURE_BURST" => Ok(MWAMode::No_Capture_Burst),
+            "ENTER_BURST" => Ok(MWAMode::Enter_Burst),
+            "ENTER_CHANNEL" => Ok(MWAMode::Enter_Channel),
+            "VOLTAGE_RAW" => Ok(MWAMode::Voltage_Raw),
+            "CORR_MODE_CHANGE" => Ok(MWAMode::Corr_Mode_Change),
+            "VOLTAGE_START" => Ok(MWAMode::Voltage_Start),
+            "VOLTAGE_STOP" => Ok(MWAMode::Voltage_Stop),
+            "VOLTAGE_BUFFER" => Ok(MWAMode::Voltage_Buffer),
+            "MWAX_CORRELATOR" => Ok(MWAMode::Mwax_Correlator),
+            "MWAX_VCS" => Ok(MWAMode::Mwax_Vcs),
             _ => Err(()),
         }
     }
@@ -221,7 +323,7 @@ pub struct MetafitsContext {
     /// Observation name
     pub obs_name: String,
     /// MWA observation mode
-    pub mode: String,
+    pub mode: MWAMode,
     /// Which Geometric delays have been applied to the data?
     pub geometric_delays_applied: GeometricDelaysApplied,
     /// Have cable delays been applied to the data?    
@@ -449,7 +551,7 @@ impl MetafitsContext {
         let project_id = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "PROJECT")?;
         let observation_name =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FILENAME")?;
-        let mode = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MODE")?;
+        let mode: MWAMode = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MODE")?;
 
         let geometric_delays_applied =
             match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GEODEL")? {

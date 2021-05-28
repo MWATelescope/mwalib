@@ -182,7 +182,7 @@ fn test_metafits_context_new_valid() {
     assert_eq!(context.num_ant_pols, 2);
 
     // Mode:                     HW_LFILES,
-    assert_eq!(context.mode, "HW_LFILES");
+    assert_eq!(context.mode, MWAMode::Hw_Lfiles);
 
     // Geometric delays - this old metafits has none of these keys so it will be None
     assert_eq!(
@@ -394,4 +394,74 @@ fn test_geometric_delays_applied_enum() {
     assert!(GeometricDelaysApplied::from_str("Tile Pointing").is_ok());
     assert!(GeometricDelaysApplied::from_str("Az/El Tracking").is_ok());
     assert!(GeometricDelaysApplied::from_str("something invalid").is_err());
+}
+
+#[test]
+fn test_mode_enum() {
+    let no_capture = MWAMode::No_Capture;
+    let burst_vsib = MWAMode::Burst_Vsib;
+    let sw_cor_vsib = MWAMode::Sw_Cor_Vsib;
+    let hw_cor_pkts = MWAMode::Hw_Cor_Pkts;
+    let rts_32t = MWAMode::Rts_32t;
+    let hw_lfiles = MWAMode::Hw_Lfiles;
+    let hw_lfiles_nomentok = MWAMode::Hw_Lfiles_Nomentok;
+    let sw_cor_vsib_nomentok = MWAMode::Sw_Cor_Vsib_Nomentok;
+    let burst_vsib_synced = MWAMode::Burst_Vsib_Synced;
+    let burst_vsib_raw = MWAMode::Burst_Vsib_Raw;
+    let lfiles_client = MWAMode::Lfiles_Client;
+    let no_capture_burst = MWAMode::No_Capture_Burst;
+    let enter_burst = MWAMode::Enter_Burst;
+    let enter_channel = MWAMode::Enter_Channel;
+    let voltage_raw = MWAMode::Voltage_Raw;
+    let corr_mode_change = MWAMode::Corr_Mode_Change;
+    let voltage_start = MWAMode::Voltage_Start;
+    let voltage_stop = MWAMode::Voltage_Stop;
+    let voltage_buffer = MWAMode::Voltage_Buffer;
+    let mwax_correlator = MWAMode::Mwax_Correlator;
+    let mwax_vcs = MWAMode::Mwax_Vcs;
+
+    assert_eq!(format!("{}", no_capture), "NO_CAPTURE");
+    assert_eq!(format!("{}", burst_vsib), "BURST_VSIB");
+    assert_eq!(format!("{}", sw_cor_vsib), "SW_COR_VSIB");
+    assert_eq!(format!("{}", hw_cor_pkts), "HW_COR_PKTS");
+    assert_eq!(format!("{}", rts_32t), "RTS_32T");
+    assert_eq!(format!("{}", hw_lfiles), "HW_LFILES");
+    assert_eq!(format!("{}", hw_lfiles_nomentok), "HW_LFILES_NOMENTOK");
+    assert_eq!(format!("{}", sw_cor_vsib_nomentok), "SW_COR_VSIB_NOMENTOK");
+    assert_eq!(format!("{}", burst_vsib_synced), "BURST_VSIB_SYNCED");
+    assert_eq!(format!("{}", burst_vsib_raw), "BURST_VSIB_RAW");
+    assert_eq!(format!("{}", lfiles_client), "LFILES_CLIENT");
+    assert_eq!(format!("{}", no_capture_burst), "NO_CAPTURE_BURST");
+    assert_eq!(format!("{}", enter_burst), "ENTER_BURST");
+    assert_eq!(format!("{}", enter_channel), "ENTER_CHANNEL");
+    assert_eq!(format!("{}", voltage_raw), "VOLTAGE_RAW");
+    assert_eq!(format!("{}", corr_mode_change), "CORR_MODE_CHANGE");
+    assert_eq!(format!("{}", voltage_start), "VOLTAGE_START");
+    assert_eq!(format!("{}", voltage_stop), "VOLTAGE_STOP");
+    assert_eq!(format!("{}", voltage_buffer), "VOLTAGE_BUFFER");
+    assert_eq!(format!("{}", mwax_correlator), "MWAX_CORRELATOR");
+    assert_eq!(format!("{}", mwax_vcs), "MWAX_VCS");
+
+    assert!(MWAMode::from_str("NO_CAPTURE").is_ok());
+    assert!(MWAMode::from_str("BURST_VSIB").is_ok());
+    assert!(MWAMode::from_str("SW_COR_VSIB").is_ok());
+    assert!(MWAMode::from_str("HW_COR_PKTS").is_ok());
+    assert!(MWAMode::from_str("RTS_32T").is_ok());
+    assert!(MWAMode::from_str("HW_LFILES").is_ok());
+    assert!(MWAMode::from_str("HW_LFILES_NOMENTOK").is_ok());
+    assert!(MWAMode::from_str("SW_COR_VSIB_NOMENTOK").is_ok());
+    assert!(MWAMode::from_str("BURST_VSIB_SYNCED").is_ok());
+    assert!(MWAMode::from_str("BURST_VSIB_RAW").is_ok());
+    assert!(MWAMode::from_str("LFILES_CLIENT").is_ok());
+    assert!(MWAMode::from_str("NO_CAPTURE_BURST").is_ok());
+    assert!(MWAMode::from_str("ENTER_BURST").is_ok());
+    assert!(MWAMode::from_str("ENTER_CHANNEL").is_ok());
+    assert!(MWAMode::from_str("VOLTAGE_RAW").is_ok());
+    assert!(MWAMode::from_str("CORR_MODE_CHANGE").is_ok());
+    assert!(MWAMode::from_str("VOLTAGE_START").is_ok());
+    assert!(MWAMode::from_str("VOLTAGE_STOP").is_ok());
+    assert!(MWAMode::from_str("VOLTAGE_BUFFER").is_ok());
+    assert!(MWAMode::from_str("MWAX_CORRELATOR").is_ok());
+    assert!(MWAMode::from_str("MWAX_VCS").is_ok());
+    assert!(MWAMode::from_str("something invalid").is_err());
 }

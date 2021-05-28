@@ -48,7 +48,7 @@ pub use coarse_channel::CoarseChannel;
 pub use correlator_context::CorrelatorContext;
 pub use error::MwalibError;
 pub use fits_read::*;
-pub use metafits_context::{GeometricDelaysApplied, MWAVersion, MetafitsContext, VisPol};
+pub use metafits_context::{GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, VisPol};
 pub use misc::*;
 pub use rfinput::{Pol, Rfinput};
 pub use timestep::TimeStep;

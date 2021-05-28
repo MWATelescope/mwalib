@@ -951,7 +951,7 @@ pub struct MetafitsMetadata {
     /// Observation name
     pub obs_name: *mut c_char,
     /// MWA observation mode
-    pub mode: *mut c_char,
+    pub mode: MWAMode,
     /// Which Geometric delays have been applied to the data
     pub geometric_delays_applied: GeometricDelaysApplied,
     /// Have cable delays been applied to the data?    
@@ -1170,7 +1170,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             creator: CString::new(String::from(&*creator)).unwrap().into_raw(),
             project_id: CString::new(String::from(&*project_id)).unwrap().into_raw(),
             obs_name: CString::new(String::from(&*obs_name)).unwrap().into_raw(),
-            mode: CString::new(String::from(&*mode)).unwrap().into_raw(),
+            mode: *mode,
             geometric_delays_applied: *geometric_delays_applied,
             cable_delays_applied: *cable_delays_applied,
             calibration_delays_and_gains_applied: *calibration_delays_and_gains_applied,

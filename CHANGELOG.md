@@ -13,6 +13,7 @@ Changes in each release are listed below.
 * Added geometric_delays_applied enum to MetafitsContext & FFI to inform the caller if and what type of geometric delays have been applied to the data.
 * Added cable_delays_applied bool to MetafitsContext & FFI to inform the caller if cable length corrections have been made to the data.
 * Added calibration_delays_and_gains_applied bool to MetafitsContext & FFI to inform the caller if calibration delays and gains have been applied to the data.
+* Added mode enum to MetafitsContext & FFI to inform the caller of the mode of the observation.
 
 ## 0.7.1 15-May-2021 (Pre-release)
 
