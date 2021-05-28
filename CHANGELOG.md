@@ -14,6 +14,7 @@ Changes in each release are listed below.
 * Added cable_delays_applied bool to MetafitsContext & FFI to inform the caller if cable length corrections have been made to the data.
 * Added calibration_delays_and_gains_applied bool to MetafitsContext & FFI to inform the caller if calibration delays and gains have been applied to the data.
 * Added mode enum to MetafitsContext & FFI to inform the caller of the mode of the observation.
+* Added electrical_length_m, north_m, east_m, height_m to the Antenna struct (for efficiency). These are also available in the Rfinput struct.
 
 ## 0.7.1 15-May-2021 (Pre-release)
 

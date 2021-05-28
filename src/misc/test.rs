@@ -139,6 +139,10 @@ fn test_get_baseline_from_antenna_names1() {
         tile_name: String::from("tile101"),
         rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y.clone(),
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -147,6 +151,10 @@ fn test_get_baseline_from_antenna_names1() {
         tile_name: String::from("tile102"),
         rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y.clone(),
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -155,6 +163,10 @@ fn test_get_baseline_from_antenna_names1() {
         tile_name: String::from("tile103"),
         rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y.clone(),
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -163,6 +175,10 @@ fn test_get_baseline_from_antenna_names1() {
         tile_name: String::from("tile104"),
         rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y.clone(),
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -171,6 +187,10 @@ fn test_get_baseline_from_antenna_names1() {
         tile_name: String::from("tile105"),
         rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y.clone(),
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -179,6 +199,10 @@ fn test_get_baseline_from_antenna_names1() {
         tile_name: String::from("tile106"),
         rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y.clone(),
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -187,14 +211,22 @@ fn test_get_baseline_from_antenna_names1() {
         tile_name: String::from("tile107"),
         rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y.clone(),
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
         ant: 108,
         tile_id: 108,
         tile_name: String::from("tile108"),
-        rfinput_x: dummy_rf_input_x,
+        rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y,
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     // Now do some tests!
@@ -278,14 +310,22 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         tile_name: String::from("tile101"),
         rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y.clone(),
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
         ant: 102,
         tile_id: 102,
         tile_name: String::from("tile102"),
-        rfinput_x: dummy_rf_input_x,
+        rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y,
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     // Now do some tests!
@@ -346,14 +386,22 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         tile_name: String::from("tile101"),
         rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y.clone(),
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
         ant: 102,
         tile_id: 102,
         tile_name: String::from("tile102"),
-        rfinput_x: dummy_rf_input_x,
+        rfinput_x: dummy_rf_input_x.clone(),
         rfinput_y: dummy_rf_input_y,
+        electrical_length_m: dummy_rf_input_x.electrical_length_m,
+        north_m: dummy_rf_input_x.north_m,
+        east_m: dummy_rf_input_x.east_m,
+        height_m: dummy_rf_input_x.height_m,
     });
 
     // Now do some tests!

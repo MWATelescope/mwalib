@@ -7,6 +7,7 @@ Unit tests for antenna metadata
 */
 #[cfg(test)]
 use super::*;
+use float_cmp::*;
 
 #[test]
 fn test_populate_antennas() {
@@ -173,8 +174,32 @@ fn test_populate_antennas() {
     assert_eq!(antennas.len(), 4);
     assert_eq!(antennas[0].tile_id, 101);
     assert_eq!(antennas[0].ant, 101);
+    assert!(approx_eq!(
+        f64,
+        antennas[0].electrical_length_m,
+        antennas[0].rfinput_x.electrical_length_m,
+        F64Margin::default()
+    ));
     assert_eq!(antennas[1].rfinput_y.pol, Pol::Y);
     assert_eq!(antennas[1].tile_name, "Tile102");
+    assert!(approx_eq!(
+        f64,
+        antennas[1].north_m,
+        antennas[1].rfinput_x.north_m,
+        F64Margin::default()
+    ));
+    assert!(approx_eq!(
+        f64,
+        antennas[1].east_m,
+        antennas[1].rfinput_x.east_m,
+        F64Margin::default()
+    ));
+    assert!(approx_eq!(
+        f64,
+        antennas[1].height_m,
+        antennas[1].rfinput_x.height_m,
+        F64Margin::default()
+    ));
     assert_eq!(antennas[2].tile_name, "Tile103");
     assert_eq!(antennas[2].rfinput_x.input, 4);
     assert_eq!(antennas[3].tile_id, 104);

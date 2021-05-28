@@ -29,6 +29,18 @@ pub struct Antenna {
     pub rfinput_x: Rfinput,
     /// Reference to the Y pol rf_input
     pub rfinput_y: Rfinput,
+    ///
+    /// Note: the next 4 values are from the rfinput of which we have X and Y, however these values are the same for each pol so can be safely placed in the antenna struct
+    /// for efficiency
+    ///
+    /// Electrical length in metres for this antenna and polarisation to the receiver.     
+    pub electrical_length_m: f64,
+    /// Antenna position North from the array centre (metres)
+    pub north_m: f64,
+    /// Antenna position East from the array centre (metres)
+    pub east_m: f64,
+    /// Antenna height from the array centre (metres)
+    pub height_m: f64,
 }
 
 impl Antenna {
@@ -52,6 +64,10 @@ impl Antenna {
             tile_name: x_pol.tile_name.to_string(),
             rfinput_x: x_pol.clone(),
             rfinput_y: y_pol.clone(),
+            electrical_length_m: x_pol.electrical_length_m,
+            north_m: x_pol.north_m,
+            east_m: x_pol.east_m,
+            height_m: x_pol.height_m,
         }
     }
 

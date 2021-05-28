@@ -1595,6 +1595,18 @@ pub struct Antenna {
     pub rfinput_x: usize,
     /// Index within the array of rfinput structs of the y pol
     pub rfinput_y: usize,
+    ///
+    /// Note: the next 4 values are from the rfinput of which we have X and Y, however these values are the same for each pol so can be safely placed in the antenna struct
+    /// for efficiency
+    ///
+    /// Electrical length in metres for this antenna and polarisation to the receiver
+    pub electrical_length_m: f64,
+    /// Antenna position North from the array centre (metres)
+    pub north_m: f64,
+    /// Antenna position East from the array centre (metres)
+    pub east_m: f64,
+    /// Antenna height from the array centre (metres)
+    pub height_m: f64,
 }
 
 /// This passes back an array of structs containing all antennas given a metafits OR correlator context.
@@ -1674,6 +1686,10 @@ pub unsafe extern "C" fn mwalib_antennas_get(
                 tile_name,
                 rfinput_x,
                 rfinput_y,
+                electrical_length_m,
+                north_m,
+                east_m,
+                height_m,
             } = item;
             Antenna {
                 ant: *ant,
@@ -1681,6 +1697,10 @@ pub unsafe extern "C" fn mwalib_antennas_get(
                 tile_name: CString::new(tile_name.as_str()).unwrap().into_raw(),
                 rfinput_x: rfinput_x.subfile_order as usize,
                 rfinput_y: rfinput_y.subfile_order as usize,
+                electrical_length_m: *electrical_length_m,
+                north_m: *north_m,
+                east_m: *east_m,
+                height_m: *height_m,
             }
         };
 
