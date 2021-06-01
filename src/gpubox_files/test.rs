@@ -395,7 +395,7 @@ fn test_map_unix_times_to_hdus_test() {
 }
 
 #[test]
-fn test_determine_obs_times_test_many_timesteps() {
+fn test_determine_common_times_test_many_timesteps() {
     // Create two files, with mostly overlapping times, but also a little
     // dangling at the start and end.
     let common_times: Vec<u64> = vec![
@@ -437,10 +437,125 @@ fn test_determine_obs_times_test_many_timesteps() {
     assert_eq!(result.start_time_unix_ms, expected_start);
     assert_eq!(result.end_time_unix_ms, expected_end);
     assert_eq!(result.duration_ms, expected_duration);
+    assert_eq!(result.coarse_chan_identifiers.len(), 2);
+    assert_eq!(result.coarse_chan_identifiers[0], 0);
+    assert_eq!(result.coarse_chan_identifiers[1], 1);
 }
 
 #[test]
-fn test_determine_obs_times_test_one_timestep() {
+fn test_determine_common_times_test_two_common_sets() {
+    // This tests for the case where there are 2 common sets of timesteps but for different coarse channel sets
+    // also with dangling ones at the start and end.
+    // The point of this test is to show we return the FIRST common set and ignore the latter common set.
+    // E.g.
+    //      t 0 1 2 3 4 5 6
+    // Chan 0 X X X X X X X
+    // Chan 1   X X
+    // Chan 2       X X
+    let common_times: Vec<u64> = vec![
+        1_381_844_923_500,
+        1_381_844_924_000,
+        1_381_844_924_500,
+        1_381_844_925_000,
+        1_381_844_925_500,
+    ];
+    let integration_time_ms = 500;
+
+    let mut input = BTreeMap::new();
+    let mut new_time_tree = BTreeMap::new();
+    new_time_tree.insert(0, (0, 1));
+    input.insert(1_381_844_923_000, new_time_tree);
+
+    for (i, time) in common_times.iter().enumerate() {
+        let mut new_time_tree = BTreeMap::new();
+
+        match i {
+            0 | 1 => {
+                // gpubox 0.
+                new_time_tree.insert(0, (0, i + 2));
+                // gpubox 1.
+                new_time_tree.insert(1, (0, i + 1));
+                input.insert(*time, new_time_tree);
+            }
+            2 | 3 => {
+                // gpubox 0.
+                new_time_tree.insert(0, (0, i + 2));
+                // gpubox 1.
+                new_time_tree.insert(2, (0, i + 1));
+                input.insert(*time, new_time_tree);
+            }
+            5 => {
+                // gpubox 0.
+                new_time_tree.insert(0, (0, i + 2));
+                input.insert(*time, new_time_tree);
+            }
+            _ => {}
+        }
+    }
+
+    let mut new_time_tree = BTreeMap::new();
+    new_time_tree.insert(1, (0, common_times.len() + 1));
+    input.insert(1_381_844_926_000, new_time_tree);
+
+    let expected_start = 1_381_844_923_500;
+    let expected_end = 1_381_844_924_000 + integration_time_ms;
+    let expected_duration = 1000;
+
+    let result = determine_common_obs_times_and_chans(&input, integration_time_ms, None);
+    assert!(result.is_ok());
+    let result = result.unwrap();
+    assert_eq!(result.start_time_unix_ms, expected_start);
+    assert_eq!(result.end_time_unix_ms, expected_end);
+    assert_eq!(result.duration_ms, expected_duration);
+    assert_eq!(result.coarse_chan_identifiers.len(), 2);
+    assert_eq!(result.coarse_chan_identifiers[0], 0);
+    assert_eq!(result.coarse_chan_identifiers[1], 1);
+}
+
+#[test]
+fn test_determine_common_times_test_nothing_common() {
+    // This tests for the case where there are no common sets of timesteps but for different coarse channel sets
+    // also with dangling ones at the start and end.
+    // E.g.
+    //      t 0 1 2
+    // Chan 0 X
+    // Chan 1   X
+    // Chan 2     X
+    let integration_time_ms = 500;
+
+    let mut input = BTreeMap::new();
+
+    // First timestep, channel 0
+    let mut new_time_tree = BTreeMap::new();
+    new_time_tree.insert(0, (0, 1));
+    input.insert(1_381_844_923_000, new_time_tree);
+
+    // Second timestep, channel 1
+    new_time_tree = BTreeMap::new();
+    new_time_tree.insert(1, (0, 2));
+    input.insert(1_381_844_923_500, new_time_tree);
+
+    // Third timestep, channel 2
+    new_time_tree = BTreeMap::new();
+    new_time_tree.insert(2, (0, 3));
+    input.insert(1_381_844_924_000, new_time_tree);
+
+    let expected_start = 1_381_844_923_000;
+    let expected_end = 1_381_844_923_000 + integration_time_ms;
+    let expected_duration = 500;
+
+    let result = determine_common_obs_times_and_chans(&input, integration_time_ms, None);
+    assert!(result.is_ok());
+    let result = result.unwrap();
+    assert_eq!(result.start_time_unix_ms, expected_start);
+    assert_eq!(result.end_time_unix_ms, expected_end);
+    assert_eq!(result.duration_ms, expected_duration);
+    assert_eq!(result.coarse_chan_identifiers.len(), 1);
+    assert_eq!(result.coarse_chan_identifiers[0], 0);
+}
+
+#[test]
+fn test_determine_common_times_test_one_timestep() {
     // Create two files, with 1 overlapping times, but also a little
     // dangling at the start and end.
     let common_times: Vec<u64> = vec![1_381_844_923_500];

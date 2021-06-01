@@ -641,7 +641,7 @@ fn create_time_map(
 ///
 /// * `integration_time_ms` - Correlator dump time (so we know the gap between timesteps)
 ///
-/// * 'good_time_unix_time_ms' - Option- Some is the 'good' time (i.e. the first time which is not part of the quack time). None means that
+/// * `good_time_unix_time_ms` - Option- Some is the 'good' time (i.e. the first time which is not part of the quack time). None means that
 ///                              times during the quack time are ok to be included.
 ///
 /// # Returns
@@ -654,17 +654,16 @@ pub(crate) fn determine_common_obs_times_and_chans(
     integration_time_ms: u64,
     good_time_unix_time_ms: Option<u64>,
 ) -> Result<ObsTimesAndChans, GpuboxError> {
-    // TODO implement case when we have Some() passed in
+    // If we pass in Some(good_time_unix_time_ms) then restrict the gpubox time map to times AFTER the quack time
     let timemap = match good_time_unix_time_ms {
-        Some(_) => gpubox_time_map,
+        Some(good_time) => gpubox_time_map
+            .clone()
+            .into_iter()
+            .filter(|ts| ts.0 >= good_time)
+            .collect(),
 
-        None => gpubox_time_map,
+        None => gpubox_time_map.clone(),
     };
-
-    // TODO
-    // .iter()
-    // .filter(|ts| ts.0 >= good_time)
-    // .collect::<<GpuboxTimeMap>>(),
 
     // Find the maximum number of gpubox files for a timestep. Note some timesteps *could* have the same number (but different channels!)
     // This is ok, because we will filter the GPUBoxtimemap to only those where chans==max and step through them one at a time until

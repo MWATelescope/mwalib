@@ -279,8 +279,8 @@ impl Rfinput {
             height_m,
             flag,
             digital_gains,
-            dipole_gains,
             dipole_delays,
+            dipole_gains,
             rx,
             slot,
         })

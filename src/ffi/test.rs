@@ -1742,7 +1742,6 @@ fn test_mwalib_coarse_channels_get_null_context() {
         let retval = mwalib_coarse_channels_get(
             std::ptr::null_mut(),
             std::ptr::null_mut(),
-            std::ptr::null_mut(),
             &mut array_ptr,
             &mut array_len,
             error_message_ptr,
@@ -1753,6 +1752,37 @@ fn test_mwalib_coarse_channels_get_null_context() {
         assert_ne!(retval, 0);
         assert!(array_ptr.is_null());
         let expected_error: &str = &"mwalib_coarse_channels_get() ERROR:";
+        assert_eq!(
+            error_message.into_string().unwrap()[0..expected_error.len()],
+            *expected_error
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_coarse_channels_get_null_context() {
+    // This tests for a null context passed into the _get method
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let mut array_ptr: &mut *mut CoarseChannel = &mut std::ptr::null_mut();
+        let mut array_len: usize = 0;
+        let retval = mwalib_metafits_coarse_channels_get(
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut array_ptr,
+            &mut array_len,
+            error_message_ptr,
+            error_len,
+        );
+
+        // We should get a null pointer, non-zero retval and an error message
+        assert_ne!(retval, 0);
+        assert!(array_ptr.is_null());
+        let expected_error: &str = &"mwalib_metafits_coarse_channels_get() ERROR:";
         assert_eq!(
             error_message.into_string().unwrap()[0..expected_error.len()],
             *expected_error
@@ -1777,7 +1807,7 @@ fn test_mwalib_metafits_coarse_channels_get_valid() {
         let mut array_ptr: &mut *mut CoarseChannel = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
-        let retval = mwalib_coarse_channels_get(
+        let retval = mwalib_metafits_coarse_channels_get(
             metafits_context_ptr,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
@@ -1790,7 +1820,7 @@ fn test_mwalib_metafits_coarse_channels_get_valid() {
         // check ret val is ok
         assert_eq!(
             retval, 0,
-            "mwalib_correlator_coarse_channels_get did not return success"
+            "mwalib_metafits_coarse_channels_get did not return success"
         );
 
         // reconstitute into a vector
@@ -1832,7 +1862,6 @@ fn test_mwalib_correlator_coarse_channels_get_valid() {
         let mut array_len: usize = 0;
 
         let retval = mwalib_coarse_channels_get(
-            std::ptr::null_mut(),
             correlator_context_ptr,
             std::ptr::null_mut(),
             &mut array_ptr,
@@ -1884,7 +1913,6 @@ fn test_mwalib_voltage_coarse_channels_get_valid() {
         let mut array_len: usize = 0;
 
         let retval = mwalib_coarse_channels_get(
-            std::ptr::null_mut(),
             std::ptr::null_mut(),
             context,
             &mut array_ptr,
@@ -2146,6 +2174,37 @@ fn test_mwalib_rfinputs_get_null_contexts() {
     }
 }
 
+#[test]
+fn test_mwalib_metafits_timesteps_get_null_context() {
+    // This tests for a null context passed into the _get method
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let mut array_ptr: &mut *mut TimeStep = &mut std::ptr::null_mut();
+        let mut array_len: usize = 0;
+        let retval = mwalib_metafits_timesteps_get(
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut array_ptr,
+            &mut array_len,
+            error_message_ptr,
+            error_len,
+        );
+
+        // We should get a null pointer, non-zero retval and an error message
+        assert_ne!(retval, 0);
+        assert!(array_ptr.is_null());
+        let expected_error: &str = &"mwalib_metafits_timesteps_get() ERROR:";
+        assert_eq!(
+            error_message.into_string().unwrap()[0..expected_error.len()],
+            *expected_error
+        );
+    }
+}
+
 // Timesteps
 #[test]
 fn test_mwalib_timesteps_get_null_context() {
@@ -2158,7 +2217,6 @@ fn test_mwalib_timesteps_get_null_context() {
         let mut array_ptr: &mut *mut TimeStep = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
         let retval = mwalib_timesteps_get(
-            std::ptr::null_mut(),
             std::ptr::null_mut(),
             std::ptr::null_mut(),
             &mut array_ptr,
@@ -2195,7 +2253,7 @@ fn test_mwalib_metafits_timesteps_get_valid() {
         let mut array_ptr: &mut *mut TimeStep = &mut std::ptr::null_mut();
         let mut array_len: usize = 0;
 
-        let retval = mwalib_timesteps_get(
+        let retval = mwalib_metafits_timesteps_get(
             context,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
@@ -2206,7 +2264,10 @@ fn test_mwalib_metafits_timesteps_get_valid() {
         );
 
         // check ret val is ok
-        assert_eq!(retval, 0, "mwalib_timesteps_get did not return success");
+        assert_eq!(
+            retval, 0,
+            "mwalib_metafits_timesteps_get did not return success"
+        );
 
         // reconstitute into a vector
         let item: Vec<TimeStep> = ffi_boxed_slice_to_array(*array_ptr, array_len);
@@ -2248,7 +2309,6 @@ fn test_mwalib_correlator_timesteps_get_valid() {
         let mut array_len: usize = 0;
 
         let retval = mwalib_timesteps_get(
-            std::ptr::null_mut(),
             context,
             std::ptr::null_mut(),
             &mut array_ptr,
@@ -2297,7 +2357,6 @@ fn test_mwalib_voltage_timesteps_get_valid() {
         let mut array_len: usize = 0;
 
         let retval = mwalib_timesteps_get(
-            std::ptr::null_mut(),
             std::ptr::null_mut(),
             context,
             &mut array_ptr,
