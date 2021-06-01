@@ -23,6 +23,8 @@ fn test_populate_correlator_timesteps() {
         1_381_844_925_500,
     ];
 
+    let metafits_timesteps: Vec<TimeStep> = Vec::new();
+
     for (i, time) in times.iter().enumerate() {
         let mut new_time_tree = BTreeMap::new();
         // gpubox 0.
@@ -37,6 +39,7 @@ fn test_populate_correlator_timesteps() {
     let scheduled_start_unix_ms = 1_381_844_923_000;
     let timesteps = TimeStep::populate_correlator_timesteps(
         &gpubox_time_map,
+        &metafits_timesteps,
         scheduled_start_gpstime_ms,
         scheduled_start_unix_ms,
     )
@@ -54,11 +57,15 @@ fn test_populate_correlator_timesteps() {
 fn test_populate_correlator_timesteps_none() {
     // Create a dummy BTree GPUbox map
     let gpubox_time_map = BTreeMap::new();
+
+    let metafits_timesteps: Vec<TimeStep> = Vec::new();
+
     // Get a vector timesteps
     let scheduled_start_gpstime_ms = 0;
     let scheduled_start_unix_ms = 0;
     let timesteps = TimeStep::populate_correlator_timesteps(
         &gpubox_time_map,
+        &metafits_timesteps,
         scheduled_start_gpstime_ms,
         scheduled_start_unix_ms,
     );

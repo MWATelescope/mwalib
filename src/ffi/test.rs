@@ -1251,7 +1251,7 @@ fn test_mwalib_correlator_metadata_get_valid() {
         let correlator_metadata = Box::from_raw(*correlator_metadata_ptr);
 
         // We should get a valid number of coarse channels and no error message
-        assert_eq!(correlator_metadata.num_coarse_chans, 1);
+        assert_eq!(correlator_metadata.num_coarse_chans, 24);
 
         // Now ensure we can free the rust memory
         assert_eq!(
@@ -1851,7 +1851,7 @@ fn test_mwalib_correlator_coarse_channels_get_valid() {
         let item: Vec<CoarseChannel> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
-        assert_eq!(array_len, 1, "Array length is not correct");
+        assert_eq!(array_len, 24, "Array length is not correct");
         assert_eq!(item[index].rec_chan_number, 109);
 
         // Test freeing the memory
@@ -2264,7 +2264,7 @@ fn test_mwalib_correlator_timesteps_get_valid() {
         let item: Vec<TimeStep> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
-        assert_eq!(array_len, 1, "Array length is not correct");
+        assert_eq!(array_len, 56, "Array length is not correct");
         assert_eq!(item[index].unix_time_ms, 1_417_468_096_000);
 
         // Test freeing the memory

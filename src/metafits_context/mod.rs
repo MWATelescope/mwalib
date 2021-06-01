@@ -814,6 +814,10 @@ impl fmt::Display for MetafitsContext {
     Scheduled duration        {sched_duration} s,
     Quack time:               {quack_duration} s,
     Good UNIX start time:     {good_time},
+    
+    Timesteps:                {ts:?},
+
+    Coarse Channels:          {cc:?},
 
     R.A. (tile_pointing):     {rtpc} degrees,
     Dec. (tile_pointing):     {dtpc} degrees,
@@ -865,6 +869,8 @@ impl fmt::Display for MetafitsContext {
             sched_duration = self.sched_duration_ms as f64 / 1e3,
             quack_duration = self.quack_time_duration_ms as f64 / 1e3,
             good_time = self.good_time_unix_ms as f64 / 1e3,
+            ts = self.metafits_timesteps,
+            cc = self.metafits_coarse_chans,
             rtpc = self.ra_tile_pointing_degrees,
             dtpc = self.dec_tile_pointing_degrees,
             rppc = Some(self.ra_phase_center_degrees),

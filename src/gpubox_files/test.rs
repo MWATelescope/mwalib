@@ -20,9 +20,8 @@ fn test_determine_gpubox_batches_proper_format() {
     ];
     let result = determine_gpubox_batches(&files);
     assert!(result.is_ok());
-    let (temp_gpuboxes, corr_format, num_batches) = result.unwrap();
+    let (temp_gpuboxes, corr_format) = result.unwrap();
     assert_eq!(corr_format, MWAVersion::CorrLegacy);
-    assert_eq!(num_batches, 3);
 
     let expected_gpuboxes = vec![
         TempGpuBoxFile {
@@ -54,9 +53,8 @@ fn test_determine_gpubox_batches_proper_format2() {
     ];
     let result = determine_gpubox_batches(&files);
     assert!(result.is_ok());
-    let (gpubox_batches, corr_format, num_batches) = result.unwrap();
+    let (gpubox_batches, corr_format) = result.unwrap();
     assert_eq!(corr_format, MWAVersion::CorrLegacy);
-    assert_eq!(num_batches, 3);
     let expected_batches = vec![
         TempGpuBoxFile {
             filename: "/home/chj/1065880128_20131015134930_gpubox01_00.fits",
@@ -90,9 +88,8 @@ fn test_determine_gpubox_batches_proper_format3() {
     ];
     let result = determine_gpubox_batches(&files);
     assert!(result.is_ok());
-    let (gpubox_batches, corr_format, num_batches) = result.unwrap();
+    let (gpubox_batches, corr_format) = result.unwrap();
     assert_eq!(corr_format, MWAVersion::CorrLegacy);
-    assert_eq!(num_batches, 3);
 
     let expected_batches = vec![
         TempGpuBoxFile {
@@ -142,9 +139,8 @@ fn test_determine_gpubox_batches_proper_format4() {
     ];
     let result = determine_gpubox_batches(&files);
     assert!(result.is_ok());
-    let (gpubox_batches, corr_format, num_batches) = result.unwrap();
+    let (gpubox_batches, corr_format) = result.unwrap();
     assert_eq!(corr_format, MWAVersion::CorrLegacy);
-    assert_eq!(num_batches, 3);
 
     let expected_batches = vec![
         TempGpuBoxFile {
@@ -204,19 +200,19 @@ fn test_determine_gpubox_batches_invalid_filename3() {
 }
 
 #[test]
-fn test_determine_gpubox_batches_invalid_count() {
+fn test_determine_gpubox_batches_valid() {
     // There are no gpubox files for batch "01".
     let files = vec![
         "1065880128_20131015134930_gpubox01_00.fits",
         "1065880128_20131015134930_gpubox15_02.fits",
     ];
     let result = determine_gpubox_batches(&files);
-    assert!(result.is_err());
+    assert!(result.is_ok());
 }
 
 #[test]
-fn test_determine_gpubox_batches_invalid_count2() {
-    // There are not enough gpubox files for batch "02".
+fn test_determine_gpubox_batches_valid2() {
+    // There are not different numbers of gpubox files for batches "00" and "01" vs "02".
     let files = vec![
         "1065880128_20131015134930_gpubox01_00.fits",
         "1065880128_20131015134930_gpubox02_00.fits",
@@ -225,7 +221,7 @@ fn test_determine_gpubox_batches_invalid_count2() {
         "1065880128_20131015134930_gpubox15_02.fits",
     ];
     let result = determine_gpubox_batches(&files);
-    assert!(result.is_err());
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -237,9 +233,8 @@ fn test_determine_gpubox_batches_old_format() {
     ];
     let result = determine_gpubox_batches(&files);
     assert!(result.is_ok());
-    let (gpubox_batches, corr_format, num_batches) = result.unwrap();
+    let (gpubox_batches, corr_format) = result.unwrap();
     assert_eq!(corr_format, MWAVersion::CorrOldLegacy);
-    assert_eq!(num_batches, 1);
 
     let expected_batches = vec![
         TempGpuBoxFile {
@@ -272,9 +267,8 @@ fn test_determine_gpubox_batches_new_format() {
     ];
     let result = determine_gpubox_batches(&files);
     assert!(result.is_ok());
-    let (gpubox_batches, corr_format, num_batches) = result.unwrap();
+    let (gpubox_batches, corr_format) = result.unwrap();
     assert_eq!(corr_format, MWAVersion::CorrMWAXv2);
-    assert_eq!(num_batches, 2);
 
     let expected_batches = vec![
         TempGpuBoxFile {
@@ -437,12 +431,12 @@ fn test_determine_obs_times_test_many_timesteps() {
     // == 1_381_844_925_500 - 1_381_844_923_500 + 500
     let expected_duration = 2500;
 
-    let result = determine_obs_times(&input, integration_time_ms);
+    let result = determine_common_obs_times_and_chans(&input, integration_time_ms, None);
     assert!(result.is_ok());
     let result = result.unwrap();
-    assert_eq!(result.start_millisec, expected_start);
-    assert_eq!(result.end_millisec, expected_end);
-    assert_eq!(result.duration_millisec, expected_duration);
+    assert_eq!(result.start_time_unix_ms, expected_start);
+    assert_eq!(result.end_time_unix_ms, expected_end);
+    assert_eq!(result.duration_ms, expected_duration);
 }
 
 #[test]
@@ -478,12 +472,12 @@ fn test_determine_obs_times_test_one_timestep() {
     // == 1_381_844_923_500 - 1_381_844_923_500 + 500
     let expected_duration = 500;
 
-    let result = determine_obs_times(&input, integration_time_ms);
+    let result = determine_common_obs_times_and_chans(&input, integration_time_ms, None);
     assert!(result.is_ok());
     let result = result.unwrap();
-    assert_eq!(result.start_millisec, expected_start);
-    assert_eq!(result.end_millisec, expected_end);
-    assert_eq!(result.duration_millisec, expected_duration);
+    assert_eq!(result.start_time_unix_ms, expected_start);
+    assert_eq!(result.end_time_unix_ms, expected_end);
+    assert_eq!(result.duration_ms, expected_duration);
 }
 
 #[test]

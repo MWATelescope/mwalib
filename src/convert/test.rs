@@ -641,7 +641,7 @@ fn test_mwax_conversion_to_frequency_order() {
         .expect("Failed to create mwalibContext");
 
     // Read and convert first HDU
-    let mwalib_hdu_data: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+    let mwalib_hdu_data: Vec<f32> = context.read_by_frequency(0, 10).expect("Error!");
 
     // First assert that the data vectors are the same size
     assert_eq!(fits_hdu_data.len(), mwalib_hdu_data.len());

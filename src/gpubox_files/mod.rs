@@ -21,11 +21,13 @@ pub use error::GpuboxError;
 #[cfg(test)]
 mod test;
 
+/// This struct is used to return the common or common good timesteps and coarse channels
 #[derive(Debug)]
-pub(crate) struct ObsTimes {
-    pub start_millisec: u64, // Start= start of first timestep
-    pub end_millisec: u64,   // End  = start of last timestep + integration time
-    pub duration_millisec: u64,
+pub(crate) struct ObsTimesAndChans {
+    pub start_time_unix_ms: u64, // Start= start of first timestep
+    pub end_time_unix_ms: u64,   // End  = start of last timestep + integration time
+    pub duration_ms: u64,
+    pub coarse_chan_identifiers: Vec<usize>, // Vector of Correlator Coarse Chan identifiers (gpubox number or rec chan number)
 }
 
 /// This represents one group of gpubox files with the same "batch" identitifer.
@@ -127,6 +129,7 @@ lazy_static::lazy_static! {
 /// keys is associated with a tree; the keys of these trees are the gpubox
 /// coarse-channel numbers, which then refer to gpubox batch numbers and HDU
 /// indices.
+///                                      Unix          Chan    Batch  Hdu
 pub(crate) type GpuboxTimeMap = BTreeMap<u64, BTreeMap<usize, (usize, usize)>>;
 
 /// A little struct to help us not get confused when dealing with the returned
@@ -227,9 +230,9 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
     gpubox_filenames: &[T],
     metafits_obs_id: u32,
 ) -> Result<GpuboxInfo, GpuboxError> {
-    let (temp_gpuboxes, corr_format, _) = determine_gpubox_batches(gpubox_filenames)?;
+    let (temp_gpuboxes, corr_format) = determine_gpubox_batches(gpubox_filenames)?;
 
-    let time_map = create_time_map(&temp_gpuboxes, corr_format)?;
+    let time_map: GpuboxTimeMap = create_time_map(&temp_gpuboxes, corr_format)?;
 
     let mut batches = convert_temp_gpuboxes(temp_gpuboxes);
 
@@ -300,13 +303,12 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
 /// # Returns
 ///
 /// * A Result containing a vector of `TempGPUBoxFile` structs as well as a
-///   `MWAVersion`, the number of GPUBoxes supplied, and the number of
-///   gpubox batches.
+///   `MWAVersion`.
 ///
 ///
 fn determine_gpubox_batches<T: AsRef<Path>>(
     gpubox_filenames: &[T],
-) -> Result<(Vec<TempGpuBoxFile>, MWAVersion, usize), GpuboxError> {
+) -> Result<(Vec<TempGpuBoxFile>, MWAVersion), GpuboxError> {
     if gpubox_filenames.is_empty() {
         return Err(GpuboxError::NoGpuboxes);
     }
@@ -380,39 +382,11 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
         }
     }
 
-    // Check batches are contiguous and have equal numbers of files.
-    let mut batches_and_files: BTreeMap<usize, u8> = BTreeMap::new();
-    for gpubox in &temp_gpuboxes {
-        *batches_and_files.entry(gpubox.batch_number).or_insert(0) += 1;
-    }
-
-    let mut file_count: Option<u8> = None;
-    for (i, (batch_num, num_files)) in batches_and_files.iter().enumerate() {
-        if i != *batch_num {
-            return Err(GpuboxError::BatchMissing {
-                expected: i,
-                got: *batch_num,
-            });
-        }
-
-        match file_count {
-            None => file_count = Some(*num_files),
-            Some(c) => {
-                if c != *num_files {
-                    return Err(GpuboxError::UnevenCountInBatches {
-                        expected: c,
-                        got: *num_files,
-                    });
-                }
-            }
-        }
-    }
-
     // Ensure the output is properly sorted - each batch is sorted by batch
     // number, then channel identifier.
     temp_gpuboxes.sort_unstable_by_key(|g| (g.batch_number, g.channel_identifier));
 
-    Ok((temp_gpuboxes, format.unwrap(), batches_and_files.len()))
+    Ok((temp_gpuboxes, format.unwrap()))
 }
 
 /// Given a FITS file pointer and HDU, determine the time in units of
@@ -644,27 +618,21 @@ fn create_time_map(
     Ok(gpubox_time_map)
 }
 
-/// Determine the proper start and end times of an observation. In this context,
-/// "proper" refers to a time that is common to all gpubox files. Because gpubox
-/// files may not all start and end at the same time, anything "dangling" is
-/// trimmed. e.g.
+/// Determine the common start and end times of an observation. In this context,
+/// "common" refers to a time that is the first common to the most provided coarse channels and contiguous. e.g.
 ///
 /// ```text
 /// time:     0123456789abcdef
-/// gpubox01: ################
-/// gpubox02:  ###############
-/// gpubox03: ################
-/// gpubox04:   ##############
+/// gpubox01: ###############
+/// gpubox02:  #############
+/// gpubox03: #####    ######
+/// gpubox04:   ############
 /// gpubox05: ###############
-/// gpubox06: ################
+/// gpubox06:                #
+/// gpubox07-24: <none>
 /// ```
 ///
-/// In this example, we start collecting data from time=2, and end at time=e,
-/// because these are the first and last places that all gpubox files have
-/// data. All dangling data is ignored.
-///
-/// See tests of this function or `obs_context.rs` for examples of constructing
-/// the input to this function.
+/// common_start = 2, common_end = 4, common_duration = 3
 ///
 ///
 /// # Arguments
@@ -673,43 +641,88 @@ fn create_time_map(
 ///
 /// * `integration_time_ms` - Correlator dump time (so we know the gap between timesteps)
 ///
+/// * 'good_time_unix_time_ms' - Option- Some is the 'good' time (i.e. the first time which is not part of the quack time). None means that
+///                              times during the quack time are ok to be included.
+///
 /// # Returns
 ///
 /// * A struct containing the start and end times based on what we actually got, so all coarse channels match.
 ///
 ///
-pub(crate) fn determine_obs_times(
+pub(crate) fn determine_common_obs_times_and_chans(
     gpubox_time_map: &GpuboxTimeMap,
     integration_time_ms: u64,
-) -> Result<ObsTimes, GpuboxError> {
-    // Find the maximum number of gpubox files, and assume that this is the
-    // total number of input gpubox files.
-    let size = match gpubox_time_map.iter().map(|(_, submap)| submap.len()).max() {
+    good_time_unix_time_ms: Option<u64>,
+) -> Result<ObsTimesAndChans, GpuboxError> {
+    // TODO implement case when we have Some() passed in
+    let timemap = match good_time_unix_time_ms {
+        Some(_) => gpubox_time_map,
+
+        None => gpubox_time_map,
+    };
+
+    // TODO
+    // .iter()
+    // .filter(|ts| ts.0 >= good_time)
+    // .collect::<<GpuboxTimeMap>>(),
+
+    // Find the maximum number of gpubox files for a timestep. Note some timesteps *could* have the same number (but different channels!)
+    // This is ok, because we will filter the GPUBoxtimemap to only those where chans==max and step through them one at a time until
+    // we hit a gap of a timestep with different channels. This is not perfect when there is a small contiguous strecth of timesteps, and then
+    // later in the obs there is a bigger contiguous stretch of those timesteps, but for now this is ok, as it will be fine for most circumstances.
+    let max_chans_per_timestep = match timemap.iter().map(|(_, submap)| submap.len()).max() {
         Some(m) => m,
         None => return Err(GpuboxError::EmptyBTreeMap),
     };
 
-    // Filter the first elements that don't satisfy `submap.len() == size`. The
-    // first and last of the submaps that satisfy this condition are the proper
-    // start and end of the observation.
-
-    let mut i = gpubox_time_map
+    // Filter the first elements that don't satisfy `submap.len() == size`.
+    let mut filtered_timesteps = timemap
         .iter()
-        .filter(|(_, submap)| submap.len() == size);
-    // unwrap is safe because an empty map is checked above.
-    let proper_start_millisec = i.next().map(|(time, _)| *time).unwrap();
-    let proper_end_millisec = match i.last().map(|(time, _)| *time) {
-        Some(s) => s,
-        None => {
-            // Looks like we only have 1 hdu, so end
-            proper_start_millisec
-        }
-    } + integration_time_ms;
+        .filter(|(_, submap)| submap.len() == max_chans_per_timestep);
 
-    Ok(ObsTimes {
-        start_millisec: proper_start_millisec,
-        end_millisec: proper_end_millisec,
-        duration_millisec: proper_end_millisec - proper_start_millisec,
+    // Get the first timestep where the num chans matches the max
+    // unwrap is safe because an empty map is checked above.
+    let first_ts = filtered_timesteps.next().unwrap();
+
+    // Now for refernce lets get what the coarse channels are for this timestep- we will use it below when iterating through the filtered collection of timesteps
+    let first_ts_chans = first_ts
+        .1
+        .iter()
+        .map(|ts_chans| *ts_chans.0)
+        .collect::<Vec<usize>>();
+    let common_start_unix_ms = *first_ts.0;
+
+    // In case there was only 1 timestep in the filtered timesteps, set the common end time now
+    let mut common_end_unix_ms = common_start_unix_ms + integration_time_ms;
+
+    // Iterate over the filtered timemap
+    // Go to the next timestep unless:
+    // * It is not contiguous with the previous
+    // * It has different set of channels (even though num of chans == max channels) <- rare but possible!
+    let mut prev_ts_unix_ms = common_start_unix_ms;
+    for ts in filtered_timesteps {
+        // Check ts and prev ts are contiguous
+        if *ts.0 == prev_ts_unix_ms + integration_time_ms
+            && first_ts_chans
+                == *ts
+                    .1
+                    .iter()
+                    .map(|ts_chans| *ts_chans.0)
+                    .collect::<Vec<usize>>()
+        {
+            // Update the end time
+            common_end_unix_ms = *ts.0 + integration_time_ms;
+            prev_ts_unix_ms = *ts.0;
+        } else {
+            break;
+        }
+    }
+
+    Ok(ObsTimesAndChans {
+        start_time_unix_ms: common_start_unix_ms,
+        end_time_unix_ms: common_end_unix_ms,
+        duration_ms: common_end_unix_ms - common_start_unix_ms,
+        coarse_chan_identifiers: first_ts_chans,
     })
 }
 

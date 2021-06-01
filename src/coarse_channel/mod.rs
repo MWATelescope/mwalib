@@ -173,7 +173,8 @@ impl CoarseChannel {
             ));
         }
 
-        let num_coarse_chans = metafits_coarse_chan_vec.len();
+        // get the count of metafits coarse channels
+        let num_metafits_coarse_chans = metafits_coarse_chan_vec.len();
 
         // Initialise the coarse channel vector of structs
         let mut coarse_chans: Vec<CoarseChannel> = Vec::new();
@@ -193,8 +194,8 @@ impl CoarseChannel {
                             first_chan_index_over_128 = Some(i);
                         }
 
-                        correlator_chan_number =
-                            (num_coarse_chans - 1) - (i - first_chan_index_over_128.unwrap_or(0));
+                        correlator_chan_number = (num_metafits_coarse_chans - 1)
+                            - (i - first_chan_index_over_128.unwrap_or(0));
                     }
 
                     // Before we commit to adding this coarse channel, lets ensure that the client supplied the
@@ -284,7 +285,7 @@ impl CoarseChannel {
         }
 
         // Now sort the coarse channels by receiver channel number (ascending sky frequency order)
-        coarse_chans.sort_by(|a, b| a.rec_chan_number.cmp(&b.rec_chan_number));
+        coarse_chans.sort_by_key(|c| c.rec_chan_number);
 
         Ok(coarse_chans)
     }

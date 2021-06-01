@@ -52,6 +52,8 @@ impl TimeStep {
     /// * `gpubox_time_map` - BTree structure containing the map of what gpubox
     ///   files and timesteps we were supplied by the client.
     ///
+    /// * `metafits_timesteps' - Reference to populated
+    ///
     /// * `scheduled_starttime_gps_ms` - Scheduled start time of the observation based on GPSTIME in the metafits (obsid).
     ///
     /// * `scheduled_starttime_unix_ms` - Scheduled start time of the observation based on GOODTIME-QUACKTIM in the metafits.
@@ -64,21 +66,19 @@ impl TimeStep {
     ///
     pub(crate) fn populate_correlator_timesteps(
         gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
+        metafits_timesteps: &[TimeStep],
         scheduled_starttime_gps_ms: u64,
         scheduled_starttime_unix_ms: u64,
     ) -> Option<Vec<Self>> {
         if gpubox_time_map.is_empty() {
             return None;
         }
-        // We need to determine the timesteps that are common to all gpubox
-        // files. First, determine the maximum number of gpubox files by
-        // inspecting the length of the BTreeMaps associated with each key of
-        // `gpubox_time_map`.
-        let num_gpubox_files: usize = gpubox_time_map.iter().map(|(_, m)| m.len()).max().unwrap();
-        // Now we find all keys with lengths equal to `num_gpubox_files`.
-        let mut timesteps: Vec<TimeStep> = vec![];
-        for (unix_time_ms, m) in gpubox_time_map.iter() {
-            if m.len() == num_gpubox_files {
+        // Create timestep vector from metafits timesteps
+        let mut timesteps: Vec<TimeStep> = metafits_timesteps.to_vec();
+
+        // Iterate through the gpubox map and insert any missing timesteps
+        for (unix_time_ms, _) in gpubox_time_map.iter() {
+            if !&timesteps.iter().any(|t| t.unix_time_ms == *unix_time_ms) {
                 let gps_time_ms = misc::convert_unixtime_to_gpstime(
                     *unix_time_ms,
                     scheduled_starttime_gps_ms,
@@ -87,6 +87,9 @@ impl TimeStep {
                 timesteps.push(Self::new(*unix_time_ms, gps_time_ms));
             }
         }
+
+        // Now sort by unix time
+        timesteps.sort_by_key(|t| t.unix_time_ms);
 
         Some(timesteps)
     }

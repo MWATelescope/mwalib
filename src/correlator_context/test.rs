@@ -53,25 +53,25 @@ fn test_context_legacy_v1() {
     assert_eq!(context.mwa_version, MWAVersion::CorrLegacy);
 
     // Actual UNIX start time:   1417468096,
-    assert_eq!(context.start_unix_time_ms, 1_417_468_096_000);
+    assert_eq!(context.common_start_unix_time_ms, 1_417_468_096_000);
 
     // Actual UNIX end time:     1417468098,
-    assert_eq!(context.end_unix_time_ms, 1_417_468_098_000);
+    assert_eq!(context.common_end_unix_time_ms, 1_417_468_098_000);
 
     // Actual duration:          2 s,
-    assert_eq!(context.duration_ms, 2000);
+    assert_eq!(context.common_duration_ms, 2000);
 
     // num timesteps:            1,
-    assert_eq!(context.num_timesteps, 1);
+    assert_eq!(context.num_timesteps, 56);
 
     // timesteps:                [unix=1417468096.000],
     assert_eq!(context.timesteps[0].unix_time_ms, 1_417_468_096_000);
 
     // observation bandwidth:    1.28 MHz,
-    assert_eq!(context.bandwidth_hz, 1_280_000);
+    assert_eq!(context.common_bandwidth_hz, 1_280_000);
 
     // num coarse channels,      1,
-    assert_eq!(context.num_coarse_chans, 1);
+    assert_eq!(context.num_common_coarse_chans, 1);
 
     // coarse channels:          [gpu=1 corr=0 rec=109 @ 139.520 MHz],
     assert_eq!(context.coarse_chans[0].corr_chan_number, 0);
@@ -96,6 +96,9 @@ fn test_context_legacy_v1() {
         context.metafits_context.antennas[1].tile_id,
         context.metafits_context.rf_inputs[3].tile_id
     );
+
+    assert_eq!(context.metafits_context.metafits_coarse_chans.len(), 24);
+    assert_eq!(context.metafits_context.metafits_timesteps.len(), 56);
 }
 
 #[test]
@@ -117,31 +120,31 @@ fn test_context_mwax() {
     assert_eq!(context.mwa_version, MWAVersion::CorrMWAXv2);
 
     // Actual UNIX start time:   1560938470,
-    assert_eq!(context.start_unix_time_ms, 1_560_938_470_000);
+    assert_eq!(context.common_start_unix_time_ms, 1_560_938_470_000);
 
     // Actual UNIX end time:     1560938471,
-    assert_eq!(context.end_unix_time_ms, 1_560_938_471_000);
+    assert_eq!(context.common_end_unix_time_ms, 1_560_938_471_000);
 
     // Actual duration:          1 s,
-    assert_eq!(context.duration_ms, 1000);
+    assert_eq!(context.common_duration_ms, 1000);
 
     // num timesteps:            1,
-    assert_eq!(context.num_timesteps, 1);
+    assert_eq!(context.num_timesteps, 120);
 
     // timesteps:                [unix=1560938470.000],
     assert_eq!(context.timesteps[0].unix_time_ms, 1_560_938_470_000);
 
     // observation bandwidth:    1.28 MHz,
-    assert_eq!(context.bandwidth_hz, 1_280_000);
+    assert_eq!(context.common_bandwidth_hz, 1_280_000);
 
     // num coarse channels,      1,
-    assert_eq!(context.num_coarse_chans, 1);
+    assert_eq!(context.num_common_coarse_chans, 1);
 
     // coarse channels:          [gpu=114 corr=10 rec=114 @  MHz],
-    assert_eq!(context.coarse_chans[0].corr_chan_number, 10);
-    assert_eq!(context.coarse_chans[0].gpubox_number, 114);
-    assert_eq!(context.coarse_chans[0].rec_chan_number, 114);
-    assert_eq!(context.coarse_chans[0].chan_centre_hz, 145_920_000);
+    assert_eq!(context.coarse_chans[10].corr_chan_number, 10);
+    assert_eq!(context.coarse_chans[10].gpubox_number, 114);
+    assert_eq!(context.coarse_chans[10].rec_chan_number, 114);
+    assert_eq!(context.coarse_chans[10].chan_centre_hz, 145_920_000);
 
     // Check that antenna[0].tile and antenna[1].tile equal rf_input[0] & [1].tile and rf_input[2] & [3].tile respectively
     assert_eq!(
@@ -160,6 +163,9 @@ fn test_context_mwax() {
         context.metafits_context.antennas[1].tile_id,
         context.metafits_context.rf_inputs[3].tile_id
     );
+
+    assert_eq!(context.metafits_context.metafits_coarse_chans.len(), 24);
+    assert_eq!(context.metafits_context.metafits_timesteps.len(), 120);
 }
 
 #[test]
@@ -282,10 +288,10 @@ fn test_mwax_read() {
         .expect("Failed to create CorrelatorContext");
 
     // Read and convert first HDU by baseline
-    let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+    let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 10).expect("Error!");
 
     // Read and convert first HDU by frequency
-    let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+    let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 10).expect("Error!");
 
     // First assert that the data vectors are the same size
     assert_eq!(fits_hdu_data.len(), mwalib_hdu_data_by_bl.len());
@@ -574,16 +580,16 @@ fn test_read_by_baseline_into_buffer_mwax() {
         .expect("Failed to create CorrelatorContext");
 
     // Read and convert first HDU by baseline
-    let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+    let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 10).expect("Error!");
 
     // Read and convert first HDU by frequency
-    let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+    let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 10).expect("Error!");
 
     // Read into buffer by baseline
     let mut mwalib_hdu_data_by_bl2: Vec<f32> = vec![0.; context.num_timestep_coarse_chan_floats];
 
     let result_read_bl_buffer =
-        context.read_by_baseline_into_buffer(0, 0, &mut mwalib_hdu_data_by_bl2);
+        context.read_by_baseline_into_buffer(0, 10, &mut mwalib_hdu_data_by_bl2);
 
     assert!(result_read_bl_buffer.is_ok());
 
@@ -631,16 +637,16 @@ fn test_read_by_frequency_into_buffer_mwax() {
         .expect("Failed to create CorrelatorContext");
 
     // Read and convert first HDU by baseline
-    let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
+    let mwalib_hdu_data_by_bl: Vec<f32> = context.read_by_baseline(0, 10).expect("Error!");
 
     // Read and convert first HDU by frequency
-    let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
+    let mwalib_hdu_data_by_freq: Vec<f32> = context.read_by_frequency(0, 10).expect("Error!");
 
     // Read into buffer by baseline
     let mut mwalib_hdu_data_by_freq2: Vec<f32> = vec![0.; context.num_timestep_coarse_chan_floats];
 
     let result_read_bl_buffer =
-        context.read_by_frequency_into_buffer(0, 0, &mut mwalib_hdu_data_by_freq2);
+        context.read_by_frequency_into_buffer(0, 10, &mut mwalib_hdu_data_by_freq2);
 
     assert!(result_read_bl_buffer.is_ok());
 

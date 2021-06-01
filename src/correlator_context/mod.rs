@@ -28,28 +28,44 @@ pub struct CorrelatorContext {
     pub metafits_context: MetafitsContext,
     /// Version of the correlator format
     pub mwa_version: MWAVersion,
+    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files)
+    pub timesteps: Vec<TimeStep>,
+    /// Number of timesteps in the timesteps vector
+    pub num_timesteps: usize,
+    /// Vector of coarse channel structs which is the same as the metafits provided coarse channels
+    pub coarse_chans: Vec<CoarseChannel>,
+    /// Number of coarse channels in the coarse channel vector
+    pub num_coarse_chans: usize,
+
+    /// Vector of (in)common timestep indices
+    pub common_timestep_indices: Vec<usize>,
+    // Number of common timesteps
+    pub num_common_timesteps: usize,
+    /// Vector of (in)common coarse channel indices
+    pub common_coarse_chan_indices: Vec<usize>,
+    // Number of common coarse channels
+    pub num_common_coarse_chans: usize,
+
     /// The proper start of the observation (the time that is common to all
     /// provided gpubox files).
-    pub start_unix_time_ms: u64,
+    pub common_start_unix_time_ms: u64,
     /// `end_unix_time_ms` is the actual end time of the observation
     /// i.e. start time of last common timestep plus integration time.
-    pub end_unix_time_ms: u64,
+    pub common_end_unix_time_ms: u64,
     /// `start_unix_time_ms` but in GPS milliseconds
-    pub start_gps_time_ms: u64,
+    pub common_start_gps_time_ms: u64,
     /// `end_unix_time_ms` but in GPS milliseconds
-    pub end_gps_time_ms: u64,
+    pub common_end_gps_time_ms: u64,
     /// Total duration of observation (based on gpubox files)
-    pub duration_ms: u64,
-    /// Number of timesteps in the observation
-    pub num_timesteps: usize,
-    /// This is an array of all timesteps we have data for
-    pub timesteps: Vec<TimeStep>,
-    /// Number of coarse channels after we've validated the input gpubox files
-    pub num_coarse_chans: usize,
-    /// Vector of coarse channel structs
-    pub coarse_chans: Vec<CoarseChannel>,
+    pub common_duration_ms: u64,
     /// Total bandwidth of the common coarse channels which have been provided (which may be less than or equal to the bandwith in the MetafitsContext)
-    pub bandwidth_hz: u32,
+    pub common_bandwidth_hz: u32,
+
+    /// Vector of (in)common timestep indices only including timesteps after the quack time
+    //pub common_good_timesteps: Vec<usize>,
+    /// Vector of (in)common coarse channel indices based on common timesteps after the quack time
+    //pub common_good_coarse_chans: Vec<usize>,
+
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_chan_bytes: usize,
     /// The number of floats in each gpubox HDU.
@@ -94,11 +110,7 @@ impl CorrelatorContext {
         metafits_filename: &T,
         gpubox_filenames: &[T],
     ) -> Result<Self, MwalibError> {
-        let metafits_context = MetafitsContext::new_internal(metafits_filename)?;
-
-        // Re-open metafits file
-        let mut metafits_fptr = fits_open!(&metafits_filename)?;
-        let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
+        let mut metafits_context = MetafitsContext::new_internal(metafits_filename)?;
 
         if gpubox_filenames.is_empty() {
             return Err(MwalibError::Gpubox(
@@ -107,10 +119,19 @@ impl CorrelatorContext {
         }
         // Do gpubox stuff only if we have gpubox files.
         let gpubox_info = examine_gpubox_files(&gpubox_filenames, metafits_context.obs_id)?;
+
+        // Populate metafits coarse channels and timesteps now that we know what MWA Version we are dealing with
+        // Populate the coarse channels
+        metafits_context.populate_expected_coarse_channels(gpubox_info.mwa_version)?;
+
+        // Populate the timesteps
+        metafits_context.populate_expected_timesteps(gpubox_info.mwa_version)?;
+
         // We can unwrap here because the `gpubox_time_map` can't be empty if
         // `gpuboxes` isn't empty.
         let timesteps = TimeStep::populate_correlator_timesteps(
             &gpubox_info.time_map,
+            &metafits_context.metafits_timesteps,
             metafits_context.sched_start_gps_time_ms,
             metafits_context.sched_start_unix_time_ms,
         )
@@ -119,32 +140,13 @@ impl CorrelatorContext {
         let num_timesteps = timesteps.len();
 
         // Populate coarse channels
-        // Get metafits info
-        let (metafits_coarse_chan_vec, metafits_coarse_chan_width_hz) =
-            CoarseChannel::get_metafits_coarse_channel_info(
-                &mut metafits_fptr,
-                &metafits_hdu,
-                metafits_context.obs_bandwidth_hz,
-            )?;
-
-        // Process the channels based on the gpubox files we have
-        let coarse_chans = CoarseChannel::populate_coarse_channels(
-            gpubox_info.mwa_version,
-            &metafits_coarse_chan_vec,
-            metafits_coarse_chan_width_hz,
-            Some(&gpubox_info.time_map),
-            None,
-        )?;
-
+        // First- the "main" coarse channel vector is simply the metafits coarse channels
+        let coarse_chans = metafits_context.metafits_coarse_chans.clone();
         let num_coarse_chans = coarse_chans.len();
-        let bandwidth_hz = (num_coarse_chans as u32) * metafits_coarse_chan_width_hz;
 
-        // We have enough information to validate HDU matches metafits
+        // We have enough information to validate HDU matches metafits for the first batch/first coarse channel we have data for
         if !gpubox_filenames.is_empty() {
-            let coarse_chan = coarse_chans[0].gpubox_number;
-            let (batch_index, _) = gpubox_info.time_map[&timesteps[0].unix_time_ms][&coarse_chan];
-
-            let mut fptr = fits_open!(&gpubox_info.batches[batch_index].gpubox_files[0].filename)?;
+            let mut fptr = fits_open!(&gpubox_info.batches[0].gpubox_files[0].filename)?;
 
             CorrelatorContext::validate_first_hdu(
                 gpubox_info.mwa_version,
@@ -158,19 +160,68 @@ impl CorrelatorContext {
         // Populate the start and end times of the observation.
         // Start= start of first timestep
         // End  = start of last timestep + integration time
-        let (start_unix_time_ms, end_unix_time_ms, duration_ms) = {
-            let o = determine_obs_times(&gpubox_info.time_map, metafits_context.corr_int_time_ms)?;
-            (o.start_millisec, o.end_millisec, o.duration_millisec)
+        let (
+            common_start_unix_time_ms,
+            common_end_unix_time_ms,
+            common_duration_ms,
+            common_coarse_chan_identifiers,
+        ) = {
+            let o = determine_common_obs_times_and_chans(
+                &gpubox_info.time_map,
+                metafits_context.corr_int_time_ms,
+                None,
+            )?;
+            (
+                o.start_time_unix_ms,
+                o.end_time_unix_ms,
+                o.duration_ms,
+                o.coarse_chan_identifiers,
+            )
         };
 
+        // Populate the common coarse_chan indices vector
+        let mut common_coarse_chan_indices: Vec<usize> = common_coarse_chan_identifiers
+            .iter()
+            .map(|chan_identifier| {
+                coarse_chans
+                    .iter()
+                    .position(|corr_coarse_chan| corr_coarse_chan.gpubox_number == *chan_identifier)
+                    .unwrap()
+            })
+            .collect::<Vec<usize>>();
+
+        common_coarse_chan_indices.sort_unstable();
+
+        // Populate the common timestep indices vector
+        let mut common_timestep_indices: Vec<usize> =
+            vec![0; (common_duration_ms / metafits_context.corr_int_time_ms) as usize];
+
+        // Ugly, but this will populate a vector of the indices of the common timesteps
+        for (cts_index, cts_value) in common_timestep_indices.iter_mut().enumerate() {
+            *cts_value = timesteps
+                .iter()
+                .position(|t| {
+                    t.unix_time_ms
+                        == common_start_unix_time_ms
+                            + (cts_index as u64 * metafits_context.corr_int_time_ms)
+                })
+                .unwrap();
+        }
+        let num_common_timesteps = common_timestep_indices.len();
+
+        // Determine some other "common" attributes
+        let num_common_coarse_chans = common_coarse_chan_indices.len();
+        let common_bandwidth_hz =
+            (num_common_coarse_chans as u32) * metafits_context.coarse_chan_width_hz;
+
         // Convert the real start and end times to GPS time
-        let start_gps_time_ms = misc::convert_unixtime_to_gpstime(
-            start_unix_time_ms,
+        let common_start_gps_time_ms = misc::convert_unixtime_to_gpstime(
+            common_start_unix_time_ms,
             metafits_context.sched_start_gps_time_ms,
             metafits_context.sched_start_unix_time_ms,
         );
-        let end_gps_time_ms = misc::convert_unixtime_to_gpstime(
-            end_unix_time_ms,
+        let common_end_gps_time_ms = misc::convert_unixtime_to_gpstime(
+            common_end_unix_time_ms,
             metafits_context.sched_start_gps_time_ms,
             metafits_context.sched_start_unix_time_ms,
         );
@@ -187,16 +238,20 @@ impl CorrelatorContext {
         Ok(CorrelatorContext {
             metafits_context,
             mwa_version: gpubox_info.mwa_version,
-            start_unix_time_ms,
-            end_unix_time_ms,
-            start_gps_time_ms,
-            end_gps_time_ms,
-            duration_ms,
             num_timesteps,
             timesteps,
             num_coarse_chans,
             coarse_chans,
-            bandwidth_hz,
+            num_common_timesteps,
+            common_timestep_indices,
+            num_common_coarse_chans,
+            common_coarse_chan_indices,
+            common_start_unix_time_ms,
+            common_end_unix_time_ms,
+            common_start_gps_time_ms,
+            common_end_gps_time_ms,
+            common_duration_ms,
+            common_bandwidth_hz,
             gpubox_batches: gpubox_info.batches,
             gpubox_time_map: gpubox_info.time_map,
             num_timestep_coarse_chan_bytes: gpubox_info.hdu_size * 4,
@@ -266,6 +321,84 @@ impl CorrelatorContext {
         Ok(return_buffer)
     }
 
+    /// Validate input timestep_index and coarse_chan_index and return the fits_filename, batch index and hdu of the corresponding data
+    ///
+    /// # Arguments
+    ///
+    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+    ///                      to the element within Context.timesteps.
+    ///
+    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+    ///                      to the element within Context.coarse_chans.        
+    ///
+    /// # Returns
+    ///
+    /// * A Result of Ok wrapping the fits_filename, batch_index and hdu_index if success or a GpuboxError on failure.
+    ///
+    fn get_fits_filename_and_batch_and_hdu(
+        &self,
+        timestep_index: usize,
+        coarse_chan_index: usize,
+    ) -> Result<(&str, usize, usize), GpuboxError> {
+        // Validate the timestep
+        if timestep_index > self.num_timesteps - 1 {
+            return Err(GpuboxError::InvalidTimeStepIndex(self.num_timesteps - 1));
+        }
+
+        // Validate the coarse chan
+        if coarse_chan_index > self.num_coarse_chans - 1 {
+            return Err(GpuboxError::InvalidCoarseChanIndex(
+                self.num_coarse_chans - 1,
+            ));
+        }
+
+        if self.gpubox_batches.is_empty() {
+            return Err(GpuboxError::NoGpuboxes);
+        }
+
+        // Lookup the coarse channel we need
+        let channel_identifier = self.coarse_chans[coarse_chan_index].gpubox_number;
+
+        // Get the batch index & hdu based on unix time of the timestep
+        let (batch_index, hdu_index) = match self
+            .gpubox_time_map
+            .get(&self.timesteps[timestep_index].unix_time_ms)
+        {
+            Some(t) => match t.get(&channel_identifier) {
+                Some(c) => c,
+                None => {
+                    return Err(GpuboxError::NoDataForTimeStepCoarseChannel {
+                        timestep_index,
+                        coarse_chan_index,
+                    })
+                }
+            },
+            None => {
+                return Err(GpuboxError::NoDataForTimeStepCoarseChannel {
+                    timestep_index,
+                    coarse_chan_index,
+                })
+            }
+        };
+
+        // For the batch number and coarse channel identifier, find the fits filename we need
+        let fits_filename = match &self.gpubox_batches[*batch_index]
+            .gpubox_files
+            .iter()
+            .find(|&gf| gf.channel_identifier == channel_identifier)
+        {
+            Some(gpuboxfile) => &gpuboxfile.filename,
+            None => {
+                return Err(GpuboxError::NoDataForTimeStepCoarseChannel {
+                    timestep_index,
+                    coarse_chan_index,
+                })
+            }
+        };
+
+        Ok((fits_filename, *batch_index, *hdu_index))
+    }
+
     /// Read a single timestep for a single coarse channel
     /// The output visibilities are in order:
     /// baseline,frequency,pol,r,i
@@ -273,10 +406,10 @@ impl CorrelatorContext {
     /// # Arguments
     ///
     /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within mwalibContext.timesteps.
+    ///                      to the element within Context.timesteps.
     ///
     /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within mwalibContext.coarse_chans.
+    ///                      to the element within Context.coarse_chans.
     ///
     /// * `buffer` - Float buffer as a slice which will be filled with data from the HDU read in [baseline][frequency][pol][r][i] order.
     ///
@@ -290,28 +423,12 @@ impl CorrelatorContext {
         coarse_chan_index: usize,
         buffer: &mut [f32],
     ) -> Result<(), GpuboxError> {
-        // Validate the timestep
-        if timestep_index > self.num_timesteps - 1 {
-            return Err(GpuboxError::InvalidTimeStepIndex(self.num_timesteps - 1));
-        }
+        // Validate input timestep_index and coarse_chan_index and return the fits_filename, batch index and hdu of the corresponding data
+        let (fits_filename, _, hdu_index) =
+            self.get_fits_filename_and_batch_and_hdu(timestep_index, coarse_chan_index)?;
 
-        // Validate the coarse chan
-        if coarse_chan_index > self.num_coarse_chans - 1 {
-            return Err(GpuboxError::InvalidCoarseChanIndex(
-                self.num_coarse_chans - 1,
-            ));
-        }
-
-        // Lookup the coarse channel we need
-        let coarse_chan = self.coarse_chans[coarse_chan_index].gpubox_number;
-        let (batch_index, hdu_index) =
-            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_chan];
-
-        if self.gpubox_batches.is_empty() {
-            return Err(GpuboxError::NoGpuboxes);
-        }
-        let mut fptr =
-            fits_open!(&self.gpubox_batches[batch_index].gpubox_files[coarse_chan_index].filename)?;
+        // Open the fits file
+        let mut fptr = fits_open!(&fits_filename)?;
         let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
 
         // If legacy correlator, then convert the HDU into the correct output format
@@ -370,17 +487,13 @@ impl CorrelatorContext {
         coarse_chan_index: usize,
         buffer: &mut [f32],
     ) -> Result<(), GpuboxError> {
-        // Validate the timestep
-        if timestep_index > self.num_timesteps - 1 {
-            return Err(GpuboxError::InvalidTimeStepIndex(self.num_timesteps - 1));
-        }
+        // Validate input timestep_index and coarse_chan_index and return the fits_filename, batch index and hdu of the corresponding data
+        let (fits_filename, _, hdu_index) =
+            self.get_fits_filename_and_batch_and_hdu(timestep_index, coarse_chan_index)?;
 
-        // Validate the coarse chan
-        if coarse_chan_index > self.num_coarse_chans - 1 {
-            return Err(GpuboxError::InvalidCoarseChanIndex(
-                self.num_coarse_chans - 1,
-            ));
-        }
+        // Open the fits file
+        let mut fptr = fits_open!(&fits_filename)?;
+        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
 
         // Prepare temporary buffer
         let mut temp_buffer = vec![
@@ -390,18 +503,6 @@ impl CorrelatorContext {
                 * self.metafits_context.num_baselines
                 * 2
         ];
-
-        // Lookup the coarse channel we need
-        let coarse_chan = self.coarse_chans[coarse_chan_index].gpubox_number;
-        let (batch_index, hdu_index) =
-            self.gpubox_time_map[&self.timesteps[timestep_index].unix_time_ms][&coarse_chan];
-
-        if self.gpubox_batches.is_empty() {
-            return Err(GpuboxError::NoGpuboxes);
-        }
-        let mut fptr =
-            fits_open!(&self.gpubox_batches[batch_index].gpubox_files[coarse_chan_index].filename)?;
-        let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
 
         // Read the hdu into our temp buffer
         get_fits_float_image_into_buffer!(&mut fptr, &hdu, &mut temp_buffer)?;
@@ -584,39 +685,44 @@ impl fmt::Display for CorrelatorContext {
         writeln!(
             f,
             r#"CorrelatorContext (
-            Metafits Context:         {metafits_context}
-            Correlator version:       {corr_ver},
+            Metafits Context:           {metafits_context}
+            Correlator version:         {corr_ver},
+            
+            num timesteps:              {n_timesteps},
+            timesteps:                  {timesteps:?},
+            num coarse channels,        {n_coarse},
+            coarse channels:            {coarse:?},
 
-            Actual UNIX start time:   {start_unix},
-            Actual UNIX end time:     {end_unix},
-            Actual GPS start time:    {start_gps},
-            Actual GPS end time:      {end_gps},
-            Actual duration:          {duration} s,
+            Common timestep indices:    {num_common_timesteps}: {common_ts:?},
+            Common coarse chan indices: {num_common_coarse_chans}: {common_chans:?},
+            Common UNIX start time:     {common_start_unix},
+            Common UNIX end time:       {common_end_unix},
+            Common GPS start time:      {common_start_gps},
+            Common GPS end time:        {common_end_gps},
+            Common duration:            {common_duration} s,
+            Common bandwidth:           {common_bw} MHz,            
 
-            num timesteps:            {n_timesteps},
-            timesteps:                {timesteps:?},
+            gpubox HDU size:            {hdu_size} MiB,
+            Memory usage per scan:      {scan_size} MiB,
 
-            observation bandwidth:    {obw} MHz,
-            num coarse channels,      {n_coarse},
-            coarse channels:          {coarse:?},
-
-            gpubox HDU size:          {hdu_size} MiB,
-            Memory usage per scan:    {scan_size} MiB,
-
-            gpubox batches:           {batches:#?},
+            gpubox batches:             {batches:#?},
         )"#,
             metafits_context = self.metafits_context,
             corr_ver = self.mwa_version,
-            start_unix = self.start_unix_time_ms as f64 / 1e3,
-            end_unix = self.end_unix_time_ms as f64 / 1e3,
-            start_gps = self.start_gps_time_ms as f64 / 1e3,
-            end_gps = self.end_gps_time_ms as f64 / 1e3,
-            duration = self.duration_ms as f64 / 1e3,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,
-            obw = self.bandwidth_hz as f64 / 1e6,
             n_coarse = self.num_coarse_chans,
             coarse = self.coarse_chans,
+            common_ts = self.common_timestep_indices,
+            num_common_timesteps = self.num_common_timesteps,
+            common_chans = self.common_coarse_chan_indices,
+            num_common_coarse_chans = self.num_common_coarse_chans,
+            common_start_unix = self.common_start_unix_time_ms as f64 / 1e3,
+            common_end_unix = self.common_end_unix_time_ms as f64 / 1e3,
+            common_start_gps = self.common_start_gps_time_ms as f64 / 1e3,
+            common_end_gps = self.common_end_gps_time_ms as f64 / 1e3,
+            common_duration = self.common_duration_ms as f64 / 1e3,
+            common_bw = self.common_bandwidth_hz as f64 / 1e6,
             hdu_size = size,
             scan_size = size * self.num_gpubox_files as f64,
             batches = self.gpubox_batches,
