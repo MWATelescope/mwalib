@@ -134,6 +134,7 @@ impl CorrelatorContext {
             &metafits_context.metafits_timesteps,
             metafits_context.sched_start_gps_time_ms,
             metafits_context.sched_start_unix_time_ms,
+            metafits_context.corr_int_time_ms,
         )
         .unwrap();
 

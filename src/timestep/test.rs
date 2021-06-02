@@ -10,9 +10,11 @@ use super::*;
 use crate::MetafitsContext;
 
 #[test]
-fn test_populate_correlator_timesteps() {
+fn test_populate_correlator_timesteps_simple() {
     // Create a dummy BTree GPUbox map
     let mut gpubox_time_map = BTreeMap::new();
+
+    let corr_int_time_ms = 500;
 
     let times: Vec<u64> = vec![
         1_381_844_923_000,
@@ -23,7 +25,15 @@ fn test_populate_correlator_timesteps() {
         1_381_844_925_500,
     ];
 
-    let metafits_timesteps: Vec<TimeStep> = Vec::new();
+    // Create a base vector of metafits timesteps
+    let mut metafits_timesteps: Vec<TimeStep> = Vec::new();
+
+    for (t_index, t_time) in times.iter().enumerate() {
+        metafits_timesteps.push(TimeStep::new(
+            *t_time,
+            1_065_880_139_000 + (t_index as u64 * corr_int_time_ms),
+        ));
+    }
 
     for (i, time) in times.iter().enumerate() {
         let mut new_time_tree = BTreeMap::new();
@@ -37,16 +47,243 @@ fn test_populate_correlator_timesteps() {
     // Get a vector timesteps
     let scheduled_start_gpstime_ms = 1_065_880_139_000;
     let scheduled_start_unix_ms = 1_381_844_923_000;
+
     let timesteps = TimeStep::populate_correlator_timesteps(
         &gpubox_time_map,
         &metafits_timesteps,
         scheduled_start_gpstime_ms,
         scheduled_start_unix_ms,
+        corr_int_time_ms,
     )
     .unwrap();
 
     // Check
     assert_eq!(6, timesteps.len());
+    assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
+    assert_eq!(timesteps[0].gps_time_ms, 1_065_880_139_000);
+    assert_eq!(timesteps[5].unix_time_ms, 1_381_844_925_500);
+    assert_eq!(timesteps[5].gps_time_ms, 1_065_880_141_500);
+}
+
+#[test]
+fn test_populate_correlator_timesteps_data_earlier_and_later_than_metafits() {
+    // In this scenario, the metafits first timestep starts AFTER the first data timestep
+    // also the metafits last timestep is BEFORE the last data timestep
+    // e.g.
+    //
+    // metafits:                                       [1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500]
+    // data:     [1_381_844_922_000, 1_381_844_922_500, 1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500, 1_381_844_926_000]
+    //
+
+    // Create a dummy BTree GPUbox map
+    let mut gpubox_time_map = BTreeMap::new();
+
+    let corr_int_time_ms = 500;
+
+    let times: Vec<u64> = vec![
+        1_381_844_923_000,
+        1_381_844_923_500,
+        1_381_844_924_000,
+        1_381_844_924_500,
+        1_381_844_925_000,
+        1_381_844_925_500,
+    ];
+
+    // Create a base vector of metafits timesteps
+    let mut metafits_timesteps: Vec<TimeStep> = Vec::new();
+
+    for (t_index, t_time) in times.iter().enumerate() {
+        metafits_timesteps.push(TimeStep::new(
+            *t_time,
+            1_065_880_139_000 + (t_index as u64 * corr_int_time_ms),
+        ));
+    }
+
+    // Add 2 previous timesteps
+    let mut new_time_tree = BTreeMap::new();
+    // gpubox 0.
+    new_time_tree.insert(0, (0, 0));
+    // gpubox 1.
+    new_time_tree.insert(1, (0, 0));
+    gpubox_time_map.insert(1_381_844_922_000, new_time_tree);
+
+    let mut new_time_tree = BTreeMap::new();
+    // gpubox 0.
+    new_time_tree.insert(0, (0, 1));
+    // gpubox 1.
+    new_time_tree.insert(1, (0, 1));
+    gpubox_time_map.insert(1_381_844_922_500, new_time_tree);
+
+    for (i, time) in times.iter().enumerate() {
+        let mut new_time_tree = BTreeMap::new();
+        // gpubox 0.
+        new_time_tree.insert(0, (0, i + 2));
+        // gpubox 1.
+        new_time_tree.insert(1, (0, i + 2));
+        gpubox_time_map.insert(*time, new_time_tree);
+    }
+
+    // Add one timestep after the end
+    let mut new_time_tree = BTreeMap::new();
+    // gpubox 0.
+    new_time_tree.insert(0, (0, 10));
+    // gpubox 1.
+    new_time_tree.insert(1, (0, 10));
+    gpubox_time_map.insert(1_381_844_926_000, new_time_tree);
+
+    // Get a vector timesteps
+    let scheduled_start_gpstime_ms = 1_065_880_139_000;
+    let scheduled_start_unix_ms = 1_381_844_923_000;
+
+    let timesteps = TimeStep::populate_correlator_timesteps(
+        &gpubox_time_map,
+        &metafits_timesteps,
+        scheduled_start_gpstime_ms,
+        scheduled_start_unix_ms,
+        corr_int_time_ms,
+    )
+    .unwrap();
+
+    // Check
+    assert_eq!(9, timesteps.len());
+    assert_eq!(timesteps[0].unix_time_ms, 1_381_844_922_000);
+    assert_eq!(timesteps[0].gps_time_ms, 1_065_880_138_000);
+    assert_eq!(timesteps[2].unix_time_ms, 1_381_844_923_000);
+    assert_eq!(timesteps[2].gps_time_ms, 1_065_880_139_000);
+    assert_eq!(timesteps[7].unix_time_ms, 1_381_844_925_500);
+    assert_eq!(timesteps[7].gps_time_ms, 1_065_880_141_500);
+    assert_eq!(timesteps[8].unix_time_ms, 1_381_844_926_000);
+    assert_eq!(timesteps[8].gps_time_ms, 1_065_880_142_000);
+}
+
+#[test]
+fn test_populate_correlator_timesteps_data_between_metafits_start_and_end() {
+    // In this scenario, the metafits first timestep starts BEFORE the first data timestep
+    // also the metafits last timestep is AFTER the last data timestep
+    // e.g.
+    //
+    // metafits: [1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500]
+    // data:                        [1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000]
+    //
+
+    // Create a dummy BTree GPUbox map
+    let mut gpubox_time_map = BTreeMap::new();
+
+    let corr_int_time_ms = 500;
+
+    let times: Vec<u64> = vec![
+        1_381_844_923_000,
+        1_381_844_923_500,
+        1_381_844_924_000,
+        1_381_844_924_500,
+        1_381_844_925_000,
+        1_381_844_925_500,
+    ];
+
+    // Create a base vector of metafits timesteps
+    let mut metafits_timesteps: Vec<TimeStep> = Vec::new();
+
+    for (t_index, t_time) in times.iter().enumerate() {
+        metafits_timesteps.push(TimeStep::new(
+            *t_time,
+            1_065_880_139_000 + (t_index as u64 * corr_int_time_ms),
+        ));
+    }
+
+    for (i, time) in times.iter().enumerate() {
+        // do not create the first and last timesteps
+        if i >= 1 || i <= 4 {
+            let mut new_time_tree = BTreeMap::new();
+            // gpubox 0.
+            new_time_tree.insert(0, (0, i + 2));
+            // gpubox 1.
+            new_time_tree.insert(1, (0, i + 2));
+            gpubox_time_map.insert(*time, new_time_tree);
+        }
+    }
+
+    // Get a vector timesteps
+    let scheduled_start_gpstime_ms = 1_065_880_139_000;
+    let scheduled_start_unix_ms = 1_381_844_923_000;
+
+    let timesteps = TimeStep::populate_correlator_timesteps(
+        &gpubox_time_map,
+        &metafits_timesteps,
+        scheduled_start_gpstime_ms,
+        scheduled_start_unix_ms,
+        corr_int_time_ms,
+    )
+    .unwrap();
+
+    // Check
+    assert_eq!(6, timesteps.len());
+    assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
+    assert_eq!(timesteps[0].gps_time_ms, 1_065_880_139_000);
+    assert_eq!(timesteps[5].unix_time_ms, 1_381_844_925_500);
+    assert_eq!(timesteps[5].gps_time_ms, 1_065_880_141_500);
+}
+
+#[test]
+fn test_populate_correlator_timesteps_data_between_metafits_start_and_end_gaps() {
+    // In this scenario, the metafits first timestep starts BEFORE the first data timestep
+    // also the metafits last timestep is AFTER the last data timestep. We also have data gaps
+    // e.g.
+    //
+    // metafits: [1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500]
+    // data:                        [1_381_844_923_500,                                       1_381_844_925_000]
+    //
+
+    // Create a dummy BTree GPUbox map
+    let mut gpubox_time_map = BTreeMap::new();
+
+    let corr_int_time_ms = 500;
+
+    let times: Vec<u64> = vec![
+        1_381_844_923_000,
+        1_381_844_923_500,
+        1_381_844_924_000,
+        1_381_844_924_500,
+        1_381_844_925_000,
+        1_381_844_925_500,
+    ];
+
+    // Create a base vector of metafits timesteps
+    let mut metafits_timesteps: Vec<TimeStep> = Vec::new();
+
+    for (t_index, t_time) in times.iter().enumerate() {
+        metafits_timesteps.push(TimeStep::new(
+            *t_time,
+            1_065_880_139_000 + (t_index as u64 * corr_int_time_ms),
+        ));
+    }
+
+    for (i, time) in times.iter().enumerate() {
+        // only create the 2nd and 2nd to last timesteps
+        if i == 1 || i == 4 {
+            let mut new_time_tree = BTreeMap::new();
+            // gpubox 0.
+            new_time_tree.insert(0, (0, i + 2));
+            // gpubox 1.
+            new_time_tree.insert(1, (0, i + 2));
+            gpubox_time_map.insert(*time, new_time_tree);
+        }
+    }
+
+    // Get a vector timesteps
+    let scheduled_start_gpstime_ms = 1_065_880_139_000;
+    let scheduled_start_unix_ms = 1_381_844_923_000;
+
+    let timesteps = TimeStep::populate_correlator_timesteps(
+        &gpubox_time_map,
+        &metafits_timesteps,
+        scheduled_start_gpstime_ms,
+        scheduled_start_unix_ms,
+        corr_int_time_ms,
+    )
+    .unwrap();
+
+    // Check
+    assert_eq!(timesteps.len(), 6);
     assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
     assert_eq!(timesteps[0].gps_time_ms, 1_065_880_139_000);
     assert_eq!(timesteps[5].unix_time_ms, 1_381_844_925_500);
@@ -63,11 +300,14 @@ fn test_populate_correlator_timesteps_none() {
     // Get a vector timesteps
     let scheduled_start_gpstime_ms = 0;
     let scheduled_start_unix_ms = 0;
+    let corr_int_time_ms = 500;
+
     let timesteps = TimeStep::populate_correlator_timesteps(
         &gpubox_time_map,
         &metafits_timesteps,
         scheduled_start_gpstime_ms,
         scheduled_start_unix_ms,
+        corr_int_time_ms,
     );
 
     // Check

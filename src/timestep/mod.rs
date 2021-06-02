@@ -45,7 +45,18 @@ impl TimeStep {
         }
     }
 
-    /// Creates a new, populated vector of TimeStep structs
+    /// Creates a new, populated vector of TimeStep structs. This code tries to populate timesteps which:
+    /// * Covers all data provided
+    /// * Does it's best to go from the metafits scheduled start to scheduled end
+    /// NOTE: this is involved, because in legacy obs, the metafits timesteps can be offset by fractions of an integration from the data timesteps. E.g.
+    ///  metafits timesteps = [0, 2, 4, 6, ..., 30]
+    ///  gpubox timesteps   = [3, 5, 7, 9, ..., 29, 31]
+    ///
+    /// In this example the correlator timesteps will be:
+    ///  correlator timesteps [1, 3, 5, 7, 9, ..., 29, 31]
+    ///
+    /// So we will try to cover the metafits range where possible without going outside it's start/end, UNLESS our data is outside that range in which case,
+    /// we just let it spill over.
     ///
     /// # Arguments
     ///
@@ -69,26 +80,95 @@ impl TimeStep {
         metafits_timesteps: &[TimeStep],
         scheduled_starttime_gps_ms: u64,
         scheduled_starttime_unix_ms: u64,
+        corr_int_time_ms: u64,
     ) -> Option<Vec<Self>> {
         if gpubox_time_map.is_empty() {
             return None;
         }
         // Create timestep vector from metafits timesteps
-        let mut timesteps: Vec<TimeStep> = metafits_timesteps.to_vec();
+        let mut timesteps: Vec<TimeStep> = Vec::new();
 
-        // Iterate through the gpubox map and insert any missing timesteps
+        // Get the unix time of the first timestep from the GpuboxTimeMap
+        let first_data_timestep_unix_ms: u64 = *gpubox_time_map.iter().next().unwrap().0;
+
+        // Get the unix time of the last timestep from the GpuboxTimeMap
+        let last_data_timestep_unix_ms: u64 = *gpubox_time_map.iter().next_back().unwrap().0;
+
+        // Iterate through the gpubox map and insert all timesteps
         for (unix_time_ms, _) in gpubox_time_map.iter() {
-            if !&timesteps.iter().any(|t| t.unix_time_ms == *unix_time_ms) {
+            let gps_time_ms = misc::convert_unixtime_to_gpstime(
+                *unix_time_ms,
+                scheduled_starttime_gps_ms,
+                scheduled_starttime_unix_ms,
+            );
+            timesteps.push(Self::new(*unix_time_ms, gps_time_ms));
+        }
+
+        // Go backwards from the first GpuboxTimeMap timestep to the scheduled start time of the obs and fill in any missing timesteps
+        // but only if the first data timestep is AFTER the start time of the obs.
+        if first_data_timestep_unix_ms > metafits_timesteps[0].unix_time_ms {
+            let mut current_timestep_unix_ms: u64 = first_data_timestep_unix_ms - corr_int_time_ms;
+
+            while current_timestep_unix_ms >= metafits_timesteps[0].unix_time_ms {
+                // Create a new timestep
                 let gps_time_ms = misc::convert_unixtime_to_gpstime(
-                    *unix_time_ms,
+                    current_timestep_unix_ms,
                     scheduled_starttime_gps_ms,
                     scheduled_starttime_unix_ms,
                 );
-                timesteps.push(Self::new(*unix_time_ms, gps_time_ms));
+                timesteps.push(Self::new(current_timestep_unix_ms, gps_time_ms));
+
+                // Move back by the correlator integration time
+                current_timestep_unix_ms -= corr_int_time_ms;
+            }
+        }
+
+        // Go forwards from the last GpuboxTimeMap timestep to the scheduled end time of the obs and fill in any missing timesteps
+        // but only if the last data timestep is BEFORE the end time of the obs.
+        if last_data_timestep_unix_ms
+            < metafits_timesteps[metafits_timesteps.len() - 1].unix_time_ms
+        {
+            let mut current_timestep_unix_ms: u64 = last_data_timestep_unix_ms + corr_int_time_ms;
+
+            while current_timestep_unix_ms
+                <= metafits_timesteps[metafits_timesteps.len() - 1].unix_time_ms
+            {
+                // Create a new timestep
+                let gps_time_ms = misc::convert_unixtime_to_gpstime(
+                    current_timestep_unix_ms,
+                    scheduled_starttime_gps_ms,
+                    scheduled_starttime_unix_ms,
+                );
+                timesteps.push(Self::new(current_timestep_unix_ms, gps_time_ms));
+
+                // Move forward by the correlator integration time
+                current_timestep_unix_ms += corr_int_time_ms;
             }
         }
 
         // Now sort by unix time
+        timesteps.sort_by_key(|t| t.unix_time_ms);
+
+        // We have extended out the first and last data timesteps
+        // Now we can go from first to last and fill in any gaps
+        for timestep_unix_time_ms in (timesteps[0].unix_time_ms
+            ..timesteps[timesteps.len() - 1].unix_time_ms)
+            .step_by(corr_int_time_ms as usize)
+        {
+            if !&timesteps
+                .iter()
+                .any(|t| t.unix_time_ms == timestep_unix_time_ms)
+            {
+                let gps_time_ms = misc::convert_unixtime_to_gpstime(
+                    timestep_unix_time_ms,
+                    scheduled_starttime_gps_ms,
+                    scheduled_starttime_unix_ms,
+                );
+                timesteps.push(Self::new(timestep_unix_time_ms, gps_time_ms));
+            }
+        }
+
+        // Now sort by unix time one final time
         timesteps.sort_by_key(|t| t.unix_time_ms);
 
         Some(timesteps)
