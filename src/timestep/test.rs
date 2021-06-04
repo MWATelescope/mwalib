@@ -7,57 +7,93 @@ Unit tests for timestep metadata
 */
 #[cfg(test)]
 use super::*;
+use crate::gpubox_files::GpuboxTimeMap;
 use crate::MetafitsContext;
 
-#[test]
-fn test_populate_correlator_timesteps_simple() {
-    // Create a dummy BTree GPUbox map
-    let mut gpubox_time_map = BTreeMap::new();
-
-    let corr_int_time_ms = 500;
-
-    let times: Vec<u64> = vec![
-        1_381_844_923_000,
-        1_381_844_923_500,
-        1_381_844_924_000,
-        1_381_844_924_500,
-        1_381_844_925_000,
-        1_381_844_925_500,
-    ];
-
-    // Create a base vector of metafits timesteps
+///
+/// This is helper method for many of the tests for generating the correlator timesteps
+/// Returns:
+/// * Vector of metafits timesteps
+/// * GpuboxTimeMap of correlator data files
+/// * Option, containing a populated Vector of correlator timesteps (or None). This is what we are checking for validity.
+///
+#[cfg(test)]
+fn create_corr_timestep_testdata(
+    scheduled_start_unix_ms: u64,
+    scheduled_start_gpstime_ms: u64,
+    scheduled_duration_ms: u64,
+    corr_int_time_ms: u64,
+    data_timesteps_unix_ms: Vec<u64>,
+) -> (Vec<TimeStep>, GpuboxTimeMap, Option<Vec<TimeStep>>) {
+    // Create metafits timesteps vec
     let mut metafits_timesteps: Vec<TimeStep> = Vec::new();
 
-    for (t_index, t_time) in times.iter().enumerate() {
+    // populate metafits timesteps
+    for (t_index, t_time) in (scheduled_start_unix_ms
+        ..(scheduled_start_unix_ms + scheduled_duration_ms))
+        .step_by(corr_int_time_ms as usize)
+        .enumerate()
+    {
         metafits_timesteps.push(TimeStep::new(
-            *t_time,
+            t_time,
             1_065_880_139_000 + (t_index as u64 * corr_int_time_ms),
         ));
     }
 
-    for (i, time) in times.iter().enumerate() {
+    // Now create a GpuboxtimeMap based on passed in Data unix time vector
+    // Create a dummy BTree GPUbox map
+    let mut gpubox_time_map = BTreeMap::new();
+
+    // Populate gpubox time map
+    for (i, time) in data_timesteps_unix_ms.iter().enumerate() {
         let mut new_time_tree = BTreeMap::new();
         // gpubox 0.
-        new_time_tree.insert(0, (0, i));
+        new_time_tree.insert(0, (0, i + 1));
         // gpubox 1.
         new_time_tree.insert(1, (0, i + 1));
         gpubox_time_map.insert(*time, new_time_tree);
     }
 
-    // Get a vector timesteps
-    let scheduled_start_gpstime_ms = 1_065_880_139_000;
-    let scheduled_start_unix_ms = 1_381_844_923_000;
-
-    let timesteps = TimeStep::populate_correlator_timesteps(
+    // perform the actual test
+    let correlator_timesteps = TimeStep::populate_correlator_timesteps(
         &gpubox_time_map,
         &metafits_timesteps,
         scheduled_start_gpstime_ms,
         scheduled_start_unix_ms,
         corr_int_time_ms,
-    )
-    .unwrap();
+    );
 
-    // Check
+    (metafits_timesteps, gpubox_time_map, correlator_timesteps)
+}
+
+#[test]
+fn test_populate_correlator_timesteps_simple() {
+    // In this scenario the data matches the metafits timesteps 1:1
+    // metafits: [1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500]
+    // data    : [1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500]
+    //
+    let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
+        1_381_844_923_000,
+        1_065_880_139_000,
+        3000,
+        500,
+        vec![
+            1_381_844_923_000,
+            1_381_844_923_500,
+            1_381_844_924_000,
+            1_381_844_924_500,
+            1_381_844_925_000,
+            1_381_844_925_500,
+        ],
+    );
+
+    // First check metafits is what we expect- this is testing the helper code!
+    assert_eq!(metafits_timesteps.len(), 6);
+
+    // Check returned correlator timesteps
+    assert!(correlator_timesteps.is_some());
+    let timesteps = correlator_timesteps.unwrap();
+
     assert_eq!(6, timesteps.len());
     assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
     assert_eq!(timesteps[0].gps_time_ms, 1_065_880_139_000);
@@ -74,77 +110,31 @@ fn test_populate_correlator_timesteps_data_earlier_and_later_than_metafits() {
     // metafits:                                       [1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500]
     // data:     [1_381_844_922_000, 1_381_844_922_500, 1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500, 1_381_844_926_000]
     //
-
-    // Create a dummy BTree GPUbox map
-    let mut gpubox_time_map = BTreeMap::new();
-
-    let corr_int_time_ms = 500;
-
-    let times: Vec<u64> = vec![
+    let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
         1_381_844_923_000,
-        1_381_844_923_500,
-        1_381_844_924_000,
-        1_381_844_924_500,
-        1_381_844_925_000,
-        1_381_844_925_500,
-    ];
+        1_065_880_139_000,
+        3000,
+        500,
+        vec![
+            1_381_844_922_000,
+            1_381_844_922_500,
+            1_381_844_923_000,
+            1_381_844_923_500,
+            1_381_844_924_000,
+            1_381_844_924_500,
+            1_381_844_925_000,
+            1_381_844_925_500,
+            1_381_844_926_000,
+        ],
+    );
 
-    // Create a base vector of metafits timesteps
-    let mut metafits_timesteps: Vec<TimeStep> = Vec::new();
+    // First check metafits is what we expect- this is testing the helper code!
+    assert_eq!(metafits_timesteps.len(), 6);
 
-    for (t_index, t_time) in times.iter().enumerate() {
-        metafits_timesteps.push(TimeStep::new(
-            *t_time,
-            1_065_880_139_000 + (t_index as u64 * corr_int_time_ms),
-        ));
-    }
+    // Check returned correlator timesteps
+    assert!(correlator_timesteps.is_some());
+    let timesteps = correlator_timesteps.unwrap();
 
-    // Add 2 previous timesteps
-    let mut new_time_tree = BTreeMap::new();
-    // gpubox 0.
-    new_time_tree.insert(0, (0, 0));
-    // gpubox 1.
-    new_time_tree.insert(1, (0, 0));
-    gpubox_time_map.insert(1_381_844_922_000, new_time_tree);
-
-    let mut new_time_tree = BTreeMap::new();
-    // gpubox 0.
-    new_time_tree.insert(0, (0, 1));
-    // gpubox 1.
-    new_time_tree.insert(1, (0, 1));
-    gpubox_time_map.insert(1_381_844_922_500, new_time_tree);
-
-    for (i, time) in times.iter().enumerate() {
-        let mut new_time_tree = BTreeMap::new();
-        // gpubox 0.
-        new_time_tree.insert(0, (0, i + 2));
-        // gpubox 1.
-        new_time_tree.insert(1, (0, i + 2));
-        gpubox_time_map.insert(*time, new_time_tree);
-    }
-
-    // Add one timestep after the end
-    let mut new_time_tree = BTreeMap::new();
-    // gpubox 0.
-    new_time_tree.insert(0, (0, 10));
-    // gpubox 1.
-    new_time_tree.insert(1, (0, 10));
-    gpubox_time_map.insert(1_381_844_926_000, new_time_tree);
-
-    // Get a vector timesteps
-    let scheduled_start_gpstime_ms = 1_065_880_139_000;
-    let scheduled_start_unix_ms = 1_381_844_923_000;
-
-    let timesteps = TimeStep::populate_correlator_timesteps(
-        &gpubox_time_map,
-        &metafits_timesteps,
-        scheduled_start_gpstime_ms,
-        scheduled_start_unix_ms,
-        corr_int_time_ms,
-    )
-    .unwrap();
-
-    // Check
     assert_eq!(9, timesteps.len());
     assert_eq!(timesteps[0].unix_time_ms, 1_381_844_922_000);
     assert_eq!(timesteps[0].gps_time_ms, 1_065_880_138_000);
@@ -165,55 +155,25 @@ fn test_populate_correlator_timesteps_data_between_metafits_start_and_end() {
     // metafits: [1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500]
     // data:                        [1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000]
     //
-
-    // Create a dummy BTree GPUbox map
-    let mut gpubox_time_map = BTreeMap::new();
-
-    let corr_int_time_ms = 500;
-
-    let times: Vec<u64> = vec![
+    let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
         1_381_844_923_000,
-        1_381_844_923_500,
-        1_381_844_924_000,
-        1_381_844_924_500,
-        1_381_844_925_000,
-        1_381_844_925_500,
-    ];
+        1_065_880_139_000,
+        3000,
+        500,
+        vec![
+            1_381_844_923_500,
+            1_381_844_924_000,
+            1_381_844_924_500,
+            1_381_844_925_000,
+        ],
+    );
 
-    // Create a base vector of metafits timesteps
-    let mut metafits_timesteps: Vec<TimeStep> = Vec::new();
+    // First check metafits is what we expect- this is testing the helper code!
+    assert_eq!(metafits_timesteps.len(), 6);
 
-    for (t_index, t_time) in times.iter().enumerate() {
-        metafits_timesteps.push(TimeStep::new(
-            *t_time,
-            1_065_880_139_000 + (t_index as u64 * corr_int_time_ms),
-        ));
-    }
-
-    for (i, time) in times.iter().enumerate() {
-        // do not create the first and last timesteps
-        if i >= 1 || i <= 4 {
-            let mut new_time_tree = BTreeMap::new();
-            // gpubox 0.
-            new_time_tree.insert(0, (0, i + 2));
-            // gpubox 1.
-            new_time_tree.insert(1, (0, i + 2));
-            gpubox_time_map.insert(*time, new_time_tree);
-        }
-    }
-
-    // Get a vector timesteps
-    let scheduled_start_gpstime_ms = 1_065_880_139_000;
-    let scheduled_start_unix_ms = 1_381_844_923_000;
-
-    let timesteps = TimeStep::populate_correlator_timesteps(
-        &gpubox_time_map,
-        &metafits_timesteps,
-        scheduled_start_gpstime_ms,
-        scheduled_start_unix_ms,
-        corr_int_time_ms,
-    )
-    .unwrap();
+    // Check returned correlator timesteps
+    assert!(correlator_timesteps.is_some());
+    let timesteps = correlator_timesteps.unwrap();
 
     // Check
     assert_eq!(6, timesteps.len());
@@ -232,55 +192,20 @@ fn test_populate_correlator_timesteps_data_between_metafits_start_and_end_gaps()
     // metafits: [1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500]
     // data:                        [1_381_844_923_500,                                       1_381_844_925_000]
     //
-
-    // Create a dummy BTree GPUbox map
-    let mut gpubox_time_map = BTreeMap::new();
-
-    let corr_int_time_ms = 500;
-
-    let times: Vec<u64> = vec![
+    let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
         1_381_844_923_000,
-        1_381_844_923_500,
-        1_381_844_924_000,
-        1_381_844_924_500,
-        1_381_844_925_000,
-        1_381_844_925_500,
-    ];
+        1_065_880_139_000,
+        3000,
+        500,
+        vec![1_381_844_923_500, 1_381_844_925_000],
+    );
 
-    // Create a base vector of metafits timesteps
-    let mut metafits_timesteps: Vec<TimeStep> = Vec::new();
+    // First check metafits is what we expect- this is testing the helper code!
+    assert_eq!(metafits_timesteps.len(), 6);
 
-    for (t_index, t_time) in times.iter().enumerate() {
-        metafits_timesteps.push(TimeStep::new(
-            *t_time,
-            1_065_880_139_000 + (t_index as u64 * corr_int_time_ms),
-        ));
-    }
-
-    for (i, time) in times.iter().enumerate() {
-        // only create the 2nd and 2nd to last timesteps
-        if i == 1 || i == 4 {
-            let mut new_time_tree = BTreeMap::new();
-            // gpubox 0.
-            new_time_tree.insert(0, (0, i + 2));
-            // gpubox 1.
-            new_time_tree.insert(1, (0, i + 2));
-            gpubox_time_map.insert(*time, new_time_tree);
-        }
-    }
-
-    // Get a vector timesteps
-    let scheduled_start_gpstime_ms = 1_065_880_139_000;
-    let scheduled_start_unix_ms = 1_381_844_923_000;
-
-    let timesteps = TimeStep::populate_correlator_timesteps(
-        &gpubox_time_map,
-        &metafits_timesteps,
-        scheduled_start_gpstime_ms,
-        scheduled_start_unix_ms,
-        corr_int_time_ms,
-    )
-    .unwrap();
+    // Check returned correlator timesteps
+    assert!(correlator_timesteps.is_some());
+    let timesteps = correlator_timesteps.unwrap();
 
     // Check
     assert_eq!(timesteps.len(), 6);
@@ -288,6 +213,125 @@ fn test_populate_correlator_timesteps_data_between_metafits_start_and_end_gaps()
     assert_eq!(timesteps[0].gps_time_ms, 1_065_880_139_000);
     assert_eq!(timesteps[5].unix_time_ms, 1_381_844_925_500);
     assert_eq!(timesteps[5].gps_time_ms, 1_065_880_141_500);
+}
+
+#[test]
+fn test_populate_correlator_timesteps_data_earlier_and_later_than_metafits_with_offset() {
+    // In this scenario, the metafits first timestep starts AFTER the first data timestep
+    // also the metafits last timestep is BEFORE the last data timestep
+    // AND the metafits timesteps are offset from the data timesteps by 1 second
+    // e.g.
+    //
+    // metafits:                            [1_381_844_923_000, 1_381_844_925_000, 1_381_844_927_000, 1_381_844_929_000, 1_381_844_931_000, 1_381_844_933_000]
+    // data:     [1_381_844_920_000, 1_381_844_922_000, 1_381_844_924_000, 1_381_844_926_000, 1_381_844_928_000, 1_381_844_930_000, 1_381_844_932_000, 1_381_844_934_000, 1_381_844_936_000]
+    //
+    let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
+        1_381_844_923_000,
+        1_065_880_139_000,
+        12000,
+        2000,
+        vec![
+            1_381_844_920_000,
+            1_381_844_922_000,
+            1_381_844_924_000,
+            1_381_844_926_000,
+            1_381_844_928_000,
+            1_381_844_930_000,
+            1_381_844_932_000,
+            1_381_844_934_000,
+            1_381_844_936_000,
+        ],
+    );
+
+    // First check metafits is what we expect- this is testing the helper code!
+    assert_eq!(metafits_timesteps.len(), 6);
+
+    // Check returned correlator timesteps
+    assert!(correlator_timesteps.is_some());
+    let timesteps = correlator_timesteps.unwrap();
+
+    // Check
+    assert_eq!(9, timesteps.len());
+    assert_eq!(timesteps[0].unix_time_ms, 1_381_844_920_000);
+    assert_eq!(timesteps[0].gps_time_ms, 1_065_880_136_000);
+    assert_eq!(timesteps[2].unix_time_ms, 1_381_844_924_000);
+    assert_eq!(timesteps[2].gps_time_ms, 1_065_880_140_000);
+    assert_eq!(timesteps[7].unix_time_ms, 1_381_844_934_000);
+    assert_eq!(timesteps[7].gps_time_ms, 1_065_880_150_000);
+    assert_eq!(timesteps[8].unix_time_ms, 1_381_844_936_000);
+    assert_eq!(timesteps[8].gps_time_ms, 1_065_880_152_000);
+}
+
+#[test]
+fn test_populate_correlator_timesteps_data_between_metafits_start_and_end_with_offset() {
+    // In this scenario, the metafits first timestep starts BEFORE the first data timestep
+    // also the metafits last timestep is AFTER the last data timestep
+    // AND the metafits timesteps are offset from the data timesteps by 1 second
+    // e.g.
+    //
+    // metafits: [1_381_844_923_000, 1_381_844_925_000, 1_381_844_927_000, 1_381_844_929_000, 1_381_844_931_000, 1_381_844_933_000]
+    // data:                                 [1_381_844_926_000, 1_381_844_928_000, 1_381_844_930_000, 1_381_844_932_000]
+    //
+    let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
+        1_381_844_923_000,
+        1_065_880_139_000,
+        12000,
+        2000,
+        vec![
+            1_381_844_926_000,
+            1_381_844_928_000,
+            1_381_844_930_000,
+            1_381_844_932_000,
+        ],
+    );
+
+    // First check metafits is what we expect- this is testing the helper code!
+    assert_eq!(metafits_timesteps.len(), 6);
+
+    // Check returned correlator timesteps
+    assert!(correlator_timesteps.is_some());
+    let timesteps = correlator_timesteps.unwrap();
+
+    // Check
+    assert_eq!(5, timesteps.len());
+    assert_eq!(timesteps[0].unix_time_ms, 1_381_844_924_000);
+    assert_eq!(timesteps[0].gps_time_ms, 1_065_880_140_000);
+    assert_eq!(timesteps[4].unix_time_ms, 1_381_844_932_000);
+    assert_eq!(timesteps[4].gps_time_ms, 1_065_880_148_000);
+}
+
+#[test]
+fn test_populate_correlator_timesteps_no_overlap_with_metafits() {
+    // In this scenario, the metafits timesteps have no overlap with data timesteps
+    // e.g.
+    //
+    // metafits: [1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500]
+    // data:                                                                                                                                           [1_381_844_926_500]
+    //
+    let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
+        1_381_844_923_000,
+        1_065_880_139_000,
+        3000,
+        500,
+        vec![1_381_844_926_500],
+    );
+
+    // First check metafits is what we expect- this is testing the helper code!
+    assert_eq!(metafits_timesteps.len(), 6);
+
+    // Check returned correlator timesteps
+    assert!(correlator_timesteps.is_some());
+    let timesteps = correlator_timesteps.unwrap();
+
+    assert_eq!(8, timesteps.len());
+    assert_eq!(timesteps[0].unix_time_ms, 1_381_844_923_000);
+    assert_eq!(timesteps[0].gps_time_ms, 1_065_880_139_000);
+    assert_eq!(timesteps[5].unix_time_ms, 1_381_844_925_500);
+    assert_eq!(timesteps[5].gps_time_ms, 1_065_880_141_500);
+    assert_eq!(timesteps[6].unix_time_ms, 1_381_844_926_000);
+    assert_eq!(timesteps[6].gps_time_ms, 1_065_880_142_000);
+    assert_eq!(timesteps[7].unix_time_ms, 1_381_844_926_500);
+    assert_eq!(timesteps[7].gps_time_ms, 1_065_880_142_500);
 }
 
 #[test]

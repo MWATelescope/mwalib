@@ -671,12 +671,20 @@ pub(crate) fn determine_common_obs_times_and_chans(
     // later in the obs there is a bigger contiguous stretch of those timesteps, but for now this is ok, as it will be fine for most circumstances.
     let max_chans_per_timestep = match timemap.iter().map(|(_, submap)| submap.len()).max() {
         Some(m) => m,
-        None => return Err(GpuboxError::EmptyBTreeMap),
+        None => {
+            // There is nothing common (probably because no data is after or on the Good Time)
+            return Ok(ObsTimesAndChans {
+                start_time_unix_ms: 0,
+                end_time_unix_ms: 0,
+                duration_ms: 0,
+                coarse_chan_identifiers: vec![],
+            });
+        }
     };
 
-    // Filter the first elements that don't satisfy `submap.len() == size`.
+    // Filter the timesteps that don't have the same max number of coarse channels
     let mut filtered_timesteps = timemap
-        .iter()
+        .into_iter()
         .filter(|(_, submap)| submap.len() == max_chans_per_timestep);
 
     // Get the first timestep where the num chans matches the max
@@ -689,7 +697,7 @@ pub(crate) fn determine_common_obs_times_and_chans(
         .iter()
         .map(|ts_chans| *ts_chans.0)
         .collect::<Vec<usize>>();
-    let common_start_unix_ms = *first_ts.0;
+    let common_start_unix_ms = first_ts.0;
 
     // In case there was only 1 timestep in the filtered timesteps, set the common end time now
     let mut common_end_unix_ms = common_start_unix_ms + integration_time_ms;
@@ -699,21 +707,29 @@ pub(crate) fn determine_common_obs_times_and_chans(
     // * It is not contiguous with the previous
     // * It has different set of channels (even though num of chans == max channels) <- rare but possible!
     let mut prev_ts_unix_ms = common_start_unix_ms;
-    for ts in filtered_timesteps {
-        // Check ts and prev ts are contiguous
-        if *ts.0 == prev_ts_unix_ms + integration_time_ms
-            && first_ts_chans
-                == *ts
-                    .1
-                    .iter()
-                    .map(|ts_chans| *ts_chans.0)
-                    .collect::<Vec<usize>>()
-        {
-            // Update the end time
-            common_end_unix_ms = *ts.0 + integration_time_ms;
-            prev_ts_unix_ms = *ts.0;
-        } else {
-            break;
+    loop {
+        let next_item = filtered_timesteps.next();
+
+        match next_item {
+            Some(ts) => {
+                let this_ts_chans: Vec<usize> =
+                    ts.1.iter()
+                        .map(|ts_chans| *ts_chans.0)
+                        .collect::<Vec<usize>>();
+
+                assert_eq!(1, 0, "ts0 {:?} vs this {:?}", first_ts_chans, this_ts_chans);
+
+                // Check ts and prev ts are contiguous
+                if ts.0 == prev_ts_unix_ms + integration_time_ms && first_ts_chans == this_ts_chans
+                {
+                    // Update the end time
+                    common_end_unix_ms = ts.0 + integration_time_ms;
+                    prev_ts_unix_ms = ts.0;
+                } else {
+                    break;
+                }
+            }
+            None => break,
         }
     }
 
