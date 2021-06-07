@@ -237,10 +237,15 @@ pub fn convert_unixtime_to_gpstime(
     mwa_start_gpstime_ms: u64,
     mwa_start_unixtime_ms: u64,
 ) -> u64 {
-    // We have a UNIX time reference and a gpstime reference
-    // Compute an offset
-    let offset_ms = mwa_start_unixtime_ms - mwa_start_gpstime_ms;
+    match unixtime_ms {
+        0 => 0,
+        _ => {
+            // We have a UNIX time reference and a gpstime reference
+            // Compute an offset
+            let offset_ms = mwa_start_unixtime_ms - mwa_start_gpstime_ms;
 
-    // The new converted gps time is unix time - offset
-    unixtime_ms - offset_ms
+            // The new converted gps time is unix time - offset
+            unixtime_ms - offset_ms
+        }
+    }
 }

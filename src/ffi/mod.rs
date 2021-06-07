@@ -1271,6 +1271,24 @@ pub struct CorrelatorMetadata {
     pub common_duration_ms: u64,
     /// Total bandwidth of the common coarse channels which have been provided (which may be less than or equal to the bandwith in the MetafitsContext)
     pub common_bandwidth_hz: u32,
+    // Number of common timesteps only including timesteps after the quack time
+    pub num_common_good_timesteps: usize,
+    // Number of common coarse channels only including timesteps after the quack time
+    pub num_common_good_coarse_chans: usize,
+    /// The start of the observation (the time that is common to all
+    /// provided gpubox files) only including timesteps after the quack time
+    pub common_good_start_unix_time_ms: u64,
+    /// `end_unix_time_ms` is the common end time of the observation only including timesteps after the quack time
+    /// i.e. start time of last common timestep plus integration time.
+    pub common_good_end_unix_time_ms: u64,
+    /// `common_good_start_unix_time_ms` but in GPS milliseconds
+    pub common_good_start_gps_time_ms: u64,
+    /// `common_good_end_unix_time_ms` but in GPS milliseconds
+    pub common_good_end_gps_time_ms: u64,
+    /// Total duration of common_good timesteps
+    pub common_good_duration_ms: u64,
+    /// Total bandwidth of the common coarse channels only including timesteps after the quack time
+    pub common_good_bandwidth_hz: u32,
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_chan_bytes: usize,
     /// The number of floats in each gpubox HDU.
@@ -1331,16 +1349,26 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             timesteps: _, // This is provided by the seperate timestep struct in FFI
             num_coarse_chans,
             coarse_chans: _, // This is provided by the seperate coarse_chan struct in FFI
-            common_timestep_indices: _, // This is provided by the seperate coarse_chan struct in FFI
+            common_timestep_indices: _, // This is provided by the seperate common_timestep struct in FFI
             num_common_timesteps,
-            common_coarse_chan_indices: _, // This is provided by the seperate coarse_chan struct in FFI
+            common_coarse_chan_indices: _, // This is provided by the seperate common_coarse_chan struct in FFI
             num_common_coarse_chans,
-            common_start_unix_time_ms: start_unix_time_ms,
-            common_end_unix_time_ms: end_unix_time_ms,
-            common_start_gps_time_ms: start_gps_time_ms,
-            common_end_gps_time_ms: end_gps_time_ms,
-            common_duration_ms: duration_ms,
-            common_bandwidth_hz: bandwidth_hz,
+            common_start_unix_time_ms,
+            common_end_unix_time_ms,
+            common_start_gps_time_ms,
+            common_end_gps_time_ms,
+            common_duration_ms,
+            common_bandwidth_hz,
+            common_good_timestep_indices: _, // This is provided by the seperate common_good_timestep struct in FFI
+            num_common_good_timesteps,
+            common_good_coarse_chan_indices: _, // This is provided by the seperate common_good_coarse_chan struct in FFI
+            num_common_good_coarse_chans,
+            common_good_start_unix_time_ms,
+            common_good_end_unix_time_ms,
+            common_good_start_gps_time_ms,
+            common_good_end_gps_time_ms,
+            common_good_duration_ms,
+            common_good_bandwidth_hz,
             num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats,
             num_gpubox_files,
@@ -1354,12 +1382,22 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             num_coarse_chans: *num_coarse_chans,
             num_common_timesteps: *num_common_timesteps,
             num_common_coarse_chans: *num_common_coarse_chans,
-            common_start_unix_time_ms: *start_unix_time_ms,
-            common_end_unix_time_ms: *end_unix_time_ms,
-            common_start_gps_time_ms: *start_gps_time_ms,
-            common_end_gps_time_ms: *end_gps_time_ms,
-            common_duration_ms: *duration_ms,
-            common_bandwidth_hz: *bandwidth_hz,
+            common_start_unix_time_ms: *common_start_unix_time_ms,
+            common_end_unix_time_ms: *common_end_unix_time_ms,
+            common_start_gps_time_ms: *common_start_gps_time_ms,
+            common_end_gps_time_ms: *common_end_gps_time_ms,
+            common_duration_ms: *common_duration_ms,
+            common_bandwidth_hz: *common_bandwidth_hz,
+
+            num_common_good_timesteps: *num_common_good_timesteps,
+            num_common_good_coarse_chans: *num_common_good_coarse_chans,
+            common_good_start_unix_time_ms: *common_good_start_unix_time_ms,
+            common_good_end_unix_time_ms: *common_good_end_unix_time_ms,
+            common_good_start_gps_time_ms: *common_good_start_gps_time_ms,
+            common_good_end_gps_time_ms: *common_good_end_gps_time_ms,
+            common_good_duration_ms: *common_good_duration_ms,
+            common_good_bandwidth_hz: *common_good_bandwidth_hz,
+
             num_timestep_coarse_chan_bytes: *num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats: *num_timestep_coarse_chan_floats,
             num_gpubox_files: *num_gpubox_files,

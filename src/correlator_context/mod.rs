@@ -46,25 +46,43 @@ pub struct CorrelatorContext {
     // Number of common coarse channels
     pub num_common_coarse_chans: usize,
 
-    /// The proper start of the observation (the time that is common to all
+    /// The start of the observation (the time that is common to all
     /// provided gpubox files).
     pub common_start_unix_time_ms: u64,
-    /// `end_unix_time_ms` is the actual end time of the observation
+    /// `end_unix_time_ms` is the common end time of the observation
     /// i.e. start time of last common timestep plus integration time.
     pub common_end_unix_time_ms: u64,
     /// `start_unix_time_ms` but in GPS milliseconds
     pub common_start_gps_time_ms: u64,
     /// `end_unix_time_ms` but in GPS milliseconds
     pub common_end_gps_time_ms: u64,
-    /// Total duration of observation (based on gpubox files)
+    /// Total duration of common timesteps
     pub common_duration_ms: u64,
-    /// Total bandwidth of the common coarse channels which have been provided (which may be less than or equal to the bandwith in the MetafitsContext)
+    /// Total bandwidth of the common coarse channels
     pub common_bandwidth_hz: u32,
 
     /// Vector of (in)common timestep indices only including timesteps after the quack time
-    //pub common_good_timesteps: Vec<usize>,
-    /// Vector of (in)common coarse channel indices based on common timesteps after the quack time
-    //pub common_good_coarse_chans: Vec<usize>,
+    pub common_good_timestep_indices: Vec<usize>,
+    // Number of common timesteps only including timesteps after the quack time
+    pub num_common_good_timesteps: usize,
+    /// Vector of (in)common coarse channel indices only including timesteps after the quack time
+    pub common_good_coarse_chan_indices: Vec<usize>,
+    // Number of common coarse channels only including timesteps after the quack time
+    pub num_common_good_coarse_chans: usize,
+    /// The start of the observation (the time that is common to all
+    /// provided gpubox files) only including timesteps after the quack time
+    pub common_good_start_unix_time_ms: u64,
+    /// `end_unix_time_ms` is the common end time of the observation only including timesteps after the quack time
+    /// i.e. start time of last common timestep plus integration time.
+    pub common_good_end_unix_time_ms: u64,
+    /// `common_good_start_unix_time_ms` but in GPS milliseconds
+    pub common_good_start_gps_time_ms: u64,
+    /// `common_good_end_unix_time_ms` but in GPS milliseconds
+    pub common_good_end_gps_time_ms: u64,
+    /// Total duration of common_good timesteps
+    pub common_good_duration_ms: u64,
+    /// Total bandwidth of the common coarse channels only including timesteps after the quack time
+    pub common_good_bandwidth_hz: u32,
 
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_chan_bytes: usize,
@@ -77,14 +95,14 @@ pub struct CorrelatorContext {
     /// corresponds directly to other gpubox-related objects
     /// (e.g. `gpubox_hdu_limits`). Structured:
     /// `gpubox_batches[batch][filename]`.
-    pub(crate) gpubox_batches: Vec<GpuBoxBatch>,
+    pub gpubox_batches: Vec<GpuBoxBatch>,
     /// We assume as little as possible about the data layout in the gpubox
     /// files; here, a `BTreeMap` contains each unique UNIX time from every
     /// gpubox, which is associated with another `BTreeMap`, associating each
     /// gpubox number with a gpubox batch number and HDU index. The gpubox
     /// number, batch number and HDU index are everything needed to find the
     /// correct HDU out of all gpubox files.
-    pub(crate) gpubox_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
+    pub gpubox_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
     /// A conversion table to optimise reading of legacy MWA HDUs
     pub(crate) legacy_conversion_table: Vec<LegacyConversionBaseline>,
 }
@@ -158,7 +176,7 @@ impl CorrelatorContext {
             )?;
         }
 
-        // Populate the start and end times of the observation.
+        // Populate the start and end times of the observation based on common channels.
         // Start= start of first timestep
         // End  = start of last timestep + integration time
         let (
@@ -227,6 +245,75 @@ impl CorrelatorContext {
             metafits_context.sched_start_unix_time_ms,
         );
 
+        // Populate the start and end times of the observation based on common channels after the quack time.
+        // Start= start of first timestep
+        // End  = start of last timestep + integration time
+        let (
+            common_good_start_unix_time_ms,
+            common_good_end_unix_time_ms,
+            common_good_duration_ms,
+            common_good_coarse_chan_identifiers,
+        ) = {
+            let o = determine_common_obs_times_and_chans(
+                &gpubox_info.time_map,
+                metafits_context.corr_int_time_ms,
+                Some(metafits_context.good_time_unix_ms),
+            )?;
+            (
+                o.start_time_unix_ms,
+                o.end_time_unix_ms,
+                o.duration_ms,
+                o.coarse_chan_identifiers,
+            )
+        };
+
+        // Populate the common good coarse_chan indices vector
+        let mut common_good_coarse_chan_indices: Vec<usize> = common_good_coarse_chan_identifiers
+            .iter()
+            .map(|chan_identifier| {
+                coarse_chans
+                    .iter()
+                    .position(|corr_coarse_chan| corr_coarse_chan.gpubox_number == *chan_identifier)
+                    .unwrap()
+            })
+            .collect::<Vec<usize>>();
+
+        common_good_coarse_chan_indices.sort_unstable();
+
+        // Populate the common timestep indices vector
+        let mut common_good_timestep_indices: Vec<usize> =
+            vec![0; (common_good_duration_ms / metafits_context.corr_int_time_ms) as usize];
+
+        // Ugly, but this will populate a vector of the indices of the common timesteps
+        for (cts_index, cts_value) in common_good_timestep_indices.iter_mut().enumerate() {
+            *cts_value = timesteps
+                .iter()
+                .position(|t| {
+                    t.unix_time_ms
+                        == common_good_start_unix_time_ms
+                            + (cts_index as u64 * metafits_context.corr_int_time_ms)
+                })
+                .unwrap();
+        }
+        let num_common_good_timesteps = common_good_timestep_indices.len();
+
+        // Determine some other "common good" attributes
+        let num_common_good_coarse_chans = common_good_coarse_chan_indices.len();
+        let common_good_bandwidth_hz =
+            (num_common_good_coarse_chans as u32) * metafits_context.coarse_chan_width_hz;
+
+        // Convert the real start and end times to GPS time
+        let common_good_start_gps_time_ms = misc::convert_unixtime_to_gpstime(
+            common_good_start_unix_time_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
+        );
+        let common_good_end_gps_time_ms = misc::convert_unixtime_to_gpstime(
+            common_good_end_unix_time_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
+        );
+
         // Prepare the conversion array to convert legacy correlator format into mwax format
         // or just leave it empty if we're in any other format
         let legacy_conversion_table: Vec<LegacyConversionBaseline> = match gpubox_info.mwa_version {
@@ -253,6 +340,16 @@ impl CorrelatorContext {
             common_end_gps_time_ms,
             common_duration_ms,
             common_bandwidth_hz,
+            num_common_good_timesteps,
+            common_good_timestep_indices,
+            num_common_good_coarse_chans,
+            common_good_coarse_chan_indices,
+            common_good_start_unix_time_ms,
+            common_good_end_unix_time_ms,
+            common_good_start_gps_time_ms,
+            common_good_end_gps_time_ms,
+            common_good_duration_ms,
+            common_good_bandwidth_hz,
             gpubox_batches: gpubox_info.batches,
             gpubox_time_map: gpubox_info.time_map,
             num_timestep_coarse_chan_bytes: gpubox_info.hdu_size * 4,
@@ -701,7 +798,16 @@ impl fmt::Display for CorrelatorContext {
             Common GPS start time:      {common_start_gps},
             Common GPS end time:        {common_end_gps},
             Common duration:            {common_duration} s,
-            Common bandwidth:           {common_bw} MHz,            
+            Common bandwidth:           {common_bw} MHz,     
+            
+            Common/Good timestep indices:    {num_common_good_timesteps}: {common_good_ts:?},
+            Common/Good coarse chan indices: {num_common_good_coarse_chans}: {common_good_chans:?},
+            Common/Good UNIX start time:     {common_good_start_unix},
+            Common/Good UNIX end time:       {common_good_end_unix},
+            Common/Good GPS start time:      {common_good_start_gps},
+            Common/Good GPS end time:        {common_good_end_gps},
+            Common/Good duration:            {common_good_duration} s,
+            Common/Good bandwidth:           {common_good_bw} MHz,     
 
             gpubox HDU size:            {hdu_size} MiB,
             Memory usage per scan:      {scan_size} MiB,
@@ -724,6 +830,16 @@ impl fmt::Display for CorrelatorContext {
             common_end_gps = self.common_end_gps_time_ms as f64 / 1e3,
             common_duration = self.common_duration_ms as f64 / 1e3,
             common_bw = self.common_bandwidth_hz as f64 / 1e6,
+            common_good_ts = self.common_good_timestep_indices,
+            num_common_good_timesteps = self.num_common_good_timesteps,
+            common_good_chans = self.common_good_coarse_chan_indices,
+            num_common_good_coarse_chans = self.num_common_good_coarse_chans,
+            common_good_start_unix = self.common_good_start_unix_time_ms as f64 / 1e3,
+            common_good_end_unix = self.common_good_end_unix_time_ms as f64 / 1e3,
+            common_good_start_gps = self.common_good_start_gps_time_ms as f64 / 1e3,
+            common_good_end_gps = self.common_good_end_gps_time_ms as f64 / 1e3,
+            common_good_duration = self.common_good_duration_ms as f64 / 1e3,
+            common_good_bw = self.common_good_bandwidth_hz as f64 / 1e6,
             hdu_size = size,
             scan_size = size * self.num_gpubox_files as f64,
             batches = self.gpubox_batches,

@@ -32,7 +32,7 @@ pub(crate) struct ObsTimesAndChans {
 
 /// This represents one group of gpubox files with the same "batch" identitifer.
 /// e.g. obsid_datetime_chan_batch
-pub(crate) struct GpuBoxBatch {
+pub struct GpuBoxBatch {
     pub batch_number: usize,           // 00,01,02..n
     pub gpubox_files: Vec<GpuBoxFile>, // Vector storing the details of each gpubox file in this batch
 }
@@ -57,7 +57,7 @@ impl fmt::Debug for GpuBoxBatch {
 }
 
 /// This represents one gpubox file
-pub(crate) struct GpuBoxFile {
+pub struct GpuBoxFile {
     /// Filename of gpubox file
     pub filename: String,
     /// channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
@@ -717,10 +717,13 @@ pub(crate) fn determine_common_obs_times_and_chans(
                         .map(|ts_chans| *ts_chans.0)
                         .collect::<Vec<usize>>();
 
-                assert_eq!(1, 0, "ts0 {:?} vs this {:?}", first_ts_chans, this_ts_chans);
-
-                // Check ts and prev ts are contiguous
-                if ts.0 == prev_ts_unix_ms + integration_time_ms && first_ts_chans == this_ts_chans
+                // Check ts and prev ts are contiguous and channels match
+                if (ts.0 == prev_ts_unix_ms + integration_time_ms)
+                    && first_ts_chans.len() == this_ts_chans.len()
+                    && first_ts_chans
+                        .iter()
+                        .zip(this_ts_chans.iter())
+                        .all(|(a, b)| a == b)
                 {
                     // Update the end time
                     common_end_unix_ms = ts.0 + integration_time_ms;
