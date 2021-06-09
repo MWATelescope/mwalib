@@ -415,11 +415,9 @@ pub unsafe extern "C" fn mwalib_correlator_context_display(
 ///
 /// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
 ///
-/// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-///                      to TimeStep.get(context, N) where N is timestep_index.
+/// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep.
 ///
-/// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-///                            to CoarseChannel.get(context, N) where N is coarse_chan_index.
+/// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel.
 ///
 /// * `buffer_ptr` - pointer to caller-owned and allocated buffer to write data into.
 ///
@@ -442,8 +440,8 @@ pub unsafe extern "C" fn mwalib_correlator_context_display(
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
     correlator_context_ptr: *mut CorrelatorContext,
-    timestep_index: size_t,
-    coarse_chan_index: size_t,
+    corr_timestep_index: size_t,
+    corr_coarse_chan_index: size_t,
     buffer_ptr: *mut c_float,
     buffer_len: size_t,
     error_message: *const c_char,
@@ -470,8 +468,11 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
     let output_slice = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
 
     // Read data into provided buffer
-    match corr_context.read_by_baseline_into_buffer(timestep_index, coarse_chan_index, output_slice)
-    {
+    match corr_context.read_by_baseline_into_buffer(
+        corr_timestep_index,
+        corr_coarse_chan_index,
+        output_slice,
+    ) {
         Ok(_) => 0,
         Err(e) => {
             set_error_message(
@@ -493,10 +494,10 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
 ///
 /// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
 ///
-/// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+/// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
 ///                      to TimeStep.get(context, N) where N is timestep_index.
 ///
-/// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+/// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
 ///                            to CoarseChannel.get(context, N) where N is coarse_chan_index.
 ///
 /// * `buffer_ptr` - pointer to caller-owned and allocated buffer to write data into.
@@ -520,8 +521,8 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
     correlator_context_ptr: *mut CorrelatorContext,
-    timestep_index: size_t,
-    coarse_chan_index: size_t,
+    corr_timestep_index: size_t,
+    corr_coarse_chan_index: size_t,
     buffer_ptr: *mut c_float,
     buffer_len: size_t,
     error_message: *const c_char,
@@ -548,8 +549,8 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
 
     // Read data into provided buffer
     match corr_context.read_by_frequency_into_buffer(
-        timestep_index,
-        coarse_chan_index,
+        corr_timestep_index,
+        corr_coarse_chan_index,
         output_slice,
     ) {
         Ok(_) => 0,

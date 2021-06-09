@@ -365,10 +365,10 @@ impl CorrelatorContext {
     ///
     /// # Arguments
     ///
-    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+    /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
     ///                      to the element within mwalibContext.timesteps.
     ///
-    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+    /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
     ///                      to the element within mwalibContext.coarse_chans.
     ///
     ///
@@ -379,12 +379,16 @@ impl CorrelatorContext {
     ///
     pub fn read_by_baseline(
         &self,
-        timestep_index: usize,
-        coarse_chan_index: usize,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
     ) -> Result<Vec<f32>, GpuboxError> {
         let mut return_buffer: Vec<f32> = vec![0.; self.num_timestep_coarse_chan_floats];
 
-        self.read_by_baseline_into_buffer(timestep_index, coarse_chan_index, &mut return_buffer)?;
+        self.read_by_baseline_into_buffer(
+            corr_timestep_index,
+            corr_coarse_chan_index,
+            &mut return_buffer,
+        )?;
 
         Ok(return_buffer)
     }
@@ -395,10 +399,10 @@ impl CorrelatorContext {
     ///
     /// # Arguments
     ///
-    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+    /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
     ///                      to the element within mwalibContext.timesteps.
     ///
-    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+    /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
     ///                      to the element within mwalibContext.coarse_chans.
     ///
     ///
@@ -409,12 +413,16 @@ impl CorrelatorContext {
     ///
     pub fn read_by_frequency(
         &self,
-        timestep_index: usize,
-        coarse_chan_index: usize,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
     ) -> Result<Vec<f32>, GpuboxError> {
         let mut return_buffer: Vec<f32> = vec![0.; self.num_timestep_coarse_chan_floats];
 
-        self.read_by_frequency_into_buffer(timestep_index, coarse_chan_index, &mut return_buffer)?;
+        self.read_by_frequency_into_buffer(
+            corr_timestep_index,
+            corr_coarse_chan_index,
+            &mut return_buffer,
+        )?;
 
         Ok(return_buffer)
     }
@@ -423,11 +431,9 @@ impl CorrelatorContext {
     ///
     /// # Arguments
     ///
-    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within Context.timesteps.
+    /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep.
     ///
-    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within Context.coarse_chans.        
+    /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel.
     ///
     /// # Returns
     ///
@@ -435,16 +441,16 @@ impl CorrelatorContext {
     ///
     fn get_fits_filename_and_batch_and_hdu(
         &self,
-        timestep_index: usize,
-        coarse_chan_index: usize,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
     ) -> Result<(&str, usize, usize), GpuboxError> {
         // Validate the timestep
-        if timestep_index > self.num_timesteps - 1 {
+        if corr_timestep_index > self.num_timesteps - 1 {
             return Err(GpuboxError::InvalidTimeStepIndex(self.num_timesteps - 1));
         }
 
         // Validate the coarse chan
-        if coarse_chan_index > self.num_coarse_chans - 1 {
+        if corr_coarse_chan_index > self.num_coarse_chans - 1 {
             return Err(GpuboxError::InvalidCoarseChanIndex(
                 self.num_coarse_chans - 1,
             ));
@@ -455,26 +461,26 @@ impl CorrelatorContext {
         }
 
         // Lookup the coarse channel we need
-        let channel_identifier = self.coarse_chans[coarse_chan_index].gpubox_number;
+        let channel_identifier = self.coarse_chans[corr_coarse_chan_index].gpubox_number;
 
         // Get the batch index & hdu based on unix time of the timestep
         let (batch_index, hdu_index) = match self
             .gpubox_time_map
-            .get(&self.timesteps[timestep_index].unix_time_ms)
+            .get(&self.timesteps[corr_timestep_index].unix_time_ms)
         {
             Some(t) => match t.get(&channel_identifier) {
                 Some(c) => c,
                 None => {
                     return Err(GpuboxError::NoDataForTimeStepCoarseChannel {
-                        timestep_index,
-                        coarse_chan_index,
+                        timestep_index: corr_timestep_index,
+                        coarse_chan_index: corr_coarse_chan_index,
                     })
                 }
             },
             None => {
                 return Err(GpuboxError::NoDataForTimeStepCoarseChannel {
-                    timestep_index,
-                    coarse_chan_index,
+                    timestep_index: corr_timestep_index,
+                    coarse_chan_index: corr_coarse_chan_index,
                 })
             }
         };
@@ -488,8 +494,8 @@ impl CorrelatorContext {
             Some(gpuboxfile) => &gpuboxfile.filename,
             None => {
                 return Err(GpuboxError::NoDataForTimeStepCoarseChannel {
-                    timestep_index,
-                    coarse_chan_index,
+                    timestep_index: corr_timestep_index,
+                    coarse_chan_index: corr_coarse_chan_index,
                 })
             }
         };
@@ -503,11 +509,9 @@ impl CorrelatorContext {
     ///
     /// # Arguments
     ///
-    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within Context.timesteps.
+    /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep.
     ///
-    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within Context.coarse_chans.
+    /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel.
     ///
     /// * `buffer` - Float buffer as a slice which will be filled with data from the HDU read in [baseline][frequency][pol][r][i] order.
     ///
@@ -517,13 +521,13 @@ impl CorrelatorContext {
     ///
     pub fn read_by_baseline_into_buffer(
         &self,
-        timestep_index: usize,
-        coarse_chan_index: usize,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
         buffer: &mut [f32],
     ) -> Result<(), GpuboxError> {
         // Validate input timestep_index and coarse_chan_index and return the fits_filename, batch index and hdu of the corresponding data
         let (fits_filename, _, hdu_index) =
-            self.get_fits_filename_and_batch_and_hdu(timestep_index, coarse_chan_index)?;
+            self.get_fits_filename_and_batch_and_hdu(corr_timestep_index, corr_coarse_chan_index)?;
 
         // Open the fits file
         let mut fptr = fits_open!(&fits_filename)?;
@@ -567,11 +571,9 @@ impl CorrelatorContext {
     ///
     /// # Arguments
     ///
-    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within mwalibContext.timesteps.
+    /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep.
     ///
-    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within mwalibContext.coarse_chans.
+    /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel.
     ///
     /// * `buffer` - Float buffer as a slice which will be filled with data from the HDU read in [baseline][frequency][pol][r][i] order.
     ///
@@ -581,13 +583,13 @@ impl CorrelatorContext {
     ///
     pub fn read_by_frequency_into_buffer(
         &self,
-        timestep_index: usize,
-        coarse_chan_index: usize,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
         buffer: &mut [f32],
     ) -> Result<(), GpuboxError> {
         // Validate input timestep_index and coarse_chan_index and return the fits_filename, batch index and hdu of the corresponding data
         let (fits_filename, _, hdu_index) =
-            self.get_fits_filename_and_batch_and_hdu(timestep_index, coarse_chan_index)?;
+            self.get_fits_filename_and_batch_and_hdu(corr_timestep_index, corr_coarse_chan_index)?;
 
         // Open the fits file
         let mut fptr = fits_open!(&fits_filename)?;
