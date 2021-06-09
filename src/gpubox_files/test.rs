@@ -481,75 +481,7 @@ fn test_determine_common_times_test_many_timesteps() {
     let result = determine_common_obs_times_and_chans(&input, integration_time_ms, None);
     assert!(result.is_ok());
     let result = result.unwrap();
-    assert_eq!(result.start_time_unix_ms, expected_start);
-    assert_eq!(result.end_time_unix_ms, expected_end);
-    assert_eq!(result.duration_ms, expected_duration);
-    assert_eq!(result.coarse_chan_identifiers.len(), 2);
-    assert_eq!(result.coarse_chan_identifiers[0], 0);
-    assert_eq!(result.coarse_chan_identifiers[1], 1);
-}
-
-#[test]
-fn test_determine_common_times_test_two_common_sets() {
-    // This tests for the case where there are 2 common sets of timesteps but for different coarse channel sets
-    // also with dangling ones at the start and end.
-    // The point of this test is to show we return the FIRST common set and ignore the latter common set.
-    // E.g.
-    //      t 0 1 2 3 4 5 6
-    // Chan 0 X X X X X X X
-    // Chan 1   X X
-    // Chan 2       X X
-    let common_times: Vec<u64> = vec![
-        1_381_844_923_500,
-        1_381_844_924_000,
-        1_381_844_924_500,
-        1_381_844_925_000,
-        1_381_844_925_500,
-    ];
-    let integration_time_ms = 500;
-
-    let mut input = BTreeMap::new();
-    let mut new_time_tree = BTreeMap::new();
-    new_time_tree.insert(0, (0, 1));
-    input.insert(1_381_844_923_000, new_time_tree);
-
-    for (i, time) in common_times.iter().enumerate() {
-        let mut new_time_tree = BTreeMap::new();
-
-        match i {
-            0 | 1 => {
-                // gpubox 0.
-                new_time_tree.insert(0, (0, i + 2));
-                // gpubox 1.
-                new_time_tree.insert(1, (0, i + 1));
-                input.insert(*time, new_time_tree);
-            }
-            2 | 3 => {
-                // gpubox 0.
-                new_time_tree.insert(0, (0, i + 2));
-                // gpubox 1.
-                new_time_tree.insert(2, (0, i + 1));
-                input.insert(*time, new_time_tree);
-            }
-            5 => {
-                // gpubox 0.
-                new_time_tree.insert(0, (0, i + 2));
-                input.insert(*time, new_time_tree);
-            }
-            _ => {}
-        }
-    }
-
-    let mut new_time_tree = BTreeMap::new();
-    new_time_tree.insert(1, (0, common_times.len() + 1));
-    input.insert(1_381_844_926_000, new_time_tree);
-
-    let expected_start = 1_381_844_923_500;
-    let expected_end = 1_381_844_924_000 + integration_time_ms;
-    let expected_duration = 1000;
-
-    let result = determine_common_obs_times_and_chans(&input, integration_time_ms, None);
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let result = result.unwrap();
     assert_eq!(result.start_time_unix_ms, expected_start);
     assert_eq!(result.end_time_unix_ms, expected_end);
@@ -557,48 +489,6 @@ fn test_determine_common_times_test_two_common_sets() {
     assert_eq!(result.coarse_chan_identifiers.len(), 2);
     assert_eq!(result.coarse_chan_identifiers[0], 0);
     assert_eq!(result.coarse_chan_identifiers[1], 1);
-}
-
-#[test]
-fn test_determine_common_times_test_nothing_common() {
-    // This tests for the case where there are no common sets of timesteps but for different coarse channel sets
-    // also with dangling ones at the start and end.
-    // E.g.
-    //      t 0 1 2
-    // Chan 0 X
-    // Chan 1   X
-    // Chan 2     X
-    let integration_time_ms = 500;
-
-    let mut input = BTreeMap::new();
-
-    // First timestep, channel 0
-    let mut new_time_tree = BTreeMap::new();
-    new_time_tree.insert(0, (0, 1));
-    input.insert(1_381_844_923_000, new_time_tree);
-
-    // Second timestep, channel 1
-    new_time_tree = BTreeMap::new();
-    new_time_tree.insert(1, (0, 2));
-    input.insert(1_381_844_923_500, new_time_tree);
-
-    // Third timestep, channel 2
-    new_time_tree = BTreeMap::new();
-    new_time_tree.insert(2, (0, 3));
-    input.insert(1_381_844_924_000, new_time_tree);
-
-    let expected_start = 1_381_844_923_000;
-    let expected_end = 1_381_844_923_000 + integration_time_ms;
-    let expected_duration = 500;
-
-    let result = determine_common_obs_times_and_chans(&input, integration_time_ms, None);
-    assert!(result.is_ok());
-    let result = result.unwrap();
-    assert_eq!(result.start_time_unix_ms, expected_start);
-    assert_eq!(result.end_time_unix_ms, expected_end);
-    assert_eq!(result.duration_ms, expected_duration);
-    assert_eq!(result.coarse_chan_identifiers.len(), 1);
-    assert_eq!(result.coarse_chan_identifiers[0], 0);
 }
 
 #[test]
@@ -636,6 +526,8 @@ fn test_determine_common_times_test_one_timestep() {
 
     let result = determine_common_obs_times_and_chans(&input, integration_time_ms, None);
     assert!(result.is_ok());
+    let result = result.unwrap();
+    assert!(result.is_some());
     let result = result.unwrap();
     assert_eq!(result.start_time_unix_ms, expected_start);
     assert_eq!(result.end_time_unix_ms, expected_end);
@@ -768,6 +660,110 @@ fn test_validate_gpubox_metadata_obsid() {
 }
 
 #[test]
+fn test_determine_provided_coarse_channels_all() {
+    // In this test we have data for all coarse chans.
+
+    // Setup variables to generate gpuboxtimemap
+    let coarse_chan101_timesteps: Vec<u64> = vec![1000, 2000];
+    let coarse_chan102_timesteps: Vec<u64> = vec![1000, 2000];
+    let coarse_chan103_timesteps: Vec<u64> = vec![1000, 2000];
+    let coarse_chan104_timesteps: Vec<u64> = vec![1000, 2000];
+
+    // Get a populated GpuboxTimeMap
+    let gpubox_time_map = create_determine_common_obs_times_and_chans_test_data(
+        coarse_chan101_timesteps,
+        coarse_chan102_timesteps,
+        coarse_chan103_timesteps,
+        coarse_chan104_timesteps,
+    );
+
+    let correlator_coarse_chans = vec![
+        CoarseChannel::new(1, 101, 101, 1_280_000),
+        CoarseChannel::new(2, 102, 102, 1_280_000),
+        CoarseChannel::new(3, 103, 103, 1_280_000),
+        CoarseChannel::new(4, 104, 104, 1_280_000),
+    ];
+
+    let provided_coarse_chans: Vec<usize> =
+        determine_provided_coarse_channels(&gpubox_time_map, &correlator_coarse_chans);
+
+    assert_eq!(provided_coarse_chans.len(), 4);
+    assert_eq!(provided_coarse_chans[0], 0);
+    assert_eq!(provided_coarse_chans[1], 1);
+    assert_eq!(provided_coarse_chans[2], 2);
+    assert_eq!(provided_coarse_chans[3], 3);
+}
+
+#[test]
+fn test_determine_provided_coarse_channels_all_but_spread_out() {
+    // In this test we have data for all coarse chans, but the chans are spread out across time (ie not all chans for all times).
+
+    // Setup variables to generate gpuboxtimemap
+    let coarse_chan101_timesteps: Vec<u64> = vec![1000, 2000];
+    let coarse_chan102_timesteps: Vec<u64> = vec![3000, 4000];
+    let coarse_chan103_timesteps: Vec<u64> = vec![1000, 2000, 3000];
+    let coarse_chan104_timesteps: Vec<u64> = vec![4000];
+
+    // Get a populated GpuboxTimeMap
+    let gpubox_time_map = create_determine_common_obs_times_and_chans_test_data(
+        coarse_chan101_timesteps,
+        coarse_chan102_timesteps,
+        coarse_chan103_timesteps,
+        coarse_chan104_timesteps,
+    );
+
+    let correlator_coarse_chans = vec![
+        CoarseChannel::new(1, 101, 101, 1_280_000),
+        CoarseChannel::new(2, 102, 102, 1_280_000),
+        CoarseChannel::new(3, 103, 103, 1_280_000),
+        CoarseChannel::new(4, 104, 104, 1_280_000),
+    ];
+
+    let provided_coarse_chans: Vec<usize> =
+        determine_provided_coarse_channels(&gpubox_time_map, &correlator_coarse_chans);
+
+    assert_eq!(provided_coarse_chans.len(), 4);
+    assert_eq!(provided_coarse_chans[0], 0);
+    assert_eq!(provided_coarse_chans[1], 1);
+    assert_eq!(provided_coarse_chans[2], 2);
+    assert_eq!(provided_coarse_chans[3], 3);
+}
+
+#[test]
+fn test_determine_provided_coarse_channels_some() {
+    // In this test, the metafits has 4 coarse chans, but we only have data for 101,103 and 104
+
+    // Setup variables to generate gpuboxtimemap
+    let coarse_chan101_timesteps: Vec<u64> = vec![1000];
+    let coarse_chan102_timesteps: Vec<u64> = vec![];
+    let coarse_chan103_timesteps: Vec<u64> = vec![1000];
+    let coarse_chan104_timesteps: Vec<u64> = vec![1000];
+
+    // Get a populated GpuboxTimeMap
+    let gpubox_time_map = create_determine_common_obs_times_and_chans_test_data(
+        coarse_chan101_timesteps,
+        coarse_chan102_timesteps,
+        coarse_chan103_timesteps,
+        coarse_chan104_timesteps,
+    );
+
+    let correlator_coarse_chans = vec![
+        CoarseChannel::new(1, 101, 101, 1_280_000),
+        CoarseChannel::new(2, 102, 102, 1_280_000),
+        CoarseChannel::new(3, 103, 103, 1_280_000),
+        CoarseChannel::new(4, 104, 104, 1_280_000),
+    ];
+
+    let provided_coarse_chans: Vec<usize> =
+        determine_provided_coarse_channels(&gpubox_time_map, &correlator_coarse_chans);
+
+    assert_eq!(provided_coarse_chans.len(), 3);
+    assert_eq!(provided_coarse_chans[0], 0);
+    assert_eq!(provided_coarse_chans[1], 2);
+    assert_eq!(provided_coarse_chans[2], 3);
+}
+
+#[test]
 fn test_determine_common_obs_times_and_chans_all_common() {
     // Scenario- all 4 coarse chans have a common timestep
     //        1000
@@ -802,6 +798,8 @@ fn test_determine_common_obs_times_and_chans_all_common() {
 
     // Unwrap to get the obstimesandchans struct
     let o = result.unwrap();
+    assert!(o.is_some());
+    let o = o.unwrap();
 
     // Check contents is what is expected
     assert_eq!(o.end_time_unix_ms - o.start_time_unix_ms, o.duration_ms);
@@ -822,6 +820,8 @@ fn test_determine_common_obs_times_and_chans_all_common() {
 
     // Unwrap to get the obstimesandchans struct
     let o_good = result_good.unwrap();
+    assert!(o_good.is_some());
+    let o_good = o_good.unwrap();
 
     // Check contents is what is expected
     assert_eq!(
@@ -847,10 +847,7 @@ fn test_determine_common_obs_times_and_chans_all_common() {
     let o_good2 = result_good2.unwrap();
 
     // Check contents is what is expected
-    assert_eq!(o_good2.start_time_unix_ms, 0);
-    assert_eq!(o_good2.end_time_unix_ms, 0);
-    assert_eq!(o_good2.duration_ms, 0);
-    assert_eq!(o_good2.coarse_chan_identifiers, vec![]);
+    assert!(o_good2.is_none());
 
     //
     // Now run the same test, but with a good time == 0 (1 second before the data)
@@ -864,6 +861,8 @@ fn test_determine_common_obs_times_and_chans_all_common() {
 
     // Unwrap to get the obstimesandchans struct
     let o_good3 = result_good3.unwrap();
+    assert!(o_good3.is_some());
+    let o_good3 = o_good3.unwrap();
 
     // Check contents is what is expected
     assert_eq!(o_good3.start_time_unix_ms, 1000);
@@ -874,7 +873,7 @@ fn test_determine_common_obs_times_and_chans_all_common() {
 
 #[test]
 fn test_determine_common_obs_times_and_chans_no_common() {
-    // Scenario- all 4 coarse chans have no common timesteps (so it will use the first)
+    // Scenario- all 4 coarse chans have no common timesteps
     //        1000 2000 3000 4000
     // chan101 X
     // chan102       X
@@ -907,13 +906,7 @@ fn test_determine_common_obs_times_and_chans_no_common() {
 
     // Unwrap to get the obstimesandchans struct
     let o = result.unwrap();
-
-    // Check contents of common timesteps and coarse channels is what is expected
-    assert_eq!(o.end_time_unix_ms - o.start_time_unix_ms, o.duration_ms);
-    assert_eq!(o.start_time_unix_ms, 1000);
-    assert_eq!(o.end_time_unix_ms, 2000);
-    assert_eq!(o.duration_ms, 1000);
-    assert_eq!(o.coarse_chan_identifiers, vec![101]);
+    assert!(o.is_none());
 
     //
     // Now run the same test, but with a good time 2000
@@ -927,36 +920,27 @@ fn test_determine_common_obs_times_and_chans_no_common() {
 
     // Unwrap to get the obstimesandchans struct
     let o_good = result_good.unwrap();
-
-    // Check contents is what is expected
-    assert_eq!(
-        o_good.end_time_unix_ms - o_good.start_time_unix_ms,
-        o_good.duration_ms
-    );
-    assert_eq!(o_good.start_time_unix_ms, 2000);
-    assert_eq!(o_good.end_time_unix_ms, 3000);
-    assert_eq!(o_good.duration_ms, 1000);
-    assert_eq!(o_good.coarse_chan_identifiers, vec![102]);
+    assert!(o_good.is_none());
 }
 
 #[test]
 fn test_determine_common_obs_times_and_chans_two_common() {
     // Scenario- 2000-3000  and 4000-5000 have 2 common, but we take the first (2000-3000)
-    //        1000 2000 3000 4000 5000
-    // chan101  X
-    // chan102       X    X
-    // chan103       X    X    X    X
-    // chan104                 X    X
+    //        1000 2000 3000 4000 5000 6000
+    // chan101  X    X    X         X   X
+    // chan102       X    X         X   X
+    // chan103       X    X    X    X   X
+    // chan104       X    X    X    X   X
     //
 
     // Set corr integration time
     let corr_int_time_ms = 1000;
 
     // Setup variables to generate gpuboxtimemap
-    let coarse_chan101_timesteps: Vec<u64> = vec![1000];
-    let coarse_chan102_timesteps: Vec<u64> = vec![2000, 3000];
-    let coarse_chan103_timesteps: Vec<u64> = vec![2000, 3000, 4000, 5000];
-    let coarse_chan104_timesteps: Vec<u64> = vec![4000, 5000];
+    let coarse_chan101_timesteps: Vec<u64> = vec![1000, 2000, 3000, 5000, 6000];
+    let coarse_chan102_timesteps: Vec<u64> = vec![2000, 3000, 5000, 6000];
+    let coarse_chan103_timesteps: Vec<u64> = vec![2000, 3000, 4000, 5000, 6000];
+    let coarse_chan104_timesteps: Vec<u64> = vec![2000, 3000, 4000, 5000, 6000];
 
     // Get a populated GpuboxTimeMap
     let gpubox_time_map = create_determine_common_obs_times_and_chans_test_data(
@@ -974,56 +958,60 @@ fn test_determine_common_obs_times_and_chans_two_common() {
 
     // Unwrap to get the obstimesandchans struct
     let o = result.unwrap();
+    assert!(o.is_some());
+    let o = o.unwrap();
 
     // Check contents of common timesteps and coarse channels is what is expected
     assert_eq!(o.end_time_unix_ms - o.start_time_unix_ms, o.duration_ms);
     assert_eq!(o.start_time_unix_ms, 2000);
     assert_eq!(o.end_time_unix_ms, 4000);
     assert_eq!(o.duration_ms, 2000);
-    assert_eq!(o.coarse_chan_identifiers, vec![102, 103]);
+    assert_eq!(o.coarse_chan_identifiers, vec![101, 102, 103, 104]);
 
     //
-    // Now run the same test, but with a good time of 3000
+    // Now run the same test, but with a good time of 4000
     //
     // Actually run our test!
     let result_good =
-        determine_common_obs_times_and_chans(&gpubox_time_map, corr_int_time_ms, Some(3000));
+        determine_common_obs_times_and_chans(&gpubox_time_map, corr_int_time_ms, Some(4000));
 
     // Check we did not encounter an error
     assert!(result_good.is_ok());
 
     // Unwrap to get the obstimesandchans struct
     let o_good = result_good.unwrap();
+    assert!(o_good.is_some());
+    let o_good = o_good.unwrap();
 
     // Check contents is what is expected
     assert_eq!(
         o_good.end_time_unix_ms - o_good.start_time_unix_ms,
         o_good.duration_ms
     );
-    assert_eq!(o_good.start_time_unix_ms, 3000);
-    assert_eq!(o_good.end_time_unix_ms, 4000, "{:?}", o_good);
-    assert_eq!(o_good.duration_ms, 1000);
-    assert_eq!(o_good.coarse_chan_identifiers, vec![102, 103]);
+    assert_eq!(o_good.start_time_unix_ms, 5000);
+    assert_eq!(o_good.end_time_unix_ms, 7000);
+    assert_eq!(o_good.duration_ms, 2000);
+    assert_eq!(o_good.coarse_chan_identifiers, vec![101, 102, 103, 104]);
 }
 
 #[test]
 fn test_determine_common_obs_times_and_chans_two_then_three() {
-    // Scenario- there is a run of 2 chans (1000-2000) then a different set of 2 chans for 1 ts then 3 chans in a 3 timestep run (4000,5000,6000).
+    // Scenario- there is a run of 2 chans (1000-2000) then a different set of 2 chans for 1 ts then 4 chans, 1 chan, 4 chans (4000,5000,6000).
     //        1000 2000 3000 4000 5000 6000
-    // chan101 X     X         X    X    X
-    // chan102 X     X         X    X    X
+    // chan101 X     X         X         X
+    // chan102 X     X         X         X
     // chan103            X    X    X    X
-    // chan104            X
+    // chan104            X    X         X
     //
 
     // Set corr integration time
     let corr_int_time_ms = 1000;
 
     // Setup variables to generate gpuboxtimemap
-    let coarse_chan101_timesteps: Vec<u64> = vec![1000, 2000, 4000, 5000, 6000];
-    let coarse_chan102_timesteps: Vec<u64> = vec![1000, 2000, 4000, 5000, 6000];
+    let coarse_chan101_timesteps: Vec<u64> = vec![1000, 2000, 4000, 6000];
+    let coarse_chan102_timesteps: Vec<u64> = vec![1000, 2000, 4000, 6000];
     let coarse_chan103_timesteps: Vec<u64> = vec![3000, 4000, 5000, 6000];
-    let coarse_chan104_timesteps: Vec<u64> = vec![3000];
+    let coarse_chan104_timesteps: Vec<u64> = vec![3000, 4000, 6000];
 
     // Get a populated GpuboxTimeMap
     let gpubox_time_map = create_determine_common_obs_times_and_chans_test_data(
@@ -1041,13 +1029,15 @@ fn test_determine_common_obs_times_and_chans_two_then_three() {
 
     // Unwrap to get the obstimesandchans struct
     let o = result.unwrap();
+    assert!(o.is_some());
+    let o = o.unwrap();
 
     // Check contents of common timesteps and coarse channels is what is expected
     assert_eq!(o.end_time_unix_ms - o.start_time_unix_ms, o.duration_ms);
     assert_eq!(o.start_time_unix_ms, 4000);
-    assert_eq!(o.end_time_unix_ms, 7000);
-    assert_eq!(o.duration_ms, 3000);
-    assert_eq!(o.coarse_chan_identifiers, vec![101, 102, 103]);
+    assert_eq!(o.end_time_unix_ms, 5000);
+    assert_eq!(o.duration_ms, 1000);
+    assert_eq!(o.coarse_chan_identifiers, vec![101, 102, 103, 104]);
 
     //
     // Now run the same test, but with a good time
@@ -1061,26 +1051,28 @@ fn test_determine_common_obs_times_and_chans_two_then_three() {
 
     // Unwrap to get the obstimesandchans struct
     let o_good = result_good.unwrap();
+    assert!(o_good.is_some());
+    let o_good = o_good.unwrap();
 
     // Check contents is what is expected
     assert_eq!(
         o_good.end_time_unix_ms - o_good.start_time_unix_ms,
         o_good.duration_ms
     );
-    assert_eq!(o_good.start_time_unix_ms, 5000);
+    assert_eq!(o_good.start_time_unix_ms, 6000);
     assert_eq!(o_good.end_time_unix_ms, 7000);
-    assert_eq!(o_good.duration_ms, 2000);
-    assert_eq!(o_good.coarse_chan_identifiers, vec![101, 102, 103]);
+    assert_eq!(o_good.duration_ms, 1000);
+    assert_eq!(o_good.coarse_chan_identifiers, vec![101, 102, 103, 104]);
 }
 
 #[test]
 fn test_determine_common_obs_times_and_chans_non_contiguous() {
-    // Scenario- there is a run of 2 chans (1000-2000) then a different set of 2 chans for 1 ts then 3 chans in a 1 timestep run (4000), a gap (5000), then 3 chans for (6000).
+    // Scenario- there is a run of 2 chans (1000-2000) then a different set of 2 chans for 1 ts then 3 chans in a 1 timestep run (4000), a gap (5000), then 4 chans for (6000).
     //        1000 2000 3000 4000 5000 6000
     // chan101 X     X                   X
     // chan102 X     X         X         X
     // chan103            X    X         X
-    // chan104            X    X
+    // chan104            X    X         X
     //
 
     // Set corr integration time
@@ -1090,7 +1082,7 @@ fn test_determine_common_obs_times_and_chans_non_contiguous() {
     let coarse_chan101_timesteps: Vec<u64> = vec![1000, 2000, 5000, 6000];
     let coarse_chan102_timesteps: Vec<u64> = vec![1000, 2000, 4000, 5000, 6000];
     let coarse_chan103_timesteps: Vec<u64> = vec![3000, 4000, 5000, 6000];
-    let coarse_chan104_timesteps: Vec<u64> = vec![3000, 4000];
+    let coarse_chan104_timesteps: Vec<u64> = vec![3000, 4000, 6000];
 
     // Get a populated GpuboxTimeMap
     let gpubox_time_map = create_determine_common_obs_times_and_chans_test_data(
@@ -1109,34 +1101,38 @@ fn test_determine_common_obs_times_and_chans_non_contiguous() {
 
     // Unwrap to get the obstimesandchans struct
     let o = result.unwrap();
+    assert!(o.is_some());
+    let o = o.unwrap();
 
     // Check contents of common timesteps and coarse channels is what is expected
     assert_eq!(o.end_time_unix_ms - o.start_time_unix_ms, o.duration_ms);
-    assert_eq!(o.start_time_unix_ms, 4000);
-    assert_eq!(o.end_time_unix_ms, 5000);
+    assert_eq!(o.start_time_unix_ms, 6000);
+    assert_eq!(o.end_time_unix_ms, 7000);
     assert_eq!(o.duration_ms, 1000);
-    assert_eq!(o.coarse_chan_identifiers, vec![102, 103, 104]);
+    assert_eq!(o.coarse_chan_identifiers, vec![101, 102, 103, 104]);
 
     //
-    // Now run the same test, but with a good time
+    // Now run the same test, but with a good time of 6000
     //
     // Actually run our test!
     let result_good =
-        determine_common_obs_times_and_chans(&gpubox_time_map, corr_int_time_ms, None);
+        determine_common_obs_times_and_chans(&gpubox_time_map, corr_int_time_ms, Some(6000));
 
     // Check we did not encounter an error
     assert!(result_good.is_ok());
 
     // Unwrap to get the obstimesandchans struct
     let o_good = result_good.unwrap();
+    assert!(o_good.is_some());
+    let o_good = o_good.unwrap();
 
     // Check contents is what is expected
     assert_eq!(
         o_good.end_time_unix_ms - o_good.start_time_unix_ms,
         o_good.duration_ms
     );
-    assert_eq!(o_good.start_time_unix_ms, 4000);
-    assert_eq!(o_good.end_time_unix_ms, 5000);
+    assert_eq!(o_good.start_time_unix_ms, 6000);
+    assert_eq!(o_good.end_time_unix_ms, 7000);
     assert_eq!(o_good.duration_ms, 1000);
-    assert_eq!(o_good.coarse_chan_identifiers, vec![102, 103, 104]);
+    assert_eq!(o_good.coarse_chan_identifiers, vec![101, 102, 103, 104]);
 }

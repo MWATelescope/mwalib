@@ -2,7 +2,11 @@
 
 Changes in each release are listed below.
 
-## 0.8.0 XX-May-2021 (Pre-release)
+## 0.8.1 09-Jun-2021 (Pre-release)
+* Modified logic of common and good correlator timesteps/coarse channels to mean common to all provided coarse channels.
+* Added provided_coarse_chans which is a vector of all of the provided gpubox files coarse channels.
+
+## 0.8.0 08-Jun-2021 (Pre-release)
 
 * Removed VisibilityPol struct, replaced with VisPol enum to simplify.
 * Renamed CorrelatorVersion enum to MWAVersion. This now incorporates Correlator version (OldLegacy, Legacy and MWAXv2, as well as VCSRecombined and MWAXVCS).
@@ -15,6 +19,8 @@ Changes in each release are listed below.
 * Added calibration_delays_and_gains_applied bool to MetafitsContext & FFI to inform the caller if calibration delays and gains have been applied to the data.
 * Added mode enum to MetafitsContext & FFI to inform the caller of the mode of the observation.
 * Added electrical_length_m, north_m, east_m, height_m to the Antenna struct (for efficiency). These are also available in the Rfinput struct.
+* Added common timesteps and coarse channels which represent the timesteps and channels common the most max set of coarse channels provided.
+* Added common good timesteps and coarse channels which is the same as common, except only timesteps after the quack time are used to determine them.
 
 ## 0.7.1 15-May-2021 (Pre-release)
 

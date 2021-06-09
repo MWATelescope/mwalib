@@ -8,6 +8,7 @@ Functions for organising and checking the consistency of gpubox files.
 pub mod error;
 
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::fmt;
 use std::path::Path;
 
@@ -618,8 +619,50 @@ fn create_time_map(
     Ok(gpubox_time_map)
 }
 
+/// Returns a vector of coarse chan indicies which exist in the GpuBoxTimeMap (i.e. the user has provided at least some data files for these coarse channels)
+///
+/// # Arguments
+///
+/// * `gpubox_time_map` - BTree structure containing the map of what gpubox files and timesteps we were supplied by the client.
+///
+/// * `corr_coarse_chans` - Vector of Correlator Context CoarseChannel structs.
+///
+/// # Returns
+///
+/// * A vector of coarse channel indices for which at least some data files have been provided
+///
+///
+pub(crate) fn determine_provided_coarse_channels(
+    gpubox_time_map: &GpuboxTimeMap,
+    corr_coarse_chans: &[CoarseChannel],
+) -> Vec<usize> {
+    // Go through all timesteps in the GpuBoxTimeMap.
+    // For each timestep get each coarse channel identifier and add it into the HashSet
+    let chans: HashSet<usize> = gpubox_time_map
+        .iter()
+        .flat_map(|ts| ts.1.iter().map(|ch| *ch.0))
+        .collect::<HashSet<usize>>();
+
+    // We should now have a small HashSet of coarse channel identifiers
+    // Get the index of each item in the hashset from the correlator coarse channels passed in and add that to the return vector
+    let mut return_vec: Vec<usize> = chans
+        .iter()
+        .map(|c| {
+            corr_coarse_chans
+                .iter()
+                .position(|v| v.gpubox_number == *c)
+                .unwrap()
+        })
+        .collect();
+
+    // Ensure vector is sorted
+    return_vec.sort_unstable();
+
+    return_vec
+}
+
 /// Determine the common start and end times of an observation. In this context,
-/// "common" refers to a time that is the first common to the most provided coarse channels and contiguous. e.g.
+/// "common" refers to a time that is common to the all of provided coarse channels and contiguous. e.g.
 ///
 /// ```text
 /// time:     0123456789abcdef
@@ -631,9 +674,12 @@ fn create_time_map(
 /// gpubox06:                #
 /// gpubox07-24: <none>
 /// ```
+/// Example 1:
+/// In the above example, there is at least some timesteps from coarse channels 01-06. But there are NO timesteps that contain all 6 channels so this function
+/// would return a None.
 ///
-/// common_start = 2, common_end = 4, common_duration = 3
-///
+/// Example 2:
+/// If you were to remove timestep "f", then there are 5 coarse channels, and the timesteps 2-4 inclusive are the common timesteps.
 ///
 /// # Arguments
 ///
@@ -646,14 +692,14 @@ fn create_time_map(
 ///
 /// # Returns
 ///
-/// * A struct containing the start and end times based on what we actually got, so all coarse channels match.
+/// * A Result which contains an Option containing a struct containing the start and end times based on what we actually got, so all coarse channels match, or None; or an Error.
 ///
 ///
 pub(crate) fn determine_common_obs_times_and_chans(
     gpubox_time_map: &GpuboxTimeMap,
     integration_time_ms: u64,
     good_time_unix_time_ms: Option<u64>,
-) -> Result<ObsTimesAndChans, GpuboxError> {
+) -> Result<Option<ObsTimesAndChans>, GpuboxError> {
     // If we pass in Some(good_time_unix_time_ms) then restrict the gpubox time map to times AFTER the quack time
     let timemap = match good_time_unix_time_ms {
         Some(good_time) => gpubox_time_map
@@ -665,31 +711,28 @@ pub(crate) fn determine_common_obs_times_and_chans(
         None => gpubox_time_map.clone(),
     };
 
-    // Find the maximum number of gpubox files for a timestep. Note some timesteps *could* have the same number (but different channels!)
-    // This is ok, because we will filter the GPUBoxtimemap to only those where chans==max and step through them one at a time until
-    // we hit a gap of a timestep with different channels. This is not perfect when there is a small contiguous strecth of timesteps, and then
-    // later in the obs there is a bigger contiguous stretch of those timesteps, but for now this is ok, as it will be fine for most circumstances.
-    let max_chans_per_timestep = match timemap.iter().map(|(_, submap)| submap.len()).max() {
-        Some(m) => m,
-        None => {
-            // There is nothing common (probably because no data is after or on the Good Time)
-            return Ok(ObsTimesAndChans {
-                start_time_unix_ms: 0,
-                end_time_unix_ms: 0,
-                duration_ms: 0,
-                coarse_chan_identifiers: vec![],
-            });
-        }
-    };
-
-    // Filter the timesteps that don't have the same max number of coarse channels
-    let mut filtered_timesteps = timemap
+    // Go through all timesteps in the GpuBoxTimeMap.
+    // For each timestep get each coarse channel identifier and add it into the HashSet, then dump them into a vector
+    let mut provided_chan_identifiers: Vec<usize> = gpubox_time_map
+        .iter()
+        .flat_map(|ts| ts.1.iter().map(|ch| *ch.0))
+        .collect::<HashSet<usize>>()
         .into_iter()
-        .filter(|(_, submap)| submap.len() == max_chans_per_timestep);
+        .collect();
 
-    // Get the first timestep where the num chans matches the max
-    // unwrap is safe because an empty map is checked above.
-    let first_ts = filtered_timesteps.next().unwrap();
+    // Ensure it is sorted
+    provided_chan_identifiers.sort_unstable();
+
+    // Filter only the timesteps that have the same coarse channels
+    let mut filtered_timesteps = timemap.into_iter().filter(|(_, submap)| {
+        submap.iter().map(|c| *c.0).collect::<Vec<usize>>() == provided_chan_identifiers
+    });
+
+    // Get the first timestep where the num chans matches the provided channels. If we get None, then we did not find any timesteps which contain all the coarse channels
+    let first_ts = match filtered_timesteps.next() {
+        Some(ts) => ts,
+        None => return Ok(None),
+    };
 
     // Now for refernce lets get what the coarse channels are for this timestep- we will use it below when iterating through the filtered collection of timesteps
     let first_ts_chans = first_ts
@@ -736,12 +779,12 @@ pub(crate) fn determine_common_obs_times_and_chans(
         }
     }
 
-    Ok(ObsTimesAndChans {
+    Ok(Some(ObsTimesAndChans {
         start_time_unix_ms: common_start_unix_ms,
         end_time_unix_ms: common_end_unix_ms,
         duration_ms: common_end_unix_ms - common_start_unix_ms,
         coarse_chan_identifiers: first_ts_chans,
-    })
+    }))
 }
 
 #[cfg(test)]

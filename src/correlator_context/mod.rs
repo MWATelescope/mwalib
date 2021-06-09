@@ -84,6 +84,11 @@ pub struct CorrelatorContext {
     /// Total bandwidth of the common coarse channels only including timesteps after the quack time
     pub common_good_bandwidth_hz: u32,
 
+    /// The indices of any coarse channels which we have data for
+    pub provided_coarse_chan_indices: Vec<usize>,
+    /// Number of provided coarse channel indices we have at least *some* data for
+    pub num_provided_coarse_chan_indices: usize,
+
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_chan_bytes: usize,
     /// The number of floats in each gpubox HDU.
@@ -160,8 +165,16 @@ impl CorrelatorContext {
 
         // Populate coarse channels
         // First- the "main" coarse channel vector is simply the metafits coarse channels
-        let coarse_chans = metafits_context.metafits_coarse_chans.clone();
-        let num_coarse_chans = coarse_chans.len();
+        let corr_coarse_chans = metafits_context.metafits_coarse_chans.clone();
+        let num_coarse_chans = corr_coarse_chans.len();
+
+        // Determine the "provided" coarse channels- which corr_coarse_chan indices did we get *some* data for?
+        let provided_coarse_chan_indices: Vec<usize> =
+            gpubox_files::determine_provided_coarse_channels(
+                &gpubox_info.time_map,
+                &corr_coarse_chans,
+            );
+        let num_provided_coarse_chan_indices = provided_coarse_chan_indices.len();
 
         // We have enough information to validate HDU matches metafits for the first batch/first coarse channel we have data for
         if !gpubox_filenames.is_empty() {
@@ -185,24 +198,26 @@ impl CorrelatorContext {
             common_duration_ms,
             common_coarse_chan_identifiers,
         ) = {
-            let o = determine_common_obs_times_and_chans(
+            match determine_common_obs_times_and_chans(
                 &gpubox_info.time_map,
                 metafits_context.corr_int_time_ms,
                 None,
-            )?;
-            (
-                o.start_time_unix_ms,
-                o.end_time_unix_ms,
-                o.duration_ms,
-                o.coarse_chan_identifiers,
-            )
+            )? {
+                Some(o) => (
+                    o.start_time_unix_ms,
+                    o.end_time_unix_ms,
+                    o.duration_ms,
+                    o.coarse_chan_identifiers,
+                ),
+                None => (0, 0, 0, vec![]),
+            }
         };
 
         // Populate the common coarse_chan indices vector
         let mut common_coarse_chan_indices: Vec<usize> = common_coarse_chan_identifiers
             .iter()
             .map(|chan_identifier| {
-                coarse_chans
+                corr_coarse_chans
                     .iter()
                     .position(|corr_coarse_chan| corr_coarse_chan.gpubox_number == *chan_identifier)
                     .unwrap()
@@ -254,24 +269,26 @@ impl CorrelatorContext {
             common_good_duration_ms,
             common_good_coarse_chan_identifiers,
         ) = {
-            let o = determine_common_obs_times_and_chans(
+            match determine_common_obs_times_and_chans(
                 &gpubox_info.time_map,
                 metafits_context.corr_int_time_ms,
                 Some(metafits_context.good_time_unix_ms),
-            )?;
-            (
-                o.start_time_unix_ms,
-                o.end_time_unix_ms,
-                o.duration_ms,
-                o.coarse_chan_identifiers,
-            )
+            )? {
+                Some(o) => (
+                    o.start_time_unix_ms,
+                    o.end_time_unix_ms,
+                    o.duration_ms,
+                    o.coarse_chan_identifiers,
+                ),
+                None => (0, 0, 0, vec![]),
+            }
         };
 
         // Populate the common good coarse_chan indices vector
         let mut common_good_coarse_chan_indices: Vec<usize> = common_good_coarse_chan_identifiers
             .iter()
             .map(|chan_identifier| {
-                coarse_chans
+                corr_coarse_chans
                     .iter()
                     .position(|corr_coarse_chan| corr_coarse_chan.gpubox_number == *chan_identifier)
                     .unwrap()
@@ -329,7 +346,7 @@ impl CorrelatorContext {
             num_timesteps,
             timesteps,
             num_coarse_chans,
-            coarse_chans,
+            coarse_chans: corr_coarse_chans,
             num_common_timesteps,
             common_timestep_indices,
             num_common_coarse_chans,
@@ -350,6 +367,8 @@ impl CorrelatorContext {
             common_good_end_gps_time_ms,
             common_good_duration_ms,
             common_good_bandwidth_hz,
+            provided_coarse_chan_indices,
+            num_provided_coarse_chan_indices,
             gpubox_batches: gpubox_info.batches,
             gpubox_time_map: gpubox_info.time_map,
             num_timestep_coarse_chan_bytes: gpubox_info.hdu_size * 4,
@@ -793,6 +812,8 @@ impl fmt::Display for CorrelatorContext {
             num coarse channels,        {n_coarse},
             coarse channels:            {coarse:?},
 
+            provided coarse chan indices: {provided_coarse_chans:?},
+
             Common timestep indices:    {num_common_timesteps}: {common_ts:?},
             Common coarse chan indices: {num_common_coarse_chans}: {common_chans:?},
             Common UNIX start time:     {common_start_unix},
@@ -842,6 +863,7 @@ impl fmt::Display for CorrelatorContext {
             common_good_end_gps = self.common_good_end_gps_time_ms as f64 / 1e3,
             common_good_duration = self.common_good_duration_ms as f64 / 1e3,
             common_good_bw = self.common_good_bandwidth_hz as f64 / 1e6,
+            provided_coarse_chans = self.provided_coarse_chan_indices,
             hdu_size = size,
             scan_size = size * self.num_gpubox_files as f64,
             batches = self.gpubox_batches,

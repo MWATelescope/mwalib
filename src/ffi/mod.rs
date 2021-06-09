@@ -1290,6 +1290,8 @@ pub struct CorrelatorMetadata {
     pub common_good_duration_ms: u64,
     /// Total bandwidth of the common coarse channels only including timesteps after the quack time
     pub common_good_bandwidth_hz: u32,
+    /// Number of provided coarse channel indices we have at least *some* data for
+    pub num_provided_coarse_chan_indices: usize,
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_chan_bytes: usize,
     /// The number of floats in each gpubox HDU.
@@ -1370,6 +1372,8 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_good_end_gps_time_ms,
             common_good_duration_ms,
             common_good_bandwidth_hz,
+            provided_coarse_chan_indices: _, // This is not exposed by FFI currently
+            num_provided_coarse_chan_indices,
             num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats,
             num_gpubox_files,
@@ -1398,6 +1402,8 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_good_end_gps_time_ms: *common_good_end_gps_time_ms,
             common_good_duration_ms: *common_good_duration_ms,
             common_good_bandwidth_hz: *common_good_bandwidth_hz,
+
+            num_provided_coarse_chan_indices: *num_provided_coarse_chan_indices,
 
             num_timestep_coarse_chan_bytes: *num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats: *num_timestep_coarse_chan_floats,
