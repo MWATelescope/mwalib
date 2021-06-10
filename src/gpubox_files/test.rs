@@ -660,7 +660,109 @@ fn test_validate_gpubox_metadata_obsid() {
 }
 
 #[test]
-fn test_determine_provided_coarse_channels_all() {
+fn test_populate_provided_timesteps_all() {
+    // In this test we have data for 2 timesteps
+
+    // Setup variables to generate gpuboxtimemap
+    let coarse_chan101_timesteps: Vec<u64> = vec![1000, 2000];
+    let coarse_chan102_timesteps: Vec<u64> = vec![1000, 2000];
+    let coarse_chan103_timesteps: Vec<u64> = vec![1000, 2000];
+    let coarse_chan104_timesteps: Vec<u64> = vec![1000, 2000];
+
+    // Get a populated GpuboxTimeMap
+    let gpubox_time_map = create_determine_common_obs_times_and_chans_test_data(
+        coarse_chan101_timesteps,
+        coarse_chan102_timesteps,
+        coarse_chan103_timesteps,
+        coarse_chan104_timesteps,
+    );
+
+    let correlator_timesteps = vec![
+        TimeStep::new(1000, 1000),
+        TimeStep::new(2000, 2000),
+        TimeStep::new(3000, 3000),
+        TimeStep::new(4000, 4000),
+    ];
+
+    let provided_timesteps: Vec<usize> =
+        populate_provided_timesteps(&gpubox_time_map, &correlator_timesteps);
+
+    assert_eq!(provided_timesteps.len(), 2);
+    assert_eq!(provided_timesteps[0], 0);
+    assert_eq!(provided_timesteps[1], 1);
+}
+
+#[test]
+fn test_populate_provided_timesteps_all_but_spread_out() {
+    // In this test we have data 4 timesteps
+
+    // Setup variables to generate gpuboxtimemap
+    let coarse_chan101_timesteps: Vec<u64> = vec![1000, 2000];
+    let coarse_chan102_timesteps: Vec<u64> = vec![3000, 4000];
+    let coarse_chan103_timesteps: Vec<u64> = vec![1000, 2000, 3000];
+    let coarse_chan104_timesteps: Vec<u64> = vec![4000];
+
+    // Get a populated GpuboxTimeMap
+    let gpubox_time_map = create_determine_common_obs_times_and_chans_test_data(
+        coarse_chan101_timesteps,
+        coarse_chan102_timesteps,
+        coarse_chan103_timesteps,
+        coarse_chan104_timesteps,
+    );
+
+    let correlator_timesteps = vec![
+        TimeStep::new(1000, 1000),
+        TimeStep::new(2000, 2000),
+        TimeStep::new(3000, 3000),
+        TimeStep::new(4000, 4000),
+    ];
+
+    let provided_timesteps: Vec<usize> =
+        populate_provided_timesteps(&gpubox_time_map, &correlator_timesteps);
+
+    assert_eq!(provided_timesteps.len(), 4);
+    assert_eq!(provided_timesteps[0], 0);
+    assert_eq!(provided_timesteps[1], 1);
+    assert_eq!(provided_timesteps[2], 2);
+    assert_eq!(provided_timesteps[3], 3);
+}
+
+#[test]
+fn test_populate_provided_timesteps_some() {
+    // In this test, we have data for 3 timesteps
+
+    // Setup variables to generate gpuboxtimemap
+    let coarse_chan101_timesteps: Vec<u64> = vec![1000, 2000];
+    let coarse_chan102_timesteps: Vec<u64> = vec![];
+    let coarse_chan103_timesteps: Vec<u64> = vec![4000];
+    let coarse_chan104_timesteps: Vec<u64> = vec![2000, 4000];
+
+    // Get a populated GpuboxTimeMap
+    let gpubox_time_map = create_determine_common_obs_times_and_chans_test_data(
+        coarse_chan101_timesteps,
+        coarse_chan102_timesteps,
+        coarse_chan103_timesteps,
+        coarse_chan104_timesteps,
+    );
+
+    let correlator_timesteps = vec![
+        TimeStep::new(1000, 1000),
+        TimeStep::new(2000, 2000),
+        TimeStep::new(3000, 3000),
+        TimeStep::new(4000, 4000),
+    ];
+
+    let provided_timesteps: Vec<usize> =
+        populate_provided_timesteps(&gpubox_time_map, &correlator_timesteps);
+
+    assert_eq!(provided_timesteps.len(), 3);
+    assert_eq!(provided_timesteps[0], 0);
+    assert_eq!(provided_timesteps[1], 1);
+    assert_eq!(provided_timesteps[2], 3);
+}
+
+#[test]
+fn test_populate_provided_coarse_channels_all() {
     // In this test we have data for all coarse chans.
 
     // Setup variables to generate gpuboxtimemap
@@ -685,7 +787,7 @@ fn test_determine_provided_coarse_channels_all() {
     ];
 
     let provided_coarse_chans: Vec<usize> =
-        determine_provided_coarse_channels(&gpubox_time_map, &correlator_coarse_chans);
+        populate_provided_coarse_channels(&gpubox_time_map, &correlator_coarse_chans);
 
     assert_eq!(provided_coarse_chans.len(), 4);
     assert_eq!(provided_coarse_chans[0], 0);
@@ -695,7 +797,7 @@ fn test_determine_provided_coarse_channels_all() {
 }
 
 #[test]
-fn test_determine_provided_coarse_channels_all_but_spread_out() {
+fn test_populate_provided_coarse_channels_all_but_spread_out() {
     // In this test we have data for all coarse chans, but the chans are spread out across time (ie not all chans for all times).
 
     // Setup variables to generate gpuboxtimemap
@@ -720,7 +822,7 @@ fn test_determine_provided_coarse_channels_all_but_spread_out() {
     ];
 
     let provided_coarse_chans: Vec<usize> =
-        determine_provided_coarse_channels(&gpubox_time_map, &correlator_coarse_chans);
+        populate_provided_coarse_channels(&gpubox_time_map, &correlator_coarse_chans);
 
     assert_eq!(provided_coarse_chans.len(), 4);
     assert_eq!(provided_coarse_chans[0], 0);
@@ -730,7 +832,7 @@ fn test_determine_provided_coarse_channels_all_but_spread_out() {
 }
 
 #[test]
-fn test_determine_provided_coarse_channels_some() {
+fn test_populate_provided_coarse_channels_some() {
     // In this test, the metafits has 4 coarse chans, but we only have data for 101,103 and 104
 
     // Setup variables to generate gpuboxtimemap
@@ -755,7 +857,7 @@ fn test_determine_provided_coarse_channels_some() {
     ];
 
     let provided_coarse_chans: Vec<usize> =
-        determine_provided_coarse_channels(&gpubox_time_map, &correlator_coarse_chans);
+        populate_provided_coarse_channels(&gpubox_time_map, &correlator_coarse_chans);
 
     assert_eq!(provided_coarse_chans.len(), 3);
     assert_eq!(provided_coarse_chans[0], 0);

@@ -619,6 +619,41 @@ fn create_time_map(
     Ok(gpubox_time_map)
 }
 
+/// Returns a vector of timestep indicies which exist in the GpuBoxTimeMap (i.e. the user has provided at least some data files for these timesteps)
+///
+/// # Arguments
+///
+/// * `gpubox_time_map` - BTree structure containing the map of what gpubox files and timesteps we were supplied by the client.
+///
+/// * `corr_timesteps` - Vector of Correlator Context TimeStep structs.
+///
+/// # Returns
+///
+/// * A vector of timestep indices for which at least some data files have been provided
+///
+///
+pub(crate) fn populate_provided_timesteps(
+    gpubox_time_map: &GpuboxTimeMap,
+    corr_timesteps: &[TimeStep],
+) -> Vec<usize> {
+    // populate a vector with the indicies of corr_timesteps that correspond to the unix times which are in
+    // the first level of the gpuboxtimemap. This represents all of the timesteps we have at least some data for
+    let mut return_vec: Vec<usize> = gpubox_time_map
+        .iter()
+        .map(|t| {
+            corr_timesteps
+                .iter()
+                .position(|v| v.unix_time_ms == *t.0)
+                .unwrap()
+        })
+        .collect();
+
+    // Ensure vector is sorted
+    return_vec.sort_unstable();
+
+    return_vec
+}
+
 /// Returns a vector of coarse chan indicies which exist in the GpuBoxTimeMap (i.e. the user has provided at least some data files for these coarse channels)
 ///
 /// # Arguments
@@ -632,7 +667,7 @@ fn create_time_map(
 /// * A vector of coarse channel indices for which at least some data files have been provided
 ///
 ///
-pub(crate) fn determine_provided_coarse_channels(
+pub(crate) fn populate_provided_coarse_channels(
     gpubox_time_map: &GpuboxTimeMap,
     corr_coarse_chans: &[CoarseChannel],
 ) -> Vec<usize> {
@@ -713,20 +748,20 @@ pub(crate) fn determine_common_obs_times_and_chans(
 
     // Go through all timesteps in the GpuBoxTimeMap.
     // For each timestep get each coarse channel identifier and add it into the HashSet, then dump them into a vector
-    let mut provided_chan_identifiers: Vec<usize> = gpubox_time_map
+    let provided_chan_identifiers: Vec<usize> = gpubox_time_map
         .iter()
         .flat_map(|ts| ts.1.iter().map(|ch| *ch.0))
         .collect::<HashSet<usize>>()
         .into_iter()
         .collect();
 
-    // Ensure it is sorted
-    provided_chan_identifiers.sort_unstable();
+    // get the length of the vector - we will use this to test each entry in the GpuboxTimeMap
+    let max_chans = provided_chan_identifiers.len();
 
     // Filter only the timesteps that have the same coarse channels
-    let mut filtered_timesteps = timemap.into_iter().filter(|(_, submap)| {
-        submap.iter().map(|c| *c.0).collect::<Vec<usize>>() == provided_chan_identifiers
-    });
+    let mut filtered_timesteps = timemap
+        .into_iter()
+        .filter(|(_, submap)| submap.len() == max_chans);
 
     // Get the first timestep where the num chans matches the provided channels. If we get None, then we did not find any timesteps which contain all the coarse channels
     let first_ts = match filtered_timesteps.next() {
@@ -755,18 +790,9 @@ pub(crate) fn determine_common_obs_times_and_chans(
 
         match next_item {
             Some(ts) => {
-                let this_ts_chans: Vec<usize> =
-                    ts.1.iter()
-                        .map(|ts_chans| *ts_chans.0)
-                        .collect::<Vec<usize>>();
-
                 // Check ts and prev ts are contiguous and channels match
                 if (ts.0 == prev_ts_unix_ms + integration_time_ms)
-                    && first_ts_chans.len() == this_ts_chans.len()
-                    && first_ts_chans
-                        .iter()
-                        .zip(this_ts_chans.iter())
-                        .all(|(a, b)| a == b)
+                    && first_ts_chans.len() == ts.1.len()
                 {
                     // Update the end time
                     common_end_unix_ms = ts.0 + integration_time_ms;

@@ -1290,6 +1290,8 @@ pub struct CorrelatorMetadata {
     pub common_good_duration_ms: u64,
     /// Total bandwidth of the common coarse channels only including timesteps after the quack time
     pub common_good_bandwidth_hz: u32,
+    /// Number of provided timestep indices we have at least *some* data for
+    pub num_provided_timestep_indices: usize,
     /// Number of provided coarse channel indices we have at least *some* data for
     pub num_provided_coarse_chan_indices: usize,
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
@@ -1352,9 +1354,9 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             timesteps: _, // This is provided by the seperate timestep struct in FFI
             num_coarse_chans,
             coarse_chans: _, // This is provided by the seperate coarse_chan struct in FFI
-            common_timestep_indices: _, // This is provided by the seperate common_timestep struct in FFI
+            common_timestep_indices: _, // This is not exposed by FFI currently
             num_common_timesteps,
-            common_coarse_chan_indices: _, // This is provided by the seperate common_coarse_chan struct in FFI
+            common_coarse_chan_indices: _, // This is not exposed by FFI currently
             num_common_coarse_chans,
             common_start_unix_time_ms,
             common_end_unix_time_ms,
@@ -1362,9 +1364,9 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_end_gps_time_ms,
             common_duration_ms,
             common_bandwidth_hz,
-            common_good_timestep_indices: _, // This is provided by the seperate common_good_timestep struct in FFI
+            common_good_timestep_indices: _, // This is not exposed by FFI currently
             num_common_good_timesteps,
-            common_good_coarse_chan_indices: _, // This is provided by the seperate common_good_coarse_chan struct in FFI
+            common_good_coarse_chan_indices: _, // This is not exposed by FFI currently
             num_common_good_coarse_chans,
             common_good_start_unix_time_ms,
             common_good_end_unix_time_ms,
@@ -1372,6 +1374,8 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_good_end_gps_time_ms,
             common_good_duration_ms,
             common_good_bandwidth_hz,
+            provided_timestep_indices: _, // This is not exposed by FFI currently
+            num_provided_timestep_indices,
             provided_coarse_chan_indices: _, // This is not exposed by FFI currently
             num_provided_coarse_chan_indices,
             num_timestep_coarse_chan_bytes,
@@ -1403,6 +1407,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_good_duration_ms: *common_good_duration_ms,
             common_good_bandwidth_hz: *common_good_bandwidth_hz,
 
+            num_provided_timestep_indices: *num_provided_timestep_indices,
             num_provided_coarse_chan_indices: *num_provided_coarse_chan_indices,
 
             num_timestep_coarse_chan_bytes: *num_timestep_coarse_chan_bytes,

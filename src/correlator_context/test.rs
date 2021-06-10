@@ -52,26 +52,43 @@ fn test_context_legacy_v1() {
     // Correlator version:       v1 Legacy,
     assert_eq!(context.mwa_version, MWAVersion::CorrLegacy);
 
-    // Actual UNIX start time:   1417468096,
+    // common UNIX start time:   1417468096,
     assert_eq!(context.common_start_unix_time_ms, 1_417_468_096_000);
 
-    // Actual UNIX end time:     1417468098,
+    // common UNIX end time:     1417468098,
     assert_eq!(context.common_end_unix_time_ms, 1_417_468_098_000);
 
-    // Actual duration:          2 s,
+    // common duration:          2 s,
     assert_eq!(context.common_duration_ms, 2000);
+
+    // common bandwidth:    1.28 MHz,
+    assert_eq!(context.common_bandwidth_hz, 1_280_000);
+
+    // num coarse channels,      1,
+    assert_eq!(context.num_common_coarse_chans, 1);
+
+    // common coarse chan indicies
+    assert_eq!(context.common_coarse_chan_indices[0], 0);
+
+    // common good timesteps
+    assert_eq!(context.common_good_timestep_indices.len(), 0);
+
+    // common good coarse chans
+    assert_eq!(context.common_good_coarse_chan_indices.len(), 0);
+
+    // provided timesteps
+    assert_eq!(context.provided_timestep_indices.len(), 1);
+    assert_eq!(context.provided_timestep_indices[0], 0);
+
+    // provided coarse channels
+    assert_eq!(context.provided_coarse_chan_indices.len(), 1);
+    assert_eq!(context.provided_coarse_chan_indices[0], 0);
 
     // num timesteps:            1,
     assert_eq!(context.num_timesteps, 56);
 
     // timesteps:                [unix=1417468096.000],
     assert_eq!(context.timesteps[0].unix_time_ms, 1_417_468_096_000);
-
-    // observation bandwidth:    1.28 MHz,
-    assert_eq!(context.common_bandwidth_hz, 1_280_000);
-
-    // num coarse channels,      1,
-    assert_eq!(context.num_common_coarse_chans, 1);
 
     // coarse channels:          [gpu=1 corr=0 rec=109 @ 139.520 MHz],
     assert_eq!(context.coarse_chans[0].corr_chan_number, 0);
@@ -119,26 +136,49 @@ fn test_context_mwax() {
     // Correlator version:       v2,
     assert_eq!(context.mwa_version, MWAVersion::CorrMWAXv2);
 
-    // Actual UNIX start time:   1560938470,
+    // common UNIX start time:   1560938470,
     assert_eq!(context.common_start_unix_time_ms, 1_560_938_470_000);
 
-    // Actual UNIX end time:     1560938471,
+    // common UNIX end time:     1560938471,
     assert_eq!(context.common_end_unix_time_ms, 1_560_938_471_000);
 
-    // Actual duration:          1 s,
+    // common duration:          1 s,
     assert_eq!(context.common_duration_ms, 1000);
+
+    // observation bandwidth:    1.28 MHz,
+    assert_eq!(context.common_bandwidth_hz, 1_280_000);
+
+    // num common coarse channels,      1,
+    assert_eq!(context.num_common_coarse_chans, 1);
+
+    // common coarse chan indicies
+    assert_eq!(context.common_coarse_chan_indices[0], 10);
+
+    // num common timesteps,      1,
+    assert_eq!(context.num_common_timesteps, 1);
+
+    // common timestep indicies
+    assert_eq!(context.common_timestep_indices[0], 0);
+
+    // common good timesteps
+    assert_eq!(context.common_good_timestep_indices.len(), 0);
+
+    // common good coarse chans
+    assert_eq!(context.common_good_coarse_chan_indices.len(), 0);
+
+    // provided timesteps
+    assert_eq!(context.provided_timestep_indices.len(), 1);
+    assert_eq!(context.provided_timestep_indices[0], 0);
+
+    // provided coarse channels
+    assert_eq!(context.provided_coarse_chan_indices.len(), 1);
+    assert_eq!(context.provided_coarse_chan_indices[0], 10);
 
     // num timesteps:            1,
     assert_eq!(context.num_timesteps, 120);
 
     // timesteps:                [unix=1560938470.000],
     assert_eq!(context.timesteps[0].unix_time_ms, 1_560_938_470_000);
-
-    // observation bandwidth:    1.28 MHz,
-    assert_eq!(context.common_bandwidth_hz, 1_280_000);
-
-    // num coarse channels,      1,
-    assert_eq!(context.num_common_coarse_chans, 1);
 
     // coarse channels:          [gpu=114 corr=10 rec=114 @  MHz],
     assert_eq!(context.coarse_chans[10].corr_chan_number, 10);

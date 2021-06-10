@@ -38,7 +38,7 @@ impl TimeStep {
     ///
     /// * A populated TimeStep struct
     ///
-    fn new(unix_time_ms: u64, gps_time_ms: u64) -> Self {
+    pub(crate) fn new(unix_time_ms: u64, gps_time_ms: u64) -> Self {
         TimeStep {
             unix_time_ms,
             gps_time_ms,
@@ -228,6 +228,40 @@ impl TimeStep {
         }
 
         timesteps_vec
+    }
+
+    /// This creates a populated vector of indices from the passed in `all_timesteps' slice of TimeSteps between start and end time.
+    ///
+    /// # Arguments    
+    ///
+    /// * `all_timesteps` - Reference to a slice containing all the timesteps        
+    ///
+    /// * `start_unix_time_ms` - Start time of the first timestep you want the index put in the final array..
+    ///
+    /// * `end_unix_time_ms` - The time (including the timestep duration) up to which you want in the final array.
+    ///
+    /// # Returns
+    ///
+    /// * A populated vector of timestep indices based on the start and end times passed in.
+    ///
+    pub(crate) fn get_timstep_indicies(
+        all_timesteps: &[Self],
+        start_unix_time_ms: u64,
+        end_unix_time_ms: u64,
+    ) -> Vec<usize> {
+        let mut timestep_indices: Vec<usize> = all_timesteps
+            .iter()
+            .filter(|f| f.unix_time_ms >= start_unix_time_ms && f.unix_time_ms < end_unix_time_ms)
+            .map(|t| {
+                all_timesteps
+                    .iter()
+                    .position(|v| v.unix_time_ms == t.unix_time_ms)
+                    .unwrap()
+            })
+            .collect();
+        timestep_indices.sort_unstable();
+
+        timestep_indices
     }
 }
 

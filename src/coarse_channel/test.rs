@@ -342,3 +342,30 @@ fn test_coarse_chan_debug() {
 
     assert_eq!(format!("{:?}", cc), "gpu=2 corr=1 rec=109 @ 139.520 MHz");
 }
+
+#[test]
+fn test_get_coarse_chan_indicies() {
+    let all_coarse_chans: Vec<CoarseChannel> = vec![
+        CoarseChannel::new(1, 101, 101, 1_280_000),
+        CoarseChannel::new(2, 102, 102, 1_280_000),
+        CoarseChannel::new(3, 103, 103, 1_280_000),
+        CoarseChannel::new(4, 104, 104, 1_280_000),
+    ];
+
+    let indices_1 =
+        CoarseChannel::get_coarse_chan_indicies(&all_coarse_chans, &[101, 102, 103, 104]);
+    assert_eq!(indices_1.len(), 4);
+    assert_eq!(indices_1[0], 0);
+    assert_eq!(indices_1[1], 1);
+    assert_eq!(indices_1[2], 2);
+    assert_eq!(indices_1[3], 3);
+
+    let indices_2 = CoarseChannel::get_coarse_chan_indicies(&all_coarse_chans, &[102, 104]);
+    assert_eq!(indices_2.len(), 2);
+    assert_eq!(indices_2[0], 1);
+    assert_eq!(indices_2[1], 3);
+
+    let indices_3 = CoarseChannel::get_coarse_chan_indicies(&all_coarse_chans, &[102]);
+    assert_eq!(indices_3.len(), 1);
+    assert_eq!(indices_3[0], 1);
+}

@@ -460,3 +460,42 @@ fn test_populate_timesteps_metafits_vcs_mwaxv2() {
     assert_eq!(timesteps[13].gps_time_ms, 1_101_503_416_000);
     assert_eq!(timesteps[13].unix_time_ms, 1_417_468_200_000);
 }
+
+#[test]
+fn test_get_timstep_indicies() {
+    let all_timesteps: Vec<TimeStep> = vec![
+        TimeStep::new(1000, 1000),
+        TimeStep::new(2000, 2000),
+        TimeStep::new(3000, 3000),
+        TimeStep::new(4000, 4000),
+    ];
+
+    let indices_1 = TimeStep::get_timstep_indicies(&all_timesteps, 1000, 5000);
+    assert_eq!(indices_1.len(), 4);
+    assert_eq!(indices_1[0], 0);
+    assert_eq!(indices_1[1], 1);
+    assert_eq!(indices_1[2], 2);
+    assert_eq!(indices_1[3], 3);
+
+    let indices_2 = TimeStep::get_timstep_indicies(&all_timesteps, 0000, 6000);
+    assert_eq!(indices_2.len(), 4);
+    assert_eq!(indices_2[0], 0);
+    assert_eq!(indices_2[1], 1);
+    assert_eq!(indices_2[2], 2);
+    assert_eq!(indices_2[3], 3);
+
+    let indices_3 = TimeStep::get_timstep_indicies(&all_timesteps, 2000, 6000);
+    assert_eq!(indices_3.len(), 3);
+    assert_eq!(indices_3[0], 1);
+    assert_eq!(indices_3[1], 2);
+    assert_eq!(indices_3[2], 3);
+
+    let indices_4 = TimeStep::get_timstep_indicies(&all_timesteps, 2000, 4000);
+    assert_eq!(indices_4.len(), 2);
+    assert_eq!(indices_4[0], 1);
+    assert_eq!(indices_4[1], 2);
+
+    let indices_5 = TimeStep::get_timstep_indicies(&all_timesteps, 2000, 3000);
+    assert_eq!(indices_5.len(), 1);
+    assert_eq!(indices_5[0], 1);
+}

@@ -289,6 +289,38 @@ impl CoarseChannel {
 
         Ok(coarse_chans)
     }
+
+    /// This creates a populated vector of indices from the passed in `all_coarse_chans' slice of CoarseChannels based on the
+    /// coarse_chan_identifiers vector of coarse channel identifers we pass in.
+    ///
+    /// # Arguments    
+    ///
+    /// * `all_coarse_chans` - Reference to a slice containing all the coarse channels  
+    ///
+    /// * `coarse_chan_identifiers` - Vector or coarse channel identifiers we want to find the indices for.    
+    ///
+    /// # Returns
+    ///
+    /// * A populated vector of coarse channel indices based on the passed in identifiers.
+    ///
+    pub(crate) fn get_coarse_chan_indicies(
+        all_coarse_chans: &[Self],
+        coarse_chan_identifiers: &[usize],
+    ) -> Vec<usize> {
+        let mut coarse_chan_indices: Vec<usize> = coarse_chan_identifiers
+            .iter()
+            .map(|chan_identifier| {
+                all_coarse_chans
+                    .iter()
+                    .position(|coarse_chan| coarse_chan.gpubox_number == *chan_identifier)
+                    .unwrap()
+            })
+            .collect::<Vec<usize>>();
+
+        coarse_chan_indices.sort_unstable();
+
+        coarse_chan_indices
+    }
 }
 
 /// Implements fmt::Debug for
