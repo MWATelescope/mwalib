@@ -2,7 +2,14 @@
 
 Changes in each release are listed below.
 
+## 0.8.2 09-Jun-2021 (Pre-release)
+
+* Added common, common good and provided timesteps/coarse channels for VoltageContext.
+* Voltage timesteps and coarse channel vectors now represent the superset of metafits and provided data.
+* Due to the above, the read methods now may return a NoDataForTimeStepCoarseChannel error if the timestep/coarse channel combination does not have a file available to read data from.
+
 ## 0.8.1 09-Jun-2021 (Pre-release)
+
 * Modified logic of common and good correlator timesteps/coarse channels to mean common to all provided coarse channels.
 * Added provided_coarse_chans which is a vector of all of the provided gpubox files coarse channels.
 

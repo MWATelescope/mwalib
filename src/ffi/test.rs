@@ -867,7 +867,7 @@ fn test_mwalib_voltage_context_legacy_read_file_valid() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     let timestep_index = 0;
-    let coarse_chan_index = 0;
+    let coarse_chan_index = 14;
 
     // 2 pols x 128 fine chans x 1 tile * 10000 samples
     let buffer_len = 2 * 128 * 10000;
@@ -953,7 +953,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     let timestep_index = 0;
-    let coarse_chan_index = 0;
+    let coarse_chan_index = 14;
 
     // 2 pols x 1 fine chans x 1 tile * 64000 samples * 160 blocks * 2 bytes per sample
     let buffer_len = 2 * 64000 * 160 * 2;
@@ -1322,7 +1322,7 @@ fn test_mwalib_voltage_metadata_get_valid() {
         let voltage_metadata = Box::from_raw(*voltage_metadata_ptr);
 
         // We should get a valid number of coarse channels and no error message
-        assert_eq!(voltage_metadata.num_coarse_chans, 2);
+        assert_eq!(voltage_metadata.num_coarse_chans, 24);
 
         // Now ensure we can free the rust memory
         assert_eq!(
@@ -1932,11 +1932,11 @@ fn test_mwalib_voltage_coarse_channels_get_valid() {
 
         // We should get a valid, populated array
         assert_eq!(
-            array_len, 2,
+            array_len, 24,
             "Coarse channel array length is not correct- should be 2"
         );
-        assert_eq!(item[0].rec_chan_number, 123);
-        assert_eq!(item[1].rec_chan_number, 124);
+        assert_eq!(item[0].rec_chan_number, 109);
+        assert_eq!(item[23].rec_chan_number, 132);
 
         // Test freeing the memory
         // First get a raw pointer and have rust not own that memory
@@ -2372,7 +2372,7 @@ fn test_mwalib_voltage_timesteps_get_valid() {
         let item: Vec<TimeStep> = ffi_boxed_slice_to_array(*array_ptr, array_len);
 
         // We should get a valid, populated array
-        assert_eq!(array_len, 2, "Array length is not correct");
+        assert_eq!(array_len, 112, "Array length is not correct");
         assert_eq!(item[0].unix_time_ms, 1_417_468_096_000);
         assert_eq!(item[1].unix_time_ms, 1_417_468_097_000);
 

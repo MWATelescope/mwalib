@@ -783,7 +783,7 @@ pub(crate) fn determine_common_obs_times_and_chans(
     // Iterate over the filtered timemap
     // Go to the next timestep unless:
     // * It is not contiguous with the previous
-    // * It has different set of channels (even though num of chans == max channels) <- rare but possible!
+    // * It does not have that same max number of channels
     let mut prev_ts_unix_ms = common_start_unix_ms;
     loop {
         let next_item = filtered_timesteps.next();

@@ -28,30 +28,74 @@ pub struct VoltageContext {
     pub metafits_context: MetafitsContext,
     /// Version of the correlator format
     pub mwa_version: MWAVersion,
-    /// The proper start of the observation (the time that is common to all
-    /// provided voltage files).
-    pub start_gps_time_ms: u64,
-    /// `end_gps_time_ms` is the actual end time of the observation    
-    /// i.e. start time of last common timestep plus length of a voltage file (1 sec for MWA Legacy, 8 secs for MWAX).
-    pub end_gps_time_ms: u64,
-    /// `start_gps_time_ms` but in UNIX time (milliseconds)
-    pub start_unix_time_ms: u64,
-    /// `end_gps_time_ms` but in UNIX time (milliseconds)
-    pub end_unix_time_ms: u64,
-    /// Total duration of observation (based on voltage files)
-    pub duration_ms: u64,
-    /// Number of timesteps in the observation
+
+    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files)
+    pub timesteps: Vec<TimeStep>,
+    /// Number of timesteps in the timesteps vector
     pub num_timesteps: usize,
     /// length in millseconds of each timestep
     pub timestep_duration_ms: u64,
-    /// This is an array of all timesteps we have data for
-    pub timesteps: Vec<TimeStep>,
-    /// Number of coarse channels after we've validated the input voltage files
+
+    /// Number of coarse channels
     pub num_coarse_chans: usize,
-    /// Vector of coarse channel structs
+    /// Vector of coarse channel structs which is the same as the metafits provided coarse channels
     pub coarse_chans: Vec<CoarseChannel>,
-    /// Total bandwidth of observation (of the coarse channels we have)
-    pub bandwidth_hz: u32,
+
+    /// Vector of (in)common timestep indices
+    pub common_timestep_indices: Vec<usize>,
+    // Number of common timesteps
+    pub num_common_timesteps: usize,
+    /// Vector of (in)common coarse channel indices
+    pub common_coarse_chan_indices: Vec<usize>,
+    // Number of common coarse channels
+    pub num_common_coarse_chans: usize,
+    /// The start of the observation (the time that is common to all
+    /// provided data files).
+    pub common_start_unix_time_ms: u64,
+    /// `end_unix_time_ms` is the common end time of the observation
+    /// i.e. start time of last common timestep plus integration time.
+    pub common_end_unix_time_ms: u64,
+    /// `start_unix_time_ms` but in GPS milliseconds
+    pub common_start_gps_time_ms: u64,
+    /// `end_unix_time_ms` but in GPS milliseconds
+    pub common_end_gps_time_ms: u64,
+    /// Total duration of common timesteps
+    pub common_duration_ms: u64,
+    /// Total bandwidth of the common coarse channels
+    pub common_bandwidth_hz: u32,
+
+    /// Vector of (in)common timestep indices only including timesteps after the quack time
+    pub common_good_timestep_indices: Vec<usize>,
+    // Number of common timesteps only including timesteps after the quack time
+    pub num_common_good_timesteps: usize,
+    /// Vector of (in)common coarse channel indices only including timesteps after the quack time
+    pub common_good_coarse_chan_indices: Vec<usize>,
+    // Number of common coarse channels only including timesteps after the quack time
+    pub num_common_good_coarse_chans: usize,
+    /// The start of the observation (the time that is common to all
+    /// provided data files) only including timesteps after the quack time
+    pub common_good_start_unix_time_ms: u64,
+    /// `end_unix_time_ms` is the common end time of the observation only including timesteps after the quack time
+    /// i.e. start time of last common timestep plus integration time.
+    pub common_good_end_unix_time_ms: u64,
+    /// `common_good_start_unix_time_ms` but in GPS milliseconds
+    pub common_good_start_gps_time_ms: u64,
+    /// `common_good_end_unix_time_ms` but in GPS milliseconds
+    pub common_good_end_gps_time_ms: u64,
+    /// Total duration of common_good timesteps
+    pub common_good_duration_ms: u64,
+    /// Total bandwidth of the common coarse channels only including timesteps after the quack time
+    pub common_good_bandwidth_hz: u32,
+
+    /// The indices of any timesteps which we have *some* data for
+    pub provided_timestep_indices: Vec<usize>,
+    /// Number of provided timestep indices we have at least *some* data for
+    pub num_provided_timestep_indices: usize,
+    /// The indices of any coarse channels which we have *some* data for
+    pub provided_coarse_chan_indices: Vec<usize>,
+    /// Number of provided coarse channel indices we have at least *some* data for
+    pub num_provided_coarse_chan_indices: usize,
+
     /// Bandwidth of each coarse channel
     pub coarse_chan_width_hz: u32,
     /// Volatge fine_chan_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
@@ -115,44 +159,44 @@ impl VoltageContext {
     ) -> Result<Self, MwalibError> {
         let mut metafits_context = MetafitsContext::new_internal(metafits_filename)?;
 
-        // Re-open metafits file
-        let mut metafits_fptr = fits_open!(&metafits_filename)?;
-        let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
-
         // Do voltage stuff only if we have voltage files.
         if voltage_filenames.is_empty() {
             return Err(MwalibError::Voltage(VoltageFileError::NoVoltageFiles));
         }
         let voltage_info = examine_voltage_files(&metafits_context, &voltage_filenames)?;
-        // Populate the start and end times of the observation.
-        // Start= start of first timestep
-        // End  = start of last timestep + integration time
-        let (start_gps_time_ms, end_gps_time_ms, duration_ms) = {
-            let o = determine_obs_times(
-                &voltage_info.time_map,
-                voltage_info.voltage_file_interval_ms,
-            )?;
-            (o.start_gps_time_ms, o.end_gps_time_ms, o.duration_ms)
-        };
 
-        // Populate coarse channels
-        // Get metafits info
-        let (metafits_coarse_chan_vec, metafits_coarse_chan_width_hz) =
-            CoarseChannel::get_metafits_coarse_channel_info(
-                &mut metafits_fptr,
-                &metafits_hdu,
-                metafits_context.obs_bandwidth_hz,
-            )?;
+        // Populate metafits coarse channels and timesteps now that we know what MWA Version we are dealing with
+        // Populate the coarse channels
+        metafits_context.populate_expected_coarse_channels(voltage_info.mwa_version)?;
 
-        // Process the channels based on the gpubox files we have
-        let coarse_chans = CoarseChannel::populate_coarse_channels(
-            voltage_info.mwa_version,
-            &metafits_coarse_chan_vec,
-            metafits_coarse_chan_width_hz,
-            None,
-            Some(&voltage_info.time_map),
-        )?;
+        // Populate the timesteps
+        metafits_context.populate_expected_timesteps(voltage_info.mwa_version)?;
+
+        // We can unwrap here because the `voltage_time_map` can't be empty if
+        // `voltages` isn't empty.
+        let timesteps = TimeStep::populate_voltage_timesteps(
+            &voltage_info.time_map,
+            &metafits_context.metafits_timesteps,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
+            voltage_info.voltage_file_interval_ms,
+        )
+        .unwrap();
+        let num_timesteps = timesteps.len();
+
+        // Determine the "provided" timesteps- which corr_timestep indices did we get *some* data for?
+        let provided_timestep_indices: Vec<usize> =
+            voltage_files::populate_provided_timesteps(&voltage_info.time_map, &timesteps);
+        let num_provided_timestep_indices = provided_timestep_indices.len();
+
+        // Populate voltage coarse channels based on the metafits channels
+        let coarse_chans = metafits_context.metafits_coarse_chans.clone();
         let num_coarse_chans = coarse_chans.len();
+
+        // Determine the "provided" coarse channels- which corr_coarse_chan indices did we get *some* data for?
+        let provided_coarse_chan_indices: Vec<usize> =
+            voltage_files::populate_provided_coarse_channels(&voltage_info.time_map, &coarse_chans);
+        let num_provided_coarse_chan_indices = provided_coarse_chan_indices.len();
 
         // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1.28 MHz (unchannelised)
         let fine_chan_width_hz: u32 = match voltage_info.mwa_version {
@@ -170,43 +214,113 @@ impl VoltageContext {
 
         // Determine the number of fine channels per coarse channel.
         let num_fine_chans_per_coarse =
-            (metafits_coarse_chan_width_hz / fine_chan_width_hz) as usize;
+            (metafits_context.coarse_chan_width_hz / fine_chan_width_hz) as usize;
 
-        let bandwidth_hz = (num_coarse_chans as u32) * metafits_coarse_chan_width_hz;
+        let coarse_chan_width_hz = metafits_context.coarse_chan_width_hz;
 
-        // We can unwrap here because the `voltage_time_map` can't be empty if
-        // `voltages` isn't empty.
-        let timesteps = TimeStep::populate_timesteps(
-            &metafits_context,
-            voltage_info.mwa_version,
-            start_gps_time_ms,
-            duration_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
-
-        // Convert the real start and end times to UNIX time
-        let start_unix_time_ms = misc::convert_gpstime_to_unixtime(
-            start_gps_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
-        let end_unix_time_ms = misc::convert_gpstime_to_unixtime(
-            end_gps_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
-
-        // Length of each timestep in milliseconds
-        let timestep_duration_ms = match voltage_info.mwa_version {
-            MWAVersion::VCSLegacyRecombined => 1000,
-            MWAVersion::VCSMWAXv2 => 8000,
-            _ => {
-                return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
-                    mwa_version: voltage_info.mwa_version,
-                }))
+        // Populate the start and end times of the observation based on common channels.
+        // Start= start of first timestep
+        // End  = start of last timestep + integration time
+        let (
+            common_start_gps_time_ms,
+            common_end_gps_time_ms,
+            common_duration_ms,
+            common_coarse_chan_identifiers,
+        ) = {
+            match determine_common_obs_times_and_chans(
+                &voltage_info.time_map,
+                voltage_info.voltage_file_interval_ms,
+                None,
+            )? {
+                Some(o) => (
+                    o.start_gps_time_ms,
+                    o.end_gps_time_ms,
+                    o.duration_ms,
+                    o.coarse_chan_identifiers,
+                ),
+                None => (0, 0, 0, vec![]),
             }
         };
+
+        // Convert the real start and end times to GPS time
+        let common_start_unix_time_ms = misc::convert_gpstime_to_unixtime(
+            common_start_gps_time_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
+        );
+        let common_end_unix_time_ms = misc::convert_gpstime_to_unixtime(
+            common_end_gps_time_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
+        );
+
+        // Populate the common coarse_chan indices vector
+        let common_coarse_chan_indices: Vec<usize> =
+            CoarseChannel::get_coarse_chan_indicies(&coarse_chans, &common_coarse_chan_identifiers);
+        let num_common_coarse_chans = common_coarse_chan_indices.len();
+
+        // Populate a vector containing the indicies of all the common timesteps (based on the correlator context timesteps vector)
+        let common_timestep_indices: Vec<usize> = TimeStep::get_timstep_indicies(
+            &timesteps,
+            common_start_unix_time_ms,
+            common_end_unix_time_ms,
+        );
+        let num_common_timesteps = common_timestep_indices.len();
+
+        let common_bandwidth_hz = (num_common_coarse_chans as u32) * coarse_chan_width_hz;
+
+        // Populate the start and end times of the observation based on common channels (excluding any timesteps during/before the quacktime).
+        // Start= start of first timestep
+        // End  = start of last timestep + integration time
+        let (
+            common_good_start_gps_time_ms,
+            common_good_end_gps_time_ms,
+            common_good_duration_ms,
+            common_good_coarse_chan_identifiers,
+        ) = {
+            match determine_common_obs_times_and_chans(
+                &voltage_info.time_map,
+                voltage_info.voltage_file_interval_ms,
+                Some(metafits_context.good_time_gps_ms),
+            )? {
+                Some(o) => (
+                    o.start_gps_time_ms,
+                    o.end_gps_time_ms,
+                    o.duration_ms,
+                    o.coarse_chan_identifiers,
+                ),
+                None => (0, 0, 0, vec![]),
+            }
+        };
+
+        // Convert the real start and end times to GPS time
+        let common_good_start_unix_time_ms = misc::convert_gpstime_to_unixtime(
+            common_good_start_gps_time_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
+        );
+        let common_good_end_unix_time_ms = misc::convert_gpstime_to_unixtime(
+            common_good_end_gps_time_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
+        );
+
+        // Populate the common coarse_chan indices vector
+        let common_good_coarse_chan_indices: Vec<usize> = CoarseChannel::get_coarse_chan_indicies(
+            &coarse_chans,
+            &common_good_coarse_chan_identifiers,
+        );
+        let num_common_good_coarse_chans = common_good_coarse_chan_indices.len();
+
+        // Populate a vector containing the indicies of all the common timesteps (based on the correlator context timesteps vector)
+        let common_good_timestep_indices: Vec<usize> = TimeStep::get_timstep_indicies(
+            &timesteps,
+            common_good_start_unix_time_ms,
+            common_good_end_unix_time_ms,
+        );
+        let num_common_good_timesteps = common_good_timestep_indices.len();
+
+        let common_good_bandwidth_hz = (num_common_good_coarse_chans as u32) * coarse_chan_width_hz;
 
         // Number of bytes in each sample
         let sample_size_bytes: u64 = match voltage_info.mwa_version {
@@ -232,7 +346,7 @@ impl VoltageContext {
 
         // Number of voltage blocks of samples in each second of data
         let num_voltage_blocks_per_second: u64 =
-            num_voltage_blocks_per_timestep / (timestep_duration_ms / 1000);
+            num_voltage_blocks_per_timestep / (voltage_info.voltage_file_interval_ms / 1000);
 
         // Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
         let num_samples_per_rf_chain_fine_chan_in_a_voltage_block: u64 =
@@ -281,9 +395,6 @@ impl VoltageContext {
             + delay_block_size_bytes
             + (voltage_block_size_bytes * num_voltage_blocks_per_timestep);
 
-        // Get number of timesteps
-        let num_timesteps = timesteps.len();
-
         // The rf inputs should be sorted depending on the CorrVersion
         match voltage_info.mwa_version {
             MWAVersion::VCSLegacyRecombined => {
@@ -300,19 +411,37 @@ impl VoltageContext {
         Ok(VoltageContext {
             metafits_context,
             mwa_version: voltage_info.mwa_version,
-            start_gps_time_ms,
-            end_gps_time_ms,
-            start_unix_time_ms,
-            end_unix_time_ms,
-            duration_ms,
             num_timesteps,
             timesteps,
-            timestep_duration_ms,
+            timestep_duration_ms: voltage_info.voltage_file_interval_ms,
             num_coarse_chans,
             coarse_chans,
+            num_common_timesteps,
+            common_timestep_indices,
+            num_common_coarse_chans,
+            common_coarse_chan_indices,
+            common_start_gps_time_ms,
+            common_end_gps_time_ms,
+            common_start_unix_time_ms,
+            common_end_unix_time_ms,
+            common_duration_ms,
+            common_bandwidth_hz,
+            num_common_good_timesteps,
+            common_good_timestep_indices,
+            num_common_good_coarse_chans,
+            common_good_coarse_chan_indices,
+            common_good_start_unix_time_ms,
+            common_good_end_unix_time_ms,
+            common_good_start_gps_time_ms,
+            common_good_end_gps_time_ms,
+            common_good_duration_ms,
+            common_good_bandwidth_hz,
+            provided_timestep_indices,
+            num_provided_timestep_indices,
+            provided_coarse_chan_indices,
+            num_provided_coarse_chan_indices,
             fine_chan_width_hz,
-            bandwidth_hz,
-            coarse_chan_width_hz: metafits_coarse_chan_width_hz,
+            coarse_chan_width_hz,
             num_fine_chans_per_coarse,
             sample_size_bytes,
             num_voltage_blocks_per_timestep,
@@ -350,7 +479,7 @@ impl VoltageContext {
     ) -> Result<u64, VoltageFileError> {
         // Validate the gpstime
         let gps_time_observation_max_ms =
-            self.timesteps[self.num_timesteps - 1].gps_time_ms + self.timestep_duration_ms - 1000;
+            self.timesteps[self.num_timesteps - 1].gps_time_ms + self.timestep_duration_ms;
 
         // Validate the start time
         if gps_second_start * 1000 < self.timesteps[0].gps_time_ms
@@ -443,6 +572,8 @@ impl VoltageContext {
                 self.num_coarse_chans - 1,
             ));
         }
+        // Determine the channel identifier, which we will use later to find the correct data file
+        let channel_identifier = self.coarse_chans[coarse_chan_index].gpubox_number;
 
         // Validate the gpstime
         let gps_second_end = VoltageContext::validate_gps_time_parameters(
@@ -491,9 +622,31 @@ impl VoltageContext {
 
         // Loop through the timesteps / files
         for timestep_index in timestep_index_start..timestep_index_end + 1 {
+            // Find the batch relating to the timestep index or None if we don't have any data files for that timestep
+            let batch = &self
+                .voltage_batches
+                .iter()
+                .find(|f| f.gps_time_seconds * 1000 == self.timesteps[timestep_index].gps_time_ms);
+
+            // find the filename if the timestep/coarse chan combo exists
+            let filename_result = match batch {
+                Some(b) => b
+                    .voltage_files
+                    .iter()
+                    .find(|f| f.channel_identifier == channel_identifier),
+                None => None,
+            };
+
             // Get the filename for this timestep and coarse channel
-            let filename: &String =
-                &self.voltage_batches[timestep_index].voltage_files[coarse_chan_index].filename;
+            let filename: &String = match filename_result {
+                Some(f) => &f.filename,
+                None => {
+                    return Err(VoltageFileError::NoDataForTimeStepCoarseChannel {
+                        timestep_index,
+                        coarse_chan_index,
+                    });
+                }
+            };
 
             // Open the file
             let file_handle = File::open(&filename).expect("no file found");
@@ -626,13 +779,37 @@ impl VoltageContext {
                 self.num_coarse_chans - 1,
             ));
         }
+        // Determine the channel identifier, which we will use later to find the correct data file
+        let channel_identifier = self.coarse_chans[coarse_chan_index].gpubox_number;
 
         // Work out how much to read at once
         let chunk_size: usize = self.voltage_block_size_bytes as usize; // This will be the size of a voltage block
 
+        // Find the batch relating to the timestep index or None if we don't have any data files for that timestep
+        let batch = &self
+            .voltage_batches
+            .iter()
+            .find(|f| f.gps_time_seconds * 1000 == self.timesteps[timestep_index].gps_time_ms);
+
+        // find the filename if the timestep/coarse chan combo exists
+        let filename_result = match batch {
+            Some(b) => b
+                .voltage_files
+                .iter()
+                .find(|f| f.channel_identifier == channel_identifier),
+            None => None,
+        };
+
         // Get the filename for this timestep and coarse channel
-        let filename: &String =
-            &self.voltage_batches[timestep_index].voltage_files[coarse_chan_index].filename;
+        let filename: &String = match filename_result {
+            Some(f) => &f.filename,
+            None => {
+                return Err(VoltageFileError::NoDataForTimeStepCoarseChannel {
+                    timestep_index,
+                    coarse_chan_index,
+                });
+            }
+        };
 
         // Open the file
         let file_handle = File::open(&filename).expect("no file found");
@@ -711,21 +888,19 @@ impl fmt::Display for VoltageContext {
             f,
             r#"VoltageContext (
             Metafits Context:         {metafits_context}
-            Correlator version:       {corr_ver},
-
-            Actual GPS start time:    {start_gps},
-            Actual GPS end time:      {end_gps},
-            Actual UNIX start time:   {start_unix},
-            Actual UNIX end time:     {end_unix},
-            Actual duration:          {duration} s,
+            Correlator version:       {corr_ver},            
 
             num timesteps:            {n_timesteps},
             timesteps:                {timesteps:?},            
             timestep duration ms:     {timestep_duration_ms} ms,
 
-            num antennas:             {n_ants},
-
-            observation bandwidth:    {obw} MHz,
+            Common UNIX start time:     {common_start_unix},
+            Common UNIX end time:       {common_end_unix},
+            Common GPS start time:      {common_start_gps},
+            Common GPS end time:        {common_end_gps},
+            Common duration:            {common_duration} s,
+            Common bandwidth:           {common_bw} MHz,             
+            
             num coarse channels,      {n_coarse},
             coarse channels:          {coarse:?},
 
@@ -745,18 +920,17 @@ impl fmt::Display for VoltageContext {
         )"#,
             metafits_context = self.metafits_context,
             corr_ver = self.mwa_version,
-            start_unix = self.start_unix_time_ms as f64 / 1e3,
-            end_unix = self.end_unix_time_ms as f64 / 1e3,
-            start_gps = self.start_gps_time_ms as f64 / 1e3,
-            end_gps = self.end_gps_time_ms as f64 / 1e3,
-            duration = self.duration_ms as f64 / 1e3,
             n_timesteps = self.num_timesteps,
             timesteps = self.timesteps,
             timestep_duration_ms = self.timestep_duration_ms,
-            n_ants = self.metafits_context.num_ants,
-            obw = self.bandwidth_hz as f64 / 1e6,
             n_coarse = self.num_coarse_chans,
             coarse = self.coarse_chans,
+            common_start_unix = self.common_start_unix_time_ms as f64 / 1e3,
+            common_end_unix = self.common_end_unix_time_ms as f64 / 1e3,
+            common_start_gps = self.common_start_gps_time_ms as f64 / 1e3,
+            common_end_gps = self.common_end_gps_time_ms as f64 / 1e3,
+            common_duration = self.common_duration_ms as f64 / 1e3,
+            common_bw = self.common_bandwidth_hz as f64 / 1e6,
             fcw = self.fine_chan_width_hz as f64 / 1e3,
             nfcpc = self.num_fine_chans_per_coarse,
             ssb = self.sample_size_bytes,

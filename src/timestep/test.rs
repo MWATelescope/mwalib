@@ -9,6 +9,7 @@ Unit tests for timestep metadata
 use super::*;
 use crate::gpubox_files::GpuboxTimeMap;
 use crate::MetafitsContext;
+use std::collections::BTreeMap;
 
 ///
 /// This is helper method for many of the tests for generating the correlator timesteps

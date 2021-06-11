@@ -69,4 +69,10 @@ maybe you have a mix of different files?"#)]
 
     #[error("Invalid MWA Version value ({mwa_version}) for this method. Only 'VCS' enum values are allowed here.")]
     InvalidMwaVersion { mwa_version: MWAVersion },
+
+    #[error("No data exists for the provided timestep {timestep_index} and coarse channel {coarse_chan_index}.")]
+    NoDataForTimeStepCoarseChannel {
+        timestep_index: usize,
+        coarse_chan_index: usize,
+    },
 }

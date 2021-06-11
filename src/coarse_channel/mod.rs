@@ -234,12 +234,26 @@ impl CoarseChannel {
                                     }
                                 }
                             }
-                            _ => coarse_chans.push(CoarseChannel::new(
-                                correlator_chan_number,
-                                *rec_chan_number,
-                                gpubox_chan_number,
-                                metafits_coarse_chan_width_hz,
-                            )),
+                            // If no timemap has been passed in, we are populating based on metafits only.
+                            // Need to do different behaviour for coarse channels for LegacyVCS vs CorrLegacy and CorrOldLegacy
+                            _ => match mwa_version {
+                                MWAVersion::CorrLegacy | MWAVersion::CorrOldLegacy => coarse_chans
+                                    .push(CoarseChannel::new(
+                                        correlator_chan_number,
+                                        *rec_chan_number,
+                                        gpubox_chan_number,
+                                        metafits_coarse_chan_width_hz,
+                                    )),
+                                MWAVersion::VCSLegacyRecombined => {
+                                    coarse_chans.push(CoarseChannel::new(
+                                        correlator_chan_number,
+                                        *rec_chan_number,
+                                        *rec_chan_number,
+                                        metafits_coarse_chan_width_hz,
+                                    ))
+                                }
+                                _ => {} // CorrMWAXv2 and VCSMWAXv2 wiil never get here- they are in the below section
+                            },
                         },
                     }
                 }

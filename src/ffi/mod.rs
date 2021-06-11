@@ -1459,26 +1459,53 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
 pub struct VoltageMetadata {
     /// Version of the correlator format
     pub mwa_version: MWAVersion,
-    /// The proper start of the observation (the time that is common to all
-    /// provided voltage files).
-    pub start_gps_time_ms: u64,
-    /// `end_gps_time_ms` is the actual end time of the observation    
-    /// i.e. start time of last common timestep plus length of a voltage file (1 sec for MWA Legacy, 8 secs for MWAX).
-    pub end_gps_time_ms: u64,
-    /// `start_gps_time_ms` but in UNIX time (milliseconds)
-    pub start_unix_time_ms: u64,
-    /// `end_gps_time_ms` but in UNIX time (milliseconds)
-    pub end_unix_time_ms: u64,
-    /// Total duration of observation (based on voltage files)
-    pub duration_ms: u64,
+
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
     /// The number of millseconds interval between timestep indices
     pub timestep_duration_ms: u64,
     /// Number of coarse channels after we've validated the input voltage files
     pub num_coarse_chans: usize,
-    /// Total bandwidth of observation (of the coarse channels we have)
-    pub bandwidth_hz: u32,
+    // Number of common timesteps
+    pub num_common_timesteps: usize,
+    // Number of common coarse chans
+    pub num_common_coarse_chans: usize,
+    /// The start of the observation (the time that is common to all
+    /// provided data files).
+    pub common_start_unix_time_ms: u64,
+    /// `end_unix_time_ms` is the common end time of the observation
+    /// i.e. start time of last common timestep plus integration time.
+    pub common_end_unix_time_ms: u64,
+    /// `start_unix_time_ms` but in GPS milliseconds
+    pub common_start_gps_time_ms: u64,
+    /// `end_unix_time_ms` but in GPS milliseconds
+    pub common_end_gps_time_ms: u64,
+    /// Total duration of common timesteps
+    pub common_duration_ms: u64,
+    /// Total bandwidth of the common coarse channels
+    pub common_bandwidth_hz: u32,
+    // Number of common timesteps only including timesteps after the quack time
+    pub num_common_good_timesteps: usize,
+    // Number of common coarse channels only including timesteps after the quack time
+    pub num_common_good_coarse_chans: usize,
+    /// The start of the observation (the time that is common to all
+    /// provided data files) only including timesteps after the quack time
+    pub common_good_start_unix_time_ms: u64,
+    /// `end_unix_time_ms` is the common end time of the observation only including timesteps after the quack time
+    /// i.e. start time of last common timestep plus integration time.
+    pub common_good_end_unix_time_ms: u64,
+    /// `common_good_start_unix_time_ms` but in GPS milliseconds
+    pub common_good_start_gps_time_ms: u64,
+    /// `common_good_end_unix_time_ms` but in GPS milliseconds
+    pub common_good_end_gps_time_ms: u64,
+    /// Total duration of common_good timesteps
+    pub common_good_duration_ms: u64,
+    /// Total bandwidth of the common coarse channels only including timesteps after the quack time
+    pub common_good_bandwidth_hz: u32,
+    /// Number of provided timestep indices we have at least *some* data for
+    pub num_provided_timestep_indices: usize,
+    /// Number of provided coarse channel indices we have at least *some* data for
+    pub num_provided_coarse_chan_indices: usize,
     /// Bandwidth of each coarse channel
     pub coarse_chan_width_hz: u32,
     /// Volatge fine_chan_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
@@ -1551,17 +1578,35 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
         let VoltageContext {
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
             mwa_version,
-            start_gps_time_ms,
-            end_gps_time_ms,
-            start_unix_time_ms,
-            end_unix_time_ms,
-            duration_ms,
             num_timesteps,
             timesteps: _, // This is provided by the seperate timestep struct in FFI
             timestep_duration_ms,
             num_coarse_chans,
             coarse_chans: _, // This is provided by the seperate coarse_chan struct in FFI
-            bandwidth_hz,
+            common_timestep_indices: _, // This is currently not provided to FFI
+            num_common_timesteps,
+            common_coarse_chan_indices: _, // This is currently not provided to FFI
+            num_common_coarse_chans,
+            common_start_unix_time_ms,
+            common_end_unix_time_ms,
+            common_start_gps_time_ms,
+            common_end_gps_time_ms,
+            common_duration_ms,
+            common_bandwidth_hz,
+            common_good_timestep_indices: _, // This is not exposed by FFI currently
+            num_common_good_timesteps,
+            common_good_coarse_chan_indices: _, // This is not exposed by FFI currently
+            num_common_good_coarse_chans,
+            common_good_start_unix_time_ms,
+            common_good_end_unix_time_ms,
+            common_good_start_gps_time_ms,
+            common_good_end_gps_time_ms,
+            common_good_duration_ms,
+            common_good_bandwidth_hz,
+            provided_timestep_indices: _, // This is currently not provided to FFI
+            num_provided_timestep_indices,
+            provided_coarse_chan_indices: _, // This is currently not provided to FFI
+            num_provided_coarse_chan_indices,
             coarse_chan_width_hz,
             fine_chan_width_hz,
             num_fine_chans_per_coarse,
@@ -1578,15 +1623,27 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
         } = context;
         VoltageMetadata {
             mwa_version: *mwa_version,
-            start_gps_time_ms: *start_gps_time_ms,
-            end_gps_time_ms: *end_gps_time_ms,
-            start_unix_time_ms: *start_unix_time_ms,
-            end_unix_time_ms: *end_unix_time_ms,
-            duration_ms: *duration_ms,
             num_timesteps: *num_timesteps,
             timestep_duration_ms: *timestep_duration_ms,
             num_coarse_chans: *num_coarse_chans,
-            bandwidth_hz: *bandwidth_hz,
+            num_common_timesteps: *num_common_timesteps,
+            num_common_coarse_chans: *num_common_coarse_chans,
+            common_start_unix_time_ms: *common_start_unix_time_ms,
+            common_end_unix_time_ms: *common_end_unix_time_ms,
+            common_start_gps_time_ms: *common_start_gps_time_ms,
+            common_end_gps_time_ms: *common_end_gps_time_ms,
+            common_duration_ms: *common_duration_ms,
+            common_bandwidth_hz: *common_bandwidth_hz,
+            num_common_good_timesteps: *num_common_good_timesteps,
+            num_common_good_coarse_chans: *num_common_good_coarse_chans,
+            common_good_start_unix_time_ms: *common_good_start_unix_time_ms,
+            common_good_end_unix_time_ms: *common_good_end_unix_time_ms,
+            common_good_start_gps_time_ms: *common_good_start_gps_time_ms,
+            common_good_end_gps_time_ms: *common_good_end_gps_time_ms,
+            common_good_duration_ms: *common_good_duration_ms,
+            common_good_bandwidth_hz: *common_good_bandwidth_hz,
+            num_provided_timestep_indices: *num_provided_timestep_indices,
+            num_provided_coarse_chan_indices: *num_provided_coarse_chan_indices,
             coarse_chan_width_hz: *coarse_chan_width_hz,
             fine_chan_width_hz: *fine_chan_width_hz,
             num_fine_chans_per_coarse: *num_fine_chans_per_coarse,

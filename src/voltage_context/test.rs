@@ -342,32 +342,33 @@ fn test_context_legacy_v1() {
     assert_eq!(context.mwa_version, MWAVersion::VCSLegacyRecombined);
 
     // Actual gps start time:   1_101_503_312,
-    assert_eq!(context.start_gps_time_ms, 1_101_503_312_000);
+    assert_eq!(context.common_start_gps_time_ms, 1_101_503_312_000);
 
     // Actual gps end time:     1_101_503_314,
-    assert_eq!(context.end_gps_time_ms, 1_101_503_314_000);
+    assert_eq!(context.common_end_gps_time_ms, 1_101_503_314_000);
 
     // Actual duration:          2 s,
-    assert_eq!(context.duration_ms, 2_000);
+    assert_eq!(context.common_duration_ms, 2_000);
 
-    // num timesteps:            2,
-    assert_eq!(context.num_timesteps, 2);
+    // num timesteps:            112,
+    assert_eq!(context.num_timesteps, 112);
 
     // timesteps:
     assert_eq!(context.timesteps[0].gps_time_ms, 1_101_503_312_000);
     assert_eq!(context.timesteps[1].gps_time_ms, 1_101_503_313_000);
+    assert_eq!(context.timesteps[111].gps_time_ms, 1_101_503_423_000);
 
-    // num coarse channels,      2,
-    assert_eq!(context.num_coarse_chans, 2);
+    // num coarse channels,      24,
+    assert_eq!(context.num_coarse_chans, 24);
 
     // observation bandwidth:    2.56 MHz,
-    assert_eq!(context.bandwidth_hz, 1_280_000 * 2);
+    assert_eq!(context.common_bandwidth_hz, 1_280_000 * 2);
 
     // coarse channels:
-    assert_eq!(context.coarse_chans[0].rec_chan_number, 123);
-    assert_eq!(context.coarse_chans[0].chan_centre_hz, 157_440_000);
-    assert_eq!(context.coarse_chans[1].rec_chan_number, 124);
-    assert_eq!(context.coarse_chans[1].chan_centre_hz, 158_720_000);
+    assert_eq!(context.coarse_chans[14].rec_chan_number, 123);
+    assert_eq!(context.coarse_chans[14].chan_centre_hz, 157_440_000);
+    assert_eq!(context.coarse_chans[15].rec_chan_number, 124);
+    assert_eq!(context.coarse_chans[15].chan_centre_hz, 158_720_000);
     // fine channel resolution:  10 kHz,
     assert_eq!(context.fine_chan_width_hz, 10_000);
     // num fine channels/coarse: 128,
@@ -400,6 +401,45 @@ fn test_context_legacy_v1() {
 }
 
 #[test]
+fn test_context_legacy_v1_read_file_no_data_for_timestep() {
+    // Open a context and load in a test metafits and gpubox file
+    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+
+    //
+    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
+    //
+    context.voltage_block_size_bytes /= 128;
+
+    //
+    // Now do a read of the data from time 0, channel 0
+    //
+    // Create output buffer
+    let mut buffer: Vec<u8> = vec![
+        0;
+        (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
+            as usize
+    ];
+    // No data for timestep index 10
+    let read_result: Result<(), VoltageFileError> = context.read_file(10, 14, &mut buffer);
+
+    // Ensure read is err
+    assert!(read_result.is_err());
+
+    let error = read_result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            VoltageFileError::NoDataForTimeStepCoarseChannel {
+                timestep_index: 10,
+                coarse_chan_index: 14
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
 fn test_context_legacy_v1_read_file() {
     // Open a context and load in a test metafits and gpubox file
     let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
@@ -418,7 +458,7 @@ fn test_context_legacy_v1_read_file() {
         (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
             as usize
     ];
-    let read_result: Result<(), VoltageFileError> = context.read_file(0, 0, &mut buffer);
+    let read_result: Result<(), VoltageFileError> = context.read_file(0, 14, &mut buffer);
 
     // Ensure read is ok
     assert!(read_result.is_ok());
@@ -463,7 +503,7 @@ fn test_context_legacy_v1_read_file() {
     //
     // Now do a read of the data from time 0, channel 1. Values are offset by +1 from time 0, chan 0.
     //
-    let read_result: Result<(), VoltageFileError> = context.read_file(0, 1, &mut buffer);
+    let read_result: Result<(), VoltageFileError> = context.read_file(0, 15, &mut buffer);
 
     // Ensure read is ok
     assert!(read_result.is_ok());
@@ -508,7 +548,7 @@ fn test_context_legacy_v1_read_file() {
     //
     // Now do a read of the data from time 1, channel 0. Values are offset by +2 from time 0, chan 0.
     //
-    let read_result: Result<(), VoltageFileError> = context.read_file(1, 0, &mut buffer);
+    let read_result: Result<(), VoltageFileError> = context.read_file(1, 14, &mut buffer);
 
     // Ensure read is ok
     assert!(read_result.is_ok());
@@ -553,7 +593,7 @@ fn test_context_legacy_v1_read_file() {
     //
     // Now do a read of the data from time 1, channel 1. Values are offset by +3 from time 0, chan 0.
     //
-    let read_result: Result<(), VoltageFileError> = context.read_file(1, 1, &mut buffer);
+    let read_result: Result<(), VoltageFileError> = context.read_file(1, 15, &mut buffer);
 
     // Ensure read is ok
     assert!(read_result.is_ok());
@@ -606,32 +646,33 @@ fn test_context_mwax_v2() {
     assert_eq!(context.mwa_version, MWAVersion::VCSMWAXv2);
 
     // Actual gps start time:   1_101_503_312,
-    assert_eq!(context.start_gps_time_ms, 1_101_503_312_000);
+    assert_eq!(context.common_start_gps_time_ms, 1_101_503_312_000);
 
     // Actual gps end time:     1_101_503_328,
-    assert_eq!(context.end_gps_time_ms, 1_101_503_328_000);
+    assert_eq!(context.common_end_gps_time_ms, 1_101_503_328_000);
 
     // Actual duration:          16 s,
-    assert_eq!(context.duration_ms, 16_000);
+    assert_eq!(context.common_duration_ms, 16_000);
 
-    // num timesteps:            2,
-    assert_eq!(context.num_timesteps, 2);
+    // num timesteps:            14,
+    assert_eq!(context.num_timesteps, 14);
 
     // timesteps:
     assert_eq!(context.timesteps[0].gps_time_ms, 1_101_503_312_000);
     assert_eq!(context.timesteps[1].gps_time_ms, 1_101_503_320_000);
+    assert_eq!(context.timesteps[13].gps_time_ms, 1_101_503_416_000);
 
     // num coarse channels,      2,
-    assert_eq!(context.num_coarse_chans, 2);
+    assert_eq!(context.num_coarse_chans, 24);
 
     // observation bandwidth:    2.56 MHz,
-    assert_eq!(context.bandwidth_hz, 1_280_000 * 2);
+    assert_eq!(context.common_bandwidth_hz, 1_280_000 * 2);
 
     // coarse channels:
-    assert_eq!(context.coarse_chans[0].rec_chan_number, 123);
-    assert_eq!(context.coarse_chans[0].chan_centre_hz, 157_440_000);
-    assert_eq!(context.coarse_chans[1].rec_chan_number, 124);
-    assert_eq!(context.coarse_chans[1].chan_centre_hz, 158_720_000);
+    assert_eq!(context.coarse_chans[14].rec_chan_number, 123);
+    assert_eq!(context.coarse_chans[14].chan_centre_hz, 157_440_000);
+    assert_eq!(context.coarse_chans[15].rec_chan_number, 124);
+    assert_eq!(context.coarse_chans[15].chan_centre_hz, 158_720_000);
     // fine channel resolution:  1.28 MHz,
     assert_eq!(context.fine_chan_width_hz, 1_280_000);
     // num fine channels/coarse: 1,
@@ -666,6 +707,45 @@ fn test_context_mwax_v2() {
 }
 
 #[test]
+fn test_context_mwaxv2_read_file_no_data_for_timestep() {
+    // Open a context and load in a test metafits and gpubox file
+    let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
+
+    //
+    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
+    //
+    context.voltage_block_size_bytes /= 128;
+
+    //
+    // Now do a read of the data from time 0, channel 0
+    //
+    // Create output buffer
+    let mut buffer: Vec<u8> = vec![
+        0;
+        (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
+            as usize
+    ];
+    // No data for timestep index 10
+    let read_result: Result<(), VoltageFileError> = context.read_file(10, 14, &mut buffer);
+
+    // Ensure read is err
+    assert!(read_result.is_err());
+
+    let error = read_result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            VoltageFileError::NoDataForTimeStepCoarseChannel {
+                timestep_index: 10,
+                coarse_chan_index: 14
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
 fn test_context_mwax_v2_read_file() {
     // Create voltage context
     let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
@@ -685,7 +765,7 @@ fn test_context_mwax_v2_read_file() {
     //
     // Now do a read of the data from time 0, channel 0
     //
-    let read_result: Result<(), VoltageFileError> = context.read_file(0, 0, &mut buffer);
+    let read_result: Result<(), VoltageFileError> = context.read_file(0, 14, &mut buffer);
 
     // Ensure read is ok
     assert!(read_result.is_ok());
@@ -736,7 +816,7 @@ fn test_context_mwax_v2_read_file() {
     //
     // Now do a read of the data from time 0, channel 1. Values are offset by +1 from time 0, chan 0.
     //
-    let read_result: Result<(), VoltageFileError> = context.read_file(0, 1, &mut buffer);
+    let read_result: Result<(), VoltageFileError> = context.read_file(0, 15, &mut buffer);
 
     // Ensure read is ok
     assert!(read_result.is_ok());
@@ -781,7 +861,7 @@ fn test_context_mwax_v2_read_file() {
     //
     // Now do a read of the data from time 1, channel 0. Values are offset by +2 from time 0, chan 0.
     //
-    let read_result: Result<(), VoltageFileError> = context.read_file(1, 0, &mut buffer);
+    let read_result: Result<(), VoltageFileError> = context.read_file(1, 14, &mut buffer);
 
     // Ensure read is ok
     assert!(read_result.is_ok());
@@ -826,7 +906,7 @@ fn test_context_mwax_v2_read_file() {
     //
     // Now do a read of the data from time 1, channel 1. Values are offset by +3 from time 0, chan 0.
     //
-    let read_result: Result<(), VoltageFileError> = context.read_file(1, 1, &mut buffer);
+    let read_result: Result<(), VoltageFileError> = context.read_file(1, 15, &mut buffer);
 
     // Ensure read is ok
     assert!(read_result.is_ok());
@@ -906,7 +986,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_legacy() {
     assert!(
         matches!(
             error,
-            VoltageFileError::InvalidGpsSecondStart(1_101_503_312, 1_101_503_313)
+            VoltageFileError::InvalidGpsSecondStart(1_101_503_312, 1_101_503_424)
         ),
         "Error was {:?}",
         error
@@ -915,10 +995,11 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_legacy() {
 
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
+    // This test obs starts at 1_101_503_312 and has 112 seconds.
     // Create test files and a test Voltage Context
     let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
 
-    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 3);
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_424, 3);
 
     assert!(result.is_err(), "{:?}", result);
 
@@ -926,7 +1007,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
     assert!(
         matches!(
             error,
-            VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 3, 1_101_503_313)
+            VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 3, 1_101_503_424)
         ),
         "Error was {:?}",
         error
@@ -946,7 +1027,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_mwax_v2() {
     assert!(
         matches!(
             error,
-            VoltageFileError::InvalidGpsSecondStart(1_101_503_312, 1_101_503_327)
+            VoltageFileError::InvalidGpsSecondStart(1_101_503_312, 1_101_503_424)
         ),
         "Error was {:?}",
         error
@@ -958,7 +1039,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_mwax_v2() {
     // Create test files and a test Voltage Context
     let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
 
-    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 17);
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 118);
 
     assert!(result.is_err(), "{:?}", result);
 
@@ -966,7 +1047,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_mwax_v2() {
     assert!(
         matches!(
             error,
-            VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 17, 1_101_503_327)
+            VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 118, 1_101_503_424)
         ),
         "Error was {:?}",
         error
@@ -993,7 +1074,7 @@ fn test_context_read_second_invalid_coarse_chan_index() {
     // Do the read
     let gps_second_start = 1_101_503_312;
     let gps_second_count = 1;
-    let coarse_chan_index = 10;
+    let coarse_chan_index = 100;
 
     let read_result: Result<(), VoltageFileError> = context.read_second(
         gps_second_start,
@@ -1007,7 +1088,7 @@ fn test_context_read_second_invalid_coarse_chan_index() {
 
     let error = read_result.unwrap_err();
     assert!(
-        matches!(error, VoltageFileError::InvalidCoarseChanIndex(1)),
+        matches!(error, VoltageFileError::InvalidCoarseChanIndex(23)),
         "Error was {:?}",
         error
     );
@@ -1070,13 +1151,13 @@ fn test_context_read_second_legacy_invalid_data_file_size() {
     // In our other tests the below line is uncommented, so the context knows about our smaller test files.
     // But for this test we want to LEAVE it commented out so it will be expecting the 'real'/full file size
     //
-    // ** important! **
+    // ** important! ** This is commented out on purpose for this test
     // context.voltage_block_size_bytes /= 128;
     // ** important! **
 
     let gps_second_start = 1_101_503_312;
     let gps_second_count: usize = 1;
-    let coarse_chan_index = 0;
+    let coarse_chan_index = 14;
 
     //
     // Now do a read of the data
@@ -1119,13 +1200,13 @@ fn test_context_read_second_mwaxv2_invalid_data_file_size() {
     // In our other tests the below line is uncommented, so the context knows about our smaller test files.
     // But for this test we want to LEAVE it commented out so it will be expecting the 'real'/full file size
     //
-    // ** important! **
+    // ** important! ** Next line is commented out on purpose for this test
     // context.voltage_block_size_bytes /= 128;
     // ** important! **
 
     let gps_second_start = 1_101_503_312;
     let gps_second_count: usize = 1;
-    let coarse_chan_index = 0;
+    let coarse_chan_index = 14;
 
     //
     // Now do a read of the data
@@ -1158,6 +1239,100 @@ fn test_context_read_second_mwaxv2_invalid_data_file_size() {
 }
 
 #[test]
+fn test_context_read_second_legacy_no_data_for_gpstime() {
+    // Open a context and load in a test metafits and gpubox file
+    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+
+    context.voltage_block_size_bytes /= 128;
+
+    let gps_second_start = 1_101_503_350; // No data at this timestep
+    let gps_second_count: usize = 1;
+    let coarse_chan_index = 14;
+
+    //
+    // Now do a read of the data
+    //
+    // Create output buffer
+    let mut buffer: Vec<u8> = vec![
+        0;
+        (context.voltage_block_size_bytes
+            * context.num_voltage_blocks_per_second
+            * gps_second_count as u64) as usize
+    ];
+
+    // Do the read
+    let read_result: Result<(), VoltageFileError> = context.read_second(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_err(), "{:?}", read_result);
+
+    let error = read_result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            VoltageFileError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
+fn test_context_read_second_mwaxv2_no_data_for_gpstime() {
+    // Open a context and load in a test metafits and gpubox file
+    let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
+
+    context.voltage_block_size_bytes /= 128;
+
+    let gps_second_start = 1_101_503_350; // No data at this timestep
+    let gps_second_count: usize = 1;
+    let coarse_chan_index = 14;
+
+    //
+    // Now do a read of the data
+    //
+    // Create output buffer
+    let mut buffer: Vec<u8> = vec![
+        0;
+        (context.voltage_block_size_bytes
+            * context.num_voltage_blocks_per_second
+            * gps_second_count as u64) as usize
+    ];
+
+    // Do the read
+    let read_result: Result<(), VoltageFileError> = context.read_second(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_err(), "{:?}", read_result);
+
+    let error = read_result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            VoltageFileError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
 fn test_context_read_second_legacyv1_valid() {
     //
     // We will test reading across 2 data files in time
@@ -1182,7 +1357,7 @@ fn test_context_read_second_legacyv1_valid() {
 
     let gps_second_start = 1_101_503_312;
     let gps_second_count: usize = 2;
-    let coarse_chan_index = 0;
+    let coarse_chan_index = 14;
 
     //
     // Now do a read of the data
@@ -1261,7 +1436,7 @@ fn test_context_read_second_mwaxv2_valid() {
 
     let gps_second_start = 1_101_503_318;
     let gps_second_count: usize = 4;
-    let coarse_chan_index = 0;
+    let coarse_chan_index = 14;
 
     //
     // Now do a read of the data

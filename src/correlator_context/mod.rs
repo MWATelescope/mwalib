@@ -45,7 +45,6 @@ pub struct CorrelatorContext {
     pub common_coarse_chan_indices: Vec<usize>,
     // Number of common coarse channels
     pub num_common_coarse_chans: usize,
-
     /// The start of the observation (the time that is common to all
     /// provided gpubox files).
     pub common_start_unix_time_ms: u64,
@@ -221,6 +220,18 @@ impl CorrelatorContext {
             }
         };
 
+        // Convert the real start and end times to GPS time
+        let common_start_gps_time_ms = misc::convert_unixtime_to_gpstime(
+            common_start_unix_time_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
+        );
+        let common_end_gps_time_ms = misc::convert_unixtime_to_gpstime(
+            common_end_unix_time_ms,
+            metafits_context.sched_start_gps_time_ms,
+            metafits_context.sched_start_unix_time_ms,
+        );
+
         // Populate the common coarse_chan indices vector
         let common_coarse_chan_indices: Vec<usize> = CoarseChannel::get_coarse_chan_indicies(
             &corr_coarse_chans,
@@ -239,18 +250,6 @@ impl CorrelatorContext {
         // Determine some other "common" attributes
         let common_bandwidth_hz =
             (num_common_coarse_chans as u32) * metafits_context.coarse_chan_width_hz;
-
-        // Convert the real start and end times to GPS time
-        let common_start_gps_time_ms = misc::convert_unixtime_to_gpstime(
-            common_start_unix_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
-        let common_end_gps_time_ms = misc::convert_unixtime_to_gpstime(
-            common_end_unix_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
 
         // Populate the start and end times of the observation based on common channels after the quack time.
         // Start= start of first timestep

@@ -718,7 +718,7 @@ impl MetafitsContext {
                 self.obs_bandwidth_hz,
             )?;
 
-        // Process the channels based on the gpubox files we have
+        // Populate coarse chans from the metafits info.
         self.metafits_coarse_chans.extend(
             CoarseChannel::populate_coarse_channels(
                 mwa_version,

@@ -88,55 +88,55 @@ fn test_determine_voltage_file_gpstime_batches_proper_legacy_format() {
         TempVoltageFile {
             filename: "1065880128_1065880128_ch001.dat",
             obs_id: 1065880128,
-            gps_time: 1065880128,
+            gps_time_seconds: 1065880128,
             channel_identifier: 1,
         },
         TempVoltageFile {
             filename: "1065880128_1065880128_ch21.dat",
             obs_id: 1065880128,
-            gps_time: 1065880128,
+            gps_time_seconds: 1065880128,
             channel_identifier: 21,
         },
         TempVoltageFile {
             filename: "1065880128_1065880128_ch122.dat",
             obs_id: 1065880128,
-            gps_time: 1065880128,
+            gps_time_seconds: 1065880128,
             channel_identifier: 122,
         },
         TempVoltageFile {
             filename: "1065880128_1065880129_ch1.dat",
             obs_id: 1065880128,
-            gps_time: 1065880129,
+            gps_time_seconds: 1065880129,
             channel_identifier: 1,
         },
         TempVoltageFile {
             filename: "1065880128_1065880129_ch21.dat",
             obs_id: 1065880128,
-            gps_time: 1065880129,
+            gps_time_seconds: 1065880129,
             channel_identifier: 21,
         },
         TempVoltageFile {
             filename: "1065880128_1065880129_ch122.dat",
             obs_id: 1065880128,
-            gps_time: 1065880129,
+            gps_time_seconds: 1065880129,
             channel_identifier: 122,
         },
         TempVoltageFile {
             filename: "1065880128_1065880130_ch01.dat",
             obs_id: 1065880128,
-            gps_time: 1065880130,
+            gps_time_seconds: 1065880130,
             channel_identifier: 1,
         },
         TempVoltageFile {
             filename: "1065880128_1065880130_ch021.dat",
             obs_id: 1065880128,
-            gps_time: 1065880130,
+            gps_time_seconds: 1065880130,
             channel_identifier: 21,
         },
         TempVoltageFile {
             filename: "1065880128_1065880130_ch122.dat",
             obs_id: 1065880128,
-            gps_time: 1065880130,
+            gps_time_seconds: 1065880130,
             channel_identifier: 122,
         },
     ];
@@ -168,55 +168,55 @@ fn test_determine_voltage_file_gpstime_batches_proper_mwax_format() {
         TempVoltageFile {
             filename: "1065880128_1065880128_001.sub",
             obs_id: 1065880128,
-            gps_time: 1065880128,
+            gps_time_seconds: 1065880128,
             channel_identifier: 1,
         },
         TempVoltageFile {
             filename: "1065880128_1065880128_21.sub",
             obs_id: 1065880128,
-            gps_time: 1065880128,
+            gps_time_seconds: 1065880128,
             channel_identifier: 21,
         },
         TempVoltageFile {
             filename: "1065880128_1065880128_122.sub",
             obs_id: 1065880128,
-            gps_time: 1065880128,
+            gps_time_seconds: 1065880128,
             channel_identifier: 122,
         },
         TempVoltageFile {
             filename: "1065880128_1065880136_1.sub",
             obs_id: 1065880128,
-            gps_time: 1065880136,
+            gps_time_seconds: 1065880136,
             channel_identifier: 1,
         },
         TempVoltageFile {
             filename: "1065880128_1065880136_21.sub",
             obs_id: 1065880128,
-            gps_time: 1065880136,
+            gps_time_seconds: 1065880136,
             channel_identifier: 21,
         },
         TempVoltageFile {
             filename: "1065880128_1065880136_122.sub",
             obs_id: 1065880128,
-            gps_time: 1065880136,
+            gps_time_seconds: 1065880136,
             channel_identifier: 122,
         },
         TempVoltageFile {
             filename: "1065880128_1065880144_01.sub",
             obs_id: 1065880128,
-            gps_time: 1065880144,
+            gps_time_seconds: 1065880144,
             channel_identifier: 1,
         },
         TempVoltageFile {
             filename: "1065880128_1065880144_021.sub",
             obs_id: 1065880128,
-            gps_time: 1065880144,
+            gps_time_seconds: 1065880144,
             channel_identifier: 21,
         },
         TempVoltageFile {
             filename: "1065880128_1065880144_122.sub",
             obs_id: 1065880128,
-            gps_time: 1065880144,
+            gps_time_seconds: 1065880144,
             channel_identifier: 122,
         },
     ];
@@ -300,7 +300,7 @@ fn test_determine_obs_times_test_many_timesteps_legacy() {
     let mut input = VoltageFileTimeMap::new();
     // insert a "dangling time" at the beginning (1065880128) which is not a common timestep
     let mut new_time_tree = BTreeMap::new();
-    new_time_tree.insert(120, String::from("1065880128_1065880128_ch120.dat"));
+    new_time_tree.insert(121, String::from("1065880128_1065880128_ch120.dat"));
     input.insert(1065880128, new_time_tree);
 
     // Add the common times to the data structure
@@ -320,19 +320,20 @@ fn test_determine_obs_times_test_many_timesteps_legacy() {
 
     // insert a "dangling time" at the end (1065880134) which is not a common timestep
     new_time_tree = BTreeMap::new();
-    new_time_tree.insert(120, String::from("1065880128_1065880134_ch120.dat"));
+    new_time_tree.insert(121, String::from("1065880128_1065880134_ch120.dat"));
     input.insert(1065880134, new_time_tree);
 
-    let expected_interval: u64 = 1000; // 1000 since we are Legacy
+    let interval: u64 = 1000; // 1000 since we are Legacy
     let expected_start: u64 = *common_times.first().unwrap() * 1000;
-    let expected_end: u64 = (*common_times.last().unwrap() * 1000) + expected_interval;
+    let expected_end: u64 = (*common_times.last().unwrap() * 1000) + interval;
     // Duration = common end - common start + integration time
     // == 1065880133 - 1065880129 + 1
     let expected_duration = 5000;
-    let voltage_file_interval_ms: u64 = 1000;
 
-    let result = determine_obs_times(&input, voltage_file_interval_ms);
+    let result = determine_common_obs_times_and_chans(&input, interval, None);
     assert!(result.is_ok());
+    let result = result.unwrap();
+    assert!(result.is_some());
     let result = result.unwrap();
     assert_eq!(
         result.start_gps_time_ms, expected_start,
@@ -350,8 +351,19 @@ fn test_determine_obs_times_test_many_timesteps_legacy() {
         result
     );
     assert_eq!(
-        result.voltage_file_interval_ms, expected_interval,
-        "voltage_file_interval_ms incorrect {:?}",
+        result.coarse_chan_identifiers.len(),
+        2,
+        "coarse_chan_identifiers is incorrect {:?}",
+        result
+    );
+    assert_eq!(
+        result.coarse_chan_identifiers[0], 121,
+        "coarse_chan_identifiers is incorrect {:?}",
+        result
+    );
+    assert_eq!(
+        result.coarse_chan_identifiers[1], 122,
+        "coarse_chan_identifiers is incorrect {:?}",
         result
     );
 }
@@ -362,7 +374,7 @@ fn test_determine_obs_times_test_many_timesteps_mwax() {
     let mut input = VoltageFileTimeMap::new();
     // insert a "dangling time" at the beginning (1065880128) which is not a common timestep
     let mut new_time_tree = BTreeMap::new();
-    new_time_tree.insert(120, String::from("1065880128_1065880128_120.sub"));
+    new_time_tree.insert(121, String::from("1065880128_1065880128_120.sub"));
     input.insert(1065880128, new_time_tree);
 
     // Add the common times to the data structure
@@ -382,19 +394,20 @@ fn test_determine_obs_times_test_many_timesteps_mwax() {
 
     // insert a "dangling time" at the end (1065880176) which is not a common timestep
     new_time_tree = BTreeMap::new();
-    new_time_tree.insert(120, String::from("1065880128_1065880176_120.sub"));
+    new_time_tree.insert(121, String::from("1065880128_1065880176_120.sub"));
     input.insert(1065880176, new_time_tree);
 
-    let expected_interval: u64 = 8000; // 8000 since we are MWAX
+    let interval: u64 = 8000; // 8000 since we are MWAX
     let expected_start: u64 = *common_times.first().unwrap() * 1000;
-    let expected_end: u64 = (*common_times.last().unwrap() * 1000) + expected_interval;
+    let expected_end: u64 = (*common_times.last().unwrap() * 1000) + interval;
     // Duration = common end - common start + integration time
     // == 1065880168 - 1065880136 + 8
     let expected_duration = 40000;
-    let voltage_file_interval_ms: u64 = 8000;
 
-    let result = determine_obs_times(&input, voltage_file_interval_ms);
+    let result = determine_common_obs_times_and_chans(&input, interval, None);
     assert!(result.is_ok());
+    let result = result.unwrap();
+    assert!(result.is_some());
     let result = result.unwrap();
     assert_eq!(
         result.start_gps_time_ms, expected_start,
@@ -412,8 +425,19 @@ fn test_determine_obs_times_test_many_timesteps_mwax() {
         result
     );
     assert_eq!(
-        result.voltage_file_interval_ms, expected_interval,
-        "voltage_file_interval_ms incorrect {:?}",
+        result.coarse_chan_identifiers.len(),
+        2,
+        "coarse_chan_identifiers incorrect {:?}",
+        result
+    );
+    assert_eq!(
+        result.coarse_chan_identifiers[0], 121,
+        "coarse_chan_identifiers is incorrect {:?}",
+        result
+    );
+    assert_eq!(
+        result.coarse_chan_identifiers[1], 122,
+        "coarse_chan_identifiers is incorrect {:?}",
         result
     );
 }
@@ -423,7 +447,7 @@ fn test_voltage_file_batch_new() {
     let new_batch = VoltageFileBatch::new(1234567890);
 
     // Check the new batch is created ok
-    assert_eq!(new_batch.gps_time, 1234567890);
+    assert_eq!(new_batch.gps_time_seconds, 1234567890);
     assert_eq!(new_batch.voltage_files.len(), 0);
 }
 
@@ -475,31 +499,31 @@ fn test_convert_temp_voltage_files() {
             filename: "1234567000_1234567000_123.sub",
             obs_id: 1234567000,
             channel_identifier: 123,
-            gps_time: 1234567000,
+            gps_time_seconds: 1234567000,
         },
         TempVoltageFile {
             filename: "1234567890_1234567008_124.sub",
             obs_id: 1234567000,
             channel_identifier: 124,
-            gps_time: 1234567008,
+            gps_time_seconds: 1234567008,
         },
         TempVoltageFile {
             filename: "1234567890_1234567008_123.sub",
             obs_id: 1234567000,
             channel_identifier: 123,
-            gps_time: 1234567008,
+            gps_time_seconds: 1234567008,
         },
         TempVoltageFile {
             filename: "1234567890_1234567008_125.sub",
             obs_id: 1234567000,
             channel_identifier: 125,
-            gps_time: 1234567008,
+            gps_time_seconds: 1234567008,
         },
         TempVoltageFile {
             filename: "1234567000_1234567000_124.sub",
             obs_id: 1234567000,
             channel_identifier: 124,
-            gps_time: 1234567000,
+            gps_time_seconds: 1234567000,
         },
     ];
 

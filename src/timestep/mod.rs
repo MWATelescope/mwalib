@@ -5,10 +5,11 @@
 /*!
 Structs and helper methods for timestep metadata
 */
+use crate::gpubox_files::GpuboxTimeMap;
 use crate::misc;
+use crate::voltage_files::VoltageFileTimeMap;
 use crate::{metafits_context, MWAVersion, MetafitsContext};
 use crate::{MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS, MWA_VCS_MWAXV2_SUBFILE_SECONDS};
-use std::collections::BTreeMap;
 use std::fmt;
 
 #[cfg(test)]
@@ -45,38 +46,29 @@ impl TimeStep {
         }
     }
 
-    /// Creates a new, populated vector of TimeStep structs. This code tries to populate timesteps which:
-    /// * Covers all data provided
-    /// * Does it's best to go from the metafits scheduled start to scheduled end
-    /// NOTE: this is involved, because in legacy obs, the metafits timesteps can be offset by fractions of an integration from the data timesteps. E.g.
-    ///  metafits timesteps = [0, 2, 4, 6, ..., 30]
-    ///  gpubox timesteps   = [3, 5, 7, 9, ..., 29, 31]
-    ///
-    /// In this example the correlator timesteps will be:
-    ///  correlator timesteps [1, 3, 5, 7, 9, ..., 29, 31]
-    ///
-    /// So we will try to cover the metafits range where possible without going outside it's start/end, UNLESS our data is outside that range in which case,
-    /// we just let it spill over.
+    /// Creates a new, populated vector of correlator TimeStep structs.
+    ///    
     ///
     /// # Arguments
     ///
     /// * `gpubox_time_map` - BTree structure containing the map of what gpubox
     ///   files and timesteps we were supplied by the client.
     ///
-    /// * `metafits_timesteps' - Reference to populated
+    /// * `metafits_timesteps' - Reference to populated metafits timesteps.
     ///
     /// * `scheduled_starttime_gps_ms` - Scheduled start time of the observation based on GPSTIME in the metafits (obsid).
     ///
     /// * `scheduled_starttime_unix_ms` - Scheduled start time of the observation based on GOODTIME-QUACKTIM in the metafits.
     ///
+    /// * `corr_int_time_ms` The correlator integration time in ms between each timestep.
+    ///
     /// # Returns
     ///
     /// * A populated vector of TimeStep structs inside an Option. Only
-    ///   timesteps *common to all* gpubox files are included. If the Option has
-    ///   a value of None, then `gpubox_time_map` is empty.
+    ///   timesteps. If the Option has a value of None, then `gpubox_time_map` is empty.
     ///
     pub(crate) fn populate_correlator_timesteps(
-        gpubox_time_map: &BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
+        gpubox_time_map: &GpuboxTimeMap,
         metafits_timesteps: &[TimeStep],
         scheduled_starttime_gps_ms: u64,
         scheduled_starttime_unix_ms: u64,
@@ -88,12 +80,6 @@ impl TimeStep {
         // Create timestep vector from metafits timesteps
         let mut timesteps: Vec<TimeStep> = Vec::new();
 
-        // Get the unix time of the first timestep from the GpuboxTimeMap
-        let first_data_timestep_unix_ms: u64 = *gpubox_time_map.iter().next().unwrap().0;
-
-        // Get the unix time of the last timestep from the GpuboxTimeMap
-        let last_data_timestep_unix_ms: u64 = *gpubox_time_map.iter().next_back().unwrap().0;
-
         // Iterate through the gpubox map and insert all timesteps
         for (unix_time_ms, _) in gpubox_time_map.iter() {
             let gps_time_ms = misc::convert_unixtime_to_gpstime(
@@ -104,10 +90,117 @@ impl TimeStep {
             timesteps.push(Self::new(*unix_time_ms, gps_time_ms));
         }
 
-        // Go backwards from the first GpuboxTimeMap timestep to the scheduled start time of the obs and fill in any missing timesteps
-        // but only if the first data timestep is AFTER the start time of the obs.
+        // Now that we have finished with the correlator specific GpuBoxTimeMap, pass the details into the generic function to populate the superset
+        // of timesteps
+        Some(TimeStep::populate_metafits_provided_superset_of_timesteps(
+            timesteps,
+            metafits_timesteps,
+            scheduled_starttime_gps_ms,
+            scheduled_starttime_unix_ms,
+            corr_int_time_ms,
+        ))
+    }
+
+    /// Creates a new, populated vector of voltage TimeStep structs.    
+    ///
+    /// # Arguments
+    ///
+    /// * `voltage_time_map` - BTree structure containing the map of what voltage
+    ///   files and timesteps we were supplied by the client.
+    ///
+    /// * `metafits_timesteps' - Reference to populated metafits timesteps.
+    ///
+    /// * `scheduled_starttime_gps_ms` - Scheduled start time of the observation based on GPSTIME in the metafits (obsid).
+    ///
+    /// * `scheduled_starttime_unix_ms` - Scheduled start time of the observation based on GOODTIME-QUACKTIM in the metafits.
+    ///
+    /// * `voltage_timestep_duration_ms` The time in ms between each timestep.
+    ///
+    /// # Returns
+    ///
+    /// * A populated vector of TimeStep structs inside an Option. Only
+    ///   timesteps. If the Option has a value of None, then `voltage_time_map` is empty.
+    ///
+    pub(crate) fn populate_voltage_timesteps(
+        voltage_time_map: &VoltageFileTimeMap,
+        metafits_timesteps: &[TimeStep],
+        scheduled_starttime_gps_ms: u64,
+        scheduled_starttime_unix_ms: u64,
+        voltage_timestep_duration_ms: u64,
+    ) -> Option<Vec<Self>> {
+        if voltage_time_map.is_empty() {
+            return None;
+        }
+        // Create timestep vector from metafits timesteps
+        let mut timesteps: Vec<TimeStep> = Vec::new();
+
+        // Iterate through the voltage time map and insert all timesteps
+        for (gps_time_seconds, _) in voltage_time_map.iter() {
+            let unix_time_ms = misc::convert_gpstime_to_unixtime(
+                *gps_time_seconds * 1000,
+                scheduled_starttime_gps_ms,
+                scheduled_starttime_unix_ms,
+            );
+            timesteps.push(Self::new(unix_time_ms, *gps_time_seconds * 1000));
+        }
+
+        // Now that we have finished with the voltage specific VoltageTimeMap, pass the details into the generic function to populate the superset
+        // of timesteps
+        Some(TimeStep::populate_metafits_provided_superset_of_timesteps(
+            timesteps,
+            metafits_timesteps,
+            scheduled_starttime_gps_ms,
+            scheduled_starttime_unix_ms,
+            voltage_timestep_duration_ms,
+        ))
+    }
+
+    /// Generic helper function for both Correlator and Voltage contexts to, given a provided set of timesteps (from all data files),
+    /// create a new vector of timesteps which is a contiguous superset of metafits and provided timesteps.
+    ///
+    /// This code tries to populate timesteps which:
+    /// * Covers all data provided
+    /// * Does it's best to go from the metafits scheduled start to scheduled end
+    /// NOTE: this is involved, because in legacy obs, the metafits correlator timesteps can be offset by fractions of an integration from the data timesteps. E.g.
+    ///  metafits timesteps = [0, 2, 4, 6, ..., 30]
+    ///  provided timesteps = [3, 5, 7, 9, ..., 29, 31]
+    ///
+    /// In this example the superset of timesteps will be:
+    ///  timesteps [1, 3, 5, 7, 9, ..., 29, 31]
+    ///
+    /// # Arguments
+    ///
+    /// * `provided_timesteps` - Vector of timesteps which have been found based on the data files provided.
+    ///
+    /// * `metafits_timesteps' - Reference to populated metafits timesteps.
+    ///
+    /// * `scheduled_starttime_gps_ms` - Scheduled start time of the observation based on GPSTIME in the metafits (obsid).
+    ///
+    /// * `scheduled_starttime_unix_ms` - Scheduled start time of the observation based on GOODTIME-QUACKTIM in the metafits.
+    ///
+    /// * `timestep_duration_ms` The time in ms between each timestep.
+    ///
+    /// # Returns
+    ///
+    /// * A populated vector of superset of TimeSteps.
+    ///
+    fn populate_metafits_provided_superset_of_timesteps(
+        provided_timesteps: Vec<TimeStep>,
+        metafits_timesteps: &[TimeStep],
+        scheduled_starttime_gps_ms: u64,
+        scheduled_starttime_unix_ms: u64,
+        timestep_duration_ms: u64,
+    ) -> Vec<TimeStep> {
+        let mut timesteps: Vec<TimeStep> = provided_timesteps;
+
+        let first_data_timestep_unix_ms: u64 = timesteps[0].unix_time_ms;
+        let last_data_timestep_unix_ms: u64 = timesteps[timesteps.len() - 1].unix_time_ms;
+
+        // Go backwards from the first provided timestep to the scheduled start time of the obs and fill in any missing timesteps
+        // but only if the first provided timestep is AFTER the start time of the obs.
         if first_data_timestep_unix_ms > metafits_timesteps[0].unix_time_ms {
-            let mut current_timestep_unix_ms: u64 = first_data_timestep_unix_ms - corr_int_time_ms;
+            let mut current_timestep_unix_ms: u64 =
+                first_data_timestep_unix_ms - timestep_duration_ms;
 
             while current_timestep_unix_ms >= metafits_timesteps[0].unix_time_ms {
                 // Create a new timestep
@@ -119,16 +212,17 @@ impl TimeStep {
                 timesteps.push(Self::new(current_timestep_unix_ms, gps_time_ms));
 
                 // Move back by the correlator integration time
-                current_timestep_unix_ms -= corr_int_time_ms;
+                current_timestep_unix_ms -= timestep_duration_ms;
             }
         }
 
-        // Go forwards from the last GpuboxTimeMap timestep to the scheduled end time of the obs and fill in any missing timesteps
-        // but only if the last data timestep is BEFORE the end time of the obs.
+        // Go forwards from the last provided timestep to the scheduled end time of the obs and fill in any missing timesteps
+        // but only if the last provided timestep is BEFORE the end time of the obs.
         if last_data_timestep_unix_ms
             < metafits_timesteps[metafits_timesteps.len() - 1].unix_time_ms
         {
-            let mut current_timestep_unix_ms: u64 = last_data_timestep_unix_ms + corr_int_time_ms;
+            let mut current_timestep_unix_ms: u64 =
+                last_data_timestep_unix_ms + timestep_duration_ms;
 
             while current_timestep_unix_ms
                 <= metafits_timesteps[metafits_timesteps.len() - 1].unix_time_ms
@@ -142,18 +236,18 @@ impl TimeStep {
                 timesteps.push(Self::new(current_timestep_unix_ms, gps_time_ms));
 
                 // Move forward by the correlator integration time
-                current_timestep_unix_ms += corr_int_time_ms;
+                current_timestep_unix_ms += timestep_duration_ms;
             }
         }
 
         // Now sort by unix time
         timesteps.sort_by_key(|t| t.unix_time_ms);
 
-        // We have extended out the first and last data timesteps
+        // We have extended out the first and last provided timesteps
         // Now we can go from first to last and fill in any gaps
         for timestep_unix_time_ms in (timesteps[0].unix_time_ms
             ..timesteps[timesteps.len() - 1].unix_time_ms)
-            .step_by(corr_int_time_ms as usize)
+            .step_by(timestep_duration_ms as usize)
         {
             if !&timesteps
                 .iter()
@@ -171,7 +265,7 @@ impl TimeStep {
         // Now sort by unix time one final time
         timesteps.sort_by_key(|t| t.unix_time_ms);
 
-        Some(timesteps)
+        timesteps
     }
 
     /// This creates a populated vector of `TimeStep` structs
