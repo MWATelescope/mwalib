@@ -7,13 +7,20 @@ This module exists purely for other languages to interface with mwalib.
  */
 
 use crate::*;
+use gpubox_files::GpuboxError;
 use libc::{c_char, c_float, c_uchar, c_uint, c_ulong, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
+use voltage_files::VoltageFileError;
 
 #[cfg(test)]
 mod test;
+
+/// mwalib FFI interface return codes
+pub const MWALIB_SUCCESS: i32 = 0;
+pub const MWALIB_FAILURE: i32 = 1;
+pub const MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN: i32 = -1;
 
 /// Generic helper function for all FFI modules to take an already allocated C string
 /// and update it with an error message. This is used to pass error messages back to C from Rust.
@@ -133,7 +140,7 @@ pub extern "C" fn mwalib_get_version_patch() -> c_uint {
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 /// # Safety
 /// * rust_cstring must not have already been freed and must point to a Rust string.
@@ -141,12 +148,12 @@ pub extern "C" fn mwalib_get_version_patch() -> c_uint {
 pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> i32 {
     // Don't do anything if the pointer is null.
     if rust_cstring.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
     CString::from_raw(rust_cstring);
 
     // return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Boxes for FFI a rust-allocated vector of T.
@@ -191,7 +198,7 @@ fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * return MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -218,14 +225,14 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
                 error_message_length,
             );
             // Return failure
-            return 1;
+            return MWALIB_FAILURE;
         }
     };
 
     *out_metafits_context_ptr = Box::into_raw(Box::new(context));
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Display an `MetafitsContext` struct.
@@ -242,7 +249,7 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -260,7 +267,7 @@ pub unsafe extern "C" fn mwalib_metafits_context_display(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let context = &*metafits_context_ptr;
@@ -268,7 +275,7 @@ pub unsafe extern "C" fn mwalib_metafits_context_display(
     println!("{}", context);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Free a previously-allocated `MetafitsContext` struct (and it's members).
@@ -280,7 +287,7 @@ pub unsafe extern "C" fn mwalib_metafits_context_display(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -292,14 +299,14 @@ pub unsafe extern "C" fn mwalib_metafits_context_free(
     metafits_context_ptr: *mut MetafitsContext,
 ) -> i32 {
     if metafits_context_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
 
     // Release correlator context if applicable
     Box::from_raw(metafits_context_ptr);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Create and return a pointer to an `CorrelatorContext` struct based on metafits and gpubox files
@@ -321,7 +328,7 @@ pub unsafe extern "C" fn mwalib_metafits_context_free(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -355,12 +362,12 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
                 error_message_length,
             );
             // Return failure
-            return 1;
+            return MWALIB_FAILURE;
         }
     };
     *out_correlator_context_ptr = Box::into_raw(Box::new(context));
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Display an `CorrelatorContext` struct.
@@ -377,7 +384,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -395,7 +402,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_display(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let context = &*correlator_context_ptr;
@@ -403,7 +410,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_display(
     println!("{}", context);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Read a single timestep / coarse channel of MWA data.
@@ -430,7 +437,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_display(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, MWALIB_NO_DATA_FOR_TIMESTEP_COARSE_CHAN if the combination of timestep and coarse channel has no associated data file (no data), any other non-zero code on failure
 ///
 ///
 /// # Safety
@@ -455,14 +462,14 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     } else {
         &mut *correlator_context_ptr
     };
 
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let output_slice = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
@@ -473,15 +480,28 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
         corr_coarse_chan_index,
         output_slice,
     ) {
-        Ok(_) => 0,
-        Err(e) => {
-            set_error_message(
-                &format!("{}", e),
-                error_message as *mut u8,
-                error_message_length,
-            );
-            1
-        }
+        Ok(_) => MWALIB_SUCCESS,
+        Err(e) => match e {
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _,
+            } => {
+                set_error_message(
+                    &format!("{}", e),
+                    error_message as *mut u8,
+                    error_message_length,
+                );
+                MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
+            }
+            _ => {
+                set_error_message(
+                    &format!("{}", e),
+                    error_message as *mut u8,
+                    error_message_length,
+                );
+                MWALIB_FAILURE
+            }
+        },
     }
 }
 
@@ -511,7 +531,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, MWALIB_NO_DATA_FOR_TIMESTEP_COARSE_CHAN if the combination of timestep and coarse channel has no associated data file (no data), any other non-zero code on failure
 ///
 ///
 /// # Safety
@@ -536,13 +556,13 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     } else {
         &mut *correlator_context_ptr
     };
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let output_slice = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
@@ -553,15 +573,28 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
         corr_coarse_chan_index,
         output_slice,
     ) {
-        Ok(_) => 0,
-        Err(e) => {
-            set_error_message(
-                &format!("{}", e),
-                error_message as *mut u8,
-                error_message_length,
-            );
-            1
-        }
+        Ok(_) => MWALIB_SUCCESS,
+        Err(e) => match e {
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _,
+            } => {
+                set_error_message(
+                    &format!("{}", e),
+                    error_message as *mut u8,
+                    error_message_length,
+                );
+                MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
+            }
+            _ => {
+                set_error_message(
+                    &format!("{}", e),
+                    error_message as *mut u8,
+                    error_message_length,
+                );
+                MWALIB_FAILURE
+            }
+        },
     }
 }
 
@@ -574,7 +607,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -586,13 +619,13 @@ pub unsafe extern "C" fn mwalib_correlator_context_free(
     correlator_context_ptr: *mut CorrelatorContext,
 ) -> i32 {
     if correlator_context_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
     // Release correlator context if applicable
     Box::from_raw(correlator_context_ptr);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Create and return a pointer to an `VoltageContext` struct based on metafits and voltage files
@@ -614,7 +647,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_free(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -648,12 +681,12 @@ pub unsafe extern "C" fn mwalib_voltage_context_new(
                 error_message_length,
             );
             // Return failure
-            return 1;
+            return MWALIB_FAILURE;
         }
     };
     *out_voltage_context_ptr = Box::into_raw(Box::new(context));
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Display a `VoltageContext` struct.
@@ -670,7 +703,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_new(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -688,7 +721,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let context = &*voltage_context_ptr;
@@ -696,7 +729,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
     println!("{}", context);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Read a single timestep / coarse channel of MWA voltage data.
@@ -708,11 +741,9 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
 ///
 /// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
 ///
-/// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-///                      to TimeStep.get(context, N) where N is timestep_index.
+/// * `voltage_timestep_index` - index within the voltage timestep array for the desired timestep.
 ///
-/// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-///                            to CoarseChannel.get(context, N) where N is coarse_chan_index.
+/// * `voltage_coarse_chan_index` - index within the voltage coarse_chan array for the desired coarse channel.
 ///
 /// * `buffer_ptr` - pointer to caller-owned and allocated buffer of bytes to write data into. Buffer must be large enough
 ///                  for all of the data. Calculate the buffer size in bytes using:
@@ -727,7 +758,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, MWALIB_NO_DATA_FOR_TIMESTEP_COARSE_CHAN if the combination of timestep and coarse channel has no associated data file (no data), any other non-zero code on failure
 ///
 ///
 /// # Safety
@@ -737,8 +768,8 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_voltage_context_read_file(
     voltage_context_ptr: *mut VoltageContext,
-    timestep_index: size_t,
-    coarse_chan_index: size_t,
+    voltage_timestep_index: size_t,
+    voltage_coarse_chan_index: size_t,
     buffer_ptr: *mut c_uchar,
     buffer_len: size_t,
     error_message: *const c_char,
@@ -752,32 +783,47 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     } else {
         &mut *voltage_context_ptr
     };
 
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let output_slice: &mut [u8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
 
     // Read data in.
-    let result = voltage_context.read_file(timestep_index, coarse_chan_index, output_slice);
-
-    if result.is_err() {
-        set_error_message(
-            &format!("{}", result.unwrap_err()),
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return 1;
+    match voltage_context.read_file(
+        voltage_timestep_index,
+        voltage_coarse_chan_index,
+        output_slice,
+    ) {
+        Ok(_) => MWALIB_SUCCESS,
+        Err(e) => match e {
+            VoltageFileError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _,
+            } => {
+                set_error_message(
+                    &format!("{}", e),
+                    error_message as *mut u8,
+                    error_message_length,
+                );
+                MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
+            }
+            _ => {
+                set_error_message(
+                    &format!("{}", e),
+                    error_message as *mut u8,
+                    error_message_length,
+                );
+                MWALIB_FAILURE
+            }
+        },
     }
-
-    // Return Success
-    0
 }
 
 /// Read a single second / coarse channel of MWA voltage data.
@@ -793,8 +839,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
 ///
 /// * `gps_second_count` - How many GPS seconds of data to get (inclusive).
 ///
-/// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-///                            to CoarseChannel.get(context, N) where N is coarse_chan_index.
+/// * `voltage_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel.
 ///
 /// * `buffer_ptr` - pointer to caller-owned and allocated buffer of bytes to write data into. Buffer must be large enough
 ///                  for all of the data. Calculate the buffer size in bytes using:
@@ -809,7 +854,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, MWALIB_NO_DATA_FOR_TIMESTEP_COARSE_CHAN if the combination of timestep and coarse channel has no associated data file (no data), any other non-zero code on failure
 ///
 ///
 /// # Safety
@@ -821,7 +866,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
     voltage_context_ptr: *mut VoltageContext,
     gps_second_start: c_ulong,
     gps_second_count: size_t,
-    coarse_chan_index: size_t,
+    voltage_coarse_chan_index: size_t,
     buffer_ptr: *mut c_uchar,
     buffer_len: size_t,
     error_message: *const c_char,
@@ -835,37 +880,48 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     } else {
         &mut *voltage_context_ptr
     };
 
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let output_slice: &mut [u8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
 
     // Read data in.
-    let result = voltage_context.read_second(
+    match voltage_context.read_second(
         gps_second_start,
         gps_second_count,
-        coarse_chan_index,
+        voltage_coarse_chan_index,
         output_slice,
-    );
-
-    if result.is_err() {
-        set_error_message(
-            &format!("{}", result.unwrap_err()),
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return 1;
+    ) {
+        Ok(_) => MWALIB_SUCCESS,
+        Err(e) => match e {
+            VoltageFileError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _,
+            } => {
+                set_error_message(
+                    &format!("{}", e),
+                    error_message as *mut u8,
+                    error_message_length,
+                );
+                MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
+            }
+            _ => {
+                set_error_message(
+                    &format!("{}", e),
+                    error_message as *mut u8,
+                    error_message_length,
+                );
+                MWALIB_FAILURE
+            }
+        },
     }
-
-    // Return Success
-    0
 }
 
 /// Free a previously-allocated `VoltageContext` struct (and it's members).
@@ -877,7 +933,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -889,13 +945,13 @@ pub unsafe extern "C" fn mwalib_voltage_context_free(
     voltage_context_ptr: *mut VoltageContext,
 ) -> i32 {
     if voltage_context_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
     // Release voltage context if applicable
     Box::from_raw(voltage_context_ptr);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 ///
@@ -1032,7 +1088,7 @@ pub struct MetafitsMetadata {
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -1060,7 +1116,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
     // Create our metafits context pointer depending on what was passed in
     let metafits_context = {
@@ -1210,7 +1266,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     *out_metafits_metadata_ptr = Box::into_raw(Box::new(out_context));
 
     // Return Success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Free a previously-allocated `mwalibMetafitsMetadata` struct.
@@ -1222,7 +1278,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -1235,12 +1291,12 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
 ) -> i32 {
     // If the pointer is null, just return
     if metafits_metadata_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
     drop(Box::from_raw(metafits_metadata_ptr));
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 ///
@@ -1272,9 +1328,9 @@ pub struct CorrelatorMetadata {
     pub common_duration_ms: u64,
     /// Total bandwidth of the common coarse channels which have been provided (which may be less than or equal to the bandwith in the MetafitsContext)
     pub common_bandwidth_hz: u32,
-    // Number of common timesteps only including timesteps after the quack time
+    /// Number of common timesteps only including timesteps after the quack time
     pub num_common_good_timesteps: usize,
-    // Number of common coarse channels only including timesteps after the quack time
+    /// Number of common coarse channels only including timesteps after the quack time
     pub num_common_good_coarse_chans: usize,
     /// The start of the observation (the time that is common to all
     /// provided gpubox files) only including timesteps after the quack time
@@ -1317,7 +1373,7 @@ pub struct CorrelatorMetadata {
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -1337,7 +1393,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
     // Get the correlator context object from the raw pointer passed in
     let context = &*correlator_context_ptr;
@@ -1420,7 +1476,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
     *out_correlator_metadata_ptr = Box::into_raw(Box::new(out_context));
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Free a previously-allocated `CorrelatorMetadata` struct.
@@ -1432,7 +1488,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -1444,12 +1500,12 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
     correlator_metadata_ptr: *mut CorrelatorMetadata,
 ) -> i32 {
     if correlator_metadata_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
     drop(Box::from_raw(correlator_metadata_ptr));
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 ///
@@ -1484,9 +1540,9 @@ pub struct VoltageMetadata {
     pub common_duration_ms: u64,
     /// Total bandwidth of the common coarse channels
     pub common_bandwidth_hz: u32,
-    // Number of common timesteps only including timesteps after the quack time
+    /// Number of common timesteps only including timesteps after the quack time
     pub num_common_good_timesteps: usize,
-    // Number of common coarse channels only including timesteps after the quack time
+    /// Number of common coarse channels only including timesteps after the quack time
     pub num_common_good_coarse_chans: usize,
     /// The start of the observation (the time that is common to all
     /// provided data files) only including timesteps after the quack time
@@ -1545,7 +1601,7 @@ pub struct VoltageMetadata {
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -1565,7 +1621,7 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
     // Get the voltage context object from the raw pointer passed in
     let context = &*voltage_context_ptr;
@@ -1662,7 +1718,7 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
     *out_voltage_metadata_ptr = Box::into_raw(Box::new(out_context));
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Free a previously-allocated `VoltageMetadata` struct.
@@ -1674,7 +1730,7 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -1686,12 +1742,12 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_free(
     voltage_metadata_ptr: *mut VoltageMetadata,
 ) -> i32 {
     if voltage_metadata_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
     drop(Box::from_raw(voltage_metadata_ptr));
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Representation in C of an `Antenna` struct
@@ -1747,7 +1803,7 @@ pub struct Antenna {
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -1774,7 +1830,7 @@ pub unsafe extern "C" fn mwalib_antennas_get(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
     // Create our metafits context pointer depending on what was passed in
     let metafits_context = {
@@ -1829,7 +1885,7 @@ pub unsafe extern "C" fn mwalib_antennas_get(
     *out_ants_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Free a previously-allocated `Antenna` array of structs.
@@ -1843,7 +1899,7 @@ pub unsafe extern "C" fn mwalib_antennas_get(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -1853,7 +1909,7 @@ pub unsafe extern "C" fn mwalib_antennas_get(
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_antennas_free(ants_ptr: *mut Antenna, ants_len: size_t) -> i32 {
     if ants_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
 
     // Extract a slice from the pointer
@@ -1867,7 +1923,7 @@ pub unsafe extern "C" fn mwalib_antennas_free(ants_ptr: *mut Antenna, ants_len: 
     drop(Box::from_raw(slice));
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 ///
@@ -1902,7 +1958,7 @@ pub struct Baseline {
 ///
 /// # Returns
 ///
-/// 0 on success, non-zero on failure
+/// MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -1929,7 +1985,7 @@ pub unsafe extern "C" fn mwalib_baselines_get(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
     // Create our metafits context pointer depending on what was passed in
     let metafits_context = {
@@ -1970,7 +2026,7 @@ pub unsafe extern "C" fn mwalib_baselines_get(
     *out_baselines_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Free a previously-allocated `Baseline` struct.
@@ -1984,7 +2040,7 @@ pub unsafe extern "C" fn mwalib_baselines_get(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -1997,7 +2053,7 @@ pub unsafe extern "C" fn mwalib_baselines_free(
     baselines_len: size_t,
 ) -> i32 {
     if baselines_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
     // Extract a slice from the pointer
     let slice: &mut [Baseline] = slice::from_raw_parts_mut(baselines_ptr, baselines_len);
@@ -2006,7 +2062,7 @@ pub unsafe extern "C" fn mwalib_baselines_free(
     drop(Box::from_raw(slice));
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Representation in C of an `CoarseChannel` struct
@@ -2051,7 +2107,7 @@ pub struct CoarseChannel {
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -2078,7 +2134,7 @@ pub unsafe extern "C" fn mwalib_metafits_coarse_channels_get(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let context_coarse_chans: &Vec<coarse_channel::CoarseChannel>;
@@ -2133,7 +2189,7 @@ pub unsafe extern "C" fn mwalib_metafits_coarse_channels_get(
     *out_coarse_chans_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// This passes a pointer to an array of coarse channels from a CorrelatorContext or a VoltageContext
@@ -2155,7 +2211,7 @@ pub unsafe extern "C" fn mwalib_metafits_coarse_channels_get(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -2178,7 +2234,7 @@ pub unsafe extern "C" fn mwalib_coarse_channels_get(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let context_coarse_chans: &Vec<coarse_channel::CoarseChannel>;
@@ -2229,7 +2285,7 @@ pub unsafe extern "C" fn mwalib_coarse_channels_get(
     *out_coarse_chans_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Free a previously-allocated `CoarseChannel` struct.
@@ -2243,7 +2299,7 @@ pub unsafe extern "C" fn mwalib_coarse_channels_get(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -2256,7 +2312,7 @@ pub unsafe extern "C" fn mwalib_coarse_channels_free(
     coarse_chans_len: size_t,
 ) -> i32 {
     if coarse_chans_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
     // Extract a slice from the pointer
     let slice: &mut [CoarseChannel] = slice::from_raw_parts_mut(coarse_chans_ptr, coarse_chans_len);
@@ -2326,7 +2382,7 @@ pub struct Rfinput {
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -2353,7 +2409,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
     // Create our metafits context pointer depending on what was passed in
     let metafits_context = {
@@ -2421,7 +2477,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
     *out_rfinputs_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Free a previously-allocated `RFInput` struct.
@@ -2435,7 +2491,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_get(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -2448,7 +2504,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_free(
     rf_inputs_len: size_t,
 ) -> i32 {
     if rf_inputs_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
     // Extract a slice from the pointer
     let slice: &mut [Rfinput] = slice::from_raw_parts_mut(rf_inputs_ptr, rf_inputs_len);
@@ -2462,7 +2518,7 @@ pub unsafe extern "C" fn mwalib_rfinputs_free(
     drop(Box::from_raw(slice));
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 ///
@@ -2496,7 +2552,7 @@ pub struct TimeStep {
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -2523,7 +2579,7 @@ pub unsafe extern "C" fn mwalib_metafits_timesteps_get(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let context_timesteps: &Vec<timestep::TimeStep>;
@@ -2568,7 +2624,7 @@ pub unsafe extern "C" fn mwalib_metafits_timesteps_get(
     *out_timesteps_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// This passes a pointer to an array of timesteps
@@ -2590,7 +2646,7 @@ pub unsafe extern "C" fn mwalib_metafits_timesteps_get(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -2613,7 +2669,7 @@ pub unsafe extern "C" fn mwalib_timesteps_get(
             error_message as *mut u8,
             error_message_length,
         );
-        return 1;
+        return MWALIB_FAILURE;
     }
 
     let context_timesteps: &Vec<timestep::TimeStep>;
@@ -2654,7 +2710,7 @@ pub unsafe extern "C" fn mwalib_timesteps_get(
     *out_timesteps_ptr = ffi_array_to_boxed_slice(item_vec);
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }
 
 /// Free a previously-allocated `TimeStep` struct.
@@ -2668,7 +2724,7 @@ pub unsafe extern "C" fn mwalib_timesteps_get(
 ///
 /// # Returns
 ///
-/// * 0 on success, non-zero on failure
+/// * MWALIB_SUCCESS on success, non-zero on failure
 ///
 ///
 /// # Safety
@@ -2681,7 +2737,7 @@ pub unsafe extern "C" fn mwalib_timesteps_free(
     timesteps_len: size_t,
 ) -> i32 {
     if timesteps_ptr.is_null() {
-        return 0;
+        return MWALIB_SUCCESS;
     }
     // Extract a slice from the pointer
     let slice: &mut [TimeStep] = slice::from_raw_parts_mut(timesteps_ptr, timesteps_len);
@@ -2689,5 +2745,5 @@ pub unsafe extern "C" fn mwalib_timesteps_free(
     drop(Box::from_raw(slice));
 
     // Return success
-    0
+    MWALIB_SUCCESS
 }

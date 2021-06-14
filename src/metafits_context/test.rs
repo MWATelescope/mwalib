@@ -185,10 +185,7 @@ fn test_metafits_context_new_valid() {
     assert_eq!(context.mode, MWAMode::Hw_Lfiles);
 
     // Geometric delays - this old metafits has none of these keys so it will be None
-    assert_eq!(
-        context.geometric_delays_applied,
-        GeometricDelaysApplied::None
-    );
+    assert_eq!(context.geometric_delays_applied, GeometricDelaysApplied::No);
     // Cable delays applied - this old metafits has none of these keys so it will be false
     assert_eq!(context.cable_delays_applied, false);
 
@@ -379,17 +376,17 @@ fn test_mwa_version_display_vcs_mwaxv2() {
 
 #[test]
 fn test_geometric_delays_applied_enum() {
-    let none = GeometricDelaysApplied::None;
+    let none = GeometricDelaysApplied::No;
     let zen = GeometricDelaysApplied::Zenith;
     let tile = GeometricDelaysApplied::TilePointing;
     let azel = GeometricDelaysApplied::AzElTracking;
 
-    assert_eq!(format!("{}", none), "None");
+    assert_eq!(format!("{}", none), "No");
     assert_eq!(format!("{}", zen), "Zenith");
     assert_eq!(format!("{}", tile), "Tile Pointing");
     assert_eq!(format!("{}", azel), "Az/El Tracking");
 
-    assert!(GeometricDelaysApplied::from_str("None").is_ok());
+    assert!(GeometricDelaysApplied::from_str("No").is_ok());
     assert!(GeometricDelaysApplied::from_str("Zenith").is_ok());
     assert!(GeometricDelaysApplied::from_str("Tile Pointing").is_ok());
     assert!(GeometricDelaysApplied::from_str("Az/El Tracking").is_ok());

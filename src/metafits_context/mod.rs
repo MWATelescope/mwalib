@@ -104,8 +104,7 @@ impl fmt::Display for VisPol {
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum GeometricDelaysApplied {
-    /// None
-    None = 0,
+    No = 0,
     Zenith = 1,
     TilePointing = 2,
     AzElTracking = 3,
@@ -129,7 +128,7 @@ impl fmt::Display for GeometricDelaysApplied {
             f,
             "{}",
             match self {
-                GeometricDelaysApplied::None => "None",
+                GeometricDelaysApplied::No => "No",
                 GeometricDelaysApplied::Zenith => "Zenith",
                 GeometricDelaysApplied::TilePointing => "Tile Pointing",
                 GeometricDelaysApplied::AzElTracking => "Az/El Tracking",
@@ -143,7 +142,7 @@ impl std::str::FromStr for GeometricDelaysApplied {
 
     fn from_str(input: &str) -> Result<GeometricDelaysApplied, Self::Err> {
         match input {
-            "None" => Ok(GeometricDelaysApplied::None),
+            "No" => Ok(GeometricDelaysApplied::No),
             "Zenith" => Ok(GeometricDelaysApplied::Zenith),
             "Tile Pointing" => Ok(GeometricDelaysApplied::TilePointing),
             "Az/El Tracking" => Ok(GeometricDelaysApplied::AzElTracking),
@@ -556,7 +555,7 @@ impl MetafitsContext {
         let geometric_delays_applied =
             match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GEODEL")? {
                 Some(g) => g,
-                None => GeometricDelaysApplied::None,
+                None => GeometricDelaysApplied::No,
             };
 
         let cable_delays_applied: bool =

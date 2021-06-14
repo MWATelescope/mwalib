@@ -43,7 +43,7 @@ pub struct VoltageContext {
 
     /// Vector of (in)common timestep indices
     pub common_timestep_indices: Vec<usize>,
-    // Number of common timesteps
+    /// Number of common timesteps
     pub num_common_timesteps: usize,
     /// Vector of (in)common coarse channel indices
     pub common_coarse_chan_indices: Vec<usize>,
@@ -70,7 +70,7 @@ pub struct VoltageContext {
     pub num_common_good_timesteps: usize,
     /// Vector of (in)common coarse channel indices only including timesteps after the quack time
     pub common_good_coarse_chan_indices: Vec<usize>,
-    // Number of common coarse channels only including timesteps after the quack time
+    /// Number of common coarse channels only including timesteps after the quack time
     pub num_common_good_coarse_chans: usize,
     /// The start of the observation (the time that is common to all
     /// provided data files) only including timesteps after the quack time
