@@ -156,7 +156,7 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
     MWALIB_SUCCESS
 }
 
-/// Boxes for FFI a rust-allocated vector of T.
+/// Boxes for FFI a rust-allocated vector of T. If the vector is 0 length, returns a null pointer.
 ///
 ///
 /// # Arguments
@@ -169,16 +169,20 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
 /// * a raw pointer to the array of T's
 ///
 fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
-    let mut boxed_slice: Box<[T]> = v.into_boxed_slice();
-    let array_ptr: *mut T = boxed_slice.as_mut_ptr();
-    let array_ptr_len: usize = boxed_slice.len();
-    assert_eq!(boxed_slice.len(), array_ptr_len);
+    if !v.is_empty() {
+        let mut boxed_slice: Box<[T]> = v.into_boxed_slice();
+        let array_ptr: *mut T = boxed_slice.as_mut_ptr();
+        let array_ptr_len: usize = boxed_slice.len();
+        assert_eq!(boxed_slice.len(), array_ptr_len);
 
-    // Prevent the slice from being destroyed (Leak the memory).
-    // This is because we are using our ffi code to free the memory
-    mem::forget(boxed_slice);
+        // Prevent the slice from being destroyed (Leak the memory).
+        // This is because we are using our ffi code to free the memory
+        mem::forget(boxed_slice);
 
-    array_ptr
+        array_ptr
+    } else {
+        std::ptr::null_mut()
+    }
 }
 
 /// Create and return a pointer to an `MetafitsContext` struct given only a metafits file
@@ -1021,6 +1025,10 @@ pub struct MetafitsMetadata {
     pub corr_int_time_ms: u64,
     /// Number of fine channels in each coarse channel for a correlator observation
     pub num_corr_fine_chans_per_coarse: usize,
+    /// RECVRS    Array of receiver numbers (this tells us how many receivers too)
+    pub receivers: *mut usize,
+    /// DELAYS    Array of delays
+    pub delays: *mut u32,
     /// Scheduled start (gps time) of observation
     pub sched_start_utc: i64,
     /// Scheduled end (gps time) of observation
@@ -1177,8 +1185,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             corr_fine_chan_width_hz,
             corr_int_time_ms,
             num_corr_fine_chans_per_coarse,
-            receivers: _, // Not currently supported via FFI
-            delays: _,    // Not currently supported via FFI
+            receivers,
+            delays,
             global_analogue_attenuation_db,
             quack_time_duration_ms,
             good_time_unix_ms,
@@ -1234,6 +1242,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             corr_fine_chan_width_hz: *corr_fine_chan_width_hz,
             corr_int_time_ms: *corr_int_time_ms,
             num_corr_fine_chans_per_coarse: *num_corr_fine_chans_per_coarse,
+            receivers: ffi_array_to_boxed_slice(receivers.clone()),
+            delays: ffi_array_to_boxed_slice(delays.clone()),
             sched_start_utc: sched_start_utc.timestamp(),
             sched_end_utc: sched_end_utc.timestamp(),
             sched_start_mjd: *sched_start_mjd,
@@ -1293,6 +1303,16 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     if metafits_metadata_ptr.is_null() {
         return MWALIB_SUCCESS;
     }
+
+    // Free members first
+    if !(*metafits_metadata_ptr).receivers.is_null() {
+        drop(Box::from_raw((*metafits_metadata_ptr).receivers));
+    }
+    if !(*metafits_metadata_ptr).delays.is_null() {
+        drop(Box::from_raw((*metafits_metadata_ptr).delays));
+    }
+
+    // Free main metadata struct
     drop(Box::from_raw(metafits_metadata_ptr));
 
     // Return success
@@ -1312,8 +1332,12 @@ pub struct CorrelatorMetadata {
     pub num_coarse_chans: usize,
     /// Count of common timesteps
     pub num_common_timesteps: usize,
+    /// Vector of (in)common timestep indices
+    pub common_timestep_indices: *mut usize,
     /// Count of common coarse channels
     pub num_common_coarse_chans: usize,
+    /// Indices of common coarse channels
+    pub common_coarse_chan_indices: *mut usize,
     /// The proper start of the observation (the time that is common to all
     /// provided gpubox files).
     pub common_start_unix_time_ms: u64,
@@ -1330,8 +1354,12 @@ pub struct CorrelatorMetadata {
     pub common_bandwidth_hz: u32,
     /// Number of common timesteps only including timesteps after the quack time
     pub num_common_good_timesteps: usize,
+    /// Vector of (in)common timestep indices only including timesteps after the quack time
+    pub common_good_timestep_indices: *mut usize,
     /// Number of common coarse channels only including timesteps after the quack time
     pub num_common_good_coarse_chans: usize,
+    /// Vector of (in)common timestep indices only including timesteps after the quack time
+    pub common_good_coarse_chan_indices: *mut usize,
     /// The start of the observation (the time that is common to all
     /// provided gpubox files) only including timesteps after the quack time
     pub common_good_start_unix_time_ms: u64,
@@ -1348,8 +1376,12 @@ pub struct CorrelatorMetadata {
     pub common_good_bandwidth_hz: u32,
     /// Number of provided timestep indices we have at least *some* data for
     pub num_provided_timestep_indices: usize,
+    /// The indices of any timesteps which we have *some* data for
+    pub provided_timestep_indices: *mut usize,
     /// Number of provided coarse channel indices we have at least *some* data for
     pub num_provided_coarse_chan_indices: usize,
+    /// The indices of any coarse channels which we have *some* data for
+    pub provided_coarse_chan_indices: *mut usize,
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_chan_bytes: usize,
     /// The number of floats in each gpubox HDU.
@@ -1410,9 +1442,9 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             timesteps: _, // This is provided by the seperate timestep struct in FFI
             num_coarse_chans,
             coarse_chans: _, // This is provided by the seperate coarse_chan struct in FFI
-            common_timestep_indices: _, // This is not exposed by FFI currently
+            common_timestep_indices,
             num_common_timesteps,
-            common_coarse_chan_indices: _, // This is not exposed by FFI currently
+            common_coarse_chan_indices,
             num_common_coarse_chans,
             common_start_unix_time_ms,
             common_end_unix_time_ms,
@@ -1420,9 +1452,9 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_end_gps_time_ms,
             common_duration_ms,
             common_bandwidth_hz,
-            common_good_timestep_indices: _, // This is not exposed by FFI currently
+            common_good_timestep_indices,
             num_common_good_timesteps,
-            common_good_coarse_chan_indices: _, // This is not exposed by FFI currently
+            common_good_coarse_chan_indices,
             num_common_good_coarse_chans,
             common_good_start_unix_time_ms,
             common_good_end_unix_time_ms,
@@ -1430,15 +1462,15 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_good_end_gps_time_ms,
             common_good_duration_ms,
             common_good_bandwidth_hz,
-            provided_timestep_indices: _, // This is not exposed by FFI currently
+            provided_timestep_indices,
             num_provided_timestep_indices,
-            provided_coarse_chan_indices: _, // This is not exposed by FFI currently
+            provided_coarse_chan_indices,
             num_provided_coarse_chan_indices,
             num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats,
             num_gpubox_files,
             gpubox_batches: _, // This is currently not provided to FFI as it is private
-            gpubox_time_map: _, // This is currently not provided to FFI as it is private
+            gpubox_time_map: _, // This is currently not provided to FFI
             legacy_conversion_table: _, // This is currently not provided to FFI as it is private
         } = context;
         CorrelatorMetadata {
@@ -1446,7 +1478,11 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             num_timesteps: *num_timesteps,
             num_coarse_chans: *num_coarse_chans,
             num_common_timesteps: *num_common_timesteps,
+            common_timestep_indices: ffi_array_to_boxed_slice(common_timestep_indices.clone()),
             num_common_coarse_chans: *num_common_coarse_chans,
+            common_coarse_chan_indices: ffi_array_to_boxed_slice(
+                common_coarse_chan_indices.clone(),
+            ),
             common_start_unix_time_ms: *common_start_unix_time_ms,
             common_end_unix_time_ms: *common_end_unix_time_ms,
             common_start_gps_time_ms: *common_start_gps_time_ms,
@@ -1455,7 +1491,13 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_bandwidth_hz: *common_bandwidth_hz,
 
             num_common_good_timesteps: *num_common_good_timesteps,
+            common_good_timestep_indices: ffi_array_to_boxed_slice(
+                common_good_timestep_indices.clone(),
+            ),
             num_common_good_coarse_chans: *num_common_good_coarse_chans,
+            common_good_coarse_chan_indices: ffi_array_to_boxed_slice(
+                common_good_coarse_chan_indices.clone(),
+            ),
             common_good_start_unix_time_ms: *common_good_start_unix_time_ms,
             common_good_end_unix_time_ms: *common_good_end_unix_time_ms,
             common_good_start_gps_time_ms: *common_good_start_gps_time_ms,
@@ -1464,8 +1506,11 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_good_bandwidth_hz: *common_good_bandwidth_hz,
 
             num_provided_timestep_indices: *num_provided_timestep_indices,
+            provided_timestep_indices: ffi_array_to_boxed_slice(provided_timestep_indices.clone()),
             num_provided_coarse_chan_indices: *num_provided_coarse_chan_indices,
-
+            provided_coarse_chan_indices: ffi_array_to_boxed_slice(
+                provided_coarse_chan_indices.clone(),
+            ),
             num_timestep_coarse_chan_bytes: *num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats: *num_timestep_coarse_chan_floats,
             num_gpubox_files: *num_gpubox_files,
@@ -1502,6 +1547,54 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
     if correlator_metadata_ptr.is_null() {
         return MWALIB_SUCCESS;
     }
+
+    // free any other members first
+    if !(*correlator_metadata_ptr).common_timestep_indices.is_null() {
+        drop(Box::from_raw(
+            (*correlator_metadata_ptr).common_timestep_indices,
+        ));
+    }
+    if !(*correlator_metadata_ptr)
+        .common_coarse_chan_indices
+        .is_null()
+    {
+        drop(Box::from_raw(
+            (*correlator_metadata_ptr).common_coarse_chan_indices,
+        ));
+    }
+    if !(*correlator_metadata_ptr)
+        .common_good_timestep_indices
+        .is_null()
+    {
+        drop(Box::from_raw(
+            (*correlator_metadata_ptr).common_good_timestep_indices,
+        ));
+    }
+    if !(*correlator_metadata_ptr)
+        .common_good_coarse_chan_indices
+        .is_null()
+    {
+        drop(Box::from_raw(
+            (*correlator_metadata_ptr).common_good_coarse_chan_indices,
+        ));
+    }
+    if !(*correlator_metadata_ptr)
+        .provided_timestep_indices
+        .is_null()
+    {
+        drop(Box::from_raw(
+            (*correlator_metadata_ptr).provided_timestep_indices,
+        ));
+    }
+    if !(*correlator_metadata_ptr)
+        .provided_coarse_chan_indices
+        .is_null()
+    {
+        drop(Box::from_raw(
+            (*correlator_metadata_ptr).provided_coarse_chan_indices,
+        ));
+    }
+    // Free main metadata struct
     drop(Box::from_raw(correlator_metadata_ptr));
 
     // Return success
@@ -1524,8 +1617,12 @@ pub struct VoltageMetadata {
     pub num_coarse_chans: usize,
     // Number of common timesteps
     pub num_common_timesteps: usize,
+    /// Vector of (in)common timestep indices
+    pub common_timestep_indices: *mut usize,
     // Number of common coarse chans
     pub num_common_coarse_chans: usize,
+    /// Vector of (in)common coarse channel indices
+    pub common_coarse_chan_indices: *mut usize,
     /// The start of the observation (the time that is common to all
     /// provided data files).
     pub common_start_unix_time_ms: u64,
@@ -1542,8 +1639,12 @@ pub struct VoltageMetadata {
     pub common_bandwidth_hz: u32,
     /// Number of common timesteps only including timesteps after the quack time
     pub num_common_good_timesteps: usize,
+    /// Vector of (in)common timestep indices only including timesteps after the quack time
+    pub common_good_timestep_indices: *mut usize,
     /// Number of common coarse channels only including timesteps after the quack time
     pub num_common_good_coarse_chans: usize,
+    /// Vector of (in)common coarse channel indices only including timesteps after the quack time
+    pub common_good_coarse_chan_indices: *mut usize,
     /// The start of the observation (the time that is common to all
     /// provided data files) only including timesteps after the quack time
     pub common_good_start_unix_time_ms: u64,
@@ -1560,8 +1661,12 @@ pub struct VoltageMetadata {
     pub common_good_bandwidth_hz: u32,
     /// Number of provided timestep indices we have at least *some* data for
     pub num_provided_timestep_indices: usize,
+    /// The indices of any timesteps which we have *some* data for
+    pub provided_timestep_indices: *mut usize,
     /// Number of provided coarse channel indices we have at least *some* data for
     pub num_provided_coarse_chan_indices: usize,
+    /// The indices of any coarse channels which we have *some* data for
+    pub provided_coarse_chan_indices: *mut usize,
     /// Bandwidth of each coarse channel
     pub coarse_chan_width_hz: u32,
     /// Volatge fine_chan_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
@@ -1639,9 +1744,9 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             timestep_duration_ms,
             num_coarse_chans,
             coarse_chans: _, // This is provided by the seperate coarse_chan struct in FFI
-            common_timestep_indices: _, // This is currently not provided to FFI
+            common_timestep_indices,
             num_common_timesteps,
-            common_coarse_chan_indices: _, // This is currently not provided to FFI
+            common_coarse_chan_indices,
             num_common_coarse_chans,
             common_start_unix_time_ms,
             common_end_unix_time_ms,
@@ -1649,9 +1754,9 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             common_end_gps_time_ms,
             common_duration_ms,
             common_bandwidth_hz,
-            common_good_timestep_indices: _, // This is not exposed by FFI currently
+            common_good_timestep_indices,
             num_common_good_timesteps,
-            common_good_coarse_chan_indices: _, // This is not exposed by FFI currently
+            common_good_coarse_chan_indices,
             num_common_good_coarse_chans,
             common_good_start_unix_time_ms,
             common_good_end_unix_time_ms,
@@ -1659,9 +1764,9 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             common_good_end_gps_time_ms,
             common_good_duration_ms,
             common_good_bandwidth_hz,
-            provided_timestep_indices: _, // This is currently not provided to FFI
+            provided_timestep_indices,
             num_provided_timestep_indices,
-            provided_coarse_chan_indices: _, // This is currently not provided to FFI
+            provided_coarse_chan_indices,
             num_provided_coarse_chan_indices,
             coarse_chan_width_hz,
             fine_chan_width_hz,
@@ -1683,7 +1788,11 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             timestep_duration_ms: *timestep_duration_ms,
             num_coarse_chans: *num_coarse_chans,
             num_common_timesteps: *num_common_timesteps,
+            common_timestep_indices: ffi_array_to_boxed_slice(common_timestep_indices.clone()),
             num_common_coarse_chans: *num_common_coarse_chans,
+            common_coarse_chan_indices: ffi_array_to_boxed_slice(
+                common_coarse_chan_indices.clone(),
+            ),
             common_start_unix_time_ms: *common_start_unix_time_ms,
             common_end_unix_time_ms: *common_end_unix_time_ms,
             common_start_gps_time_ms: *common_start_gps_time_ms,
@@ -1691,7 +1800,13 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             common_duration_ms: *common_duration_ms,
             common_bandwidth_hz: *common_bandwidth_hz,
             num_common_good_timesteps: *num_common_good_timesteps,
+            common_good_timestep_indices: ffi_array_to_boxed_slice(
+                common_good_timestep_indices.clone(),
+            ),
             num_common_good_coarse_chans: *num_common_good_coarse_chans,
+            common_good_coarse_chan_indices: ffi_array_to_boxed_slice(
+                common_good_coarse_chan_indices.clone(),
+            ),
             common_good_start_unix_time_ms: *common_good_start_unix_time_ms,
             common_good_end_unix_time_ms: *common_good_end_unix_time_ms,
             common_good_start_gps_time_ms: *common_good_start_gps_time_ms,
@@ -1699,7 +1814,11 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             common_good_duration_ms: *common_good_duration_ms,
             common_good_bandwidth_hz: *common_good_bandwidth_hz,
             num_provided_timestep_indices: *num_provided_timestep_indices,
+            provided_timestep_indices: ffi_array_to_boxed_slice(provided_timestep_indices.clone()),
             num_provided_coarse_chan_indices: *num_provided_coarse_chan_indices,
+            provided_coarse_chan_indices: ffi_array_to_boxed_slice(
+                provided_coarse_chan_indices.clone(),
+            ),
             coarse_chan_width_hz: *coarse_chan_width_hz,
             fine_chan_width_hz: *fine_chan_width_hz,
             num_fine_chans_per_coarse: *num_fine_chans_per_coarse,
@@ -1744,6 +1863,54 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_free(
     if voltage_metadata_ptr.is_null() {
         return MWALIB_SUCCESS;
     }
+
+    // free any other members first
+    if !(*voltage_metadata_ptr).common_timestep_indices.is_null() {
+        drop(Box::from_raw(
+            (*voltage_metadata_ptr).common_timestep_indices,
+        ));
+    }
+
+    if !(*voltage_metadata_ptr).common_coarse_chan_indices.is_null() {
+        drop(Box::from_raw(
+            (*voltage_metadata_ptr).common_coarse_chan_indices,
+        ));
+    }
+
+    if !(*voltage_metadata_ptr)
+        .common_good_timestep_indices
+        .is_null()
+    {
+        drop(Box::from_raw(
+            (*voltage_metadata_ptr).common_good_timestep_indices,
+        ));
+    }
+
+    if !(*voltage_metadata_ptr)
+        .common_good_coarse_chan_indices
+        .is_null()
+    {
+        drop(Box::from_raw(
+            (*voltage_metadata_ptr).common_good_coarse_chan_indices,
+        ));
+    }
+
+    if !(*voltage_metadata_ptr).provided_timestep_indices.is_null() {
+        drop(Box::from_raw(
+            (*voltage_metadata_ptr).provided_timestep_indices,
+        ));
+    }
+
+    if !(*voltage_metadata_ptr)
+        .provided_coarse_chan_indices
+        .is_null()
+    {
+        drop(Box::from_raw(
+            (*voltage_metadata_ptr).provided_coarse_chan_indices,
+        ));
+    }
+
+    // Free main metadata struct
     drop(Box::from_raw(voltage_metadata_ptr));
 
     // Return success
