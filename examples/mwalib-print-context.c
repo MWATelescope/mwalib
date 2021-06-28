@@ -85,6 +85,28 @@ int main(int argc, char *argv[])
                 exit(-1);
             }
 
+            printf("\n\nExample of accessing Correlator Metadata:\n");
+            if (corr_metadata->num_common_timesteps > 0)
+            {
+                printf("First common correlator timestep: is index %ld, and starts at %f Unix time\n", corr_metadata->common_timestep_indices[0], (double)corr_metadata->timesteps[corr_metadata->common_timestep_indices[0]].unix_time_ms / 1000.);
+            }
+            else
+            {
+                printf("No common timesteps\n");
+            }
+
+            if (corr_metadata->num_common_coarse_chans > 0)
+            {
+                printf("First common correlator coarse channel: is index %ld, and starts at %f MHz\n", corr_metadata->common_coarse_chan_indices[0], (float)corr_metadata->coarse_chans[corr_metadata->common_coarse_chan_indices[0]].chan_start_hz / 1000000.);
+            }
+            else
+            {
+                printf("No common coarse channels\n");
+            }
+
+            // Clean up metadata
+            mwalib_correlator_metadata_free(corr_metadata);
+
             free(files);
         }
         else if (strcmp(strrchr(argv[2], '\0') - 4, ".sub") == 0 || strcmp(strrchr(argv[2], '\0') - 4, ".dat") == 0)
@@ -118,6 +140,29 @@ int main(int argc, char *argv[])
                 exit(-1);
             }
 
+            printf("\n\nExample of accessing Voltage Metadata:\n");
+
+            if (volt_metadata->num_common_timesteps > 0)
+            {
+                printf("First common voltage timestep: is index %ld, and starts at %f Unix time\n", volt_metadata->common_timestep_indices[0], (double)volt_metadata->timesteps[volt_metadata->common_timestep_indices[0]].unix_time_ms / 1000.);
+            }
+            else
+            {
+                printf("No common timesteps\n");
+            }
+
+            if (volt_metadata->num_common_coarse_chans > 0)
+            {
+                printf("First common voltage coarse channel: is index %ld, and starts at %f MHz\n", volt_metadata->common_coarse_chan_indices[0], (float)volt_metadata->coarse_chans[volt_metadata->common_coarse_chan_indices[0]].chan_start_hz / 1000000.);
+            }
+            else
+            {
+                printf("No common coarse channels\n");
+            }
+
+            // Clean up metadata
+            mwalib_voltage_metadata_free(volt_metadata);
+
             free(files);
         }
         else
@@ -126,6 +171,36 @@ int main(int argc, char *argv[])
             printf("Error- provided data files must be .fits, .dat or .sub!\n");
             exit(-1);
         }
+    }
+
+    // Get some metafits metadata
+    MetafitsMetadata *metafits_metadata = NULL;
+
+    printf("\n\nExample of accessing Metafits Metadata:\n");
+
+    if (mwalib_metafits_metadata_get(metafits_context, correlator_context, voltage_context, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+    {
+        // print a baseline
+        printf("Baseline index 129: %ld vs %ld\n", metafits_metadata->baselines[129].ant1_index, metafits_metadata->baselines[129].ant2_index);
+
+        // print an rfinput
+        printf("RF Input index 129: ant index: %d, tile_id: %d name: %s pol: %s\n", metafits_metadata->rf_inputs[129].ant, metafits_metadata->rf_inputs[129].tile_id, metafits_metadata->rf_inputs[129].tile_name, metafits_metadata->rf_inputs[129].pol);
+
+        // print a antenna
+        printf("Ant index 64: %d name: %s elec len (m): %f\n", metafits_metadata->antennas[64].tile_id, metafits_metadata->antennas[64].tile_name, metafits_metadata->antennas[64].electrical_length_m);
+
+        // print a coarse channel
+        printf("Metafits Coarse channel index 3: receiver channel: %ld (centre = %f MHz)\n", metafits_metadata->metafits_coarse_chans[3].rec_chan_number, (float)metafits_metadata->metafits_coarse_chans[3].chan_centre_hz / 1000000.);
+
+        // print a timestep
+        printf("Metafits Timestep index 2: GPS Time = %f  (UNIX time: %f)\n", (double)metafits_metadata->metafits_timesteps[2].gps_time_ms / 1000., (double)metafits_metadata->metafits_timesteps[2].unix_time_ms / 1000.);
+
+        // Clean up metadata
+        mwalib_metafits_metadata_free(metafits_metadata);
+    }
+    else
+    {
+        printf("Error getting metafits metadata: %s\n", error_message);
     }
 
     // Clean up

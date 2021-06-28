@@ -502,8 +502,8 @@ impl MetafitsContext {
             let ex: u64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "EXPOSURE")?;
             ex * 1000
         };
-        let num_metafits_timesteps: usize = 0;
 
+        let num_metafits_timesteps: usize = 0;
         let metafits_timesteps: Vec<TimeStep> = Vec::new();
 
         let scheduled_end_utc =
@@ -608,6 +608,7 @@ impl MetafitsContext {
 
         let metafits_coarse_chans: Vec<CoarseChannel> =
             Vec::with_capacity(metafits_coarse_chan_vec.len());
+        let num_metafits_coarse_chans: usize = 0;
 
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.
@@ -673,7 +674,7 @@ impl MetafitsContext {
             metafits_coarse_chans,
             num_metafits_timesteps,
             metafits_timesteps,
-            num_metafits_coarse_chans: metafits_coarse_chan_vec.len(),
+            num_metafits_coarse_chans,
             obs_bandwidth_hz: metafits_observation_bandwidth_hz,
             coarse_chan_width_hz: metafits_coarse_chan_width_hz,
             centre_freq_hz,
@@ -729,6 +730,8 @@ impl MetafitsContext {
             .into_iter(),
         );
 
+        self.num_metafits_coarse_chans = self.metafits_coarse_chans.len();
+
         Ok(())
     }
 
@@ -761,6 +764,8 @@ impl MetafitsContext {
             )
             .into_iter(),
         );
+
+        self.num_metafits_timesteps = self.metafits_timesteps.len();
 
         Ok(())
     }

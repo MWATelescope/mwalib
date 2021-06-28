@@ -1055,18 +1055,28 @@ pub struct MetafitsMetadata {
     pub good_time_gps_ms: u64,
     /// Total number of antennas (tiles) in the array
     pub num_ants: usize,
+    /// Array of antennas
+    pub antennas: *mut Antenna,
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
     pub num_rf_inputs: usize,
+    /// Array of rf inputs
+    pub rf_inputs: *mut Rfinput,
     /// Number of antenna pols. e.g. X and Y
     pub num_ant_pols: usize,
     /// Number of baselines
     pub num_baselines: usize,
+    /// Baseline array
+    pub baselines: *mut Baseline,
     /// Number of visibility_pols
     pub num_visibility_pols: usize,
     /// Number of coarse channels based on the metafits
     pub num_metafits_coarse_chans: usize,
+    /// metafits_coarse_chans array
+    pub metafits_coarse_chans: *mut CoarseChannel,
     /// Number of timesteps based on the metafits
     pub num_metafits_timesteps: usize,
+    /// metafits_timesteps array
+    pub metafits_timesteps: *mut TimeStep,
     /// Total bandwidth of observation assuming we have all coarse channels
     pub obs_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
@@ -1126,25 +1136,160 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
         );
         return MWALIB_FAILURE;
     }
+
     // Create our metafits context pointer depending on what was passed in
-    let metafits_context = {
-        if !metafits_context_ptr.is_null() {
-            // Caller passed in a metafits context, so use that
-            &*metafits_context_ptr
-        } else if !correlator_context_ptr.is_null() {
-            // Caller passed in a correlator context, so use that
-            &(*correlator_context_ptr).metafits_context
-        } else {
-            // Caller passed in a voltage context, so use that
-            &(*voltage_context_ptr).metafits_context
-        }
+    let metafits_context = if !metafits_context_ptr.is_null() {
+        // Caller passed in a metafits context, so use that
+        &*metafits_context_ptr
+    } else if !correlator_context_ptr.is_null() {
+        // Caller passed in a correlator context, so use that
+        &(*correlator_context_ptr).metafits_context
+    } else {
+        // Caller passed in a voltage context, so use that
+        &(*voltage_context_ptr).metafits_context
     };
+
+    // Populate baselines
+    let mut baseline_vec: Vec<Baseline> = Vec::new();
+    for item in metafits_context.baselines.iter() {
+        let out_item = {
+            let baseline::Baseline {
+                ant1_index,
+                ant2_index,
+            } = item;
+            Baseline {
+                ant1_index: *ant1_index,
+                ant2_index: *ant2_index,
+            }
+        };
+
+        baseline_vec.push(out_item);
+    }
+
+    // Populate antennas
+    let mut antenna_vec: Vec<Antenna> = Vec::new();
+    for item in metafits_context.antennas.iter() {
+        let out_item = {
+            let antenna::Antenna {
+                ant,
+                tile_id,
+                tile_name,
+                rfinput_x,
+                rfinput_y,
+                electrical_length_m,
+                north_m,
+                east_m,
+                height_m,
+            } = item;
+            Antenna {
+                ant: *ant,
+                tile_id: *tile_id,
+                tile_name: CString::new(tile_name.as_str()).unwrap().into_raw(),
+                rfinput_x: rfinput_x.subfile_order as usize,
+                rfinput_y: rfinput_y.subfile_order as usize,
+                electrical_length_m: *electrical_length_m,
+                north_m: *north_m,
+                east_m: *east_m,
+                height_m: *height_m,
+            }
+        };
+
+        antenna_vec.push(out_item);
+    }
+
+    // Populate rf_inputs
+    let mut rfinput_vec: Vec<Rfinput> = Vec::new();
+    for item in metafits_context.rf_inputs.iter() {
+        let out_item = {
+            let rfinput::Rfinput {
+                input,
+                ant,
+                tile_id,
+                tile_name,
+                pol,
+                electrical_length_m,
+                north_m,
+                east_m,
+                height_m,
+                vcs_order,
+                subfile_order,
+                flagged,
+                rec_number,
+                rec_slot_number,
+                digital_gains: _, // not currently supported via FFI interface
+                dipole_gains: _,  // not currently supported via FFI interface
+                dipole_delays: _, // not currently supported via FFI interface
+            } = item;
+            Rfinput {
+                input: *input,
+                ant: *ant,
+                tile_id: *tile_id,
+                tile_name: CString::new(String::from(&*tile_name)).unwrap().into_raw(),
+                pol: CString::new(pol.to_string()).unwrap().into_raw(),
+                electrical_length_m: *electrical_length_m,
+                north_m: *north_m,
+                east_m: *east_m,
+                height_m: *height_m,
+                vcs_order: *vcs_order,
+                subfile_order: *subfile_order,
+                flagged: *flagged,
+                rec_number: *rec_number,
+                rec_slot_number: *rec_slot_number,
+            }
+        };
+        rfinput_vec.push(out_item);
+    }
+
+    // Populate metafits coarse channels
+    let mut coarse_chan_vec: Vec<CoarseChannel> = Vec::new();
+
+    for item in metafits_context.metafits_coarse_chans.iter() {
+        let out_item = {
+            let coarse_channel::CoarseChannel {
+                corr_chan_number,
+                rec_chan_number,
+                gpubox_number,
+                chan_width_hz,
+                chan_start_hz,
+                chan_centre_hz,
+                chan_end_hz,
+            } = item;
+            CoarseChannel {
+                corr_chan_number: *corr_chan_number,
+                rec_chan_number: *rec_chan_number,
+                gpubox_number: *gpubox_number,
+                chan_width_hz: *chan_width_hz,
+                chan_start_hz: *chan_start_hz,
+                chan_centre_hz: *chan_centre_hz,
+                chan_end_hz: *chan_end_hz,
+            }
+        };
+
+        coarse_chan_vec.push(out_item);
+    }
+
+    // Populate metafits timesteps
+    let mut timestep_vec: Vec<TimeStep> = Vec::new();
+
+    for item in metafits_context.metafits_timesteps.iter() {
+        let out_item = {
+            let timestep::TimeStep {
+                unix_time_ms,
+                gps_time_ms,
+            } = item;
+            TimeStep {
+                unix_time_ms: *unix_time_ms,
+                gps_time_ms: *gps_time_ms,
+            }
+        };
+        timestep_vec.push(out_item);
+    }
 
     // Populate the outgoing structure with data from the metafits context
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    let out_context = {
+    let out_metadata = {
         let MetafitsContext {
             obs_id,
             sched_start_gps_time_ms,
@@ -1192,16 +1337,16 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             good_time_unix_ms,
             good_time_gps_ms,
             num_ants,
-            antennas: _, // This is provided by the seperate antenna struct in FFI
+            antennas: _, // This is populated seperately
             num_rf_inputs,
-            rf_inputs: _, // This is provided by the seperate rfinput struct in FFI
+            rf_inputs: _, // This is populated seperately
             num_ant_pols,
             num_baselines,
-            baselines: _, // This is provided by the seperate baseline struct in FFI
+            baselines: _, // This is populated seperately
             num_visibility_pols,
-            metafits_timesteps: _, // This is provided by the seperate timestep struct in FFI
+            metafits_timesteps: _, // This is populated seperately
             num_metafits_timesteps,
-            metafits_coarse_chans: _, // This is provided by the seperate coarse channel struct in FFI
+            metafits_coarse_chans: _, // This is populated seperately
             num_metafits_coarse_chans,
             obs_bandwidth_hz,
             coarse_chan_width_hz,
@@ -1257,12 +1402,17 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             good_time_unix_ms: *good_time_unix_ms,
             good_time_gps_ms: *good_time_gps_ms,
             num_ants: *num_ants,
+            antennas: ffi_array_to_boxed_slice(antenna_vec),
             num_rf_inputs: *num_rf_inputs,
+            rf_inputs: ffi_array_to_boxed_slice(rfinput_vec),
             num_ant_pols: *num_ant_pols,
             num_baselines: *num_baselines,
+            baselines: ffi_array_to_boxed_slice(baseline_vec),
             num_visibility_pols: *num_visibility_pols,
             num_metafits_coarse_chans: *num_metafits_coarse_chans,
+            metafits_coarse_chans: ffi_array_to_boxed_slice(coarse_chan_vec),
             num_metafits_timesteps: *num_metafits_timesteps,
+            metafits_timesteps: ffi_array_to_boxed_slice(timestep_vec),
             obs_bandwidth_hz: *obs_bandwidth_hz,
             coarse_chan_width_hz: *coarse_chan_width_hz,
             centre_freq_hz: *centre_freq_hz,
@@ -1273,7 +1423,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     };
 
     // Pass back a pointer to the rust owned struct
-    *out_metafits_metadata_ptr = Box::into_raw(Box::new(out_context));
+    *out_metafits_metadata_ptr = Box::into_raw(Box::new(out_metadata));
 
     // Return Success
     MWALIB_SUCCESS
@@ -1304,10 +1454,65 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
         return MWALIB_SUCCESS;
     }
 
+    //
     // Free members first
+    //
+    // baselines
+    if !(*metafits_metadata_ptr).baselines.is_null() {
+        drop(Box::from_raw((*metafits_metadata_ptr).baselines));
+    }
+
+    // antennas
+    if !(*metafits_metadata_ptr).antennas.is_null() {
+        // Extract a slice from the pointer
+        let slice: &mut [Antenna] = slice::from_raw_parts_mut(
+            (*metafits_metadata_ptr).antennas,
+            (*metafits_metadata_ptr).num_ants,
+        );
+        // Now for each item we need to free anything on the heap
+        for i in slice.iter_mut() {
+            drop(Box::from_raw(i.tile_name));
+        }
+
+        // Free the memory for the slice
+        drop(Box::from_raw(slice));
+    }
+
+    // rf inputs
+    if !(*metafits_metadata_ptr).rf_inputs.is_null() {
+        // Extract a slice from the pointer
+        let slice: &mut [Rfinput] = slice::from_raw_parts_mut(
+            (*metafits_metadata_ptr).rf_inputs,
+            (*metafits_metadata_ptr).num_rf_inputs,
+        );
+        // Now for each item we need to free anything on the heap
+        for i in slice.iter_mut() {
+            drop(Box::from_raw(i.tile_name));
+            drop(Box::from_raw(i.pol));
+        }
+
+        // Free the memory for the slice
+        drop(Box::from_raw(slice));
+    }
+
+    // coarse_channels
+    if !(*metafits_metadata_ptr).metafits_coarse_chans.is_null() {
+        drop(Box::from_raw(
+            (*metafits_metadata_ptr).metafits_coarse_chans,
+        ));
+    }
+
+    // timesteps
+    if !(*metafits_metadata_ptr).metafits_timesteps.is_null() {
+        drop(Box::from_raw((*metafits_metadata_ptr).metafits_timesteps));
+    }
+
+    // receivers
     if !(*metafits_metadata_ptr).receivers.is_null() {
         drop(Box::from_raw((*metafits_metadata_ptr).receivers));
     }
+
+    // delays
     if !(*metafits_metadata_ptr).delays.is_null() {
         drop(Box::from_raw((*metafits_metadata_ptr).delays));
     }
@@ -1326,8 +1531,12 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
 pub struct CorrelatorMetadata {
     /// Version of the correlator format
     pub mwa_version: MWAVersion,
+    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files)
+    pub timesteps: *mut TimeStep,
     /// Count all known timesteps (union of metafits and provided timesteps from data files)
     pub num_timesteps: usize,
+    /// Vector of coarse channels which is the effectively the same as the metafits provided coarse channels
+    pub coarse_chans: *mut CoarseChannel,
     /// Count of coarse channels (same as metafits coarse channel count)
     pub num_coarse_chans: usize,
     /// Count of common timesteps
@@ -1430,6 +1639,51 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
     // Get the correlator context object from the raw pointer passed in
     let context = &*correlator_context_ptr;
 
+    // Populate correlator coarse channels
+    let mut coarse_chan_vec: Vec<CoarseChannel> = Vec::new();
+
+    for item in context.coarse_chans.iter() {
+        let out_item = {
+            let coarse_channel::CoarseChannel {
+                corr_chan_number,
+                rec_chan_number,
+                gpubox_number,
+                chan_width_hz,
+                chan_start_hz,
+                chan_centre_hz,
+                chan_end_hz,
+            } = item;
+            CoarseChannel {
+                corr_chan_number: *corr_chan_number,
+                rec_chan_number: *rec_chan_number,
+                gpubox_number: *gpubox_number,
+                chan_width_hz: *chan_width_hz,
+                chan_start_hz: *chan_start_hz,
+                chan_centre_hz: *chan_centre_hz,
+                chan_end_hz: *chan_end_hz,
+            }
+        };
+
+        coarse_chan_vec.push(out_item);
+    }
+
+    // Populate correlator timesteps
+    let mut timestep_vec: Vec<TimeStep> = Vec::new();
+
+    for item in context.timesteps.iter() {
+        let out_item = {
+            let timestep::TimeStep {
+                unix_time_ms,
+                gps_time_ms,
+            } = item;
+            TimeStep {
+                unix_time_ms: *unix_time_ms,
+                gps_time_ms: *gps_time_ms,
+            }
+        };
+        timestep_vec.push(out_item);
+    }
+
     // Populate the rust owned data structure with data from the correlator context
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
@@ -1439,9 +1693,9 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
             mwa_version,
             num_timesteps,
-            timesteps: _, // This is provided by the seperate timestep struct in FFI
+            timesteps: _, // This is populated seperately
             num_coarse_chans,
-            coarse_chans: _, // This is provided by the seperate coarse_chan struct in FFI
+            coarse_chans: _, // This is populated seperately
             common_timestep_indices,
             num_common_timesteps,
             common_coarse_chan_indices,
@@ -1476,7 +1730,9 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
         CorrelatorMetadata {
             mwa_version: *mwa_version,
             num_timesteps: *num_timesteps,
+            timesteps: ffi_array_to_boxed_slice(timestep_vec),
             num_coarse_chans: *num_coarse_chans,
+            coarse_chans: ffi_array_to_boxed_slice(coarse_chan_vec),
             num_common_timesteps: *num_common_timesteps,
             common_timestep_indices: ffi_array_to_boxed_slice(common_timestep_indices.clone()),
             num_common_coarse_chans: *num_common_coarse_chans,
@@ -1548,12 +1804,28 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
         return MWALIB_SUCCESS;
     }
 
+    //
     // free any other members first
+    //
+
+    // coarse_channels
+    if !(*correlator_metadata_ptr).coarse_chans.is_null() {
+        drop(Box::from_raw((*correlator_metadata_ptr).coarse_chans));
+    }
+
+    // timesteps
+    if !(*correlator_metadata_ptr).timesteps.is_null() {
+        drop(Box::from_raw((*correlator_metadata_ptr).timesteps));
+    }
+
+    // common timestep indices
     if !(*correlator_metadata_ptr).common_timestep_indices.is_null() {
         drop(Box::from_raw(
             (*correlator_metadata_ptr).common_timestep_indices,
         ));
     }
+
+    // common coarse chan indices
     if !(*correlator_metadata_ptr)
         .common_coarse_chan_indices
         .is_null()
@@ -1562,6 +1834,8 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
             (*correlator_metadata_ptr).common_coarse_chan_indices,
         ));
     }
+
+    // common good timestep indices
     if !(*correlator_metadata_ptr)
         .common_good_timestep_indices
         .is_null()
@@ -1570,6 +1844,8 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
             (*correlator_metadata_ptr).common_good_timestep_indices,
         ));
     }
+
+    // common good coarse chan indices
     if !(*correlator_metadata_ptr)
         .common_good_coarse_chan_indices
         .is_null()
@@ -1578,6 +1854,8 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
             (*correlator_metadata_ptr).common_good_coarse_chan_indices,
         ));
     }
+
+    // provided timestep indices
     if !(*correlator_metadata_ptr)
         .provided_timestep_indices
         .is_null()
@@ -1586,6 +1864,8 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
             (*correlator_metadata_ptr).provided_timestep_indices,
         ));
     }
+
+    // provided coarse channel indices
     if !(*correlator_metadata_ptr)
         .provided_coarse_chan_indices
         .is_null()
@@ -1594,6 +1874,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
             (*correlator_metadata_ptr).provided_coarse_chan_indices,
         ));
     }
+
     // Free main metadata struct
     drop(Box::from_raw(correlator_metadata_ptr));
 
@@ -1608,11 +1889,14 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
 pub struct VoltageMetadata {
     /// Version of the correlator format
     pub mwa_version: MWAVersion,
-
+    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files)
+    pub timesteps: *mut TimeStep,
     /// Number of timesteps in the observation
     pub num_timesteps: usize,
     /// The number of millseconds interval between timestep indices
     pub timestep_duration_ms: u64,
+    /// Vector of coarse channels which is the effectively the same as the metafits provided coarse channels
+    pub coarse_chans: *mut CoarseChannel,
     /// Number of coarse channels after we've validated the input voltage files
     pub num_coarse_chans: usize,
     // Number of common timesteps
@@ -1731,6 +2015,51 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
     // Get the voltage context object from the raw pointer passed in
     let context = &*voltage_context_ptr;
 
+    // Populate voltage coarse channels
+    let mut coarse_chan_vec: Vec<CoarseChannel> = Vec::new();
+
+    for item in context.coarse_chans.iter() {
+        let out_item = {
+            let coarse_channel::CoarseChannel {
+                corr_chan_number,
+                rec_chan_number,
+                gpubox_number,
+                chan_width_hz,
+                chan_start_hz,
+                chan_centre_hz,
+                chan_end_hz,
+            } = item;
+            CoarseChannel {
+                corr_chan_number: *corr_chan_number,
+                rec_chan_number: *rec_chan_number,
+                gpubox_number: *gpubox_number,
+                chan_width_hz: *chan_width_hz,
+                chan_start_hz: *chan_start_hz,
+                chan_centre_hz: *chan_centre_hz,
+                chan_end_hz: *chan_end_hz,
+            }
+        };
+
+        coarse_chan_vec.push(out_item);
+    }
+
+    // Populate voltage timesteps
+    let mut timestep_vec: Vec<TimeStep> = Vec::new();
+
+    for item in context.timesteps.iter() {
+        let out_item = {
+            let timestep::TimeStep {
+                unix_time_ms,
+                gps_time_ms,
+            } = item;
+            TimeStep {
+                unix_time_ms: *unix_time_ms,
+                gps_time_ms: *gps_time_ms,
+            }
+        };
+        timestep_vec.push(out_item);
+    }
+
     // Populate the rust owned data structure with data from the voltage context
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
@@ -1740,10 +2069,10 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
             mwa_version,
             num_timesteps,
-            timesteps: _, // This is provided by the seperate timestep struct in FFI
+            timesteps: _, // This is populated seperately
             timestep_duration_ms,
             num_coarse_chans,
-            coarse_chans: _, // This is provided by the seperate coarse_chan struct in FFI
+            coarse_chans: _, // This is populated seperately
             common_timestep_indices,
             num_common_timesteps,
             common_coarse_chan_indices,
@@ -1784,8 +2113,10 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
         } = context;
         VoltageMetadata {
             mwa_version: *mwa_version,
+            timesteps: ffi_array_to_boxed_slice(timestep_vec),
             num_timesteps: *num_timesteps,
             timestep_duration_ms: *timestep_duration_ms,
+            coarse_chans: ffi_array_to_boxed_slice(coarse_chan_vec),
             num_coarse_chans: *num_coarse_chans,
             num_common_timesteps: *num_common_timesteps,
             common_timestep_indices: ffi_array_to_boxed_slice(common_timestep_indices.clone()),
@@ -1864,19 +2195,35 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_free(
         return MWALIB_SUCCESS;
     }
 
+    //
     // free any other members first
+    //
+
+    // coarse_channels
+    if !(*voltage_metadata_ptr).coarse_chans.is_null() {
+        drop(Box::from_raw((*voltage_metadata_ptr).coarse_chans));
+    }
+
+    // timesteps
+    if !(*voltage_metadata_ptr).timesteps.is_null() {
+        drop(Box::from_raw((*voltage_metadata_ptr).timesteps));
+    }
+
+    // common timestep indices
     if !(*voltage_metadata_ptr).common_timestep_indices.is_null() {
         drop(Box::from_raw(
             (*voltage_metadata_ptr).common_timestep_indices,
         ));
     }
 
+    // common coarse chan indices
     if !(*voltage_metadata_ptr).common_coarse_chan_indices.is_null() {
         drop(Box::from_raw(
             (*voltage_metadata_ptr).common_coarse_chan_indices,
         ));
     }
 
+    // common good timestep indices
     if !(*voltage_metadata_ptr)
         .common_good_timestep_indices
         .is_null()
@@ -1886,6 +2233,7 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_free(
         ));
     }
 
+    // common good coarse chan indices
     if !(*voltage_metadata_ptr)
         .common_good_coarse_chan_indices
         .is_null()
@@ -1895,12 +2243,14 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_free(
         ));
     }
 
+    // provided timestep indices
     if !(*voltage_metadata_ptr).provided_timestep_indices.is_null() {
         drop(Box::from_raw(
             (*voltage_metadata_ptr).provided_timestep_indices,
         ));
     }
 
+    // provided coarse channel indices
     if !(*voltage_metadata_ptr)
         .provided_coarse_chan_indices
         .is_null()
@@ -1949,150 +2299,6 @@ pub struct Antenna {
     pub height_m: f64,
 }
 
-/// This passes back an array of structs containing all antennas given a metafits OR correlator context.
-///
-/// # Arguments
-///
-/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
-///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
-///
-/// * `out_ants_ptr` - A Rust-owned populated array of `Antenna` struct. Free with `mwalib_antennas_free`.
-///
-/// * `out_ants_len` - Antennas array length.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `metafits_context_ptr` must point to a populated MetafitsContext object from the `mwalib_metafits_context_new` function.
-/// * Caller must call `mwalib_antenna_free` once finished, to free the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_antennas_get(
-    metafits_context_ptr: *mut MetafitsContext,
-    correlator_context_ptr: *mut CorrelatorContext,
-    voltage_context_ptr: *mut VoltageContext,
-    out_ants_ptr: &mut *mut Antenna,
-    out_ants_len: &mut size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Ensure only either metafits XOR correlator XOR voltage context is passed in
-    if !(!metafits_context_ptr.is_null()
-        ^ !correlator_context_ptr.is_null()
-        ^ !voltage_context_ptr.is_null())
-    {
-        set_error_message(
-            "mwalib_antennas_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-    // Create our metafits context pointer depending on what was passed in
-    let metafits_context = {
-        if !metafits_context_ptr.is_null() {
-            // Caller passed in a metafits context, so use that
-            &*metafits_context_ptr
-        } else if !correlator_context_ptr.is_null() {
-            // Caller passed in a correlator context, so use that
-            &(*correlator_context_ptr).metafits_context
-        } else {
-            // Caller passed in a voltage context, so use that
-            &(*voltage_context_ptr).metafits_context
-        }
-    };
-
-    let mut item_vec: Vec<Antenna> = Vec::new();
-
-    // We explicitly break out the attributes so at compile time it will let us know
-    // if there have been new fields added to the rust struct, then we can choose to
-    // ignore them (with _) or add that field to the FFI struct.
-    for item in metafits_context.antennas.iter() {
-        let out_item = {
-            let antenna::Antenna {
-                ant,
-                tile_id,
-                tile_name,
-                rfinput_x,
-                rfinput_y,
-                electrical_length_m,
-                north_m,
-                east_m,
-                height_m,
-            } = item;
-            Antenna {
-                ant: *ant,
-                tile_id: *tile_id,
-                tile_name: CString::new(tile_name.as_str()).unwrap().into_raw(),
-                rfinput_x: rfinput_x.subfile_order as usize,
-                rfinput_y: rfinput_y.subfile_order as usize,
-                electrical_length_m: *electrical_length_m,
-                north_m: *north_m,
-                east_m: *east_m,
-                height_m: *height_m,
-            }
-        };
-
-        item_vec.push(out_item);
-    }
-
-    // Pass back the array and length of the array
-    *out_ants_len = item_vec.len();
-    *out_ants_ptr = ffi_array_to_boxed_slice(item_vec);
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
-/// Free a previously-allocated `Antenna` array of structs.
-///
-/// # Arguments
-///
-/// * `ants_ptr` - pointer to an already populated `Antenna` array
-///
-/// * `ants_len` - number of elements in the pointed to array
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * This must be called once caller is finished with the `Antenna` array
-/// * `ants_ptr` must point to a populated `Antenna` array from the `mwalib_antennas_get` function.
-/// * `ants_ptr` must not have already been freed.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_antennas_free(ants_ptr: *mut Antenna, ants_len: size_t) -> i32 {
-    if ants_ptr.is_null() {
-        return MWALIB_SUCCESS;
-    }
-
-    // Extract a slice from the pointer
-    let slice: &mut [Antenna] = slice::from_raw_parts_mut(ants_ptr, ants_len);
-    // Now for each item we need to free anything on the heap
-    for i in slice.iter_mut() {
-        drop(Box::from_raw(i.tile_name));
-    }
-
-    // Free the memory for the slice
-    drop(Box::from_raw(slice));
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
 ///
 /// C Representation of a `Baseline` struct
 ///
@@ -2102,134 +2308,6 @@ pub struct Baseline {
     pub ant1_index: usize,
     /// Index in the `MetafitsContext` antenna array for antenna2 for this baseline
     pub ant2_index: usize,
-}
-
-/// This passes a pointer to an array of baselines
-///
-/// # Arguments
-///
-/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
-///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
-///
-/// * `out_baselines_ptr` - populated, array of rust-owned baseline structs. Free with `mwalib_baselines_free`.
-///
-/// * `out_baselines_len` - baseline array length.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `metafits_context_ptr`, xor `correlator_context_ptr`, xor `voltage_context_ptr` must point to a populated Context object.
-/// * Caller must call `mwalib_baselines_free` once finished, to free the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_baselines_get(
-    metafits_context_ptr: *mut MetafitsContext,
-    correlator_context_ptr: *mut CorrelatorContext,
-    voltage_context_ptr: *mut VoltageContext,
-    out_baselines_ptr: &mut *mut Baseline,
-    out_baselines_len: &mut size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Ensure only either metafits XOR correlator XOR voltage context is passed in
-    if !(!metafits_context_ptr.is_null()
-        ^ !correlator_context_ptr.is_null()
-        ^ !voltage_context_ptr.is_null())
-    {
-        set_error_message(
-            "mwalib_baselines_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-    // Create our metafits context pointer depending on what was passed in
-    let metafits_context = {
-        if !metafits_context_ptr.is_null() {
-            // Caller passed in a metafits context, so use that
-            &*metafits_context_ptr
-        } else if !correlator_context_ptr.is_null() {
-            // Caller passed in a correlator context, so use that
-            &(*correlator_context_ptr).metafits_context
-        } else {
-            // Caller passed in a voltage context, so use that
-            &(*voltage_context_ptr).metafits_context
-        }
-    };
-
-    let mut item_vec: Vec<Baseline> = Vec::new();
-
-    // We explicitly break out the attributes so at compile time it will let us know
-    // if there have been new fields added to the rust struct, then we can choose to
-    // ignore them (with _) or add that field to the FFI struct.
-    for item in metafits_context.baselines.iter() {
-        let out_item = {
-            let baseline::Baseline {
-                ant1_index,
-                ant2_index,
-            } = item;
-            Baseline {
-                ant1_index: *ant1_index,
-                ant2_index: *ant2_index,
-            }
-        };
-
-        item_vec.push(out_item);
-    }
-
-    // Pass back the array and length of the array
-    *out_baselines_len = item_vec.len();
-    *out_baselines_ptr = ffi_array_to_boxed_slice(item_vec);
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
-/// Free a previously-allocated `Baseline` struct.
-///
-/// # Arguments
-///
-/// * `baselines_ptr` - pointer to an already populated `Baseline` array
-///
-/// * `baselines_len` - number of elements in the pointed to array
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * This must be called once caller is finished with the `Baseline` array
-/// * `baseline_ptr` must point to a populated `Baseline` array from the `mwalib_baselines_get` function.
-/// * `baseline_ptr` must not have already been freed.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_baselines_free(
-    baselines_ptr: *mut Baseline,
-    baselines_len: size_t,
-) -> i32 {
-    if baselines_ptr.is_null() {
-        return MWALIB_SUCCESS;
-    }
-    // Extract a slice from the pointer
-    let slice: &mut [Baseline] = slice::from_raw_parts_mut(baselines_ptr, baselines_len);
-
-    // Free the memory for the slice
-    drop(Box::from_raw(slice));
-
-    // Return success
-    MWALIB_SUCCESS
 }
 
 /// Representation in C of an `CoarseChannel` struct
@@ -2251,243 +2329,6 @@ pub struct CoarseChannel {
     pub chan_centre_hz: u32,
     /// Ending frequency of coarse channel in Hz
     pub chan_end_hz: u32,
-}
-
-/// This passes a pointer to an array of metafits coarse channels
-///
-/// # Arguments
-///
-/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
-///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
-///
-/// * `out_coarse_chans_ptr` - A Rust-owned populated `CoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
-///
-/// * `out_coarse_chans_len` - Coarse channel array length.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `metafits_context_ptr`, xor `correlator_context_ptr`, xor `voltage_context_ptr` must point to a populated Context object.
-/// * Caller must call `mwalib_coarse_channels_free` once finished, to free the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_metafits_coarse_channels_get(
-    metafits_context_ptr: *mut MetafitsContext,
-    correlator_context_ptr: *mut CorrelatorContext,
-    voltage_context_ptr: *mut VoltageContext,
-    out_coarse_chans_ptr: &mut *mut CoarseChannel,
-    out_coarse_chans_len: &mut size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Ensure only either metafits XOR correlator XOR voltage context is passed in
-    if !(!metafits_context_ptr.is_null()
-        ^ !correlator_context_ptr.is_null()
-        ^ !voltage_context_ptr.is_null())
-    {
-        set_error_message(
-            "mwalib_metafits_coarse_channels_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-
-    let context_coarse_chans: &Vec<coarse_channel::CoarseChannel>;
-
-    // Create our metafits context pointer depending on what was passed in
-    if !metafits_context_ptr.is_null() {
-        // Caller passed in a metafits context, so use that
-        let metafits_context = &*metafits_context_ptr;
-        context_coarse_chans = &metafits_context.metafits_coarse_chans;
-    } else if !correlator_context_ptr.is_null() {
-        // Caller passed in a correlator context, so use that
-        let corr_context = &*correlator_context_ptr;
-        context_coarse_chans = &corr_context.metafits_context.metafits_coarse_chans;
-    } else {
-        // Caller passed in a voltage context, so use that
-        let volt_context = &*voltage_context_ptr;
-        context_coarse_chans = &volt_context.metafits_context.metafits_coarse_chans;
-    }
-
-    let mut item_vec: Vec<CoarseChannel> = Vec::new();
-
-    // We explicitly break out the attributes so at compile time it will let us know
-    // if there have been new fields added to the rust struct, then we can choose to
-    // ignore them (with _) or add that field to the FFI struct.
-    for item in context_coarse_chans.iter() {
-        let out_item = {
-            let coarse_channel::CoarseChannel {
-                corr_chan_number,
-                rec_chan_number,
-                gpubox_number,
-                chan_width_hz,
-                chan_start_hz,
-                chan_centre_hz,
-                chan_end_hz,
-            } = item;
-            CoarseChannel {
-                corr_chan_number: *corr_chan_number,
-                rec_chan_number: *rec_chan_number,
-                gpubox_number: *gpubox_number,
-                chan_width_hz: *chan_width_hz,
-                chan_start_hz: *chan_start_hz,
-                chan_centre_hz: *chan_centre_hz,
-                chan_end_hz: *chan_end_hz,
-            }
-        };
-
-        item_vec.push(out_item);
-    }
-
-    // Pass back the array and length of the array
-    *out_coarse_chans_len = item_vec.len();
-    *out_coarse_chans_ptr = ffi_array_to_boxed_slice(item_vec);
-
-    // return success
-    MWALIB_SUCCESS
-}
-
-/// This passes a pointer to an array of coarse channels from a CorrelatorContext or a VoltageContext
-///
-/// # Arguments
-///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `voltage_context_ptr`)
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `correlator_context_ptr`)
-///
-/// * `out_coarse_chans_ptr` - A Rust-owned populated `CoarseChannel` array of structs. Free with `mwalib_coarse_channels_free`.
-///
-/// * `out_coarse_chans_len` - Coarse channel array length.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `correlator_context_ptr`, xor `voltage_context_ptr` must point to a populated Context object.
-/// * Caller must call `mwalib_coarse_channels_free` once finished, to free the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_coarse_channels_get(
-    correlator_context_ptr: *mut CorrelatorContext,
-    voltage_context_ptr: *mut VoltageContext,
-    out_coarse_chans_ptr: &mut *mut CoarseChannel,
-    out_coarse_chans_len: &mut size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Ensure only either metafits XOR correlator XOR voltage context is passed in
-    if !(!correlator_context_ptr.is_null() ^ !voltage_context_ptr.is_null()) {
-        set_error_message(
-            "mwalib_coarse_channels_get() ERROR: pointers for correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-
-    let context_coarse_chans: &Vec<coarse_channel::CoarseChannel>;
-
-    // Create our metafits context pointer depending on what was passed in
-    if !correlator_context_ptr.is_null() {
-        // Caller passed in a correlator context, so use that
-        let corr_context = &*correlator_context_ptr;
-        context_coarse_chans = &corr_context.coarse_chans;
-    } else {
-        // Caller passed in a voltage context, so use that
-        let volt_context = &*voltage_context_ptr;
-        context_coarse_chans = &volt_context.coarse_chans;
-    }
-
-    let mut item_vec: Vec<CoarseChannel> = Vec::new();
-
-    // We explicitly break out the attributes so at compile time it will let us know
-    // if there have been new fields added to the rust struct, then we can choose to
-    // ignore them (with _) or add that field to the FFI struct.
-    for item in context_coarse_chans.iter() {
-        let out_item = {
-            let coarse_channel::CoarseChannel {
-                corr_chan_number,
-                rec_chan_number,
-                gpubox_number,
-                chan_width_hz,
-                chan_start_hz,
-                chan_centre_hz,
-                chan_end_hz,
-            } = item;
-            CoarseChannel {
-                corr_chan_number: *corr_chan_number,
-                rec_chan_number: *rec_chan_number,
-                gpubox_number: *gpubox_number,
-                chan_width_hz: *chan_width_hz,
-                chan_start_hz: *chan_start_hz,
-                chan_centre_hz: *chan_centre_hz,
-                chan_end_hz: *chan_end_hz,
-            }
-        };
-
-        item_vec.push(out_item);
-    }
-
-    // Pass back the array and length of the array
-    *out_coarse_chans_len = item_vec.len();
-    *out_coarse_chans_ptr = ffi_array_to_boxed_slice(item_vec);
-
-    // return success
-    MWALIB_SUCCESS
-}
-
-/// Free a previously-allocated `CoarseChannel` struct.
-///
-/// # Arguments
-///
-/// * `coarse_chans_ptr` - pointer to an already populated `CoarseChannel` array
-///
-/// * `coarse_chans_len` - number of elements in the pointed to array
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * This must be called once caller is finished with the `CoarseChannel` array
-/// * `coarse_chan_ptr` must point to a populated `CoarseChannel` array from the `mwalib_coarse_channels_get` function.
-/// * `coarse_chan_ptr` must not have already been freed.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_coarse_channels_free(
-    coarse_chans_ptr: *mut CoarseChannel,
-    coarse_chans_len: size_t,
-) -> i32 {
-    if coarse_chans_ptr.is_null() {
-        return MWALIB_SUCCESS;
-    }
-    // Extract a slice from the pointer
-    let slice: &mut [CoarseChannel] = slice::from_raw_parts_mut(coarse_chans_ptr, coarse_chans_len);
-    // Free the memory for the slice
-    drop(Box::from_raw(slice));
-
-    // Return success
-    0
 }
 
 /// Representation in C of an `RFInput` struct
@@ -2528,166 +2369,6 @@ pub struct Rfinput {
     pub rec_slot_number: u32,
 }
 
-/// This passes a pointer to an array of antenna given a metafits context OR correlator context
-///
-/// # Arguments
-///
-/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
-///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
-///
-/// * `out_rfinputs_ptr` - A Rust-owned populated `RFInput` array of structs. Free with `mwalib_rfinputs_free`.
-///
-/// * `out_rfinputs_len` - rfinputs array length.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `metafits_context_ptr` must point to a populated `MetafitsContext` object from the `mwalib_metafits_context_new` function.
-/// * Caller must call `mwalib_rfinputs_free` once finished, to free the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_rfinputs_get(
-    metafits_context_ptr: *mut MetafitsContext,
-    correlator_context_ptr: *mut CorrelatorContext,
-    voltage_context_ptr: *mut VoltageContext,
-    out_rfinputs_ptr: &mut *mut Rfinput,
-    out_rfinputs_len: &mut size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Ensure only either metafits XOR correlator XOR voltage context is passed in
-    if !(!metafits_context_ptr.is_null()
-        ^ !correlator_context_ptr.is_null()
-        ^ !voltage_context_ptr.is_null())
-    {
-        set_error_message(
-            "mwalib_rfinputs_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-    // Create our metafits context pointer depending on what was passed in
-    let metafits_context = {
-        if !metafits_context_ptr.is_null() {
-            // Caller passed in a metafits context, so use that
-            &*metafits_context_ptr
-        } else if !correlator_context_ptr.is_null() {
-            // Caller passed in a correlator context, so use that
-            &(*correlator_context_ptr).metafits_context
-        } else {
-            // Caller passed in a voltage context, so use that
-            &(*voltage_context_ptr).metafits_context
-        }
-    };
-
-    let mut item_vec: Vec<Rfinput> = Vec::new();
-
-    // We explicitly break out the attributes so at compile time it will let us know
-    // if there have been new fields added to the rust struct, then we can choose to
-    // ignore them (with _) or add that field to the FFI struct.
-    for item in metafits_context.rf_inputs.iter() {
-        let out_item = {
-            let rfinput::Rfinput {
-                input,
-                ant,
-                tile_id,
-                tile_name,
-                pol,
-                electrical_length_m,
-                north_m,
-                east_m,
-                height_m,
-                vcs_order,
-                subfile_order,
-                flagged,
-                rec_number,
-                rec_slot_number,
-                digital_gains: _, // not currently supported via FFI interface
-                dipole_gains: _,  // not currently supported via FFI interface
-                dipole_delays: _, // not currently supported via FFI interface
-            } = item;
-            Rfinput {
-                input: *input,
-                ant: *ant,
-                tile_id: *tile_id,
-                tile_name: CString::new(String::from(&*tile_name)).unwrap().into_raw(),
-                pol: CString::new(pol.to_string()).unwrap().into_raw(),
-                electrical_length_m: *electrical_length_m,
-                north_m: *north_m,
-                east_m: *east_m,
-                height_m: *height_m,
-                vcs_order: *vcs_order,
-                subfile_order: *subfile_order,
-                flagged: *flagged,
-                rec_number: *rec_number,
-                rec_slot_number: *rec_slot_number,
-            }
-        };
-
-        item_vec.push(out_item);
-    }
-
-    // Pass back the array and length of the array
-    *out_rfinputs_len = item_vec.len();
-    *out_rfinputs_ptr = ffi_array_to_boxed_slice(item_vec);
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
-/// Free a previously-allocated `RFInput` struct.
-///
-/// # Arguments
-///
-/// * `rf_inputs_ptr` - pointer to an already populated `RFInput` object
-///
-/// * `rf_inputs_len` - number of elements in the pointed to array
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * This must be called once caller is finished with the `RFInput` array
-/// * `rf_input_ptr` must point to a populated `RFInput` array from the `mwalib_rfinputs_get` function.
-/// * `rf_input_ptr` must not have already been freed.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_rfinputs_free(
-    rf_inputs_ptr: *mut Rfinput,
-    rf_inputs_len: size_t,
-) -> i32 {
-    if rf_inputs_ptr.is_null() {
-        return MWALIB_SUCCESS;
-    }
-    // Extract a slice from the pointer
-    let slice: &mut [Rfinput] = slice::from_raw_parts_mut(rf_inputs_ptr, rf_inputs_len);
-    // Now for each item we need to free anything on the heap
-    for i in slice.iter_mut() {
-        drop(Box::from_raw(i.tile_name));
-        drop(Box::from_raw(i.pol));
-    }
-
-    // Free the memory for the slice
-    drop(Box::from_raw(slice));
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
 ///
 /// C Representation of a `TimeStep` struct
 ///
@@ -2696,221 +2377,4 @@ pub struct TimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,
     pub gps_time_ms: u64,
-}
-
-/// This passes a pointer to an array of metafits timesteps
-///
-/// # Arguments
-///
-/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object. (Exclusive with `correlator_context_ptr` and `voltage_context_ptr`)
-///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `metafits_context_ptr` and `voltage_context_ptr`)
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `metafits_context_ptr` and `correlator_context_ptr`)
-///
-/// * `out_timesteps_ptr` - A Rust-owned populated `TimeStep` struct. Free with `mwalib_timestep_free`.
-///
-/// * `out_timesteps_len` - Timesteps array length.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `metafits_context_ptr`, xor `correlator_context_ptr`, xor `voltage_context_ptr` must point to a populated Context object.
-/// * Caller must call `mwalib_timestep_free` once finished, to free the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_metafits_timesteps_get(
-    metafits_context_ptr: *mut MetafitsContext,
-    correlator_context_ptr: *mut CorrelatorContext,
-    voltage_context_ptr: *mut VoltageContext,
-    out_timesteps_ptr: &mut *mut TimeStep,
-    out_timesteps_len: &mut size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Ensure only either metafits XOR correlator XOR voltage context is passed in
-    if !(!metafits_context_ptr.is_null()
-        ^ !correlator_context_ptr.is_null()
-        ^ !voltage_context_ptr.is_null())
-    {
-        set_error_message(
-            "mwalib_metafits_timesteps_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-
-    let context_timesteps: &Vec<timestep::TimeStep>;
-
-    // Create our metafits context pointer depending on what was passed in
-    if !metafits_context_ptr.is_null() {
-        // Caller passed in a metafits context, so use that
-        let metafits_context = &*metafits_context_ptr;
-        context_timesteps = &metafits_context.metafits_timesteps;
-    } else if !correlator_context_ptr.is_null() {
-        // Caller passed in a correlator context, so use that
-        let corr_context = &*correlator_context_ptr;
-        context_timesteps = &corr_context.timesteps;
-    } else {
-        // Caller passed in a voltage context, so use that
-        let volt_context = &*voltage_context_ptr;
-        context_timesteps = &volt_context.timesteps;
-    }
-
-    let mut item_vec: Vec<TimeStep> = Vec::new();
-
-    // We explicitly break out the attributes so at compile time it will let us know
-    // if there have been new fields added to the rust struct, then we can choose to
-    // ignore them (with _) or add that field to the FFI struct.
-    for item in context_timesteps.iter() {
-        let out_item = {
-            let timestep::TimeStep {
-                unix_time_ms,
-                gps_time_ms,
-            } = item;
-            TimeStep {
-                unix_time_ms: *unix_time_ms,
-                gps_time_ms: *gps_time_ms,
-            }
-        };
-
-        item_vec.push(out_item);
-    }
-
-    // Pass back the array and length of the array
-    *out_timesteps_len = item_vec.len();
-    *out_timesteps_ptr = ffi_array_to_boxed_slice(item_vec);
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
-/// This passes a pointer to an array of timesteps
-///
-/// # Arguments
-///
-/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object. (Exclusive with `voltage_context_ptr`)
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object. (Exclusive with `correlator_context_ptr`)
-///
-/// * `out_timesteps_ptr` - A Rust-owned populated `TimeStep` struct. Free with `mwalib_timestep_free`.
-///
-/// * `out_timesteps_len` - Timesteps array length.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `correlator_context_ptr`, xor `voltage_context_ptr` must point to a populated Context object.
-/// * Caller must call `mwalib_timestep_free` once finished, to free the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_timesteps_get(
-    correlator_context_ptr: *mut CorrelatorContext,
-    voltage_context_ptr: *mut VoltageContext,
-    out_timesteps_ptr: &mut *mut TimeStep,
-    out_timesteps_len: &mut size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Ensure only either metafits XOR correlator XOR voltage context is passed in
-    if !(!correlator_context_ptr.is_null() ^ !voltage_context_ptr.is_null()) {
-        set_error_message(
-            "mwalib_timesteps_get() ERROR: pointers for correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-
-    let context_timesteps: &Vec<timestep::TimeStep>;
-
-    // Create our metafits context pointer depending on what was passed in
-    if !correlator_context_ptr.is_null() {
-        // Caller passed in a correlator context, so use that
-        let corr_context = &*correlator_context_ptr;
-        context_timesteps = &corr_context.timesteps;
-    } else {
-        // Caller passed in a voltage context, so use that
-        let volt_context = &*voltage_context_ptr;
-        context_timesteps = &volt_context.timesteps;
-    }
-
-    let mut item_vec: Vec<TimeStep> = Vec::new();
-
-    // We explicitly break out the attributes so at compile time it will let us know
-    // if there have been new fields added to the rust struct, then we can choose to
-    // ignore them (with _) or add that field to the FFI struct.
-    for item in context_timesteps.iter() {
-        let out_item = {
-            let timestep::TimeStep {
-                unix_time_ms,
-                gps_time_ms,
-            } = item;
-            TimeStep {
-                unix_time_ms: *unix_time_ms,
-                gps_time_ms: *gps_time_ms,
-            }
-        };
-
-        item_vec.push(out_item);
-    }
-
-    // Pass back the array and length of the array
-    *out_timesteps_len = item_vec.len();
-    *out_timesteps_ptr = ffi_array_to_boxed_slice(item_vec);
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
-/// Free a previously-allocated `TimeStep` struct.
-///
-/// # Arguments
-///
-/// * `timesteps_ptr` - pointer to an already populated `TimeStep` array
-///
-/// * `timesteps_len` - number of elements in the pointed to array
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * This must be called once caller is finished with the `TimeStep` array
-/// * `timestep_ptr` must point to a populated `TimeStep` array from the `mwalib_correlator_timesteps_get` function.
-/// * `timestep_ptr` must not have already been freed.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_timesteps_free(
-    timesteps_ptr: *mut TimeStep,
-    timesteps_len: size_t,
-) -> i32 {
-    if timesteps_ptr.is_null() {
-        return MWALIB_SUCCESS;
-    }
-    // Extract a slice from the pointer
-    let slice: &mut [TimeStep] = slice::from_raw_parts_mut(timesteps_ptr, timesteps_len);
-    // Free the memory for the slice
-    drop(Box::from_raw(slice));
-
-    // Return success
-    MWALIB_SUCCESS
 }

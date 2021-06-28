@@ -2,6 +2,12 @@
 
 Changes in each release are listed below.
 
+## 0.8.3 28-Jun-2021 (Pre-release)
+
+* Refactor of FFI: collapsing, antennas, baselines, coarse channels, rf inputs and timesteps into attributes of the MetafitsMetadata, CorrelatorMetadata and Voltage Metadata structs.
+* Refactor of FFI: Added common, common good and provided timesteps/coarse channels to CorrelatorMetadata and VoltageMetadata structs.
+* Refactor of FFI: Added delays and recievers to MetafitsMetadata.
+
 ## 0.8.2 09-Jun-2021 (Pre-release)
 
 * Added common, common good and provided timesteps/coarse channels for VoltageContext.
