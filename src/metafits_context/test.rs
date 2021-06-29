@@ -187,10 +187,10 @@ fn test_metafits_context_new_valid() {
     // Geometric delays - this old metafits has none of these keys so it will be None
     assert_eq!(context.geometric_delays_applied, GeometricDelaysApplied::No);
     // Cable delays applied - this old metafits has none of these keys so it will be false
-    assert_eq!(context.cable_delays_applied, false);
+    assert!(!context.cable_delays_applied);
 
     // Calibration delays & gains applied  - this old metafits has none of these keys so it will be false
-    assert_eq!(context.calibration_delays_and_gains_applied, false);
+    assert!(!context.calibration_delays_and_gains_applied);
 
     // metafits_filename
     assert_eq!(context.metafits_filename, metafits_filename);

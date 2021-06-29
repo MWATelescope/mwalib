@@ -351,10 +351,7 @@ fn test_conversion_of_legacy_hdu_to_mwax_frequency_order_vs_pyuvdata() {
         }
 
         // Ensure channel is <= num_fine_chans
-        assert_eq!(
-            fine_chan <= context.metafits_context.num_corr_fine_chans_per_coarse,
-            true
-        );
+        assert!(fine_chan <= context.metafits_context.num_corr_fine_chans_per_coarse);
 
         let record: Vec<f32> = result.expect("Failed to deserialize CSV");
         assert!(

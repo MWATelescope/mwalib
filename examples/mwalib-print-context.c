@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
         // Metafits only
         if (mwalib_metafits_context_new(argv[1], CorrLegacy, &metafits_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
         {
-            printf("Error getting metaafits context: %s\n", error_message);
+            printf("Error getting metafits context: %s\n", error_message);
             exit(-1);
         }
 
@@ -181,16 +181,16 @@ int main(int argc, char *argv[])
     if (mwalib_metafits_metadata_get(metafits_context, correlator_context, voltage_context, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
         // print a baseline
-        printf("Baseline index 129: %ld vs %ld\n", metafits_metadata->baselines[129].ant1_index, metafits_metadata->baselines[129].ant2_index);
+        printf("Baseline index 1: %ld vs %ld\n", metafits_metadata->baselines[1].ant1_index, metafits_metadata->baselines[1].ant2_index);
 
         // print an rfinput
-        printf("RF Input index 129: ant index: %d, tile_id: %d name: %s pol: %s\n", metafits_metadata->rf_inputs[129].ant, metafits_metadata->rf_inputs[129].tile_id, metafits_metadata->rf_inputs[129].tile_name, metafits_metadata->rf_inputs[129].pol);
+        printf("RF Input index 1: ant index: %d, tile_id: %d name: %s pol: %s\n", metafits_metadata->rf_inputs[1].ant, metafits_metadata->rf_inputs[1].tile_id, metafits_metadata->rf_inputs[1].tile_name, metafits_metadata->rf_inputs[1].pol);
 
         // print a antenna
-        printf("Ant index 64: %d name: %s elec len (m): %f\n", metafits_metadata->antennas[64].tile_id, metafits_metadata->antennas[64].tile_name, metafits_metadata->antennas[64].electrical_length_m);
+        printf("Ant index 1: %d name: %s elec len (m): %f\n", metafits_metadata->antennas[1].tile_id, metafits_metadata->antennas[1].tile_name, metafits_metadata->antennas[1].electrical_length_m);
 
         // print a coarse channel
-        printf("Metafits Coarse channel index 3: receiver channel: %ld (centre = %f MHz)\n", metafits_metadata->metafits_coarse_chans[3].rec_chan_number, (float)metafits_metadata->metafits_coarse_chans[3].chan_centre_hz / 1000000.);
+        printf("Metafits Coarse channel index 1: receiver channel: %ld (centre = %f MHz)\n", metafits_metadata->metafits_coarse_chans[1].rec_chan_number, (float)metafits_metadata->metafits_coarse_chans[1].chan_centre_hz / 1000000.);
 
         // print a timestep
         printf("Metafits Timestep index 2: GPS Time = %f  (UNIX time: %f)\n", (double)metafits_metadata->metafits_timesteps[2].gps_time_ms / 1000., (double)metafits_metadata->metafits_timesteps[2].unix_time_ms / 1000.);

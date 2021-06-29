@@ -86,11 +86,11 @@ pub struct CorrelatorContext {
     /// The indices of any timesteps which we have *some* data for
     pub provided_timestep_indices: Vec<usize>,
     /// Number of provided timestep indices we have at least *some* data for
-    pub num_provided_timestep_indices: usize,
+    pub num_provided_timesteps: usize,
     /// The indices of any coarse channels which we have *some* data for
     pub provided_coarse_chan_indices: Vec<usize>,
     /// Number of provided coarse channel indices we have at least *some* data for
-    pub num_provided_coarse_chan_indices: usize,
+    pub num_provided_coarse_chans: usize,
 
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_chan_bytes: usize,
@@ -343,9 +343,9 @@ impl CorrelatorContext {
             common_good_duration_ms,
             common_good_bandwidth_hz,
             provided_timestep_indices,
-            num_provided_timestep_indices,
+            num_provided_timesteps: num_provided_timestep_indices,
             provided_coarse_chan_indices,
-            num_provided_coarse_chan_indices,
+            num_provided_coarse_chans: num_provided_coarse_chan_indices,
             gpubox_batches: gpubox_info.batches,
             gpubox_time_map: gpubox_info.time_map,
             num_timestep_coarse_chan_bytes: gpubox_info.hdu_size * 4,
@@ -841,9 +841,9 @@ impl fmt::Display for CorrelatorContext {
             common_good_end_gps = self.common_good_end_gps_time_ms as f64 / 1e3,
             common_good_duration = self.common_good_duration_ms as f64 / 1e3,
             common_good_bw = self.common_good_bandwidth_hz as f64 / 1e6,
-            num_provided_timesteps = self.num_provided_timestep_indices,
+            num_provided_timesteps = self.num_provided_timesteps,
             provided_timesteps = self.provided_timestep_indices,
-            num_provided_coarse_chans = self.num_provided_coarse_chan_indices,
+            num_provided_coarse_chans = self.num_provided_coarse_chans,
             provided_coarse_chans = self.provided_coarse_chan_indices,
             hdu_size = size,
             scan_size = size * self.num_gpubox_files as f64,

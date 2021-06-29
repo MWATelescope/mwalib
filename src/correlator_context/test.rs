@@ -294,10 +294,7 @@ fn test_mwa_legacy_read() {
         .fold(0., |sum, x| sum + *x as f64);
 
     // Check sums match
-    assert_eq!(
-        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()),
-        true
-    );
+    assert!(approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()));
 }
 
 #[test]
@@ -646,17 +643,14 @@ fn test_read_by_baseline_into_buffer_mwax() {
         .fold(0., |sum, x| sum + *x as f64);
 
     // Check sums are not 0
-    assert_eq!(approx_eq!(f64, sum_freq, 0., F64Margin::default()), false);
-    assert_eq!(approx_eq!(f64, sum_bl, 0., F64Margin::default()), false);
-    assert_eq!(approx_eq!(f64, sum_bl2, 0., F64Margin::default()), false);
+    assert!(!approx_eq!(f64, sum_freq, 0., F64Margin::default()));
+    assert!(!approx_eq!(f64, sum_bl, 0., F64Margin::default()));
+    assert!(!approx_eq!(f64, sum_bl2, 0., F64Margin::default()));
 
     // Check they all match each other
-    assert_eq!(
-        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()),
-        true
-    );
+    assert!(approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()));
 
-    assert_eq!(approx_eq!(f64, sum_bl, sum_bl2, F64Margin::default()), true);
+    assert!(approx_eq!(f64, sum_bl, sum_bl2, F64Margin::default()));
 }
 
 #[test]
@@ -703,20 +697,14 @@ fn test_read_by_frequency_into_buffer_mwax() {
         .fold(0., |sum, x| sum + *x as f64);
 
     // Check sums are not 0
-    assert_eq!(approx_eq!(f64, sum_bl, 0., F64Margin::default()), false);
-    assert_eq!(approx_eq!(f64, sum_freq, 0., F64Margin::default()), false);
-    assert_eq!(approx_eq!(f64, sum_freq2, 0., F64Margin::default()), false);
+    assert!(!approx_eq!(f64, sum_bl, 0., F64Margin::default()));
+    assert!(!approx_eq!(f64, sum_freq, 0., F64Margin::default()));
+    assert!(!approx_eq!(f64, sum_freq2, 0., F64Margin::default()));
 
     // Check they all match each other
-    assert_eq!(
-        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()),
-        true
-    );
+    assert!(approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()));
 
-    assert_eq!(
-        approx_eq!(f64, sum_freq, sum_freq2, F64Margin::default()),
-        true
-    );
+    assert!(approx_eq!(f64, sum_freq, sum_freq2, F64Margin::default()));
 }
 
 #[test]
@@ -764,17 +752,14 @@ fn test_read_by_baseline_into_buffer_legacy() {
         .fold(0., |sum, x| sum + *x as f64);
 
     // Check sums are not 0
-    assert_eq!(approx_eq!(f64, sum_freq, 0., F64Margin::default()), false);
-    assert_eq!(approx_eq!(f64, sum_bl, 0., F64Margin::default()), false);
-    assert_eq!(approx_eq!(f64, sum_bl2, 0., F64Margin::default()), false);
+    assert!(!approx_eq!(f64, sum_freq, 0., F64Margin::default()));
+    assert!(!approx_eq!(f64, sum_bl, 0., F64Margin::default()));
+    assert!(!approx_eq!(f64, sum_bl2, 0., F64Margin::default()));
 
     // Check they all match each other
-    assert_eq!(
-        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()),
-        true
-    );
+    assert!(approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()));
 
-    assert_eq!(approx_eq!(f64, sum_bl, sum_bl2, F64Margin::default()), true);
+    assert!(approx_eq!(f64, sum_bl, sum_bl2, F64Margin::default()));
 }
 
 #[test]
@@ -822,18 +807,12 @@ fn test_read_by_frequency_into_buffer_legacy() {
         .fold(0., |sum, x| sum + *x as f64);
 
     // Check sums are not 0
-    assert_eq!(approx_eq!(f64, sum_bl, 0., F64Margin::default()), false);
-    assert_eq!(approx_eq!(f64, sum_freq, 0., F64Margin::default()), false);
-    assert_eq!(approx_eq!(f64, sum_freq2, 0., F64Margin::default()), false);
+    assert!(!approx_eq!(f64, sum_bl, 0., F64Margin::default()));
+    assert!(!approx_eq!(f64, sum_freq, 0., F64Margin::default()));
+    assert!(!approx_eq!(f64, sum_freq2, 0., F64Margin::default()));
 
     // Check they all match each other
-    assert_eq!(
-        approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()),
-        true
-    );
+    assert!(approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()));
 
-    assert_eq!(
-        approx_eq!(f64, sum_freq, sum_freq2, F64Margin::default()),
-        true
-    );
+    assert!(approx_eq!(f64, sum_freq, sum_freq2, F64Margin::default()));
 }

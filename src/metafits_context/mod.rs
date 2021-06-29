@@ -21,7 +21,6 @@ mod test;
 /// Enum for all of the known variants of file format based on Correlator version
 ///
 #[repr(C)]
-#[allow(clippy::clippy::upper_case_acronyms)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum MWAVersion {
     /// MWA correlator (v1.0), having data files without any batch numbers.
@@ -65,7 +64,6 @@ impl fmt::Display for MWAVersion {
 }
 
 /// Visibility polarisation.
-#[allow(clippy::clippy::upper_case_acronyms)]
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum VisPol {

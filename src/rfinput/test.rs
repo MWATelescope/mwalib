@@ -141,7 +141,7 @@ fn test_read_metafits_values_from_invalid_metafits() {
         let metafits_result =
             Rfinput::read_metafits_values(metafits_fptr, &metafits_tile_table_hdu, 0);
 
-        assert_eq!(metafits_result.is_err(), true);
+        assert!(metafits_result.is_err());
     });
 }
 
@@ -193,7 +193,7 @@ fn test_populate_rf_inputs() {
         375.212_005_615_234_4,
         float_cmp::F64Margin::default()
     ));
-    assert_eq!(rfinput[0].flagged, true);
+    assert!(rfinput[0].flagged);
     assert_eq!(
         rfinput[0].digital_gains,
         vec![

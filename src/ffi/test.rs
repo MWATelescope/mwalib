@@ -545,30 +545,26 @@ fn test_mwalib_correlator_context_legacy_read_by_baseline_valid() {
 
         // Reconstitute the buffer
         let ret_buffer: Vec<f32> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-        assert_eq!(
+        assert!(
             approx_eq!(f32, ret_buffer[0], 73189.0, F32Margin::default()),
-            true,
             "Expected value was {}, should be {}",
             ret_buffer[0],
             73189.0
         );
-        assert_eq!(
+        assert!(
             approx_eq!(f32, ret_buffer[100], -1482.5, F32Margin::default()),
-            true,
             "Expected value was {}, should be {}",
             ret_buffer[100],
             -1482.5
         );
-        assert_eq!(
+        assert!(
             approx_eq!(f32, ret_buffer[1016], 74300.5, F32Margin::default()),
-            true,
             "Expected value was {}, should be {}",
             ret_buffer[1016],
             74300.5
         );
-        assert_eq!(
+        assert!(
             approx_eq!(f32, ret_buffer[8385552], -174.5, F32Margin::default()),
-            true,
             "Expected value was {}, should be {}",
             ret_buffer[8385552],
             -174.5
@@ -667,30 +663,26 @@ fn test_mwalib_correlator_context_legacy_read_by_frequency_valid() {
 
         // Reconstitute the buffer
         let ret_buffer: Vec<f32> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-        assert_eq!(
+        assert!(
             approx_eq!(f32, ret_buffer[0], 73189.0, F32Margin::default()),
-            true,
             "Expected value was {}, should be {}",
             ret_buffer[0],
             73189.0
         );
-        assert_eq!(
+        assert!(
             approx_eq!(f32, ret_buffer[100], 112.0, F32Margin::default()),
-            true,
             "Expected value was {}, should be {}",
             ret_buffer[100],
             -1844.5
         );
-        assert_eq!(
+        assert!(
             approx_eq!(f32, ret_buffer[1016], 205.5, F32Margin::default()),
-            true,
             "Expected value was {}, should be {}",
             ret_buffer[1016],
             205.5
         );
-        assert_eq!(
+        assert!(
             approx_eq!(f32, ret_buffer[8385552], -178.0, F32Margin::default()),
-            true,
             "Expected value was {}, should be {}",
             ret_buffer[8385552],
             -178.0
