@@ -5,9 +5,9 @@
 /*!
 The main interface to MWA data.
  */
-use std::fmt;
-
 use chrono::{DateTime, Duration, FixedOffset};
+use num_derive::FromPrimitive;
+use std::fmt;
 
 use crate::antenna::*;
 use crate::baseline::*;
@@ -100,7 +100,7 @@ impl fmt::Display for VisPol {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, FromPrimitive)]
 pub enum GeometricDelaysApplied {
     No = 0,
     Zenith = 1,
@@ -426,6 +426,12 @@ impl MetafitsContext {
     ) -> Result<Self, MwalibError> {
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.
+        let metafits_filename = metafits
+            .as_ref()
+            .to_str()
+            .expect("Metafits filename is not UTF-8 compliant")
+            .to_string();
+
         let mut metafits_fptr = fits_open!(&metafits)?;
         let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
         let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1)?;
@@ -550,18 +556,32 @@ impl MetafitsContext {
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FILENAME")?;
         let mode: MWAMode = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MODE")?;
 
-        let geometric_delays_applied =
+        let geometric_delays_applied: GeometricDelaysApplied =
             match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GEODEL")? {
-                Some(g) => g,
+                Some(g) => match num::FromPrimitive::from_i32(g) {
+                    Some(gda) => gda,
+                    None => {
+                        return Err(MwalibError::Parse {
+                            key: String::from("GEODEL"),
+                            fits_filename: metafits_filename,
+                            hdu_num: 0,
+                            source_file: String::from(file!()),
+                            source_line: line!(),
+                        })
+                    }
+                },
                 None => GeometricDelaysApplied::No,
             };
 
-        let cable_delays_applied: bool =
-            (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CABLEDEL")?)
-                .unwrap_or(false);
-        let calibration_delays_and_gains_applied: bool =
-            (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CALIBDEL")?)
-                .unwrap_or(false);
+        // These next two keys are specified as TINT not TBOOL in the metafits, so we need to translate 0=false, 1=true
+        let cable_delays_applied: bool = matches!(
+            (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CABLEDEL")?).unwrap_or(0),
+            1
+        );
+        let calibration_delays_and_gains_applied: bool = matches!(
+            (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CALIBDEL")?).unwrap_or(0),
+            1
+        );
 
         // We need to get the correlator integration time
         let integration_time_ms: u64 = {
@@ -676,11 +696,7 @@ impl MetafitsContext {
             obs_bandwidth_hz: metafits_observation_bandwidth_hz,
             coarse_chan_width_hz: metafits_coarse_chan_width_hz,
             centre_freq_hz,
-            metafits_filename: metafits
-                .as_ref()
-                .to_str()
-                .expect("Metafits filename is not UTF-8 compliant")
-                .to_string(),
+            metafits_filename,
             num_baselines,
             baselines,
             num_visibility_pols,
