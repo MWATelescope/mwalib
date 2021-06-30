@@ -44,6 +44,9 @@ maybe you have a mix of different files?"#)]
         gpu_corr_version_value: u8,
     },
 
+    #[error("The gpubox file {gpubox_filename} has no data HDUs")]
+    NoDataHDUsInGpuboxFile { gpubox_filename: String },
+
     #[error("Failed to read key CORR_VER from MWAX gpubox file {0}")]
     MwaxCorrVerMissing(String),
 

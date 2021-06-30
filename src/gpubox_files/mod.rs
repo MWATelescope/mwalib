@@ -244,7 +244,17 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
         for g in &mut b.gpubox_files {
             let mut fptr = fits_open!(&g.filename)?;
 
-            let hdu = fits_open_hdu!(&mut fptr, 1)?;
+            // Check that there are some HDUs (apart from just the primary)
+            // Assuming it does have some, open the first one
+            let hdu = match fptr.iter().count() {
+                1 => {
+                    return Err(GpuboxError::NoDataHDUsInGpuboxFile {
+                        gpubox_filename: g.filename.clone(),
+                    })
+                }
+                _ => fits_open_hdu!(&mut fptr, 1)?,
+            };
+
             let this_size = get_hdu_image_size!(&mut fptr, &hdu)?.iter().product();
             match hdu_size {
                 None => hdu_size = Some(this_size),
