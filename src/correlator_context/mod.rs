@@ -782,7 +782,7 @@ impl fmt::Display for CorrelatorContext {
             f,
             r#"CorrelatorContext (
             Metafits Context:           {metafits_context}
-            Correlator version:         {corr_ver},
+            MWA version:                {corr_ver},
             
             num timesteps:              {n_timesteps},
             timesteps:                  {timesteps:?},
