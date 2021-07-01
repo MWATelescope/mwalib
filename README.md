@@ -15,7 +15,8 @@ For installation instructions, concepts and usage info, please see the [`mwalib 
 
 ## Example test output
 
-```CorrelatorContext (
+```
+CorrelatorContext (
             Metafits Context:           MetafitsContext (
     obsid:                    1101503312,
     mode:                     HW_LFILES,
