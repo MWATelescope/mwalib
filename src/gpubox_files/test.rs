@@ -354,6 +354,21 @@ fn test_determine_gpubox_batches_mix() {
 }
 
 #[test]
+fn test_no_hdus() {
+    // When a fits file has no hdus, lets abort processing and return an error
+    let metafits_filename = "test_files/no_hdus/1196175296.metafits";
+    let filename = "test_files/no_hdus/1196175296_20171201145440_gpubox01_00.fits";
+    let gpuboxfiles = vec![filename];
+
+    let result = CorrelatorContext::new(&metafits_filename, &gpuboxfiles);
+
+    assert!(matches!(
+        result.unwrap_err(),
+        MwalibError::Gpubox(GpuboxError::NoDataHDUsInGpuboxFile { gpubox_filename: _ })
+    ));
+}
+
+#[test]
 fn test_determine_hdu_time_test1() {
     // with_temp_file creates a temp dir and temp file, then removes them once out of scope
     with_new_temp_fits_file("determine_hdu_time_test1.fits", |fptr| {
