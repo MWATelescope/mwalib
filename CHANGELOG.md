@@ -2,11 +2,15 @@
 
 Changes in each release are listed below.
 
-## 0.8.3 28-Jun-2021 (Pre-release)
+## 0.8.3 01-Jul-2021 (Pre-release)
 
 * Refactor of FFI: collapsing, antennas, baselines, coarse channels, rf inputs and timesteps into attributes of the MetafitsMetadata, CorrelatorMetadata and Voltage Metadata structs.
 * Refactor of FFI: Added common, common good and provided timesteps/coarse channels to CorrelatorMetadata and VoltageMetadata structs.
 * Refactor of FFI: Added delays and recievers to MetafitsMetadata.
+* Added const for speed of light in a vacuum.
+* Detected and raise error condition when gpubox fits file has no data.
+* Updated VoltageContext display to be consistent with CorrelatorContext.
+* Fixed bugs when reading metafits files which have new MWAX GEODEL, CALIBDEL and CABLEDEL keys.
 
 ## 0.8.2 09-Jun-2021 (Pre-release)
 
