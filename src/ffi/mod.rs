@@ -1899,11 +1899,11 @@ pub struct VoltageMetadata {
     pub coarse_chans: *mut CoarseChannel,
     /// Number of coarse channels after we've validated the input voltage files
     pub num_coarse_chans: usize,
-    // Number of common timesteps
+    /// Number of common timesteps
     pub num_common_timesteps: usize,
     /// Vector of (in)common timestep indices
     pub common_timestep_indices: *mut usize,
-    // Number of common coarse chans
+    /// Number of common coarse chans
     pub num_common_coarse_chans: usize,
     /// Vector of (in)common coarse channel indices
     pub common_coarse_chan_indices: *mut usize,
