@@ -24,9 +24,9 @@ mod test;
 ///
 #[derive(Debug)]
 pub struct CorrelatorContext {
-    /// Observation Metadata
+    /// Observation Metadata obtained from the metafits file
     pub metafits_context: MetafitsContext,
-    /// Version of the correlator format
+    /// MWA version, derived from the files passed in
     pub mwa_version: MWAVersion,
     /// This is an array of all known timesteps (union of metafits and provided timesteps from data files)
     pub timesteps: Vec<TimeStep>,
@@ -66,7 +66,7 @@ pub struct CorrelatorContext {
     pub num_common_good_timesteps: usize,
     /// Vector of (in)common coarse channel indices only including timesteps after the quack time
     pub common_good_coarse_chan_indices: Vec<usize>,
-    // Number of common coarse channels only including timesteps after the quack time
+    /// Number of common coarse channels only including timesteps after the quack time
     pub num_common_good_coarse_chans: usize,
     /// The start of the observation (the time that is common to all
     /// provided gpubox files) only including timesteps after the quack time
@@ -808,7 +808,7 @@ impl fmt::Display for CorrelatorContext {
             Common/Good GPS start time:      {common_good_start_gps},
             Common/Good GPS end time:        {common_good_end_gps},
             Common/Good duration:            {common_good_duration} s,
-            Common/Good bandwidth:           {common_good_bw} MHz,     
+            Common/Good bandwidth:           {common_good_bw} MHz,
 
             gpubox HDU size:            {hdu_size} MiB,
             Memory usage per scan:      {scan_size} MiB,

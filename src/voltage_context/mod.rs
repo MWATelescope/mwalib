@@ -24,9 +24,9 @@ pub(crate) mod test; // It's pub crate because I reuse some test code in the ffi
 ///
 #[derive(Debug)]
 pub struct VoltageContext {
-    /// Observation Metadata
+    /// Observation Metadata obtained from the metafits file
     pub metafits_context: MetafitsContext,
-    /// Version of the correlator format
+    /// MWA version, derived from the files passed in
     pub mwa_version: MWAVersion,
 
     /// This is an array of all known timesteps (union of metafits and provided timesteps from data files)
@@ -36,10 +36,10 @@ pub struct VoltageContext {
     /// length in millseconds of each timestep
     pub timestep_duration_ms: u64,
 
-    /// Number of coarse channels
-    pub num_coarse_chans: usize,
     /// Vector of coarse channel structs which is the same as the metafits provided coarse channels
     pub coarse_chans: Vec<CoarseChannel>,
+    /// Number of coarse channels in coarse chans struct
+    pub num_coarse_chans: usize,
 
     /// Vector of (in)common timestep indices
     pub common_timestep_indices: Vec<usize>,
@@ -47,7 +47,7 @@ pub struct VoltageContext {
     pub num_common_timesteps: usize,
     /// Vector of (in)common coarse channel indices
     pub common_coarse_chan_indices: Vec<usize>,
-    // Number of common coarse channels
+    /// Number of common coarse channels
     pub num_common_coarse_chans: usize,
     /// The start of the observation (the time that is common to all
     /// provided data files).
@@ -66,7 +66,7 @@ pub struct VoltageContext {
 
     /// Vector of (in)common timestep indices only including timesteps after the quack time
     pub common_good_timestep_indices: Vec<usize>,
-    // Number of common timesteps only including timesteps after the quack time
+    /// Number of common timesteps only including timesteps after the quack time
     pub num_common_good_timesteps: usize,
     /// Vector of (in)common coarse channel indices only including timesteps after the quack time
     pub common_good_coarse_chan_indices: Vec<usize>,
