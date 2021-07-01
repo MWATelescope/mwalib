@@ -219,7 +219,7 @@ fn test_read_by_frequency_invalid_inputs() {
         .expect("Failed to create CorrelatorContext");
 
     // 99999 is invalid as a timestep for this observation
-    let result_invalid_timestep = context.read_by_frequency(99999, 0);
+    let result_invalid_timestep = context.read_by_frequency(99999, 10);
 
     assert!(matches!(
         result_invalid_timestep.unwrap_err(),
@@ -233,6 +233,22 @@ fn test_read_by_frequency_invalid_inputs() {
         result_invalid_coarse_chan.unwrap_err(),
         GpuboxError::InvalidCoarseChanIndex(_)
     ));
+
+    // Do another test, this time with no data for the timestep/cc combo
+    let result = context.read_by_frequency(10, 0);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
 }
 
 #[test]
@@ -246,7 +262,7 @@ fn test_read_by_baseline_invalid_inputs() {
         .expect("Failed to create CorrelatorContext");
 
     // 99999 is invalid as a timestep for this observation
-    let result_invalid_timestep = context.read_by_baseline(99999, 0);
+    let result_invalid_timestep = context.read_by_baseline(99999, 10);
 
     assert!(matches!(
         result_invalid_timestep.unwrap_err(),
@@ -260,6 +276,22 @@ fn test_read_by_baseline_invalid_inputs() {
         result_invalid_coarse_chan.unwrap_err(),
         GpuboxError::InvalidCoarseChanIndex(_)
     ));
+
+    // Do another test, this time with no data for the timestep/cc combo
+    let result = context.read_by_baseline(10, 0);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
 }
 
 #[test]
@@ -649,8 +681,43 @@ fn test_read_by_baseline_into_buffer_mwax() {
 
     // Check they all match each other
     assert!(approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()));
-
     assert!(approx_eq!(f64, sum_bl, sum_bl2, F64Margin::default()));
+
+    // Do another test, this time with no data for the timestep/cc combo
+    let result = context.read_by_baseline_into_buffer(10, 0, &mut mwalib_hdu_data_by_bl2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+
+    // Do another test, this time with extremely out of bound indices (timestep)
+    let result = context.read_by_baseline_into_buffer(999, 10, &mut mwalib_hdu_data_by_bl2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(error, GpuboxError::InvalidTimeStepIndex(119)),
+        "Error was {:?}",
+        error
+    );
+
+    // Do another test, this time with extremely out of bound indices (cc)
+    let result = context.read_by_baseline_into_buffer(0, 999, &mut mwalib_hdu_data_by_bl2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(error, GpuboxError::InvalidCoarseChanIndex(23)),
+        "Error was {:?}",
+        error
+    );
 }
 
 #[test]
@@ -703,8 +770,43 @@ fn test_read_by_frequency_into_buffer_mwax() {
 
     // Check they all match each other
     assert!(approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()));
-
     assert!(approx_eq!(f64, sum_freq, sum_freq2, F64Margin::default()));
+
+    // Do another test, this time with no data for the timestep/cc combo
+    let result = context.read_by_frequency_into_buffer(10, 0, &mut mwalib_hdu_data_by_freq2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+
+    // Do another test, this time with extremely out of bound indices (timestep)
+    let result = context.read_by_frequency_into_buffer(999, 10, &mut mwalib_hdu_data_by_freq2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(error, GpuboxError::InvalidTimeStepIndex(119)),
+        "Error was {:?}",
+        error
+    );
+
+    // Do another test, this time with extremely out of bound indices (cc)
+    let result = context.read_by_frequency_into_buffer(0, 999, &mut mwalib_hdu_data_by_freq2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(error, GpuboxError::InvalidCoarseChanIndex(23)),
+        "Error was {:?}",
+        error
+    );
 }
 
 #[test]
@@ -758,8 +860,43 @@ fn test_read_by_baseline_into_buffer_legacy() {
 
     // Check they all match each other
     assert!(approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()));
-
     assert!(approx_eq!(f64, sum_bl, sum_bl2, F64Margin::default()));
+
+    // Do another test, this time with no data for the timestep/cc combo
+    let result = context.read_by_baseline_into_buffer(10, 10, &mut mwalib_hdu_data_by_bl2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+
+    // Do another test, this time with extremely out of bound indices (timestep)
+    let result = context.read_by_baseline_into_buffer(999, 0, &mut mwalib_hdu_data_by_bl2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(error, GpuboxError::InvalidTimeStepIndex(55)),
+        "Error was {:?}",
+        error
+    );
+
+    // Do another test, this time with extremely out of bound indices (cc)
+    let result = context.read_by_baseline_into_buffer(0, 999, &mut mwalib_hdu_data_by_bl2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(error, GpuboxError::InvalidCoarseChanIndex(23)),
+        "Error was {:?}",
+        error
+    );
 }
 
 #[test]
@@ -813,6 +950,108 @@ fn test_read_by_frequency_into_buffer_legacy() {
 
     // Check they all match each other
     assert!(approx_eq!(f64, sum_bl, sum_freq, F64Margin::default()));
-
     assert!(approx_eq!(f64, sum_freq, sum_freq2, F64Margin::default()));
+
+    // Do another test, this time with no data for the timestep/cc combo
+    let result = context.read_by_frequency_into_buffer(10, 10, &mut mwalib_hdu_data_by_freq2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+
+    // Do another test, this time with extremely out of bound indices (timestep)
+    let result = context.read_by_frequency_into_buffer(999, 0, &mut mwalib_hdu_data_by_freq2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(error, GpuboxError::InvalidTimeStepIndex(55)),
+        "Error was {:?}",
+        error
+    );
+
+    // Do another test, this time with extremely out of bound indices (cc)
+    let result = context.read_by_frequency_into_buffer(0, 999, &mut mwalib_hdu_data_by_freq2);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(error, GpuboxError::InvalidCoarseChanIndex(23)),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
+fn test_get_fits_filename_and_batch_and_hdu() {
+    let mwax_metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+    let mwax_filename =
+        "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+
+    //
+    // Read the legacy file by frequency using mwalib
+    //
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![mwax_filename];
+    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+        .expect("Failed to create CorrelatorContext");
+
+    // Valid
+    let result = context.get_fits_filename_and_batch_and_hdu(0, 0);
+    assert!(result.is_ok());
+
+    // Invalid - out of bounds completely (time)
+    let result = context.get_fits_filename_and_batch_and_hdu(999, 0);
+    let error = result.unwrap_err();
+    assert!(
+        matches!(error, GpuboxError::InvalidTimeStepIndex(55)),
+        "Error was {:?}",
+        error
+    );
+
+    // Invalid - out of bounds completely (channel)
+    let result = context.get_fits_filename_and_batch_and_hdu(0, 999);
+    let error = result.unwrap_err();
+    assert!(
+        matches!(error, GpuboxError::InvalidCoarseChanIndex(23)),
+        "Error was {:?}",
+        error
+    );
+
+    // Invalid - out of bounds no data (time)
+    let result = context.get_fits_filename_and_batch_and_hdu(10, 0);
+    let error = result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+
+    // Invalid - out of bounds no data (channel)
+    let result = context.get_fits_filename_and_batch_and_hdu(0, 10);
+    let error = result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
 }
