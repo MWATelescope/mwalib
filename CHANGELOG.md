@@ -2,6 +2,9 @@
 
 Changes in each release are listed below.
 
+## 0.8.4 15-Jul-2021 (Pre-release)
+* mwalib legacy autocorrelations (where ant1==ant2) are now conjugated with respect to previous versions.
+
 ## 0.8.3 01-Jul-2021 (Pre-release)
 
 * Refactor of FFI: collapsing, antennas, baselines, coarse channels, rf inputs and timesteps into attributes of the MetafitsMetadata, CorrelatorMetadata and Voltage Metadata structs.

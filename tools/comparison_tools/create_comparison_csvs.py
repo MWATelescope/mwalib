@@ -43,8 +43,9 @@
 #   For a 40kHz correlator mode, we need to pass a file containing 32 rows of 5 1's.
 #
 # Expected known (and accepted) differences in the data:
-# * Cotter and mwalib differ from pyuvdata: cross correlations are conjugated.
-# * mwalib and pyuvdata differ from cotter: Cotter sets XY to 0+0j for autocorrelations.
+# * mwalib differs from pyuvdata: all imaginary values are conjugated (this is because of differing correlation triangles used).
+# * mwalib differs from cotter: where ant1=ant2 cotter's values are conjugated with respect to mwalib.
+# * mwalib and pyuvdata differ from cotter: Cotter sets XY to 0+0j for all cases where ant1==ant2.
 #
 import argparse
 from pymwalib.correlator_context import CorrelatorContext
@@ -80,13 +81,13 @@ def dump_mwalib(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, gp
                 f"Coarse Channel[{coarse_chan_index}]    = Reciever Chan {cc.coarse_channels[coarse_chan_index].rec_chan_number}, GPUBOX number {cc.coarse_channels[coarse_chan_index].gpubox_number}")
             print(f"Fine channels[{fine_chan_index}:10]")
             print(
-                f"Baseline[{baseline_index}]           = Antenna[ant1] {cc.antennas[ant1].tile_id}, {cc.antennas[ant1].tile_name} vs Antenna[ant2] {cc.antennas[ant2].tile_id}, {cc.antennas[ant2].tile_name}")
+                f"Baseline[{baseline_index}]           = Antenna[ant1] {cc.metafits_context.antennas[ant1].tile_id}, {cc.metafits_context.antennas[ant1].tile_name} vs Antenna[ant2] {cc.metafits_context.antennas[ant2].tile_id}, {cc.metafits_context.antennas[ant2].tile_name}")
 
             data_bl_index = baseline_index * (
-                        cc.metafits_metadata.num_corr_fine_chans_per_coarse * cc.metafits_metadata.num_visibility_pols * 2)
+                        cc.metafits_context.num_corr_fine_chans_per_coarse * cc.metafits_context.num_visibility_pols * 2)
 
             for chan in range(fine_chan_index, fine_chan_index + fine_chan_count):
-                data_fine_index = data_bl_index + (chan * cc.metafits_metadata.num_visibility_pols * 2)
+                data_fine_index = data_bl_index + (chan * cc.metafits_context.num_visibility_pols * 2)
                 print(f"chan {chan} "
                       f"XX: {data[data_fine_index]:.2f} {data[data_fine_index + 1]:.2f},\t"
                       f"XY: {data[data_fine_index + 2]:.2f} {data[data_fine_index + 3]:.2f},\t"
@@ -96,10 +97,10 @@ def dump_mwalib(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, gp
             with open(out_filename, "w") as out_file:
                 for baseline_index in range(0, int(128*129/2)):
                     data_bl_index = baseline_index * (
-                        cc.metafits_metadata.num_corr_fine_chans_per_coarse * cc.metafits_metadata.num_visibility_pols * 2)
+                        cc.metafits_context.num_corr_fine_chans_per_coarse * cc.num_visibility_pols * 2)
 
                     for chan in range(fine_chan_index, fine_chan_index + fine_chan_count):
-                        data_fine_index = data_bl_index + (chan * cc.metafits_metadata.num_visibility_pols * 2)
+                        data_fine_index = data_bl_index + (chan * cc.num_visibility_pols * 2)
 
                         out_file.write(f"{data[data_fine_index]},{data[data_fine_index + 1]},"
                                        f"{data[data_fine_index + 2]},{data[data_fine_index + 3]},"
@@ -223,8 +224,9 @@ if __name__ == "__main__":
                         help="Path to an MWA metafits file.")
     parser.add_argument("gpuboxes", nargs='*',
                         help="Paths Legacy MWA gpubox files.")
-    parser.add_argument("-c", "--casa-ms", required=True,
+    parser.add_argument("-c", "--casa-ms", required=False,
                         help="Path to the cotter generated CASA measurement set dir.")
+    parser.add_argument("-o", "--console-output", required=False, help="If specified, will output to console only (not to file)", action='store_true')
     args = parser.parse_args()
 
     # dump the following baseline and fine channel for the timestep
@@ -236,6 +238,10 @@ if __name__ == "__main__":
     fine_chan_index = 0
     fine_chan_count = 128  # 10kHz obs=128, 20kHz=64, 40kHz=32
 
-    dump_mwalib(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, args.gpuboxes, args.metafits, "mwalib.csv")
-    dump_pyuvdata(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, args.gpuboxes, args.metafits, "pyuvdata.csv")
-    dump_casa(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, args.casa_ms, "cotter.csv")
+    dump_mwalib(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, args.gpuboxes, args.metafits, None if args.console_output else "mwalib.csv")
+    dump_pyuvdata(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, args.gpuboxes, args.metafits, None if args.console_output else "pyuvdata.csv")
+
+    if args.casa_ms:
+        dump_casa(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, args.casa_ms, None if args.console_output else "cotter.csv")
+    else:
+        print("No cotter input file provided, so no cotter comparison will be produced.")

@@ -357,13 +357,11 @@ pub(crate) fn convert_legacy_hdu_to_mwax_baseline_order(
                 input_buffer[source_index + baseline.yy_index + 1]
             };
 
-            // Finally if we are a cross correlaton, take the conjugate
-            if baseline.is_cross {
-                output_buffer[destination_index + 1] = -output_buffer[destination_index + 1];
-                output_buffer[destination_index + 3] = -output_buffer[destination_index + 3];
-                output_buffer[destination_index + 5] = -output_buffer[destination_index + 5];
-                output_buffer[destination_index + 7] = -output_buffer[destination_index + 7];
-            }
+            // Finally take the conjugate so we are in the correct triangle
+            output_buffer[destination_index + 1] = -output_buffer[destination_index + 1];
+            output_buffer[destination_index + 3] = -output_buffer[destination_index + 3];
+            output_buffer[destination_index + 5] = -output_buffer[destination_index + 5];
+            output_buffer[destination_index + 7] = -output_buffer[destination_index + 7];
         }
     }
 }
@@ -453,13 +451,11 @@ pub(crate) fn convert_legacy_hdu_to_mwax_frequency_order(
                 input_buffer[source_index + baseline.yy_index + 1]
             };
 
-            // Finally if we are a cross correlaton, take the conjugate
-            if baseline.is_cross {
-                output_buffer[destination_index + 1] = -output_buffer[destination_index + 1];
-                output_buffer[destination_index + 3] = -output_buffer[destination_index + 3];
-                output_buffer[destination_index + 5] = -output_buffer[destination_index + 5];
-                output_buffer[destination_index + 7] = -output_buffer[destination_index + 7];
-            }
+            // Finally take the conjugate so we are in the correct triangle
+            output_buffer[destination_index + 1] = -output_buffer[destination_index + 1];
+            output_buffer[destination_index + 3] = -output_buffer[destination_index + 3];
+            output_buffer[destination_index + 5] = -output_buffer[destination_index + 5];
+            output_buffer[destination_index + 7] = -output_buffer[destination_index + 7];
         }
     }
 }

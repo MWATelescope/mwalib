@@ -211,14 +211,12 @@ fn test_conversion_of_legacy_hdu_to_mwax_baseline_ordervs_pyuvdata() {
 
             let mwalib_value = mwalib_hdu[mwalib_dest_index] as f64;
 
-            // pyuvdata differs from mwalib and cotter in the following way:
-            // for cross correlations, cotter/mwalib take the conjugate again, pyuvdata does not (for the imag values)
-            // So, below, we check if it is a cross correlation AND we are on an imaginary value (i is odd)
-            let pyuvdata_value = if ant1 != ant2 && i % 2 != 0 {
-                // conjugate since it is a cross correlation AND we are on an imaginary value
+            // pyuvdata data needs to be conjugated because we operate in opposite triangles.
+            let pyuvdata_value = if i % 2 != 0 {
+                // conjugate since it is an imaginary value
                 -*v as f64
             } else {
-                // auto correlation OR a cross correlation, but we are on the real value
+                // real value remains unchanged
                 *v as f64
             };
 
@@ -370,14 +368,12 @@ fn test_conversion_of_legacy_hdu_to_mwax_frequency_order_vs_pyuvdata() {
 
             let mwalib_value = mwalib_hdu[mwalib_dest_index] as f64;
 
-            // pyuvdata differs from mwalib and cotter in the following way:
-            // for cross correlations, cotter/mwalib take the conjugate again, pyuvdata does not (for the imag values)
-            // So, below, we check if it is a cross correlation AND we are on an imaginary value (i is odd)
-            let pyuvdata_value = if ant1 != ant2 && i % 2 != 0 {
-                // conjugate since it is a cross correlation AND we are on an imaginary value
+            // pyuvdata data needs to be conjugated because we operate in opposite triangles.
+            let pyuvdata_value = if i % 2 != 0 {
+                // conjugate since it is an imaginary value
                 -*v as f64
             } else {
-                // auto correlation OR a cross correlation, but we are on the real value
+                // real value remains unchanged
                 *v as f64
             };
 
@@ -541,7 +537,13 @@ fn test_conversion_of_legacy_hdu_to_mwax_baseline_order_vs_cotter() {
             let mwalib_value = if ant1 == ant2 && (i == 2 || i == 3) {
                 0.
             } else {
-                mwalib_hdu[mwalib_dest_index] as f64
+                // Also cotter differs from mwalib in the following way:
+                // Where ant1==ant2 we are conjugated with respect to cotter, so we must negate the imag values
+                if ant1 == ant2 && i % 2 != 0 {
+                    -mwalib_hdu[mwalib_dest_index] as f64
+                } else {
+                    mwalib_hdu[mwalib_dest_index] as f64
+                }
             };
 
             let cotter_value = *v as f64;
