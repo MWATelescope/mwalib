@@ -2,8 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/// Given an observation's data, verify that `mwalib` is functioning correctly
-/// by printing an observation context.
+// Given an observation's data, verify that `mwalib` is functioning correctly
+// by printing an observation context.
+
+// run this example with:
+// $ cargo run --example mwalib-print-obs-context -- --metafits metafits_filename gpuboxfilename1 gpuboxfilename2...
+//
+// Turn on logging with: (then rerun)
+// $ export RUST_LOG=mwalib=debug
+//
 use anyhow::*;
 use structopt::StructOpt;
 
@@ -22,6 +29,7 @@ struct Opt {
 }
 
 fn main() -> Result<(), anyhow::Error> {
+    env_logger::try_init().unwrap_or(());
     let opts = Opt::from_args();
     let context = CorrelatorContext::new(&opts.metafits, &opts.files)?;
 

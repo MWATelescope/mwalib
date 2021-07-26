@@ -10,6 +10,7 @@ Major contributor: Brian Crosse (Curtin Institute for Radio Astronomy)
 */
 use crate::misc::*;
 use crate::rfinput::*;
+use log::trace;
 use std::fmt;
 
 #[cfg(test)]
@@ -99,16 +100,43 @@ impl LegacyConversionBaseline {
 ///
 impl fmt::Debug for LegacyConversionBaseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
+        writeln!(
             f,
-            "{} {}v{} {} {} {} {}",
+            "{},{},{},{},{},{},{},{},{},{},{}",
             self.baseline,
             self.ant1,
             self.ant2,
-            self.xx_index,
-            self.xy_index,
-            self.yx_index,
-            self.yy_index
+            self.xx_index, // xx_real
+            /* Note since we conjugate ALL imaginaries at the end,
+            we can simplify so that if the conjugate is True then we leave the sign alone (equivalent of -(-index)).
+            if conjugate is false, we conjugate (equivalent of -index) */
+            // xx_imag
+            if self.xx_conjugate {
+                self.xx_index as isize
+            } else {
+                -(self.xx_index as isize)
+            },
+            self.xy_index, // xy_real
+            // xy_imag
+            if self.xy_conjugate {
+                self.xy_index as isize
+            } else {
+                -(self.xy_index as isize)
+            },
+            self.yx_index, // yx_real
+            // yx_imag
+            if self.yx_conjugate {
+                self.yx_index as isize
+            } else {
+                -(self.yx_index as isize)
+            },
+            self.yy_index, // yy_real
+            // yy_imag
+            if self.yy_conjugate {
+                self.yy_index as isize
+            } else {
+                -(self.yy_index as isize)
+            }
         )
     }
 }
@@ -245,12 +273,6 @@ pub(crate) fn generate_conversion_array(
                 baseline, row_tile, col_tile, xx, xy, yx, yy,
             ));
 
-            /* Handy debug to print out the output lookup for each baseline/pol
-            println!(
-                "{}:{},{}  {}:{}:{}:{}",
-                baseline, row_tile, col_tile, xx, xy, yx, yy
-            );*/
-
             baseline += 1;
         }
     }
@@ -258,6 +280,8 @@ pub(crate) fn generate_conversion_array(
     // Ensure we processed all baselines
     assert_eq!(baseline, baseline_count as usize);
     assert_eq!(conversion_table.len(), baseline_count as usize);
+
+    trace!("legacy_conversion_table: {:?}", conversion_table);
 
     conversion_table
 }

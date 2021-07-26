@@ -7,6 +7,7 @@ Structs and helper methods for rf_input metadata
 */
 pub mod error;
 use error::RfinputError;
+use log::trace;
 use std::fmt;
 
 #[cfg(test)]
@@ -359,7 +360,16 @@ fn read_cell_value<T: fitsio::tables::ReadsCol>(
     row: usize,
 ) -> Result<T, RfinputError> {
     match metafits_tile_table_hdu.read_cell_value(metafits_fptr, col_name, row) {
-        Ok(c) => Ok(c),
+        Ok(c) => {
+            trace!(
+                "read_cell_value() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                &metafits_fptr.filename,
+                metafits_tile_table_hdu.number,
+                col_name,
+                row
+            );
+            Ok(c)
+        }
         Err(_) => Err(RfinputError::ReadCell {
             fits_filename: metafits_fptr.filename.clone(),
             hdu_num: metafits_tile_table_hdu.number + 1,
@@ -425,6 +435,15 @@ fn read_cell_array(
             0 => {
                 // Re-assemble the raw array into a Rust Vector.
                 let v = std::slice::from_raw_parts(array_ptr, n_elem as usize);
+
+                trace!(
+                    "read_cell_array() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    &metafits_fptr.filename,
+                    metafits_tile_table_hdu.number,
+                    col_name,
+                    row
+                );
+
                 Ok(v.iter().map(|v| *v as _).collect())
             }
             _ => Err(RfinputError::CellArray {

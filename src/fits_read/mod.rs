@@ -8,12 +8,12 @@ Helper functions for reading FITS files.
 pub mod error;
 pub use error::FitsError;
 
-use std::ffi::*;
-use std::ptr;
-
 use fitsio::{hdu::*, FitsFile};
 use fitsio_sys::{ffgkls, fitsfile};
 use libc::c_char;
+use log::debug;
+use std::ffi::*;
+use std::ptr;
 
 #[cfg(test)]
 mod test;
@@ -281,7 +281,13 @@ pub fn _open_fits<T: AsRef<std::path::Path>>(
     source_line: u32,
 ) -> Result<FitsFile, FitsError> {
     match FitsFile::open(file) {
-        Ok(f) => Ok(f),
+        Ok(f) => {
+            debug!(
+                "_open_fits() filename: '{}'",
+                file.as_ref().to_str().unwrap().to_string()
+            );
+            Ok(f)
+        }
         Err(e) => Err(FitsError::Open {
             fits_error: e,
             fits_filename: file.as_ref().to_str().unwrap().to_string(),
@@ -302,7 +308,13 @@ pub fn _open_hdu(
     source_line: u32,
 ) -> Result<FitsHdu, FitsError> {
     match fits_fptr.hdu(hdu_num) {
-        Ok(f) => Ok(f),
+        Ok(f) => {
+            debug!(
+                "_open_hdu() filename: '{}' hdu: {}",
+                fits_fptr.filename, hdu_num
+            );
+            Ok(f)
+        }
         Err(e) => Err(FitsError::Fitsio {
             fits_error: e,
             fits_filename: fits_fptr.filename.clone(),
@@ -358,6 +370,14 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
         },
     };
 
+    debug!(
+        "_get_optional_fits_key() filename: '{}' hdu: {} keyword: '{}' value: '{}'",
+        &fits_fptr.filename,
+        hdu.number,
+        String::from(keyword),
+        unparsed_value
+    );
+
     match unparsed_value.parse() {
         Ok(parsed_value) => Ok(Some(parsed_value)),
         Err(_) => Err(FitsError::Parse {
@@ -406,7 +426,16 @@ pub fn _get_fits_col<T: fitsio::tables::ReadsCol>(
     source_line: u32,
 ) -> Result<Vec<T>, FitsError> {
     match hdu.read_col(fits_fptr, keyword) {
-        Ok(c) => Ok(c),
+        Ok(c) => {
+            debug!(
+                "_get_fits_col() filename: '{}' hdu: {} keyword: '{}' values: {}",
+                fits_fptr.filename,
+                hdu.number,
+                keyword,
+                c.len()
+            );
+            Ok(c)
+        }
         Err(fits_error) => Err(FitsError::Fitsio {
             fits_error,
             fits_filename: fits_fptr.filename.clone(),
@@ -436,8 +465,15 @@ pub fn _get_optional_fits_key_long_string(
 ) -> Result<Option<String>, FitsError> {
     // Read the long string.
     let (status, long_string) = unsafe { get_fits_long_string(fits_fptr.as_raw(), keyword) };
+
     match status {
-        0 => Ok(Some(long_string)),
+        0 => {
+            debug!(
+                "_get_optional_fits_key_long_string() filename: {} keyword: '{}' value: '{}'",
+                &fits_fptr.filename, keyword, long_string
+            );
+            Ok(Some(long_string))
+        }
         202 => Ok(None),
         _ => Err(FitsError::LongString {
             key: keyword.to_string(),
@@ -490,7 +526,13 @@ pub fn _get_hdu_image_size(
     source_line: u32,
 ) -> Result<Vec<usize>, FitsError> {
     match &hdu.info {
-        HduInfo::ImageInfo { shape, .. } => Ok(shape.clone()),
+        HduInfo::ImageInfo { shape, .. } => {
+            debug!(
+                "_get_hdu_image_size() filename: '{}' hdu: {} shape: {:?}",
+                fits_fptr.filename, hdu.number, shape
+            );
+            Ok(shape.clone())
+        }
         _ => Err(FitsError::NotImage {
             fits_filename: fits_fptr.filename.clone(),
             hdu_num: hdu.number + 1,
@@ -512,7 +554,13 @@ pub fn _get_fits_image<T: fitsio::images::ReadImage>(
 ) -> Result<T, FitsError> {
     match &hdu.info {
         HduInfo::ImageInfo { .. } => match hdu.read_image(fits_fptr) {
-            Ok(img) => Ok(img),
+            Ok(img) => {
+                debug!(
+                    "_get_fits_image() filename: '{}' hdu: {}",
+                    fits_fptr.filename, hdu.number
+                );
+                Ok(img)
+            }
             Err(e) => Err(FitsError::Fitsio {
                 fits_error: e,
                 fits_filename: fits_fptr.filename.clone(),
@@ -572,6 +620,11 @@ pub fn _get_fits_float_img_into_buf(
         }
     }
 
+    debug!(
+        "_get_fits_float_img_into_buf() filename: '{}' hdu: {}",
+        fits_fptr.filename, hdu.number
+    );
+
     Ok(())
 }
 
@@ -615,13 +668,12 @@ unsafe fn get_fits_long_string(fptr: *mut fitsfile, keyword: &str) -> (i32, Stri
     );
 
     // Check the call worked!
-    if status == 0 {
-        let long_string = CString::from_raw(value[0])
+    let long_string = match status {
+        0 => CString::from_raw(value[0])
             .into_string()
-            .expect("get_fits_long_string: converting string_ptr failed");
-        (status, long_string)
-    } else {
-        let long_string = String::from("");
-        (status, long_string)
-    }
+            .expect("get_fits_long_string: converting string_ptr failed"),
+        _ => String::from(""),
+    };
+
+    (status, long_string)
 }
