@@ -3,7 +3,13 @@
 ![Linux Tests](https://github.com/MWATelescope/mwalib/workflows/Linux%20Tests/badge.svg)
 ![MacOS Tests](https://github.com/MWATelescope/mwalib/workflows/MacOS%20Tests/badge.svg)
 ![Code Coverage](https://github.com/MWATelescope/mwalib/workflows/Code%20Coverage/badge.svg)
-[![codecov](https://codecov.io/gh/MWATelescope/mwalib/branch/master/graph/badge.svg)](https://codecov.io/gh/MWATelescope/mwalib)
+[![codecov](https://codecov.io/gh/MWATelescope/mwalib/branch/master/graph/badge.svg)](https://app.codecov.io/gh/MWATelescope/mwalib/)
+[![Crates.io](https://img.shields.io/crates/v/mwalib)](https://crates.io/crates/mwalib)
+![Crates.io](https://img.shields.io/crates/d/mwalib)
+![Crates.io](https://img.shields.io/crates/l/mwalib)
+[![docs](https://docs.rs/mwalib/badge.svg)](https://docs.rs/crate/mwalib/latest)
+[![Rust Report Card](https://rust-reportcard.xuri.me/badge/github.com/MWATelescope/mwalib)](https://rust-reportcard.xuri.me/report/github.com/MWATelescope/mwalib)
+
 
 mwa is an MWA library to read raw visibilities, voltages and metadata into a common structure.
 mwalib supports the existing "legacy" MWA correlator, as well as the in-development
