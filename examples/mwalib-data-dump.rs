@@ -143,8 +143,8 @@ fn dump_data<T: AsRef<std::path::Path>>(
     Ok(())
 }
 
-#[cfg(not(tarpaulin_include))]
 fn main() -> Result<(), anyhow::Error> {
+    env_logger::try_init().unwrap_or(());
     let opts = Opt::from_args();
 
     dump_data(

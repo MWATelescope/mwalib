@@ -22,6 +22,7 @@ struct Opt {
 }
 
 fn main() -> Result<(), anyhow::Error> {
+    env_logger::try_init().unwrap_or(());
     let opts = Opt::from_args();
     let context = VoltageContext::new(&opts.metafits, &opts.files)?;
 

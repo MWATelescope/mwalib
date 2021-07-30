@@ -67,15 +67,16 @@ impl CoarseChannel {
         gpubox_number: usize,
         coarse_chan_width_hz: u32,
     ) -> Self {
-        let centre_chan_hz: u32 = (rec_chan_number as u32) * coarse_chan_width_hz;
+        let coarse_chan_centre_hz: u32 = (rec_chan_number as u32) * coarse_chan_width_hz;
+
         Self {
             corr_chan_number,
             rec_chan_number,
             gpubox_number,
             chan_width_hz: coarse_chan_width_hz,
-            chan_centre_hz: centre_chan_hz,
-            chan_start_hz: centre_chan_hz - (coarse_chan_width_hz / 2),
-            chan_end_hz: centre_chan_hz + (coarse_chan_width_hz / 2),
+            chan_centre_hz: coarse_chan_centre_hz,
+            chan_start_hz: coarse_chan_centre_hz - (coarse_chan_width_hz / 2),
+            chan_end_hz: coarse_chan_centre_hz + (coarse_chan_width_hz / 2),
         }
     }
     /// Takes the metafits long string of coarse channels, parses it and turns it into a vector
@@ -334,6 +335,64 @@ impl CoarseChannel {
         coarse_chan_indices.sort_unstable();
 
         coarse_chan_indices
+    }
+
+    /// Calculate the centre frequency of first fine channel of coarse channel.
+    ///
+    ///
+    /// # Arguments    
+    ///
+    /// * `mwa_version` - The version of the MWA is in use.
+    ///
+    /// * `coarse_chan_width_hz` - Width in Hz of the coarse channel.
+    ///
+    /// * `coarse_chan_centre_hz` - Center in sky frequency of this coarse channel.
+    ///
+    /// * `fine_chan_width_hz` - Fine channel width in Hz.
+    ///
+    /// * `num_fine_chans_per_coarse` - Number of fine channels per coarse channel.
+    ///
+    /// # Returns
+    ///
+    /// * The centre frequency of the first fine channel of the coarse channel.
+    ///
+    pub fn get_first_fine_chan_centre_hz(
+        mwa_version: MWAVersion,
+        coarse_chan_width_hz: u32,
+        coarse_chan_centre_hz: u32,
+        fine_chan_width_hz: u64,
+        num_fine_chans_per_coarse: usize,
+    ) -> f64 {
+        // Firstly calculate the offset
+        // For Legacy MWA, the offset is only needed if the fine channel width is 20 or 40kHz.
+        let offset_hz = match mwa_version {
+            MWAVersion::CorrLegacy
+            | MWAVersion::CorrOldLegacy
+            | MWAVersion::VCSLegacyRecombined => match num_fine_chans_per_coarse {
+                128 => 0.0,     // 10 kHz
+                64 => 5_000.0,  // 20 kHz
+                32 => 15_000.0, // 40 Khz
+                _ => 0.0,
+            },
+            MWAVersion::CorrMWAXv2 | MWAVersion::VCSMWAXv2 => 0.0,
+        };
+
+        // We need a factor based on whether the number of fine channels per coarse is even or odd
+        let odd_even_adjustment: f64 = match num_fine_chans_per_coarse % 2 == 0 {
+            true => 0.0,  // Even
+            false => 0.5, // Odd
+        };
+
+        // Now calculate the first fine chan centre hz:
+        //
+        // = coarse_chan_centre - (coarse_chan_width/2)  // This gets you to the start edge Hz of the coarse channel
+        //   + (odd_even_adjustment * fine_chan_width)   // This moves us into the centre of that fine channel
+        let first_fine_chan_center_hz: f64 = coarse_chan_centre_hz as f64
+            - (coarse_chan_width_hz as f64 / 2.0)
+            + (odd_even_adjustment * fine_chan_width_hz as f64);
+
+        // Apply the offset (if required)
+        first_fine_chan_center_hz + offset_hz
     }
 }
 

@@ -303,9 +303,9 @@ pub struct MetafitsContext {
     pub moon_distance_deg: f64,
     /// Distance from pointing center to Jupiter
     pub jupiter_distance_deg: f64,
-    /// Local Sidereal Time
+    /// Local Sidereal Time in degrees (at the midpoint of the observation)
     pub lst_deg: f64,
-    /// Local Sidereal Time in radians
+    /// Local Sidereal Time in radians (at the midpoint of the observation)
     pub lst_rad: f64,
     /// Hour Angle of pointing center (as a string)
     pub hour_angle_string: String,

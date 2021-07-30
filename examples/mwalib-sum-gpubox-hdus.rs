@@ -84,6 +84,7 @@ fn sum_mwalib<T: AsRef<std::path::Path>>(metafits: &T, files: &[T]) -> Result<()
 }
 
 fn main() -> Result<(), anyhow::Error> {
+    env_logger::try_init().unwrap_or(());
     let opts = Opt::from_args();
     if opts.direct {
         sum_direct(opts.files)?;
