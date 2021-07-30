@@ -52,7 +52,7 @@ fn test_legacy_conversion_baseline_debug() {
         is_cross: true,
     };
 
-    assert_eq!(format!("{:?}", lcb), "1,0,1,2,-2,3,-3,4,-4,5,-5");
+    assert_eq!(format!("{:?}", lcb), "1,0,1,2,-2,3,-3,4,-4,5,-5\n");
 }
 
 #[test]
