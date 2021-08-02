@@ -746,7 +746,202 @@ fn test_mwalib_correlator_context_legacy_read_by_frequency_null_buffer() {
             error_message_length,
         );
 
-        // Should get non zero return code
+        // Should get no zero return code
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_valid() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_ffi_correlator_context();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let chan_indices_len: usize = 1;
+        let chan_indicies: Vec<usize> = vec![0];
+        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+
+        let buffer_len = 128;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
+            correlator_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get zero return code
+        assert_eq!(retval, 0);
+
+        // Reconstitute the buffer
+        let ret_buffer: Vec<f64> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
+
+        // Check values
+        assert_eq!(ret_buffer.len(), buffer_len);
+
+        assert!(approx_eq!(
+            f64,
+            ret_buffer[0],
+            138_880_000.0,
+            F64Margin::default()
+        ));
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_invalid_buffer_len() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_ffi_correlator_context();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let chan_indices_len: usize = 1;
+        let chan_indicies: Vec<usize> = vec![0];
+        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+
+        // Invalid buffer - too big
+        let buffer_len = 129;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
+            correlator_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non-zero return code
+        assert_ne!(retval, 0);
+
+        //
+        // Invalid buffer - too small
+        //
+        let buffer_len = 127;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
+            correlator_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non-zero return code
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_context() {
+    let correlator_context_ptr: *mut CorrelatorContext = std::ptr::null_mut();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        // Null context
+        let chan_indices_len: usize = 1;
+        let chan_indicies: Vec<usize> = vec![0];
+        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+
+        let buffer_len = 128;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
+            correlator_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non-zero return code
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_coarse_chans() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_ffi_correlator_context();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        // Null coarse chans
+        let chan_indices_len: usize = 1;
+        let chan_indicies_ptr: *mut usize = std::ptr::null_mut();
+
+        let buffer_len = 128;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
+            correlator_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non-zero return code
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_buffer() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_ffi_correlator_context();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let chan_indices_len: usize = 1;
+        let chan_indicies: Vec<usize> = vec![0];
+        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+
+        // Null buffer ptr
+        let buffer_len = 128;
+        let buffer_ptr: *mut f64 = std::ptr::null_mut();
+
+        let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
+            correlator_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non-zero return code
         assert_ne!(retval, 0);
     }
 }
@@ -1070,6 +1265,205 @@ fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
             )],
             88
         );
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_valid() {
+    let voltage_context_ptr: *mut VoltageContext =
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let chan_indices_len: usize = 1;
+        let chan_indicies: Vec<usize> = vec![0];
+        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+
+        let buffer_len = 128;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
+            voltage_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get zero return code
+        assert_eq!(retval, 0);
+
+        // Reconstitute the buffer
+        let ret_buffer: Vec<f64> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
+
+        // Check values
+        assert_eq!(ret_buffer.len(), buffer_len);
+
+        assert!(approx_eq!(
+            f64,
+            ret_buffer[0],
+            138_880_000.0,
+            F64Margin::default()
+        ));
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_invalid_buffer_len() {
+    let voltage_context_ptr: *mut VoltageContext =
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let chan_indices_len: usize = 1;
+        let chan_indicies: Vec<usize> = vec![0];
+        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+
+        // Invalid buffer - too big
+        let buffer_len = 129;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
+            voltage_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non-zero return code
+        assert_ne!(retval, 0);
+
+        //
+        // Invalid buffer - too small
+        //
+        let buffer_len = 127;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
+            voltage_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non-zero return code
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_context() {
+    let voltage_context_ptr: *mut VoltageContext = std::ptr::null_mut();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        // Null context
+        let chan_indices_len: usize = 1;
+        let chan_indicies: Vec<usize> = vec![0];
+        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+
+        let buffer_len = 128;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
+            voltage_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non-zero return code
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_coarse_chans() {
+    let voltage_context_ptr: *mut VoltageContext =
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        // Null coarse chans
+        let chan_indices_len: usize = 1;
+        let chan_indicies_ptr: *mut usize = std::ptr::null_mut();
+
+        let buffer_len = 128;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+
+        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
+            voltage_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non-zero return code
+        assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_buffer() {
+    let voltage_context_ptr: *mut VoltageContext =
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    unsafe {
+        let chan_indices_len: usize = 1;
+        let chan_indicies: Vec<usize> = vec![0];
+        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+
+        // Null buffer ptr
+        let buffer_len = 128;
+        let buffer_ptr: *mut f64 = std::ptr::null_mut();
+
+        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
+            voltage_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // Should get non-zero return code
+        assert_ne!(retval, 0);
     }
 }
 

@@ -457,6 +457,33 @@ impl VoltageContext {
         })
     }
 
+    /// For a given slice of voltage coarse channel indices, return a vector of the center
+    /// frequencies for all the fine channels in the given coarse channels
+    ///
+    /// # Arguments
+    ///
+    /// * `volt_coarse_chan_indices` - a slice containing voltage coarse channel indices
+    ///                                for which you want fine channels for. Does not need to be
+    ///                                contiguous.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * a vector of f64 containing the centre sky frequencies of all the fine channels for the
+    ///   given coarse channels.
+    ///
+    pub fn get_fine_chan_freqs_hz_array(&self, volt_coarse_chan_indices: &[usize]) -> Vec<f64> {
+        CoarseChannel::get_fine_chan_centres_array_hz(
+            self.mwa_version,
+            &volt_coarse_chan_indices
+                .iter()
+                .map(|c| self.coarse_chans[*c].clone())
+                .collect::<Vec<CoarseChannel>>(),
+            self.metafits_context.volt_fine_chan_width_hz,
+            self.metafits_context.num_volt_fine_chans_per_coarse,
+        )
+    }
+
     /// Validates gps time start and gps seconds count, and returns the end gps time or an Error.
     /// The gps end second is the START time of the end second, not the END of the second.
     /// e.g gpstart = 100, count = 1, therefore gpsend = 100.

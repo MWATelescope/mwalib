@@ -1055,3 +1055,68 @@ fn test_get_fits_filename_and_batch_and_hdu() {
         error
     );
 }
+
+#[test]
+fn test_context_legacy_v1_get_fine_chan_feqs_one_coarse_chan() {
+    // Open the test legacy file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+    let filename = "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+
+    //
+    // Read the observation using mwalib
+    //
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![filename];
+    let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles)
+        .expect("Failed to create mwalibContext");
+
+    // Get fine channel freqs
+    let coarse_channels: Vec<usize> = vec![0];
+    let fine_chan_freqs: Vec<f64> = context.get_fine_chan_freqs_hz_array(&coarse_channels);
+
+    assert_eq!(fine_chan_freqs.len(), 128);
+    assert!(approx_eq!(
+        f64,
+        fine_chan_freqs[0],
+        138_880_000.0,
+        F64Margin::default()
+    ));
+}
+
+#[test]
+fn test_context_legacy_v1_get_fine_chan_feqs_some_coarse_chans() {
+    // Open the test legacy file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+    let filename = "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+
+    //
+    // Read the observation using mwalib
+    //
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![filename];
+    let context = CorrelatorContext::new(&metafits_filename, &gpuboxfiles)
+        .expect("Failed to create mwalibContext");
+
+    // Get fine channel freqs
+    let coarse_channels: Vec<usize> = vec![10, 20];
+    let fine_chan_freqs: Vec<f64> = context.get_fine_chan_freqs_hz_array(&coarse_channels);
+
+    assert_eq!(fine_chan_freqs.len(), 256);
+    assert!(approx_eq!(
+        f64,
+        fine_chan_freqs[0],
+        151_680_000.0,
+        F64Margin::default()
+    ));
+
+    assert!(
+        approx_eq!(
+            f64,
+            fine_chan_freqs[128],
+            164_480_000.0,
+            F64Margin::default()
+        ),
+        "calc value: {}",
+        fine_chan_freqs[128]
+    );
+}

@@ -7,6 +7,7 @@ Unit tests for voltage context
 */
 #[cfg(test)]
 use super::*;
+use float_cmp::*;
 use std::fs::File;
 use std::io::{Error, Write};
 use std::sync::Once;
@@ -1536,4 +1537,45 @@ fn test_context_read_second_mwaxv2_valid() {
             + get_index_for_location_in_test_voltage_file_mwaxv2(20, 1, 16750, 1)],
         185
     );
+}
+
+#[test]
+fn test_context_legacy_v1_get_fine_chan_feqs_one_coarse_chan() {
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+
+    // Get fine channel freqs
+    let coarse_channels: Vec<usize> = vec![0];
+    let fine_chan_freqs: Vec<f64> = context.get_fine_chan_freqs_hz_array(&coarse_channels);
+
+    assert_eq!(fine_chan_freqs.len(), 128);
+    assert!(approx_eq!(
+        f64,
+        fine_chan_freqs[0],
+        138_880_000.0,
+        F64Margin::default()
+    ));
+}
+
+#[test]
+fn test_context_legacy_v1_get_fine_chan_feqs_some_coarse_chans() {
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+
+    // Get fine channel freqs
+    let coarse_channels: Vec<usize> = vec![10, 20];
+    let fine_chan_freqs: Vec<f64> = context.get_fine_chan_freqs_hz_array(&coarse_channels);
+
+    assert_eq!(fine_chan_freqs.len(), 256);
+    assert!(approx_eq!(
+        f64,
+        fine_chan_freqs[0],
+        151_680_000.0,
+        F64Margin::default()
+    ));
+
+    assert!(approx_eq!(
+        f64,
+        fine_chan_freqs[128],
+        164_480_000.0,
+        F64Margin::default()
+    ));
 }

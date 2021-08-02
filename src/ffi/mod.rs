@@ -8,7 +8,7 @@ This module exists purely for other languages to interface with mwalib.
 
 use crate::*;
 use gpubox_files::GpuboxError;
-use libc::{c_char, c_float, c_uchar, c_uint, c_ulong, size_t};
+use libc::{c_char, c_double, c_float, c_uchar, c_uint, c_ulong, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
@@ -600,6 +600,206 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
             }
         },
     }
+}
+
+/// For a given slice of correlator coarse channel indices, return a vector of the center
+/// frequencies for all the fine channels in the given coarse channels
+///
+/// # Arguments
+///
+/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
+///
+/// * `corr_coarse_chan_indices_array_ptr` - a pointer to an array containing correlator coarse channel indices
+///                                          for which you want fine channels for. Does not need to be
+///                                          contiguous.
+///
+/// * `corr_coarse_chan_indices_array_len` - length of `corr_coarse_chan_indices_array_ptr`.
+///
+/// * `out_fine_chan_freq_array_ptr` - pointer to caller-owned and allocated array of doubles to write frequencies into.
+///
+/// * `out_fine_chan_freq_array_len` - length of `out_fine_chan_freq_array_ptr`.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
+/// * `correlator_context_ptr` must point to a populated object from the `mwalib_correlator_context_new` function.
+/// * Caller *must* call `mwalib_correlator_context_free_read_buffer` function to release the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
+    correlator_context_ptr: *mut CorrelatorContext,
+    corr_coarse_chan_indices_array_ptr: *mut size_t,
+    corr_coarse_chan_indices_array_len: size_t,
+    out_fine_chan_freq_array_ptr: *mut c_double,
+    out_fine_chan_freq_array_len: size_t,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    // Load the previously-initialised context and buffer structs. Exit if
+    // either of these are null.
+    let corr_context = if correlator_context_ptr.is_null() {
+        set_error_message(
+            "mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for correlator_context_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    } else {
+        &mut *correlator_context_ptr
+    };
+
+    // Don't do anything if the input pointer is null.
+    if corr_coarse_chan_indices_array_ptr.is_null() {
+        set_error_message(
+            "mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for corr_coarse_chan_indices_array_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    // Get input buffer ready to be passed into rust method
+    let input_coarse_chan_indices = slice::from_raw_parts_mut(
+        corr_coarse_chan_indices_array_ptr,
+        corr_coarse_chan_indices_array_len,
+    );
+
+    // Don't do anything if the buffer pointer is null.
+    if out_fine_chan_freq_array_ptr.is_null() {
+        set_error_message(
+            "mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for out_fine_chan_freq_array_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    // Get output buffer ready
+    let output_slice =
+        slice::from_raw_parts_mut(out_fine_chan_freq_array_ptr, out_fine_chan_freq_array_len);
+
+    // Sanity check the length
+    let expected_output_len = corr_coarse_chan_indices_array_len
+        * corr_context.metafits_context.num_corr_fine_chans_per_coarse;
+    if output_slice.len() != expected_output_len {
+        set_error_message(
+            &format!("mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: number of elements in out_fine_chan_freq_array_ptr does not match expected value {}", expected_output_len),
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    // Read data into provided buffer
+    let fine_chans = corr_context.get_fine_chan_freqs_hz_array(input_coarse_chan_indices);
+
+    // Write the fine chans back into the provided array
+    output_slice.clone_from_slice(&fine_chans);
+
+    MWALIB_SUCCESS
+}
+
+/// For a given slice of voltage coarse channel indices, return a vector of the center
+/// frequencies for all the fine channels in the given coarse channels
+///
+/// # Arguments
+///
+/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
+///
+/// * `corr_coarse_chan_indices_array_ptr` - a pointer to an array containing correlator coarse channel indices
+///                                          for which you want fine channels for. Does not need to be
+///                                          contiguous.
+///
+/// * `corr_coarse_chan_indices_array_len` - length of `corr_coarse_chan_indices_array_ptr`.
+///
+/// * `out_fine_chan_freq_array_ptr` - pointer to caller-owned and allocated array of doubles to write frequencies into.
+///
+/// * `out_fine_chan_freq_array_len` - length of `out_fine_chan_freq_array_ptr`.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
+/// * `correlator_context_ptr` must point to a populated object from the `mwalib_correlator_context_new` function.
+/// * Caller *must* call `mwalib_correlator_context_free_read_buffer` function to release the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
+    voltage_context_ptr: *mut VoltageContext,
+    volt_coarse_chan_indices_array_ptr: *mut size_t,
+    volt_coarse_chan_indices_array_len: size_t,
+    out_fine_chan_freq_array_ptr: *mut c_double,
+    out_fine_chan_freq_array_len: size_t,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    // Load the previously-initialised context and buffer structs. Exit if
+    // either of these are null.
+    let volt_context = if voltage_context_ptr.is_null() {
+        set_error_message(
+            "mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for voltage_context_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    } else {
+        &mut *voltage_context_ptr
+    };
+
+    // Don't do anything if the input pointer is null.
+    if volt_coarse_chan_indices_array_ptr.is_null() {
+        set_error_message(
+            "mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for volt_coarse_chan_indices_array_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    // Get input buffer ready to be passed into rust method
+    let input_coarse_chan_indices = slice::from_raw_parts_mut(
+        volt_coarse_chan_indices_array_ptr,
+        volt_coarse_chan_indices_array_len,
+    );
+
+    // Don't do anything if the buffer pointer is null.
+    if out_fine_chan_freq_array_ptr.is_null() {
+        set_error_message(
+            "mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for out_fine_chan_freq_array_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    // Get output buffer ready
+    let output_slice =
+        slice::from_raw_parts_mut(out_fine_chan_freq_array_ptr, out_fine_chan_freq_array_len);
+
+    // Sanity check the length
+    let expected_output_len = volt_coarse_chan_indices_array_len
+        * volt_context.metafits_context.num_corr_fine_chans_per_coarse;
+    if output_slice.len() != expected_output_len {
+        set_error_message(
+            &format!("mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: number of elements in out_fine_chan_freq_array_ptr does not match expected value {}", expected_output_len),
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    // Read data into provided buffer
+    let fine_chans = volt_context.get_fine_chan_freqs_hz_array(input_coarse_chan_indices);
+
+    // Write the fine chans back into the provided array
+    output_slice.clone_from_slice(&fine_chans);
+
+    MWALIB_SUCCESS
 }
 
 /// Free a previously-allocated `CorrelatorContext` struct (and it's members).

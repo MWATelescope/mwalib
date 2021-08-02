@@ -363,6 +363,33 @@ impl CorrelatorContext {
         })
     }
 
+    /// For a given slice of correlator coarse channel indices, return a vector of the center
+    /// frequencies for all the fine channels in the given coarse channels
+    ///
+    /// # Arguments
+    ///
+    /// * `corr_coarse_chan_indices` - a slice containing correlator coarse channel indices
+    ///                                for which you want fine channels for. Does not need to be
+    ///                                contiguous.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * a vector of f64 containing the centre sky frequencies of all the fine channels for the
+    ///   given coarse channels.
+    ///
+    pub fn get_fine_chan_freqs_hz_array(&self, corr_coarse_chan_indices: &[usize]) -> Vec<f64> {
+        CoarseChannel::get_fine_chan_centres_array_hz(
+            self.mwa_version,
+            &corr_coarse_chan_indices
+                .iter()
+                .map(|c| self.coarse_chans[*c].clone())
+                .collect::<Vec<CoarseChannel>>(),
+            self.metafits_context.corr_fine_chan_width_hz,
+            self.metafits_context.num_corr_fine_chans_per_coarse,
+        )
+    }
+
     /// Read a single timestep for a single coarse channel
     /// The output visibilities are in order:
     /// baseline,frequency,pol,r,i
