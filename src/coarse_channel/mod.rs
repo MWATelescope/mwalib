@@ -383,9 +383,8 @@ impl CoarseChannel {
         coarse_channels
             .iter()
             .flat_map(|coarse_chan| {
-                let chan_start_hz = coarse_chan.chan_start_hz;
                 (0..num_fine_chans_per_coarse).map(move |fine_chan_idx| {
-                    chan_start_hz as f64
+                    coarse_chan.chan_start_hz as f64
                         + ((fine_chan_idx as f64 + odd_even_adjustment) * fine_chan_width_hz as f64)
                         + offset_hz
                 })
