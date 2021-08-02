@@ -157,6 +157,7 @@ impl CorrelatorContext {
             metafits_context.corr_fine_chan_width_hz,
             metafits_context.num_corr_fine_chans_per_coarse,
         );
+        metafits_context.num_metafits_fine_chan_freqs = metafits_context.metafits_fine_chan_freqs.len();
 
         // Populate the timesteps
         metafits_context.populate_expected_timesteps(gpubox_info.mwa_version)?;

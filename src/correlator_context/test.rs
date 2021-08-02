@@ -116,6 +116,17 @@ fn test_context_legacy_v1() {
 
     assert_eq!(context.metafits_context.metafits_coarse_chans.len(), 24);
     assert_eq!(context.metafits_context.metafits_timesteps.len(), 56);
+
+    // Check for num of fine chan freqs
+    assert_eq!(
+        context.metafits_context.num_metafits_fine_chan_freqs,
+        24 * 128
+    );
+
+    assert_eq!(
+        context.metafits_context.num_metafits_fine_chan_freqs,
+        context.metafits_context.metafits_fine_chan_freqs.len()
+    );
 }
 
 #[test]

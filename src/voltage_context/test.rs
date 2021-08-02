@@ -394,6 +394,16 @@ fn test_context_legacy_v1() {
     // Check batches
     assert_eq!(context.voltage_batches.len(), 2);
 
+    // Check for num of fine chan freqs
+    assert_eq!(
+        context.metafits_context.num_metafits_fine_chan_freqs,
+        24 * 128
+    );
+    assert_eq!(
+        context.metafits_context.num_metafits_fine_chan_freqs,
+        context.metafits_context.metafits_fine_chan_freqs.len()
+    );
+
     // Check rfinput order (for Legacy it is vcs_order, mwax is subfile_order)
     let mut rf_input_copy = context.metafits_context.rf_inputs.clone();
     rf_input_copy.sort_by_key(|k| k.vcs_order);

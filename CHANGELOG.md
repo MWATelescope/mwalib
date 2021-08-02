@@ -2,6 +2,9 @@
 
 Changes in each release are listed below.
 
+## 0.8.6 02-Aug-2021 (Pre-release)
+* Fixed bug where the metafits.num_metafits_fine_chan_freqs was not being set correctly.
+
 ## 0.8.5 02-Aug-2021 (Pre-release)
 * Added helper function get_fine_chan_freqs_hz_array to correlator context and voltage context.
 * Added metafits_context.num_metafits_fine_chan_freqs & metafits_context.metafits_fine_chan_freqs, providing a vector of sky frequencies for all fine channels.

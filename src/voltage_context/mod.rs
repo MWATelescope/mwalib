@@ -183,6 +183,8 @@ impl VoltageContext {
             metafits_context.volt_fine_chan_width_hz,
             metafits_context.num_volt_fine_chans_per_coarse,
         );
+        metafits_context.num_metafits_fine_chan_freqs =
+            metafits_context.metafits_fine_chan_freqs.len();
 
         // Populate the timesteps
         metafits_context.populate_expected_timesteps(voltage_info.mwa_version)?;
