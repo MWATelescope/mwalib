@@ -119,7 +119,7 @@ fn test_read_metafits_values_from_row_0() {
 fn test_read_metafits_values_from_invalid_metafits() {
     let metafits_filename = "read_metafits_values_from_invalid_metafits.metafits";
 
-    with_new_temp_fits_file(&metafits_filename, |metafits_fptr| {
+    with_new_temp_fits_file(metafits_filename, |metafits_fptr| {
         // Create a tiledata hdu
         let first_description = ColumnDescription::new("A")
             .with_type(ColumnDataType::Int)

@@ -144,11 +144,19 @@ impl CorrelatorContext {
             ));
         }
         // Do gpubox stuff only if we have gpubox files.
-        let gpubox_info = examine_gpubox_files(&gpubox_filenames, metafits_context.obs_id)?;
+        let gpubox_info = examine_gpubox_files(gpubox_filenames, metafits_context.obs_id)?;
 
         // Populate metafits coarse channels and timesteps now that we know what MWA Version we are dealing with
         // Populate the coarse channels
         metafits_context.populate_expected_coarse_channels(gpubox_info.mwa_version)?;
+
+        // Now populate the fine channels
+        metafits_context.metafits_fine_chan_freqs = CoarseChannel::get_fine_chan_centres_array_hz(
+            gpubox_info.mwa_version,
+            &metafits_context.metafits_coarse_chans,
+            metafits_context.corr_fine_chan_width_hz,
+            metafits_context.num_corr_fine_chans_per_coarse,
+        );
 
         // Populate the timesteps
         metafits_context.populate_expected_timesteps(gpubox_info.mwa_version)?;

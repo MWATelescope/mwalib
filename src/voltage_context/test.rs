@@ -240,7 +240,7 @@ pub(crate) fn get_test_voltage_files(mwa_version: MWAVersion) -> Vec<String> {
             VCS_MWAXV2_TEST_DATA_CREATED.call_once(|| {
                 // Create this test data, but only once!
                 for (i, f) in test_filenames.iter().enumerate() {
-                    generate_test_voltage_file_mwax(&f, i as u8).unwrap();
+                    generate_test_voltage_file_mwax(f, i as u8).unwrap();
                 }
             });
         }
@@ -255,7 +255,7 @@ pub(crate) fn get_test_voltage_files(mwa_version: MWAVersion) -> Vec<String> {
             // This ensure the test data is created once only
             VCS_LEGACY_TEST_DATA_CREATED.call_once(|| {
                 for (i, f) in test_filenames.iter().enumerate() {
-                    generate_test_voltage_file_legacy_recombined(&f, i as u8).unwrap();
+                    generate_test_voltage_file_legacy_recombined(f, i as u8).unwrap();
                 }
             });
         }

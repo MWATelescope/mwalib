@@ -22,7 +22,28 @@ fn test_metafits_context_new_invalid() {
 }
 
 #[test]
-fn test_metafits_context_new_valid() {
+fn test_metafits_context_new_vcslegacy_valid() {
+    // Open the test mwa v 1 metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    //
+    // Read the observation using mwalib
+    //
+    // Open a context and load in a test metafits
+    let context = MetafitsContext::new(&metafits_filename, MWAVersion::VCSLegacyRecombined)
+        .expect("Failed to create MetafitsContext");
+
+    // Test the properties of the context object match what we expect
+
+    // obsid:                    1101503312,
+    assert_eq!(context.obs_id, 1_101_503_312);
+
+    assert_eq!(context.volt_fine_chan_width_hz, 10_000);
+    assert_eq!(context.num_volt_fine_chans_per_coarse, 128);
+}
+
+#[test]
+fn test_metafits_context_new_corrlegacy_valid() {
     // Open the test mwa v 1 metafits file
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
@@ -200,6 +221,27 @@ fn test_metafits_context_new_valid() {
     assert_eq!(VisPol::XY.to_string(), "XY");
     assert_eq!(VisPol::YX.to_string(), "YX");
     assert_eq!(VisPol::YY.to_string(), "YY");
+}
+
+#[test]
+fn test_metafits_context_new_vcsmwax2_valid() {
+    // Open the test mwa v 1 metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    //
+    // Read the observation using mwalib
+    //
+    // Open a context and load in a test metafits
+    let context = MetafitsContext::new(&metafits_filename, MWAVersion::VCSMWAXv2)
+        .expect("Failed to create MetafitsContext");
+
+    // Test the properties of the context object match what we expect
+
+    // obsid:                    1101503312,
+    assert_eq!(context.obs_id, 1_101_503_312);
+
+    assert_eq!(context.volt_fine_chan_width_hz, 1_280_000);
+    assert_eq!(context.num_volt_fine_chans_per_coarse, 1);
 }
 
 #[test]

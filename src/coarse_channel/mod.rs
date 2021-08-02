@@ -225,7 +225,7 @@ impl CoarseChannel {
                         _ => match voltage_time_map {
                             Some(v) => {
                                 if let Some((_, channel_map)) = v.iter().next() {
-                                    if channel_map.contains_key(&rec_chan_number) {
+                                    if channel_map.contains_key(rec_chan_number) {
                                         coarse_chans.push(CoarseChannel::new(
                                             correlator_chan_number,
                                             *rec_chan_number,
@@ -264,7 +264,7 @@ impl CoarseChannel {
                     match gpubox_time_map {
                         Some(g) => {
                             if let Some((_, channel_map)) = g.iter().next() {
-                                if channel_map.contains_key(&rec_chan_number) {
+                                if channel_map.contains_key(rec_chan_number) {
                                     coarse_chans.push(CoarseChannel::new(
                                         correlator_chan_number,
                                         *rec_chan_number,
@@ -277,7 +277,7 @@ impl CoarseChannel {
                         _ => match voltage_time_map {
                             Some(v) => {
                                 if let Some((_, channel_map)) = v.iter().next() {
-                                    if channel_map.contains_key(&rec_chan_number) {
+                                    if channel_map.contains_key(rec_chan_number) {
                                         coarse_chans.push(CoarseChannel::new(
                                             correlator_chan_number,
                                             *rec_chan_number,
@@ -337,16 +337,14 @@ impl CoarseChannel {
         coarse_chan_indices
     }
 
-    /// Calculate the centre frequency of first fine channel of coarse channel.
+    /// Calculate the centre frequency of each fine channel of this coarse channel.
     ///
     ///
     /// # Arguments    
     ///
     /// * `mwa_version` - The version of the MWA is in use.
     ///
-    /// * `coarse_chan_width_hz` - Width in Hz of the coarse channel.
-    ///
-    /// * `coarse_chan_centre_hz` - Center in sky frequency of this coarse channel.
+    /// * `coarse_channels` - Vector of populated Coarse Channels.
     ///
     /// * `fine_chan_width_hz` - Fine channel width in Hz.
     ///
@@ -356,23 +354,21 @@ impl CoarseChannel {
     ///
     /// * The centre frequency of the first fine channel of the coarse channel.
     ///
-    pub fn get_first_fine_chan_centre_hz(
+    pub fn get_fine_chan_centres_array_hz(
         mwa_version: MWAVersion,
-        coarse_chan_width_hz: u32,
-        coarse_chan_centre_hz: u32,
-        fine_chan_width_hz: u64,
+        coarse_channels: &[CoarseChannel],
+        fine_chan_width_hz: u32,
         num_fine_chans_per_coarse: usize,
-    ) -> f64 {
+    ) -> Vec<f64> {
         // Firstly calculate the offset
         // For Legacy MWA, the offset is only needed if the fine channel width is 20 or 40kHz.
         let offset_hz = match mwa_version {
             MWAVersion::CorrLegacy
             | MWAVersion::CorrOldLegacy
             | MWAVersion::VCSLegacyRecombined => match num_fine_chans_per_coarse {
-                128 => 0.0,     // 10 kHz
-                64 => 5_000.0,  // 20 kHz
-                32 => 15_000.0, // 40 Khz
-                _ => 0.0,
+                64 => 5_000.0,  // 20 kHz corr mode needs a 5 kHz offset applied
+                32 => 15_000.0, // 40 kHz corr mode needs a 15 kHz offset applied
+                _ => 0.0,       // other modes (10kHz) does not need any offset applied
             },
             MWAVersion::CorrMWAXv2 | MWAVersion::VCSMWAXv2 => 0.0,
         };
@@ -383,16 +379,18 @@ impl CoarseChannel {
             false => 0.5, // Odd
         };
 
-        // Now calculate the first fine chan centre hz:
-        //
-        // = coarse_chan_centre - (coarse_chan_width/2)  // This gets you to the start edge Hz of the coarse channel
-        //   + (odd_even_adjustment * fine_chan_width)   // This moves us into the centre of that fine channel
-        let first_fine_chan_center_hz: f64 = coarse_chan_centre_hz as f64
-            - (coarse_chan_width_hz as f64 / 2.0)
-            + (odd_even_adjustment * fine_chan_width_hz as f64);
-
-        // Apply the offset (if required)
-        first_fine_chan_center_hz + offset_hz
+        // Return a vector of f64s which are the fine channel centre frequencies for all the fine channels in [coarse_channels]
+        coarse_channels
+            .iter()
+            .flat_map(|coarse_chan| {
+                let chan_start_hz = coarse_chan.chan_start_hz;
+                (0..num_fine_chans_per_coarse).map(move |fine_chan_idx| {
+                    chan_start_hz as f64
+                        + ((fine_chan_idx as f64 + odd_even_adjustment) * fine_chan_width_hz as f64)
+                        + offset_hz
+                })
+            })
+            .collect()
     }
 }
 

@@ -49,7 +49,6 @@ fn test_legacy_conversion_baseline_debug() {
         yx_index: 4,
         yy_conjugate: false,
         yy_index: 5,
-        is_cross: true,
     };
 
     assert_eq!(format!("{:?}", lcb), "1,0,1,2,-2,3,-3,4,-4,5,-5\n");

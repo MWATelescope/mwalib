@@ -48,7 +48,6 @@ pub(crate) struct LegacyConversionBaseline {
     pub yx_conjugate: bool, // if true, we need to conjugate this visibility
     pub yy_index: usize,    // index of where complex xx is in the input buffer
     pub yy_conjugate: bool, // if true, we need to conjugate this visibility
-    pub is_cross: bool,     // if true, we need to conjugate this visibility AGAIN
 }
 
 impl LegacyConversionBaseline {
@@ -81,7 +80,6 @@ impl LegacyConversionBaseline {
             yx_conjugate: yx < 0,
             yy_index: yy.abs() as usize,
             yy_conjugate: yy < 0,
-            is_cross: ant1 != ant2,
         }
     }
 }

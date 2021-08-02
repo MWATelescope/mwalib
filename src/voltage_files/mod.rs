@@ -602,15 +602,13 @@ pub(crate) fn determine_common_obs_times_and_chans(
 
     // Go through all timesteps in the GpuBoxTimeMap.
     // For each timestep get each coarse channel identifier and add it into the HashSet, then dump them into a vector
-    let provided_chan_identifiers: Vec<usize> = voltage_time_map
+    // get the length of the vector - we will use this to test each entry in the VoltageTimeMap
+    let max_chans = voltage_time_map
         .iter()
         .flat_map(|ts| ts.1.iter().map(|ch| *ch.0))
         .collect::<HashSet<usize>>()
         .into_iter()
-        .collect();
-
-    // get the length of the vector - we will use this to test each entry in the VoltageTimeMap
-    let max_chans = provided_chan_identifiers.len();
+        .len();
 
     // Filter only the timesteps that have the same coarse channels
     let mut filtered_timesteps = timemap

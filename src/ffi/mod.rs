@@ -1025,6 +1025,10 @@ pub struct MetafitsMetadata {
     pub corr_int_time_ms: u64,
     /// Number of fine channels in each coarse channel for a correlator observation
     pub num_corr_fine_chans_per_coarse: usize,
+    /// Voltage fine_chan_resolution
+    pub volt_fine_chan_width_hz: u32,
+    /// Number of fine channels in each coarse channel for a voltage observation
+    pub num_volt_fine_chans_per_coarse: usize,
     /// RECVRS    Array of receiver numbers (this tells us how many receivers too)
     pub receivers: *mut usize,
     /// DELAYS    Array of delays
@@ -1073,6 +1077,10 @@ pub struct MetafitsMetadata {
     pub num_metafits_coarse_chans: usize,
     /// metafits_coarse_chans array
     pub metafits_coarse_chans: *mut CoarseChannel,
+    /// Number of fine channels for the whole observation
+    pub num_metafits_fine_chan_freqs: usize,
+    /// Vector of fine channel frequencies for the whole observation
+    pub metafits_fine_chan_freqs: *mut f64,
     /// Number of timesteps based on the metafits
     pub num_metafits_timesteps: usize,
     /// metafits_timesteps array
@@ -1330,6 +1338,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             corr_fine_chan_width_hz,
             corr_int_time_ms,
             num_corr_fine_chans_per_coarse,
+            volt_fine_chan_width_hz,
+            num_volt_fine_chans_per_coarse,
             receivers,
             delays,
             global_analogue_attenuation_db,
@@ -1346,6 +1356,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_visibility_pols,
             metafits_timesteps: _, // This is populated seperately
             num_metafits_timesteps,
+            metafits_fine_chan_freqs,
+            num_metafits_fine_chan_freqs,
             metafits_coarse_chans: _, // This is populated seperately
             num_metafits_coarse_chans,
             obs_bandwidth_hz,
@@ -1387,6 +1399,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             corr_fine_chan_width_hz: *corr_fine_chan_width_hz,
             corr_int_time_ms: *corr_int_time_ms,
             num_corr_fine_chans_per_coarse: *num_corr_fine_chans_per_coarse,
+            volt_fine_chan_width_hz: *volt_fine_chan_width_hz,
+            num_volt_fine_chans_per_coarse: *num_volt_fine_chans_per_coarse,
             receivers: ffi_array_to_boxed_slice(receivers.clone()),
             delays: ffi_array_to_boxed_slice(delays.clone()),
             sched_start_utc: sched_start_utc.timestamp(),
@@ -1411,6 +1425,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_visibility_pols: *num_visibility_pols,
             num_metafits_coarse_chans: *num_metafits_coarse_chans,
             metafits_coarse_chans: ffi_array_to_boxed_slice(coarse_chan_vec),
+            num_metafits_fine_chan_freqs: *num_metafits_fine_chan_freqs,
+            metafits_fine_chan_freqs: ffi_array_to_boxed_slice(metafits_fine_chan_freqs.clone()),
             num_metafits_timesteps: *num_metafits_timesteps,
             metafits_timesteps: ffi_array_to_boxed_slice(timestep_vec),
             obs_bandwidth_hz: *obs_bandwidth_hz,
@@ -1515,6 +1531,13 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     // delays
     if !(*metafits_metadata_ptr).delays.is_null() {
         drop(Box::from_raw((*metafits_metadata_ptr).delays));
+    }
+
+    // fine channel freqs
+    if !(*metafits_metadata_ptr).metafits_fine_chan_freqs.is_null() {
+        drop(Box::from_raw(
+            (*metafits_metadata_ptr).metafits_fine_chan_freqs,
+        ));
     }
 
     // Free main metadata struct

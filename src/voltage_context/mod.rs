@@ -163,11 +163,26 @@ impl VoltageContext {
         if voltage_filenames.is_empty() {
             return Err(MwalibError::Voltage(VoltageFileError::NoVoltageFiles));
         }
-        let voltage_info = examine_voltage_files(&metafits_context, &voltage_filenames)?;
+        let voltage_info = examine_voltage_files(&metafits_context, voltage_filenames)?;
+
+        // Update the voltage fine channel size now that we know which mwaversion we are using
+        if voltage_info.mwa_version == MWAVersion::VCSMWAXv2 {
+            // MWAX VCS- the data is unchannelised so coarse chan width == fine chan width
+            metafits_context.volt_fine_chan_width_hz = metafits_context.coarse_chan_width_hz;
+            metafits_context.num_volt_fine_chans_per_coarse = 1;
+        }
 
         // Populate metafits coarse channels and timesteps now that we know what MWA Version we are dealing with
         // Populate the coarse channels
         metafits_context.populate_expected_coarse_channels(voltage_info.mwa_version)?;
+
+        // Now populate the fine channels
+        metafits_context.metafits_fine_chan_freqs = CoarseChannel::get_fine_chan_centres_array_hz(
+            voltage_info.mwa_version,
+            &metafits_context.metafits_coarse_chans,
+            metafits_context.volt_fine_chan_width_hz,
+            metafits_context.num_volt_fine_chans_per_coarse,
+        );
 
         // Populate the timesteps
         metafits_context.populate_expected_timesteps(voltage_info.mwa_version)?;
@@ -198,23 +213,9 @@ impl VoltageContext {
             voltage_files::populate_provided_coarse_channels(&voltage_info.time_map, &coarse_chans);
         let num_provided_coarse_chan_indices = provided_coarse_chan_indices.len();
 
-        // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is 1.28 MHz (unchannelised)
-        let fine_chan_width_hz: u32 = match voltage_info.mwa_version {
-            MWAVersion::VCSLegacyRecombined => 10_000,
-            MWAVersion::VCSMWAXv2 => {
-                metafits_context.obs_bandwidth_hz
-                    / metafits_context.num_metafits_coarse_chans as u32
-            }
-            _ => {
-                return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
-                    mwa_version: voltage_info.mwa_version,
-                }))
-            }
-        };
-
-        // Determine the number of fine channels per coarse channel.
-        let num_fine_chans_per_coarse =
-            (metafits_context.coarse_chan_width_hz / fine_chan_width_hz) as usize;
+        // Fine-channel resolution & number of fine chans per coarse
+        let fine_chan_width_hz = metafits_context.volt_fine_chan_width_hz;
+        let num_fine_chans_per_coarse = metafits_context.num_volt_fine_chans_per_coarse;
 
         let coarse_chan_width_hz = metafits_context.coarse_chan_width_hz;
 
@@ -576,11 +577,8 @@ impl VoltageContext {
         let channel_identifier = self.coarse_chans[coarse_chan_index].gpubox_number;
 
         // Validate the gpstime
-        let gps_second_end = VoltageContext::validate_gps_time_parameters(
-            &self,
-            gps_second_start,
-            gps_second_count,
-        )?;
+        let gps_second_end =
+            VoltageContext::validate_gps_time_parameters(self, gps_second_start, gps_second_count)?;
 
         // Determine which timestep(s) we need to cover the start and end gps times.
         // NOTE: mwax has 8 gps seconds per timestep, legacy vcs has 1

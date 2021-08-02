@@ -333,6 +333,10 @@ pub struct MetafitsContext {
     pub corr_int_time_ms: u64,
     /// Number of fine channels in each coarse channel for a correlator observation
     pub num_corr_fine_chans_per_coarse: usize,
+    /// Voltage fine_chan_resolution
+    pub volt_fine_chan_width_hz: u32,
+    /// Number of fine channels in each coarse channel for a voltage observation
+    pub num_volt_fine_chans_per_coarse: usize,
     /// RECVRS    // Array of receiver numbers (this tells us how many receivers too)
     pub receivers: Vec<usize>,
     /// DELAYS    // Array of delays
@@ -363,6 +367,10 @@ pub struct MetafitsContext {
     pub num_metafits_coarse_chans: usize,
     /// Vector of coarse channels based on the metafits file
     pub metafits_coarse_chans: Vec<CoarseChannel>,
+    /// Number of fine channels for the whole observation
+    pub num_metafits_fine_chan_freqs: usize,
+    /// Vector of fine channel frequencies for the whole observation
+    pub metafits_fine_chan_freqs: Vec<f64>,
     /// Total bandwidth of observation assuming we have all coarse channels
     pub obs_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
@@ -399,8 +407,37 @@ impl MetafitsContext {
         // Call the internal new metafits method
         let mut new_context = MetafitsContext::new_internal(metafits)?;
 
+        // Update the voltage fine channel size now that we know which mwaversion we are using
+        if mwa_version == MWAVersion::VCSMWAXv2 {
+            // MWAX VCS- the data is unchannelised so coarse chan width == fine chan width
+            new_context.volt_fine_chan_width_hz = new_context.coarse_chan_width_hz;
+            new_context.num_volt_fine_chans_per_coarse = 1;
+        }
+
         // Populate the coarse channels
         new_context.populate_expected_coarse_channels(mwa_version)?;
+
+        // Now populate the fine channels
+        new_context.metafits_fine_chan_freqs = CoarseChannel::get_fine_chan_centres_array_hz(
+            mwa_version,
+            &new_context.metafits_coarse_chans,
+            match mwa_version {
+                MWAVersion::VCSLegacyRecombined | MWAVersion::VCSMWAXv2 => {
+                    new_context.volt_fine_chan_width_hz
+                }
+                MWAVersion::CorrLegacy | MWAVersion::CorrOldLegacy | MWAVersion::CorrMWAXv2 => {
+                    new_context.corr_fine_chan_width_hz
+                }
+            },
+            match mwa_version {
+                MWAVersion::VCSLegacyRecombined | MWAVersion::VCSMWAXv2 => {
+                    new_context.num_volt_fine_chans_per_coarse
+                }
+                MWAVersion::CorrLegacy | MWAVersion::CorrOldLegacy | MWAVersion::CorrMWAXv2 => {
+                    new_context.num_corr_fine_chans_per_coarse
+                }
+            },
+        );
 
         // Populate the timesteps
         new_context.populate_expected_timesteps(mwa_version)?;
@@ -624,19 +661,34 @@ impl MetafitsContext {
                 metafits_observation_bandwidth_hz,
             )?;
 
+        // Populate an empty vector for the coarse channels until we know the MWAVersion
+        // This is because the coarse channel vector will be different depending on the MWAVersion
         let metafits_coarse_chans: Vec<CoarseChannel> =
             Vec::with_capacity(metafits_coarse_chan_vec.len());
         let num_metafits_coarse_chans: usize = 0;
 
+        // Populate fine channel frequencies- we know enough to do this now
+        let num_metafits_fine_chan_freqs: usize = metafits_coarse_chan_vec.len();
+        let metafits_fine_chan_freqs: Vec<f64> = Vec::with_capacity(num_metafits_fine_chan_freqs);
+
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.
-        let fine_chan_width_hz: u32 = {
+        let corr_fine_chan_width_hz: u32 = {
             let fc: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FINECHAN")?;
             (fc * 1000.).round() as _
         };
         // Determine the number of fine channels per coarse channel.
         let num_corr_fine_chans_per_coarse =
-            (metafits_coarse_chan_width_hz / fine_chan_width_hz) as usize;
+            (metafits_coarse_chan_width_hz / corr_fine_chan_width_hz) as usize;
+
+        // Fine-channel resolution. MWA Legacy is 10 kHz, MWAX is unchannelised
+        // For now we specify the Legacy VCS, until we know what type of obs this is when we get the
+        // MWAVersion in the more specialised methods which populate the metafits info.
+        let volt_fine_chan_width_hz: u32 = 10_000;
+
+        // Determine the number of fine channels per coarse channel.
+        let num_volt_fine_chans_per_coarse =
+            (metafits_coarse_chan_width_hz / volt_fine_chan_width_hz) as usize;
 
         Ok(MetafitsContext {
             obs_id: obsid,
@@ -675,9 +727,11 @@ impl MetafitsContext {
             geometric_delays_applied,
             cable_delays_applied,
             calibration_delays_and_gains_applied,
-            corr_fine_chan_width_hz: fine_chan_width_hz,
+            corr_fine_chan_width_hz,
             corr_int_time_ms: integration_time_ms,
             num_corr_fine_chans_per_coarse,
+            volt_fine_chan_width_hz,
+            num_volt_fine_chans_per_coarse,
             receivers,
             delays,
             global_analogue_attenuation_db,
@@ -689,10 +743,12 @@ impl MetafitsContext {
             num_rf_inputs,
             rf_inputs,
             num_ant_pols: num_antenna_pols,
+            num_metafits_coarse_chans,
             metafits_coarse_chans,
+            num_metafits_fine_chan_freqs,
+            metafits_fine_chan_freqs,
             num_metafits_timesteps,
             metafits_timesteps,
-            num_metafits_coarse_chans,
             obs_bandwidth_hz: metafits_observation_bandwidth_hz,
             coarse_chan_width_hz: metafits_coarse_chan_width_hz,
             centre_freq_hz,
@@ -801,14 +857,18 @@ impl fmt::Display for MetafitsContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            r#"MetafitsContext (    
-    obsid:                    {obsid},
-    mode:                     {mode},
+            r#"MetafitsContext (
+    obsid:                     {obsid},
+    mode:                      {mode},
 
-    Correlator Mode:
-    fine channel resolution:  {fcw} kHz,
-    integration time:         {int_time:.2} s
-    num fine channels/coarse: {nfcpc},
+    If Correlator Mode:
+     fine channel resolution:  {fcw} kHz,
+     integration time:         {int_time:.2} s
+     num fine channels/coarse: {nfcpc},
+
+    If Voltage Mode:
+     fine channel resolution:  {vfcw} kHz,
+     num fine channels/coarse: {nvfcpc},
 
     Geometric delays applied          : {geodel},
     Cable length corrections applied  : {cabledel},
@@ -833,9 +893,14 @@ impl fmt::Display for MetafitsContext {
     Quack time:               {quack_duration} s,
     Good UNIX start time:     {good_time},
     
+    Num timesteps:            {nts},
     Timesteps:                {ts:?},
 
+    Num coarse channels:      {ncc},
     Coarse Channels:          {cc:?},
+
+    Num fine channels:        {nfc},
+    Fine Channels (kHz):      {fc:?},
 
     R.A. (tile_pointing):     {rtpc} degrees,
     Dec. (tile_pointing):     {dtpc} degrees,
@@ -888,7 +953,14 @@ impl fmt::Display for MetafitsContext {
             quack_duration = self.quack_time_duration_ms as f64 / 1e3,
             good_time = self.good_time_unix_ms as f64 / 1e3,
             ts = self.metafits_timesteps,
+            nts = self.metafits_timesteps.len(),
             cc = self.metafits_coarse_chans,
+            ncc = self.metafits_coarse_chans.len(),
+            nfc = self.metafits_fine_chan_freqs.len(),
+            fc = self
+                .metafits_fine_chan_freqs
+                .iter()
+                .map(|f| format!("{:.3} ", f / 1000.)),
             rtpc = self.ra_tile_pointing_degrees,
             dtpc = self.dec_tile_pointing_degrees,
             rppc = Some(self.ra_phase_center_degrees),
@@ -923,6 +995,8 @@ impl fmt::Display for MetafitsContext {
             geodel = self.geometric_delays_applied,
             cabledel = self.cable_delays_applied,
             calibdel = self.calibration_delays_and_gains_applied,
+            vfcw = self.volt_fine_chan_width_hz as f64 / 1e3,
+            nvfcpc = self.num_volt_fine_chans_per_coarse,
             fcw = self.corr_fine_chan_width_hz as f64 / 1e3,
             nfcpc = self.num_corr_fine_chans_per_coarse,
             int_time = self.corr_int_time_ms as f64 / 1e3,

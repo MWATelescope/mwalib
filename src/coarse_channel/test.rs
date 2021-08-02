@@ -603,205 +603,317 @@ fn test_get_coarse_chan_indicies() {
 }
 
 #[test]
-fn test_get_first_fine_chan_centre_hz_legacy_40khz() {
-    let coarse_chan_width_hz: u32 = 1_280_000;
-    let rec_channel_num: usize = 131;
-    let coarse_chan_centre_hz: u32 = rec_channel_num as u32 * coarse_chan_width_hz;
-    let fine_chan_width_hz: u64 = 40_000;
-    let num_fine_chans_per_coarse: usize =
-        coarse_chan_width_hz as usize / fine_chan_width_hz as usize;
+fn test_get_fine_chan_centres_array_hz_legacy_40khz() {
+    let metafits_chan_array: Vec<_> = (131..155).collect();
+    assert_eq!(metafits_chan_array.len(), 24);
+    let channel_width = 1_280_000;
+    let mwa_version: MWAVersion = MWAVersion::CorrLegacy;
 
-    let calc_first_fine_centre_hz: f64 = CoarseChannel::get_first_fine_chan_centre_hz(
-        MWAVersion::CorrLegacy,
-        coarse_chan_width_hz,
-        coarse_chan_centre_hz,
+    // Process coarse channels
+    let coarse_chan_array = CoarseChannel::populate_coarse_channels(
+        mwa_version,
+        &metafits_chan_array,
+        channel_width,
+        None,
+        None,
+    )
+    .unwrap();
+
+    let fine_chan_width_hz: u32 = 40_000;
+    let num_fine_chans_per_coarse: usize = channel_width as usize / fine_chan_width_hz as usize;
+
+    let calc_fine_chan_centre_array_hz = CoarseChannel::get_fine_chan_centres_array_hz(
+        mwa_version,
+        &coarse_chan_array,
         fine_chan_width_hz,
         num_fine_chans_per_coarse,
     );
 
+    // Check we have the right number of fine channels
+    assert_eq!(
+        calc_fine_chan_centre_array_hz.len(),
+        24 * num_fine_chans_per_coarse
+    );
+
+    // Check values
     assert!(
         approx_eq!(
             f64,
             167_055_000.0,
-            calc_first_fine_centre_hz,
+            calc_fine_chan_centre_array_hz[0],
             F64Margin::default()
         ),
         "calculated value: {}",
-        calc_first_fine_centre_hz
+        calc_fine_chan_centre_array_hz[0]
     );
 }
 
 #[test]
-fn test_get_first_fine_chan_centre_hz_legacy_20khz() {
-    let coarse_chan_width_hz: u32 = 1_280_000;
-    let rec_channel_num: usize = 131;
-    let coarse_chan_centre_hz: u32 = rec_channel_num as u32 * coarse_chan_width_hz;
-    let fine_chan_width_hz: u64 = 20_000;
-    let num_fine_chans_per_coarse: usize =
-        coarse_chan_width_hz as usize / fine_chan_width_hz as usize;
+fn test_get_fine_chan_centres_array_hz_legacy_20khz() {
+    let metafits_chan_array: Vec<_> = (131..155).collect();
+    let channel_width = 1_280_000;
+    let mwa_version: MWAVersion = MWAVersion::CorrLegacy;
 
-    let calc_first_fine_centre_hz: f64 = CoarseChannel::get_first_fine_chan_centre_hz(
-        MWAVersion::CorrLegacy,
-        coarse_chan_width_hz,
-        coarse_chan_centre_hz,
+    // Process coarse channels
+    let coarse_chan_array = CoarseChannel::populate_coarse_channels(
+        mwa_version,
+        &metafits_chan_array,
+        channel_width,
+        None,
+        None,
+    )
+    .unwrap();
+
+    let fine_chan_width_hz: u32 = 20_000;
+    let num_fine_chans_per_coarse: usize = channel_width as usize / fine_chan_width_hz as usize;
+
+    let calc_fine_chan_centre_array_hz = CoarseChannel::get_fine_chan_centres_array_hz(
+        mwa_version,
+        &coarse_chan_array,
         fine_chan_width_hz,
         num_fine_chans_per_coarse,
     );
 
+    // Check we have the right number of fine channels
+    assert_eq!(
+        calc_fine_chan_centre_array_hz.len(),
+        24 * num_fine_chans_per_coarse
+    );
+
+    // Check values
     assert!(
         approx_eq!(
             f64,
             167_045_000.0,
-            calc_first_fine_centre_hz,
+            calc_fine_chan_centre_array_hz[0],
             F64Margin::default()
         ),
         "calculated value: {}",
-        calc_first_fine_centre_hz
+        calc_fine_chan_centre_array_hz[0]
     );
 }
 
 #[test]
-fn test_get_first_fine_chan_centre_hz_legacy_10khz() {
-    let coarse_chan_width_hz: u32 = 1_280_000;
-    let rec_channel_num: usize = 131;
-    let coarse_chan_centre_hz: u32 = rec_channel_num as u32 * coarse_chan_width_hz;
-    let fine_chan_width_hz: u64 = 10_000;
-    let num_fine_chans_per_coarse: usize =
-        coarse_chan_width_hz as usize / fine_chan_width_hz as usize;
+fn test_get_fine_chan_centres_array_hz_hz_legacy_10khz() {
+    let metafits_chan_array: Vec<_> = (131..155).collect();
+    let channel_width = 1_280_000;
+    let mwa_version: MWAVersion = MWAVersion::CorrLegacy;
 
-    let calc_first_fine_centre_hz: f64 = CoarseChannel::get_first_fine_chan_centre_hz(
-        MWAVersion::CorrLegacy,
-        coarse_chan_width_hz,
-        coarse_chan_centre_hz,
+    // Process coarse channels
+    let coarse_chan_array = CoarseChannel::populate_coarse_channels(
+        mwa_version,
+        &metafits_chan_array,
+        channel_width,
+        None,
+        None,
+    )
+    .unwrap();
+
+    let fine_chan_width_hz: u32 = 10_000;
+    let num_fine_chans_per_coarse: usize = channel_width as usize / fine_chan_width_hz as usize;
+
+    let calc_fine_chan_centre_array_hz = CoarseChannel::get_fine_chan_centres_array_hz(
+        mwa_version,
+        &coarse_chan_array,
         fine_chan_width_hz,
         num_fine_chans_per_coarse,
     );
 
+    // Check we have the right number of fine channels
+    assert_eq!(
+        calc_fine_chan_centre_array_hz.len(),
+        24 * num_fine_chans_per_coarse
+    );
+
+    // Check values
     assert!(
         approx_eq!(
             f64,
             167_040_000.0,
-            calc_first_fine_centre_hz,
+            calc_fine_chan_centre_array_hz[0],
             F64Margin::default()
         ),
         "calculated value: {}",
-        calc_first_fine_centre_hz
+        calc_fine_chan_centre_array_hz[0]
     );
 }
 
 #[test]
-fn test_get_first_fine_chan_centre_hz_mwaxv2_40khz() {
-    let coarse_chan_width_hz: u32 = 1_280_000;
-    let rec_channel_num: usize = 131;
-    let coarse_chan_centre_hz: u32 = rec_channel_num as u32 * coarse_chan_width_hz;
-    let fine_chan_width_hz: u64 = 40_000;
-    let num_fine_chans_per_coarse: usize =
-        coarse_chan_width_hz as usize / fine_chan_width_hz as usize;
+fn test_get_fine_chan_centres_array_hz_mwaxv2_40khz() {
+    let metafits_chan_array: Vec<_> = (131..155).collect();
+    let channel_width = 1_280_000;
+    let mwa_version: MWAVersion = MWAVersion::CorrMWAXv2;
 
-    let calc_first_fine_centre_hz: f64 = CoarseChannel::get_first_fine_chan_centre_hz(
-        MWAVersion::CorrMWAXv2,
-        coarse_chan_width_hz,
-        coarse_chan_centre_hz,
+    // Process coarse channels
+    let coarse_chan_array = CoarseChannel::populate_coarse_channels(
+        mwa_version,
+        &metafits_chan_array,
+        channel_width,
+        None,
+        None,
+    )
+    .unwrap();
+
+    let fine_chan_width_hz: u32 = 40_000;
+    let num_fine_chans_per_coarse: usize = channel_width as usize / fine_chan_width_hz as usize;
+
+    let calc_fine_chan_centre_array_hz = CoarseChannel::get_fine_chan_centres_array_hz(
+        mwa_version,
+        &coarse_chan_array,
         fine_chan_width_hz,
         num_fine_chans_per_coarse,
     );
 
+    // Check we have the right number of fine channels
+    assert_eq!(
+        calc_fine_chan_centre_array_hz.len(),
+        24 * num_fine_chans_per_coarse
+    );
+
+    // Check values
     assert!(
         approx_eq!(
             f64,
             167_040_000.0,
-            calc_first_fine_centre_hz,
+            calc_fine_chan_centre_array_hz[0],
             F64Margin::default()
         ),
         "calculated value: {}",
-        calc_first_fine_centre_hz
+        calc_fine_chan_centre_array_hz[0]
     );
 }
 
 #[test]
-fn test_get_first_fine_chan_centre_hz_mwaxv2_20khz() {
-    let coarse_chan_width_hz: u32 = 1_280_000;
-    let rec_channel_num: usize = 131;
-    let coarse_chan_centre_hz: u32 = rec_channel_num as u32 * coarse_chan_width_hz;
-    let fine_chan_width_hz: u64 = 20_000;
-    let num_fine_chans_per_coarse: usize =
-        coarse_chan_width_hz as usize / fine_chan_width_hz as usize;
+fn test_get_fine_chan_centres_array_hz_mwaxv2_20khz() {
+    let metafits_chan_array: Vec<_> = (131..155).collect();
+    let channel_width = 1_280_000;
+    let mwa_version: MWAVersion = MWAVersion::CorrMWAXv2;
 
-    let calc_first_fine_centre_hz: f64 = CoarseChannel::get_first_fine_chan_centre_hz(
-        MWAVersion::CorrMWAXv2,
-        coarse_chan_width_hz,
-        coarse_chan_centre_hz,
+    // Process coarse channels
+    let coarse_chan_array = CoarseChannel::populate_coarse_channels(
+        mwa_version,
+        &metafits_chan_array,
+        channel_width,
+        None,
+        None,
+    )
+    .unwrap();
+
+    let fine_chan_width_hz: u32 = 20_000;
+    let num_fine_chans_per_coarse: usize = channel_width as usize / fine_chan_width_hz as usize;
+
+    let calc_fine_chan_centre_array_hz = CoarseChannel::get_fine_chan_centres_array_hz(
+        mwa_version,
+        &coarse_chan_array,
         fine_chan_width_hz,
         num_fine_chans_per_coarse,
     );
 
+    // Check we have the right number of fine channels
+    assert_eq!(
+        calc_fine_chan_centre_array_hz.len(),
+        24 * num_fine_chans_per_coarse
+    );
+
+    // Check values
     assert!(
         approx_eq!(
             f64,
             167_040_000.0,
-            calc_first_fine_centre_hz,
+            calc_fine_chan_centre_array_hz[0],
             F64Margin::default()
         ),
         "calculated value: {}",
-        calc_first_fine_centre_hz
+        calc_fine_chan_centre_array_hz[0]
     );
 }
 
 #[test]
-fn test_get_first_fine_chan_centre_hz_mwaxv2_10khz() {
-    let coarse_chan_width_hz: u32 = 1_280_000;
-    let rec_channel_num: usize = 131;
-    let coarse_chan_centre_hz: u32 = rec_channel_num as u32 * coarse_chan_width_hz;
-    let fine_chan_width_hz: u64 = 10_000;
-    let num_fine_chans_per_coarse: usize =
-        coarse_chan_width_hz as usize / fine_chan_width_hz as usize;
+fn test_get_fine_chan_centres_array_hz_mwaxv2_10khz() {
+    let metafits_chan_array: Vec<_> = (131..155).collect();
+    let channel_width = 1_280_000;
+    let mwa_version: MWAVersion = MWAVersion::CorrMWAXv2;
 
-    let calc_first_fine_centre_hz: f64 = CoarseChannel::get_first_fine_chan_centre_hz(
-        MWAVersion::CorrMWAXv2,
-        coarse_chan_width_hz,
-        coarse_chan_centre_hz,
+    // Process coarse channels
+    let coarse_chan_array = CoarseChannel::populate_coarse_channels(
+        mwa_version,
+        &metafits_chan_array,
+        channel_width,
+        None,
+        None,
+    )
+    .unwrap();
+
+    let fine_chan_width_hz: u32 = 10_000;
+    let num_fine_chans_per_coarse: usize = channel_width as usize / fine_chan_width_hz as usize;
+
+    let calc_fine_chan_centre_array_hz = CoarseChannel::get_fine_chan_centres_array_hz(
+        mwa_version,
+        &coarse_chan_array,
         fine_chan_width_hz,
         num_fine_chans_per_coarse,
     );
 
+    // Check we have the right number of fine channels
+    assert_eq!(
+        calc_fine_chan_centre_array_hz.len(),
+        24 * num_fine_chans_per_coarse
+    );
+
+    // Check values
     assert!(
         approx_eq!(
             f64,
             167_040_000.0,
-            calc_first_fine_centre_hz,
+            calc_fine_chan_centre_array_hz[0],
             F64Margin::default()
         ),
         "calculated value: {}",
-        calc_first_fine_centre_hz
+        calc_fine_chan_centre_array_hz[0]
     );
 }
 
 #[test]
-fn test_get_first_fine_chan_centre_hz_mwaxv2_2khz() {
-    // This provides an odd number of fine channels per coarse
-    let coarse_chan_width_hz: u32 = 1_280_000;
-    let rec_channel_num: usize = 131;
-    let coarse_chan_centre_hz: u32 = rec_channel_num as u32 * coarse_chan_width_hz;
-    let fine_chan_width_hz: u64 = 256_000;
-    let num_fine_chans_per_coarse: usize =
-        coarse_chan_width_hz as usize / fine_chan_width_hz as usize;
+fn test_get_fine_chan_centres_array_hz_mwaxv2_2khz() {
+    let metafits_chan_array: Vec<_> = (131..155).collect();
+    let channel_width = 1_280_000;
+    let mwa_version: MWAVersion = MWAVersion::CorrMWAXv2;
 
-    let calc_first_fine_centre_hz: f64 = CoarseChannel::get_first_fine_chan_centre_hz(
-        MWAVersion::CorrMWAXv2,
-        coarse_chan_width_hz,
-        coarse_chan_centre_hz,
+    // Process coarse channels
+    let coarse_chan_array = CoarseChannel::populate_coarse_channels(
+        mwa_version,
+        &metafits_chan_array,
+        channel_width,
+        None,
+        None,
+    )
+    .unwrap();
+
+    let fine_chan_width_hz: u32 = 256_000;
+    let num_fine_chans_per_coarse: usize = channel_width as usize / fine_chan_width_hz as usize;
+
+    let calc_fine_chan_centre_array_hz = CoarseChannel::get_fine_chan_centres_array_hz(
+        mwa_version,
+        &coarse_chan_array,
         fine_chan_width_hz,
         num_fine_chans_per_coarse,
     );
 
+    // Check we have the right number of fine channels
+    assert_eq!(
+        calc_fine_chan_centre_array_hz.len(),
+        24 * num_fine_chans_per_coarse
+    );
+
+    // Check values
     assert!(
         approx_eq!(
             f64,
             167_168_000.0,
-            calc_first_fine_centre_hz,
+            calc_fine_chan_centre_array_hz[0],
             F64Margin::default()
         ),
         "calculated value: {}",
-        calc_first_fine_centre_hz
+        calc_fine_chan_centre_array_hz[0]
     );
 }

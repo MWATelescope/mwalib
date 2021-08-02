@@ -495,7 +495,7 @@ fn validate_gpubox_metadata_mwa_version(
     // New correlator files include a version - check that it is present.
     // For pre v2, ensure the key isn't present
     let gpu_mwa_version: Option<u8> =
-        get_optional_fits_key!(gpubox_fptr, &gpubox_primary_hdu, "CORR_VER")?;
+        get_optional_fits_key!(gpubox_fptr, gpubox_primary_hdu, "CORR_VER")?;
 
     match mwa_version {
         MWAVersion::CorrMWAXv2 => match gpu_mwa_version {
@@ -758,15 +758,13 @@ pub(crate) fn determine_common_obs_times_and_chans(
 
     // Go through all timesteps in the GpuBoxTimeMap.
     // For each timestep get each coarse channel identifier and add it into the HashSet, then dump them into a vector
-    let provided_chan_identifiers: Vec<usize> = gpubox_time_map
+    // get the length of the vector - we will use this to test each entry in the GpuboxTimeMap
+    let max_chans = gpubox_time_map
         .iter()
         .flat_map(|ts| ts.1.iter().map(|ch| *ch.0))
         .collect::<HashSet<usize>>()
         .into_iter()
-        .collect();
-
-    // get the length of the vector - we will use this to test each entry in the GpuboxTimeMap
-    let max_chans = provided_chan_identifiers.len();
+        .len();
 
     // Filter only the timesteps that have the same coarse channels
     let mut filtered_timesteps = timemap

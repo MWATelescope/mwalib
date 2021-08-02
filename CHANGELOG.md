@@ -2,6 +2,12 @@
 
 Changes in each release are listed below.
 
+## 0.8.5 02-Aug-2021 (Pre-release)
+* Added metafits_context.num_metafits_fine_chan_freqs & metafits_context.metafits_fine_chan_freqs, providing a vector of sky frequencies for all fine channels.
+* Added metafits_context.volt_fine_chan_width_hz & metafits_context.num_volt_fine_chans_per_coarse to describe the voltage fine channel configuration.
+* Added the above new attributes to equivalent metafits_context struct in FFI.
+* Added more badges to github README.
+
 ## 0.8.4 15-Jul-2021 (Pre-release)
 * mwalib legacy autocorrelations (where ant1==ant2) are now conjugated with respect to previous versions.
 
