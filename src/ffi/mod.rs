@@ -1278,7 +1278,7 @@ pub struct MetafitsMetadata {
     /// metafits_coarse_chans array
     pub metafits_coarse_chans: *mut CoarseChannel,
     /// Number of fine channels for the whole observation
-    pub num_metafits_fine_chan_freqs: usize,
+    pub num_metafits_fine_chan_freqs_hz: usize,
     /// Vector of fine channel frequencies for the whole observation
     pub metafits_fine_chan_freqs: *mut f64,
     /// Number of timesteps based on the metafits
@@ -1556,7 +1556,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_visibility_pols,
             metafits_timesteps: _, // This is populated seperately
             num_metafits_timesteps,
-            metafits_fine_chan_freqs,
+            metafits_fine_chan_freqs_hz,
             num_metafits_fine_chan_freqs,
             metafits_coarse_chans: _, // This is populated seperately
             num_metafits_coarse_chans,
@@ -1625,8 +1625,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_visibility_pols: *num_visibility_pols,
             num_metafits_coarse_chans: *num_metafits_coarse_chans,
             metafits_coarse_chans: ffi_array_to_boxed_slice(coarse_chan_vec),
-            num_metafits_fine_chan_freqs: *num_metafits_fine_chan_freqs,
-            metafits_fine_chan_freqs: ffi_array_to_boxed_slice(metafits_fine_chan_freqs.clone()),
+            num_metafits_fine_chan_freqs_hz: *num_metafits_fine_chan_freqs,
+            metafits_fine_chan_freqs: ffi_array_to_boxed_slice(metafits_fine_chan_freqs_hz.clone()),
             num_metafits_timesteps: *num_metafits_timesteps,
             metafits_timesteps: ffi_array_to_boxed_slice(timestep_vec),
             obs_bandwidth_hz: *obs_bandwidth_hz,

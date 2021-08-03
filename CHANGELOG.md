@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 0.8.7 03-Aug-2021 (Pre-release)
+* Updated some dependencies in Cargo.toml.
+* Renamed metafits_context.metafits_fine_chan_freqs by adding _hz suffix to be consistent with other naming of attributes with units.
+
 ## 0.8.6 02-Aug-2021 (Pre-release)
 * Fixed bug where the metafits.num_metafits_fine_chan_freqs was not being set correctly.
 

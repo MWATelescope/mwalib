@@ -401,7 +401,7 @@ fn test_context_legacy_v1() {
     );
     assert_eq!(
         context.metafits_context.num_metafits_fine_chan_freqs,
-        context.metafits_context.metafits_fine_chan_freqs.len()
+        context.metafits_context.metafits_fine_chan_freqs_hz.len()
     );
 
     // Check rfinput order (for Legacy it is vcs_order, mwax is subfile_order)

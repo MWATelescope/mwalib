@@ -177,14 +177,15 @@ impl VoltageContext {
         metafits_context.populate_expected_coarse_channels(voltage_info.mwa_version)?;
 
         // Now populate the fine channels
-        metafits_context.metafits_fine_chan_freqs = CoarseChannel::get_fine_chan_centres_array_hz(
-            voltage_info.mwa_version,
-            &metafits_context.metafits_coarse_chans,
-            metafits_context.volt_fine_chan_width_hz,
-            metafits_context.num_volt_fine_chans_per_coarse,
-        );
+        metafits_context.metafits_fine_chan_freqs_hz =
+            CoarseChannel::get_fine_chan_centres_array_hz(
+                voltage_info.mwa_version,
+                &metafits_context.metafits_coarse_chans,
+                metafits_context.volt_fine_chan_width_hz,
+                metafits_context.num_volt_fine_chans_per_coarse,
+            );
         metafits_context.num_metafits_fine_chan_freqs =
-            metafits_context.metafits_fine_chan_freqs.len();
+            metafits_context.metafits_fine_chan_freqs_hz.len();
 
         // Populate the timesteps
         metafits_context.populate_expected_timesteps(voltage_info.mwa_version)?;

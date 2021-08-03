@@ -370,7 +370,7 @@ pub struct MetafitsContext {
     /// Number of fine channels for the whole observation
     pub num_metafits_fine_chan_freqs: usize,
     /// Vector of fine channel frequencies for the whole observation
-    pub metafits_fine_chan_freqs: Vec<f64>,
+    pub metafits_fine_chan_freqs_hz: Vec<f64>,
     /// Total bandwidth of observation assuming we have all coarse channels
     pub obs_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
@@ -418,7 +418,7 @@ impl MetafitsContext {
         new_context.populate_expected_coarse_channels(mwa_version)?;
 
         // Now populate the fine channels
-        new_context.metafits_fine_chan_freqs = CoarseChannel::get_fine_chan_centres_array_hz(
+        new_context.metafits_fine_chan_freqs_hz = CoarseChannel::get_fine_chan_centres_array_hz(
             mwa_version,
             &new_context.metafits_coarse_chans,
             match mwa_version {
@@ -746,7 +746,7 @@ impl MetafitsContext {
             num_metafits_coarse_chans,
             metafits_coarse_chans,
             num_metafits_fine_chan_freqs,
-            metafits_fine_chan_freqs,
+            metafits_fine_chan_freqs_hz: metafits_fine_chan_freqs,
             num_metafits_timesteps,
             metafits_timesteps,
             obs_bandwidth_hz: metafits_observation_bandwidth_hz,
@@ -956,9 +956,9 @@ impl fmt::Display for MetafitsContext {
             nts = self.metafits_timesteps.len(),
             cc = self.metafits_coarse_chans,
             ncc = self.metafits_coarse_chans.len(),
-            nfc = self.metafits_fine_chan_freqs.len(),
+            nfc = self.metafits_fine_chan_freqs_hz.len(),
             fc = self
-                .metafits_fine_chan_freqs
+                .metafits_fine_chan_freqs_hz
                 .iter()
                 .map(|f| format!("{:.3} ", f / 1000.)),
             rtpc = self.ra_tile_pointing_degrees,
