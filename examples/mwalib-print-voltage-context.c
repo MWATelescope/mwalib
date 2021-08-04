@@ -7,12 +7,12 @@
 
 #define ERROR_MESSAGE_LEN 1024
 
-void do_sum(VoltageContext *context, long bytes_per_timestep, size_t num_timesteps, size_t num_coarse_chans)
+void do_sum(VoltageContext *context, long bytes_per_timestep, size_t num_timesteps, size_t num_coarse_chans, size_t num_provided_timesteps, size_t num_provided_coarse_chans)
 {
     // Allocate buffer for any error messages
     char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
 
-    u_char *data_buffer = calloc(bytes_per_timestep * num_timesteps * num_coarse_chans, sizeof(float));
+    u_char *data_buffer = calloc(bytes_per_timestep * num_provided_timesteps * num_provided_coarse_chans, sizeof(char));
     u_char *buffer_ptr = data_buffer; // Keep data_buffer pointing to the start of the buffer so we can free it later
     double sum = 0;
 
@@ -24,16 +24,18 @@ void do_sum(VoltageContext *context, long bytes_per_timestep, size_t num_timeste
         {
             double ts_cc_sum = 0;
 
-            printf("Reading timestep: %d, Coarse Channel: %d...\n", timestep_index, coarse_chan_index);
             if (mwalib_voltage_context_read_file(context, timestep_index, coarse_chan_index, buffer_ptr, bytes_per_timestep, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
             {
-                printf("Summing...");
+                printf("Reading data from timestep: %d, Coarse Channel: %d...\n", timestep_index, coarse_chan_index);
                 for (long i = 0; i < bytes_per_timestep; i++)
                 {
                     ts_cc_sum += buffer_ptr[i];
                 }
 
                 printf("sum: %f.\n", ts_cc_sum);
+
+                // Move pointer along
+                buffer_ptr += bytes_per_timestep;
             }
 
             ts_sum += ts_cc_sum;
@@ -41,12 +43,6 @@ void do_sum(VoltageContext *context, long bytes_per_timestep, size_t num_timeste
 
         // add to total sum
         sum += ts_sum;
-
-        // move destination buffer pointer along by the number of floats
-        if (timestep_index < num_timesteps - 1)
-        {
-            buffer_ptr += bytes_per_timestep;
-        }
     }
 
     printf("Total sum: %f\n", sum);
@@ -107,10 +103,12 @@ int main(int argc, char *argv[])
 
     int num_timesteps = volt_metadata->num_timesteps;
     int num_coarse_chans = volt_metadata->num_coarse_chans;
+    int num_provided_timesteps = volt_metadata->num_provided_timesteps;
+    int num_provided_coarse_chans = volt_metadata->num_provided_coarse_chans;
     long num_bytes_per_timestep = volt_metadata->num_voltage_blocks_per_timestep * volt_metadata->voltage_block_size_bytes;
 
     // Now sum the data
-    do_sum(volt_context, num_bytes_per_timestep, num_timesteps, num_coarse_chans);
+    do_sum(volt_context, num_bytes_per_timestep, num_timesteps, num_coarse_chans, num_provided_timesteps, num_provided_coarse_chans);
 
     mwalib_metafits_metadata_free(metafits_metadata);
     mwalib_voltage_metadata_free(volt_metadata);
