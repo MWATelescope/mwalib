@@ -328,6 +328,42 @@ fn test_mwalib_metafits_context_display() {
 }
 
 #[test]
+fn test_mwalib_metafits_context_new_guess_mwa_version() {
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let metafits_file =
+        CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+    let metafits_file_ptr = metafits_file.as_ptr();
+
+    unsafe {
+        // Create a MetafitsContext
+        let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
+        let retval = mwalib_metafits_context_new2(
+            metafits_file_ptr,
+            &mut metafits_context_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // Check return value of mwalib_metafits_context_new
+        assert_eq!(retval, 0, "mwalib_metafits_context_new failure");
+
+        // Check we got valid MetafitsContext pointer
+        let context_ptr = metafits_context_ptr.as_mut();
+        assert!(context_ptr.is_some());
+
+        let metafits_context = context_ptr.unwrap();
+
+        assert_eq!(
+            metafits_context.mwa_version.unwrap(),
+            MWAVersion::CorrLegacy
+        );
+    }
+}
+
+#[test]
 fn test_mwalib_metafits_context_display_null_ptr() {
     let metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
 

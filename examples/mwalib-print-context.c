@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     if (file_count == 1)
     {
         // Metafits only
-        if (mwalib_metafits_context_new(argv[1], CorrLegacy, &metafits_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+        if (mwalib_metafits_context_new2(argv[1], &metafits_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
         {
             printf("Error getting metafits context: %s\n", error_message);
             exit(-1);

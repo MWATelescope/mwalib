@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 0.9.1 09-Aug-2021 (Pre-release)
+* Added alternative version of mwalib_metafits_context_new (mwalib_metafits_context_new2) to FFI interface which does not require an MWAVersion and will determine it via the MODE keyword.
+* Fixed errors, ommissions in comment/documentation for FFI function mwalib_metafits_get_expected_volt_filename().
+
 ## 0.9.0 09-Aug-2021 (Pre-release)
 * Added mwa_version <Option<MWAVersion>> to MetafitsContext struct.
 * When working only with a MetafitsContext, a None can be passed in lieu of an MWAVersion, and mwalib will attempt to determine the correct MWAVersion based on the MODE keyword from the metafits file.

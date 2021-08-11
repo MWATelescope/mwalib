@@ -379,6 +379,19 @@ fn test_populate_expected_coarse_channels_corr_mwaxv2() {
 }
 
 #[test]
+fn test_metafits_context_new_guess_version() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(&metafits_filename, None);
+    assert!(result.is_ok());
+
+    let context = result.unwrap();
+    assert_eq!(context.mwa_version.unwrap(), MWAVersion::CorrLegacy);
+}
+
+#[test]
 fn test_generate_expected_volt_filename_legacy_vcs() {
     // Open the test metafits file
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";

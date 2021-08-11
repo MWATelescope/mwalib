@@ -185,14 +185,13 @@ fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
     }
 }
 
-/// Create and return a pointer to an `MetafitsContext` struct given only a metafits file
+/// Create and return a pointer to an `MetafitsContext` struct given only a metafits file and MWAVersion.
 ///
 /// # Arguments
 ///
 /// * `metafits_filename` - pointer to char* buffer containing the full path and filename of a metafits file.
 ///
 /// * `mwa_version` - enum providing mwalib with the intended mwa version which the metafits should be interpreted.
-///                   Pass 0 to get mwalib to detect the version from the MODE metafits keyword.
 ///
 /// * `out_metafits_context_ptr` - A Rust-owned populated `MetafitsContext` pointer. Free with `mwalib_metafits_context_free'.
 ///
@@ -222,16 +221,59 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
         .unwrap()
         .to_string();
 
-    // In C/FFI any value can be passed in, even 0
-    let int_mwa_version = mwa_version as u8;
+    let context = match MetafitsContext::new(&m, Some(mwa_version)) {
+        Ok(c) => c,
+        Err(e) => {
+            set_c_string(
+                &format!("{}", e),
+                error_message as *mut u8,
+                error_message_length,
+            );
+            // Return failure
+            return MWALIB_FAILURE;
+        }
+    };
 
-    let context = match MetafitsContext::new(
-        &m,
-        match int_mwa_version {
-            0 => None,
-            _ => Some(mwa_version),
-        },
-    ) {
+    *out_metafits_context_ptr = Box::into_raw(Box::new(context));
+
+    // Return success
+    MWALIB_SUCCESS
+}
+
+/// Create and return a pointer to an `MetafitsContext` struct given only a metafits file. Same as mwalib_metafits_context_new, but mwalib will guess the MWAVersion.
+///
+/// # Arguments
+///
+/// * `metafits_filename` - pointer to char* buffer containing the full path and filename of a metafits file.
+///
+/// * `out_metafits_context_ptr` - A Rust-owned populated `MetafitsContext` pointer. Free with `mwalib_metafits_context_free'.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * return MWALIB_SUCCESS on success, non-zero on failure
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated `char*` buffer for any error messages.
+/// * Caller *must* call the `mwalib_metafits_context_free` function to release the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_metafits_context_new2(
+    metafits_filename: *const c_char,
+    out_metafits_context_ptr: &mut *mut MetafitsContext,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    let m = CStr::from_ptr(metafits_filename)
+        .to_str()
+        .unwrap()
+        .to_string();
+
+    let context = match MetafitsContext::new(&m, None) {
         Ok(c) => c,
         Err(e) => {
             set_c_string(
