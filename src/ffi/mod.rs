@@ -250,7 +250,7 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
     MWALIB_SUCCESS
 }
 
-/// Display an `MetafitsContext` struct.
+/// Generates an expected filename, given a MetafitsContext, timestep index and coarse channel index.
 ///
 ///
 /// # Arguments
@@ -276,11 +276,12 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
 ///
 ///
 /// # Safety
+/// * `out_filename_ptr` *must* point to an already allocated char* buffer for the output filename to be written to.
 /// * `error_message` *must* point to an already allocated char* buffer for any error messages.
 /// * `metafits_context_ptr` must contain an MetafitsContext object already populated via `mwalib_metafits_context_new`
 /// It is up to the caller to:
-/// - Allocate `error_buffer_len` bytes as a `char*` on the heap
-/// - Free `error_buffer_ptr` once finished with the buffer
+/// - Free `out_filename_ptr` once finished with the buffer.
+/// - Free `error_message` once finished with the buffer.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_metafits_get_expected_volt_filename(
     metafits_context_ptr: *const MetafitsContext,
