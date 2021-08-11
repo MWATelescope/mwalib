@@ -191,7 +191,7 @@ fn test_set_error_message() {
     let buffer = CString::new("HELLO WORLD").unwrap();
     let buffer_ptr = buffer.as_ptr() as *mut u8;
 
-    set_error_message("hello world", buffer_ptr, 12);
+    set_c_string("hello world", buffer_ptr, 12);
 
     assert_eq!(buffer, CString::new("hello world").unwrap());
 }
@@ -200,7 +200,7 @@ fn test_set_error_message() {
 fn test_set_error_message_null_ptr() {
     let buffer_ptr: *mut u8 = std::ptr::null_mut();
 
-    set_error_message("hello world", buffer_ptr, 12);
+    set_c_string("hello world", buffer_ptr, 12);
 }
 
 #[test]
@@ -208,7 +208,7 @@ fn test_set_error_message_buffer_len_too_small() {
     let buffer = CString::new("H").unwrap();
     let buffer_ptr = buffer.as_ptr() as *mut u8;
 
-    set_error_message("hello world", buffer_ptr, 1);
+    set_c_string("hello world", buffer_ptr, 1);
 }
 
 #[test]
@@ -1606,6 +1606,29 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         );
         assert_eq!(CString::from_raw(item[2].pol), CString::new("X").unwrap());
 
+        assert_eq!(item[2].num_digital_gains, 24);
+        let rfinput_digital_gains =
+            ffi_boxed_slice_to_array(item[2].digital_gains, item[2].num_digital_gains);
+        assert_eq!(item[2].num_digital_gains, rfinput_digital_gains.len());
+        assert_eq!(rfinput_digital_gains[4], 76);
+
+        assert_eq!(item[2].num_dipole_delays, 16);
+        let rfinput_dipole_delays =
+            ffi_boxed_slice_to_array(item[2].dipole_delays, item[2].num_dipole_delays);
+        assert_eq!(item[2].num_dipole_delays, rfinput_dipole_delays.len());
+        assert_eq!(rfinput_dipole_delays[0], 0);
+
+        assert_eq!(item[2].num_dipole_gains, 16);
+        let rfinput_dipole_gains =
+            ffi_boxed_slice_to_array(item[2].dipole_gains, item[2].num_dipole_gains);
+        assert_eq!(item[2].num_dipole_gains, rfinput_dipole_gains.len());
+        assert!(approx_eq!(
+            f64,
+            rfinput_dipole_gains[0],
+            1.0,
+            F64Margin::default()
+        ));
+
         //
         // Test metafits_coarse_channels
         //
@@ -1750,6 +1773,42 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_metafits_metadata_free(std::ptr::null_mut()), 0);
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_get_expected_volt_filename() {
+    // Create a MetafitsContext
+    let mwa_version = MWAVersion::VCSLegacyRecombined;
+    let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context(mwa_version);
+
+    let error_message_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let filename_len: size_t = 31;
+    let filename = CString::new(" ".repeat(filename_len)).unwrap();
+    let filename_ptr = filename.as_ptr() as *const c_char;
+
+    unsafe {
+        let retval = mwalib_metafits_get_expected_volt_filename(
+            metafits_context_ptr,
+            3,
+            1,
+            filename_ptr,
+            filename_len,
+            error_message_ptr,
+            error_message_len,
+        );
+
+        // Should be success
+        assert_eq!(retval, 0);
+
+        // Check the filename
+        assert_eq!(
+            filename,
+            CString::new("1101503312_1101503315_ch110.dat").unwrap()
+        );
     }
 }
 

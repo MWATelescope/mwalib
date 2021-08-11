@@ -146,6 +146,9 @@ impl CorrelatorContext {
         // Do gpubox stuff only if we have gpubox files.
         let gpubox_info = examine_gpubox_files(gpubox_filenames, metafits_context.obs_id)?;
 
+        // Update the metafits now that we know the mwa_version
+        metafits_context.mwa_version = Some(gpubox_info.mwa_version);
+
         // Populate metafits coarse channels and timesteps now that we know what MWA Version we are dealing with
         // Populate the coarse channels
         metafits_context.populate_expected_coarse_channels(gpubox_info.mwa_version)?;

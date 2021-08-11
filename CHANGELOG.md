@@ -2,6 +2,14 @@
 
 Changes in each release are listed below.
 
+## 0.9.0 09-Aug-2021 (Pre-release)
+* Added mwa_version <Option<MWAVersion>> to MetafitsContext struct.
+* When working only with a MetafitsContext, a None can be passed in lieu of an MWAVersion, and mwalib will attempt to determine the correct MWAVersion based on the MODE keyword from the metafits file.
+* Added method get_expected_volt_filename() function to MetafitsContext.
+* Added digital_gains, dipole_gains and dipole_delays to FFI rfinput struct.
+* Added num_receivers, num_delays to MetafitsContext / metafits_metadata struct in FFI.
+* Metafits metadata sched_start_utc and sched_end_utc are now typed as time_t and represent the Unix timestamp (which can be used by various time.h functions).
+
 ## 0.8.7 03-Aug-2021 (Pre-release)
 * Updated some dependencies in Cargo.toml.
 * Renamed metafits_context.metafits_fine_chan_freqs by adding _hz suffix to be consistent with other naming of attributes with units.

@@ -22,8 +22,8 @@ pub const MWALIB_SUCCESS: i32 = 0;
 pub const MWALIB_FAILURE: i32 = 1;
 pub const MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN: i32 = -1;
 
-/// Generic helper function for all FFI modules to take an already allocated C string
-/// and update it with an error message. This is used to pass error messages back to C from Rust.
+/// Generic helper function for all FFI modules to take an already allocated C string buffer
+/// and populate it with a string. This is primarily used to pass error messages back to C from Rust.
 ///
 /// # Arguments
 ///
@@ -44,7 +44,7 @@ pub const MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN: i32 = -1;
 /// - Allocate `error_buffer_len` bytes as a `char*` on the heap
 /// - Free `error_buffer_ptr` once finished with the buffer
 ///
-fn set_error_message(in_message: &str, error_buffer_ptr: *mut u8, error_buffer_len: size_t) {
+fn set_c_string(in_message: &str, error_buffer_ptr: *mut u8, error_buffer_len: size_t) {
     // Don't do anything if the pointer is null.
     if error_buffer_ptr.is_null() {
         return;
@@ -192,6 +192,7 @@ fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
 /// * `metafits_filename` - pointer to char* buffer containing the full path and filename of a metafits file.
 ///
 /// * `mwa_version` - enum providing mwalib with the intended mwa version which the metafits should be interpreted.
+///                   Pass 0 to get mwalib to detect the version from the MODE metafits keyword.
 ///
 /// * `out_metafits_context_ptr` - A Rust-owned populated `MetafitsContext` pointer. Free with `mwalib_metafits_context_free'.
 ///
@@ -220,10 +221,20 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
         .to_str()
         .unwrap()
         .to_string();
-    let context = match MetafitsContext::new(&m, mwa_version) {
+
+    // In C/FFI any value can be passed in, even 0
+    let int_mwa_version = mwa_version as u8;
+
+    let context = match MetafitsContext::new(
+        &m,
+        match int_mwa_version {
+            0 => None,
+            _ => Some(mwa_version),
+        },
+    ) {
         Ok(c) => c,
         Err(e) => {
-            set_error_message(
+            set_c_string(
                 &format!("{}", e),
                 error_message as *mut u8,
                 error_message_length,
@@ -237,6 +248,80 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
 
     // Return success
     MWALIB_SUCCESS
+}
+
+/// Display an `MetafitsContext` struct.
+///
+///
+/// # Arguments
+///
+/// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object
+///
+/// * `metafits_timestep_index` - the timestep index you are generating this filename for.
+///
+/// * `metafits_coarse_chan_index` - the coarse_chan index you are generating this filename for.
+///
+/// * `out_filename_ptr` - Pointer to a char* buffer which has already been allocated, for storing the filename.
+///
+/// * `out_filename_len` - Length of char* buffer allocated by caller in C.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * MWALIB_SUCCESS on success, non-zero on failure
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
+/// * `metafits_context_ptr` must contain an MetafitsContext object already populated via `mwalib_metafits_context_new`
+/// It is up to the caller to:
+/// - Allocate `error_buffer_len` bytes as a `char*` on the heap
+/// - Free `error_buffer_ptr` once finished with the buffer
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_metafits_get_expected_volt_filename(
+    metafits_context_ptr: *const MetafitsContext,
+    metafits_timestep_index: usize,
+    metafits_coarse_chan_index: usize,
+    out_filename_ptr: *const c_char,
+    out_filename_len: size_t,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    if metafits_context_ptr.is_null() {
+        set_c_string(
+            "mwalib_metafits_get_expected_voltage_filename() ERROR: null pointer for metafits_context_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    let context = &*metafits_context_ptr;
+
+    let result = context
+        .generate_expected_volt_filename(metafits_timestep_index, metafits_coarse_chan_index);
+
+    if result.is_err() {
+        set_c_string(
+            &format!("{}", result.unwrap_err()),
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    } else {
+        set_c_string(
+            &result.unwrap(),
+            out_filename_ptr as *mut u8,
+            out_filename_len,
+        );
+
+        // Return success
+        return MWALIB_SUCCESS;
+    }
 }
 
 /// Display an `MetafitsContext` struct.
@@ -266,7 +351,7 @@ pub unsafe extern "C" fn mwalib_metafits_context_display(
     error_message_length: size_t,
 ) -> i32 {
     if metafits_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_metafits_context_display() ERROR: null pointer for metafits_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -360,7 +445,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
     let context = match CorrelatorContext::new(&m, &gpubox_files) {
         Ok(c) => c,
         Err(e) => {
-            set_error_message(
+            set_c_string(
                 &format!("{}", e),
                 error_message as *mut u8,
                 error_message_length,
@@ -401,7 +486,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_display(
     error_message_length: size_t,
 ) -> i32 {
     if correlator_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_correlator_context() ERROR: null pointer for correlator_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -461,7 +546,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
     // Load the previously-initialised context and buffer structs. Exit if
     // either of these are null.
     let corr_context = if correlator_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_correlator_context_read_by_baseline() ERROR: null pointer for correlator_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -490,7 +575,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
                 timestep_index: _,
                 coarse_chan_index: _,
             } => {
-                set_error_message(
+                set_c_string(
                     &format!("{}", e),
                     error_message as *mut u8,
                     error_message_length,
@@ -498,7 +583,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
                 MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
             }
             _ => {
-                set_error_message(
+                set_c_string(
                     &format!("{}", e),
                     error_message as *mut u8,
                     error_message_length,
@@ -555,7 +640,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
     // Load the previously-initialised context and buffer structs. Exit if
     // either of these are null.
     let corr_context = if correlator_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_correlator_context_read_by_frequency() ERROR: null pointer for correlator_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -583,7 +668,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
                 timestep_index: _,
                 coarse_chan_index: _,
             } => {
-                set_error_message(
+                set_c_string(
                     &format!("{}", e),
                     error_message as *mut u8,
                     error_message_length,
@@ -591,7 +676,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
                 MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
             }
             _ => {
-                set_error_message(
+                set_c_string(
                     &format!("{}", e),
                     error_message as *mut u8,
                     error_message_length,
@@ -641,7 +726,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
     // Load the previously-initialised context and buffer structs. Exit if
     // either of these are null.
     let corr_context = if correlator_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for correlator_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -653,7 +738,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
 
     // Don't do anything if the input pointer is null.
     if corr_coarse_chan_indices_array_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for corr_coarse_chan_indices_array_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -669,7 +754,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
 
     // Don't do anything if the buffer pointer is null.
     if out_fine_chan_freq_array_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for out_fine_chan_freq_array_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -685,7 +770,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
     let expected_output_len = corr_coarse_chan_indices_array_len
         * corr_context.metafits_context.num_corr_fine_chans_per_coarse;
     if output_slice.len() != expected_output_len {
-        set_error_message(
+        set_c_string(
             &format!("mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: number of elements in out_fine_chan_freq_array_ptr does not match expected value {}", expected_output_len),
             error_message as *mut u8,
             error_message_length,
@@ -741,7 +826,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
     // Load the previously-initialised context and buffer structs. Exit if
     // either of these are null.
     let volt_context = if voltage_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for voltage_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -753,7 +838,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
 
     // Don't do anything if the input pointer is null.
     if volt_coarse_chan_indices_array_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for volt_coarse_chan_indices_array_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -769,7 +854,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
 
     // Don't do anything if the buffer pointer is null.
     if out_fine_chan_freq_array_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for out_fine_chan_freq_array_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -785,7 +870,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
     let expected_output_len = volt_coarse_chan_indices_array_len
         * volt_context.metafits_context.num_corr_fine_chans_per_coarse;
     if output_slice.len() != expected_output_len {
-        set_error_message(
+        set_c_string(
             &format!("mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: number of elements in out_fine_chan_freq_array_ptr does not match expected value {}", expected_output_len),
             error_message as *mut u8,
             error_message_length,
@@ -879,7 +964,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_new(
     let context = match VoltageContext::new(&m, &voltage_files) {
         Ok(c) => c,
         Err(e) => {
-            set_error_message(
+            set_c_string(
                 &format!("{}", e),
                 error_message as *mut u8,
                 error_message_length,
@@ -920,7 +1005,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
     error_message_length: size_t,
 ) -> i32 {
     if voltage_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_voltage_context() ERROR: null pointer for voltage_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -982,7 +1067,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
     // Load the previously-initialised context and buffer structs. Exit if
     // either of these are null.
     let voltage_context = if voltage_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_voltage_context_read_by_file() ERROR: null pointer for voltage_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -1011,7 +1096,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
                 timestep_index: _,
                 coarse_chan_index: _,
             } => {
-                set_error_message(
+                set_c_string(
                     &format!("{}", e),
                     error_message as *mut u8,
                     error_message_length,
@@ -1019,7 +1104,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
                 MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
             }
             _ => {
-                set_error_message(
+                set_c_string(
                     &format!("{}", e),
                     error_message as *mut u8,
                     error_message_length,
@@ -1079,7 +1164,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
     // Load the previously-initialised context and buffer structs. Exit if
     // either of these are null.
     let voltage_context = if voltage_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_voltage_context_read_by_file() ERROR: null pointer for voltage_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -1109,7 +1194,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
                 timestep_index: _,
                 coarse_chan_index: _,
             } => {
-                set_error_message(
+                set_c_string(
                     &format!("{}", e),
                     error_message as *mut u8,
                     error_message_length,
@@ -1117,7 +1202,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
                 MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
             }
             _ => {
-                set_error_message(
+                set_c_string(
                     &format!("{}", e),
                     error_message as *mut u8,
                     error_message_length,
@@ -1163,6 +1248,8 @@ pub unsafe extern "C" fn mwalib_voltage_context_free(
 ///
 #[repr(C)]
 pub struct MetafitsMetadata {
+    /// mwa version
+    pub mwa_version: MWAVersion,
     /// Observation id
     pub obs_id: u32,
     /// ATTEN_DB  // global analogue attenuation, in dB
@@ -1229,14 +1316,18 @@ pub struct MetafitsMetadata {
     pub volt_fine_chan_width_hz: u32,
     /// Number of fine channels in each coarse channel for a voltage observation
     pub num_volt_fine_chans_per_coarse: usize,
-    /// RECVRS    Array of receiver numbers (this tells us how many receivers too)
+    /// Array of receiver numbers (this tells us how many receivers too)
     pub receivers: *mut usize,
-    /// DELAYS    Array of delays
+    /// Number of receivers
+    pub num_receivers: usize,
+    /// Array of beamformer delays
     pub delays: *mut u32,
-    /// Scheduled start (gps time) of observation
-    pub sched_start_utc: i64,
-    /// Scheduled end (gps time) of observation
-    pub sched_end_utc: i64,
+    /// Number of beamformer delays
+    pub num_delays: usize,
+    /// Scheduled start (UTC) of observation as a time_t (unix timestamp)
+    pub sched_start_utc: libc::time_t,
+    /// Scheduled end (UTC) of observation as a time_t (unix timestamp)
+    pub sched_end_utc: libc::time_t,
     /// Scheduled start (MJD) of observation
     pub sched_start_mjd: f64,
     /// Scheduled end (MJD) of observation
@@ -1337,7 +1428,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
         ^ !correlator_context_ptr.is_null()
         ^ !voltage_context_ptr.is_null())
     {
-        set_error_message(
+        set_c_string(
             "mwalib_metafits_metadata_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
             error_message as *mut u8,
             error_message_length,
@@ -1422,11 +1513,11 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 vcs_order,
                 subfile_order,
                 flagged,
+                digital_gains,
+                dipole_gains,
+                dipole_delays,
                 rec_number,
                 rec_slot_number,
-                digital_gains: _, // not currently supported via FFI interface
-                dipole_gains: _,  // not currently supported via FFI interface
-                dipole_delays: _, // not currently supported via FFI interface
             } = item;
             Rfinput {
                 input: *input,
@@ -1441,6 +1532,12 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 vcs_order: *vcs_order,
                 subfile_order: *subfile_order,
                 flagged: *flagged,
+                digital_gains: ffi_array_to_boxed_slice(digital_gains.clone()),
+                num_digital_gains: digital_gains.len(),
+                dipole_gains: ffi_array_to_boxed_slice(dipole_gains.clone()),
+                num_dipole_gains: dipole_gains.len(),
+                dipole_delays: ffi_array_to_boxed_slice(dipole_delays.clone()),
+                num_dipole_delays: dipole_delays.len(),
                 rec_number: *rec_number,
                 rec_slot_number: *rec_slot_number,
             }
@@ -1499,6 +1596,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     // ignore them (with _) or add that field to the FFI struct.
     let out_metadata = {
         let MetafitsContext {
+            mwa_version,
             obs_id,
             sched_start_gps_time_ms,
             sched_end_gps_time_ms,
@@ -1541,7 +1639,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             volt_fine_chan_width_hz,
             num_volt_fine_chans_per_coarse,
             receivers,
+            num_receivers,
             delays,
+            num_delays,
             global_analogue_attenuation_db,
             quack_time_duration_ms,
             good_time_unix_ms,
@@ -1566,6 +1666,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             metafits_filename,
         } = metafits_context;
         MetafitsMetadata {
+            mwa_version: mwa_version.unwrap(),
             obs_id: *obs_id,
             global_analogue_attenuation_db: *global_analogue_attenuation_db,
             ra_tile_pointing_deg: *ra_tile_pointing_degrees,
@@ -1602,7 +1703,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             volt_fine_chan_width_hz: *volt_fine_chan_width_hz,
             num_volt_fine_chans_per_coarse: *num_volt_fine_chans_per_coarse,
             receivers: ffi_array_to_boxed_slice(receivers.clone()),
+            num_receivers: *num_receivers,
             delays: ffi_array_to_boxed_slice(delays.clone()),
+            num_delays: *num_delays,
             sched_start_utc: sched_start_utc.timestamp(),
             sched_end_utc: sched_end_utc.timestamp(),
             sched_start_mjd: *sched_start_mjd,
@@ -1705,6 +1808,16 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
         for i in slice.iter_mut() {
             drop(Box::from_raw(i.tile_name));
             drop(Box::from_raw(i.pol));
+
+            if !(*i).digital_gains.is_null() {
+                drop(Box::from_raw((*i).digital_gains));
+            }
+            if !(*i).dipole_gains.is_null() {
+                drop(Box::from_raw((*i).dipole_gains));
+            }
+            if !(*i).dipole_delays.is_null() {
+                drop(Box::from_raw((*i).dipole_delays));
+            }
         }
 
         // Free the memory for the slice
@@ -1852,7 +1965,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
     error_message_length: size_t,
 ) -> i32 {
     if correlator_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_correlator_metadata_get() ERROR: Warning: null pointer for correlator_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -2228,7 +2341,7 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
     error_message_length: size_t,
 ) -> i32 {
     if voltage_context_ptr.is_null() {
-        set_error_message(
+        set_c_string(
             "mwalib_voltage_metadata_get() ERROR: Warning: null pointer for voltage_context_ptr passed in",
             error_message as *mut u8,
             error_message_length,
@@ -2586,6 +2699,20 @@ pub struct Rfinput {
     pub subfile_order: u32,
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flagged: bool,
+    /// Digital gains
+    pub digital_gains: *mut u32,
+    pub num_digital_gains: usize,
+    /// Dipole delays
+    pub dipole_delays: *mut u32,
+    pub num_dipole_delays: usize,
+    /// Dipole gains.
+    ///
+    /// These are either 1 or 0 (on or off), depending on the dipole delay; a
+    /// dipole delay of 32 corresponds to "dead dipole", so the dipole gain of 0
+    /// reflects that. All other dipoles are assumed to be "live". The values
+    /// are made floats for easy use in beam code.
+    pub dipole_gains: *mut f64,
+    pub num_dipole_gains: usize,
     /// Receiver number
     pub rec_number: u32,
     /// Receiver slot number

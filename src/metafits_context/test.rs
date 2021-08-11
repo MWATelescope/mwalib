@@ -16,7 +16,7 @@ fn test_metafits_context_new_invalid() {
     let metafits_filename = "invalid.metafits";
 
     // No gpubox files provided
-    let context = MetafitsContext::new(&metafits_filename, MWAVersion::CorrMWAXv2);
+    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::CorrMWAXv2));
 
     assert!(context.is_err());
 }
@@ -30,7 +30,7 @@ fn test_metafits_context_new_vcslegacy_valid() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, MWAVersion::VCSLegacyRecombined)
+    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined))
         .expect("Failed to create MetafitsContext");
 
     // Test the properties of the context object match what we expect
@@ -51,7 +51,7 @@ fn test_metafits_context_new_corrlegacy_valid() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, MWAVersion::CorrLegacy)
+    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::CorrLegacy))
         .expect("Failed to create MetafitsContext");
 
     // Test the properties of the context object match what we expect
@@ -232,7 +232,7 @@ fn test_metafits_context_new_vcsmwax2_valid() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, MWAVersion::VCSMWAXv2)
+    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSMWAXv2))
         .expect("Failed to create MetafitsContext");
 
     // Test the properties of the context object match what we expect
@@ -376,6 +376,66 @@ fn test_populate_expected_coarse_channels_corr_mwaxv2() {
         assert_eq!(chans[23].corr_chan_number, 23);
         assert_eq!(chans[23].rec_chan_number, 132);
     }
+}
+
+#[test]
+fn test_generate_expected_volt_filename_legacy_vcs() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined));
+    assert!(result.is_ok());
+
+    let context = result.unwrap();
+    let result = context.generate_expected_volt_filename(3, 1);
+    assert!(result.is_ok());
+    let new_filename = result.unwrap();
+    assert_eq!(new_filename, "1101503312_1101503315_ch110.dat")
+}
+
+#[test]
+fn test_generate_expected_volt_filename_mwax_vcs() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSMWAXv2));
+    assert!(result.is_ok());
+
+    let context = result.unwrap();
+    let result = context.generate_expected_volt_filename(2, 1);
+    assert!(result.is_ok());
+    let new_filename = result.unwrap();
+    assert_eq!(new_filename, "1101503312_1101503328_110.sub")
+}
+
+#[test]
+fn test_generate_expected_volt_filename_invalid_timestep() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined));
+    assert!(result.is_ok());
+
+    let context = result.unwrap();
+    let result = context.generate_expected_volt_filename(99999, 0);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_generate_expected_volt_filename_invalid_coarse_chan() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined));
+    assert!(result.is_ok());
+
+    let context = result.unwrap();
+    let result = context.generate_expected_volt_filename(0, 99);
+    assert!(result.is_err());
 }
 
 #[test]

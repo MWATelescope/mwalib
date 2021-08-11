@@ -17,6 +17,10 @@ pub enum MwalibError {
     #[error("{0}")]
     CoarseChannel(#[from] crate::coarse_channel::error::CoarseChannelError),
 
+    /// An error dervied from `MetafitsError`.
+    #[error("{0}")]
+    Metafits(#[from] crate::metafits_context::error::MetafitsError),
+
     /// An error derived from `RfinputError`.
     #[error("{0}")]
     Rfinput(#[from] crate::rfinput::error::RfinputError),

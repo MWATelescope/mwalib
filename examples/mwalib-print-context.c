@@ -6,6 +6,7 @@ Example code to print context info, given at least a metafits file and optionall
 #include <stdlib.h>
 #include <string.h>
 #include "mwalib.h"
+#include "time.h"
 
 #define ERROR_MESSAGE_LEN 1024
 
@@ -194,6 +195,25 @@ int main(int argc, char *argv[])
 
         // print a timestep
         printf("Metafits Timestep index 2: GPS Time = %f  (UNIX time: %f)\n", (double)metafits_metadata->metafits_timesteps[2].gps_time_ms / 1000., (double)metafits_metadata->metafits_timesteps[2].unix_time_ms / 1000.);
+
+        // print the start time UTC and sched start unix time
+        printf("Scheduled start time (UNIX): %f\n", metafits_metadata->sched_start_unix_time_ms / 1000.0);
+
+        // Print the UTC value
+        char utc_start_string[64];
+        time_t time_utc_start = metafits_metadata->sched_start_utc;
+        struct tm *utc_start_timeinfo = gmtime(&time_utc_start);
+        const char date_format[] = "%c %Z";
+
+        if (strftime(utc_start_string, sizeof(utc_start_string), date_format, utc_start_timeinfo) == 0)
+        {
+            printf("Error formatting sched_start_utc value.");
+            return -1;
+        }
+        else
+        {
+            printf("Scheduled start time UTC: %s\n", utc_start_string);
+        }
 
         // Clean up metadata
         mwalib_metafits_metadata_free(metafits_metadata);

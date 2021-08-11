@@ -13,7 +13,11 @@ use crate::antenna::*;
 use crate::baseline::*;
 use crate::coarse_channel::*;
 use crate::rfinput::*;
+use crate::voltage_files::*;
 use crate::*;
+
+use self::error::MetafitsError;
+pub mod error;
 
 #[cfg(test)]
 mod test;
@@ -255,6 +259,8 @@ impl std::str::FromStr for MWAMode {
 ///
 #[derive(Clone, Debug)]
 pub struct MetafitsContext {
+    /// mwa version
+    pub mwa_version: Option<MWAVersion>,
     /// Observation id
     pub obs_id: u32,
     /// Scheduled start (gps time) of observation
@@ -337,10 +343,14 @@ pub struct MetafitsContext {
     pub volt_fine_chan_width_hz: u32,
     /// Number of fine channels in each coarse channel for a voltage observation
     pub num_volt_fine_chans_per_coarse: usize,
-    /// RECVRS    // Array of receiver numbers (this tells us how many receivers too)
+    /// Array of receiver numbers
     pub receivers: Vec<usize>,
-    /// DELAYS    // Array of delays
+    /// Number of recievers
+    pub num_receivers: usize,
+    /// Array of beamformer delays
     pub delays: Vec<u32>,
+    /// Number of beamformer delays
+    pub num_delays: usize,
     /// ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
     /// Seconds of bad data after observation starts
@@ -394,6 +404,7 @@ impl MetafitsContext {
     ///
     /// * `metafits_filename` - filename of metafits file as a path or string.        
     ///
+    /// * `mwa_version` - an Option containing the MWA version the metafits should be interpreted as. Pass None to have mwalib guess based on the MODE in the metafits.
     ///
     /// # Returns
     ///
@@ -402,26 +413,44 @@ impl MetafitsContext {
     ///
     pub fn new<T: AsRef<std::path::Path>>(
         metafits: &T,
-        mwa_version: MWAVersion,
+        mwa_version: Option<MWAVersion>,
     ) -> Result<Self, MwalibError> {
         // Call the internal new metafits method
         let mut new_context = MetafitsContext::new_internal(metafits)?;
 
+        // determine mwa_version if None was passed in
+        new_context.mwa_version = match mwa_version {
+            None => match new_context.mode {
+                MWAMode::Hw_Lfiles => Some(MWAVersion::CorrLegacy),
+                MWAMode::Voltage_Start | MWAMode::Voltage_Buffer => {
+                    Some(MWAVersion::VCSLegacyRecombined)
+                }
+                MWAMode::Mwax_Correlator => Some(MWAVersion::CorrMWAXv2),
+                MWAMode::Mwax_Vcs => Some(MWAVersion::VCSMWAXv2),
+                _ => {
+                    return Err(MwalibError::Metafits(
+                        MetafitsError::UnableToDetermineMWAVersionFromMode(new_context.mode),
+                    ))
+                }
+            },
+            m => m,
+        };
+
         // Update the voltage fine channel size now that we know which mwaversion we are using
-        if mwa_version == MWAVersion::VCSMWAXv2 {
+        if new_context.mwa_version == Some(MWAVersion::VCSMWAXv2) {
             // MWAX VCS- the data is unchannelised so coarse chan width == fine chan width
             new_context.volt_fine_chan_width_hz = new_context.coarse_chan_width_hz;
             new_context.num_volt_fine_chans_per_coarse = 1;
         }
 
         // Populate the coarse channels
-        new_context.populate_expected_coarse_channels(mwa_version)?;
+        new_context.populate_expected_coarse_channels(new_context.mwa_version.unwrap())?;
 
         // Now populate the fine channels
         new_context.metafits_fine_chan_freqs_hz = CoarseChannel::get_fine_chan_centres_array_hz(
-            mwa_version,
+            new_context.mwa_version.unwrap(),
             &new_context.metafits_coarse_chans,
-            match mwa_version {
+            match new_context.mwa_version.unwrap() {
                 MWAVersion::VCSLegacyRecombined | MWAVersion::VCSMWAXv2 => {
                     new_context.volt_fine_chan_width_hz
                 }
@@ -429,7 +458,7 @@ impl MetafitsContext {
                     new_context.corr_fine_chan_width_hz
                 }
             },
-            match mwa_version {
+            match new_context.mwa_version.unwrap() {
                 MWAVersion::VCSLegacyRecombined | MWAVersion::VCSMWAXv2 => {
                     new_context.num_volt_fine_chans_per_coarse
                 }
@@ -440,7 +469,7 @@ impl MetafitsContext {
         );
 
         // Populate the timesteps
-        new_context.populate_expected_timesteps(mwa_version)?;
+        new_context.populate_expected_timesteps(new_context.mwa_version.unwrap())?;
 
         // Return the new context
         Ok(new_context)
@@ -634,6 +663,8 @@ impl MetafitsContext {
             .map(|s| s.parse().unwrap())
             .collect();
 
+        let num_receivers = receivers.len();
+
         let delays_string: String =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "DELAYS")?;
 
@@ -642,6 +673,8 @@ impl MetafitsContext {
             .split(',')
             .map(|s| s.parse().unwrap())
             .collect();
+
+        let num_delays = delays.len();
 
         let global_analogue_attenuation_db: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?;
@@ -691,6 +724,7 @@ impl MetafitsContext {
             (metafits_coarse_chan_width_hz / volt_fine_chan_width_hz) as usize;
 
         Ok(MetafitsContext {
+            mwa_version: None,
             obs_id: obsid,
             sched_start_gps_time_ms: scheduled_start_gpstime_ms,
             sched_end_gps_time_ms: scheduled_end_gpstime_ms,
@@ -733,7 +767,9 @@ impl MetafitsContext {
             volt_fine_chan_width_hz,
             num_volt_fine_chans_per_coarse,
             receivers,
+            num_receivers,
             delays,
+            num_delays,
             global_analogue_attenuation_db,
             quack_time_duration_ms,
             good_time_unix_ms,
@@ -772,7 +808,7 @@ impl MetafitsContext {
     /// * Result containing ok or an error
     ///
     ///
-    pub fn populate_expected_coarse_channels(
+    pub(crate) fn populate_expected_coarse_channels(
         &mut self,
         mwa_version: MWAVersion,
     ) -> Result<(), MwalibError> {
@@ -818,7 +854,7 @@ impl MetafitsContext {
     /// * Result containing ok or an error
     ///
     ///
-    pub fn populate_expected_timesteps(
+    pub(crate) fn populate_expected_timesteps(
         &mut self,
         mwa_version: MWAVersion,
     ) -> Result<(), MwalibError> {
@@ -838,6 +874,58 @@ impl MetafitsContext {
         self.num_metafits_timesteps = self.metafits_timesteps.len();
 
         Ok(())
+    }
+
+    /// Return an expected voltage filenames for the input timestep and coarse channel indices.
+    ///
+    /// # Arguments    
+    ///
+    /// * `metafits_timestep_index` - the timestep index.    
+    ///
+    /// * `metafits_coarse_chan_index` - the coarse channel index.            
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * Result containing the generated filename or an error
+    ///
+    ///
+    pub fn generate_expected_volt_filename(
+        &self,
+        metafits_timestep_index: usize,
+        metafits_coarse_chan_index: usize,
+    ) -> Result<String, VoltageFileError> {
+        if metafits_timestep_index >= self.num_metafits_timesteps {
+            return Err(VoltageFileError::InvalidTimeStepIndex(
+                self.num_metafits_timesteps - 1,
+            ));
+        }
+
+        if metafits_coarse_chan_index >= self.num_metafits_coarse_chans {
+            return Err(VoltageFileError::InvalidCoarseChanIndex(
+                self.num_metafits_coarse_chans - 1,
+            ));
+        }
+
+        // Compose filename
+        let obs_id = self.obs_id;
+        let gpstime = self.metafits_timesteps[metafits_timestep_index].gps_time_ms / 1000;
+        let chan = format!(
+            "{:03}",
+            self.metafits_coarse_chans[metafits_coarse_chan_index].rec_chan_number
+        ); // zero padded to 3 digits
+
+        let out_string = match self.mwa_version.unwrap() {
+            MWAVersion::VCSLegacyRecombined => format!("{}_{}_ch{}.dat", obs_id, gpstime, chan),
+            MWAVersion::VCSMWAXv2 => format!("{}_{}_{}.sub", obs_id, gpstime, chan),
+            _ => {
+                return Err(VoltageFileError::InvalidMwaVersion {
+                    mwa_version: self.mwa_version.unwrap(),
+                })
+            }
+        };
+
+        Ok(out_string)
     }
 }
 

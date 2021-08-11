@@ -4,7 +4,7 @@ Cargo.lock
 /examples/sum-all-hdus
 /examples/mwalib-print-context
 /examples/mwalib-sum-all-hdus
-/examples/mwalib-print-voltage-context
+/examples/mwalib-print-volt-context
 .vscode
 /coverage
 /tools/release

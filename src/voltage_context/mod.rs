@@ -165,6 +165,9 @@ impl VoltageContext {
         }
         let voltage_info = examine_voltage_files(&metafits_context, voltage_filenames)?;
 
+        // Update the metafits now that we know the mwa_version
+        metafits_context.mwa_version = Some(voltage_info.mwa_version);
+
         // Update the voltage fine channel size now that we know which mwaversion we are using
         if voltage_info.mwa_version == MWAVersion::VCSMWAXv2 {
             // MWAX VCS- the data is unchannelised so coarse chan width == fine chan width

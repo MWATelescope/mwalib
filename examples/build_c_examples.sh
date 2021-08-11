@@ -22,8 +22,8 @@ gcc -O3 \
     -lmwalib
 
 gcc -O3 \
-    mwalib-print-voltage-context.c \
-    -o mwalib-print-voltage-context \
+    mwalib-print-volt-context.c \
+    -o mwalib-print-volt-context \
     -I ../include \
     -lm -lpthread -ldl \
     -L../target/release/ \

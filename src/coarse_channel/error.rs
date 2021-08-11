@@ -14,6 +14,8 @@ pub enum CoarseChannelError {
     NoGpuboxOrVoltageTimeMapSupplied,
     #[error("Gpubox AND voltage time_map supplied, which is not valid")]
     BothGpuboxAndVoltageTimeMapSupplied,
+    #[error("Invalid MWA Version - 0 Unknown not allowed here")]
+    InvalidMWAVersionUnknown,
 
     /// An error derived from `FitsError`.
     #[error("{0}")]
