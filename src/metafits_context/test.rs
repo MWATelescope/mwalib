@@ -245,6 +245,33 @@ fn test_metafits_context_new_vcsmwax2_valid() {
 }
 
 #[test]
+fn test_metafits_context_new_vcs_legacy_valid() {
+    // Open the test mwa v 1 metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    //
+    // Read the observation using mwalib
+    //
+    // Open a context and load in a test metafits
+    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined))
+        .expect("Failed to create MetafitsContext");
+
+    // rf_inputs:                [Tile104Y, ..., Tile055X],
+    assert_eq!(context.num_rf_inputs, 256);
+    assert_eq!(context.rf_inputs[0].pol, Pol::Y);
+    assert_eq!(context.rf_inputs[0].tile_name, "Tile104");
+    assert_eq!(context.rf_inputs[255].pol, Pol::X);
+    assert_eq!(context.rf_inputs[255].tile_name, "Tile055");
+
+    // Test the properties of the context object match what we expect
+    // antennas:                 [Tile011, Tile012, ... Tile167, Tile168],
+    // NOTE: since in Legacy VCS the VCS order may look like Tile104Y, Tile103Y, Tile102Y, Tile104X, ...
+    // so the order of antennas makes no sense, since 104 needs to be first AND further down the list!, so we leave it in the MWAX order.
+    assert_eq!(context.antennas[0].tile_name, "Tile011");
+    assert_eq!(context.antennas[127].tile_name, "Tile168");
+}
+
+#[test]
 fn test_populate_expected_timesteps() {
     // Note the timesteps returned are fully tested in the timesteps tests, so this is checking the metafits_context calling of that code
     // Open the test metafits file

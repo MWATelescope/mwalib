@@ -2,6 +2,9 @@
 
 Changes in each release are listed below.
 
+## 0.9.2 09-Aug-2021 (Pre-release)
+* When using a stand-alone MetafitsContext, the rf_inputs are now correctly sorted for the VCSLegacyRecombined case.
+
 ## 0.9.1 09-Aug-2021 (Pre-release)
 * Added alternative version of mwalib_metafits_context_new (mwalib_metafits_context_new2) to FFI interface which does not require an MWAVersion and will determine it via the MODE keyword.
 * Fixed errors, ommissions in comment/documentation for FFI function mwalib_metafits_get_expected_volt_filename().

@@ -436,6 +436,14 @@ impl MetafitsContext {
             m => m,
         };
 
+        // The rf inputs should be sorted depending on the Version
+        match new_context.mwa_version.unwrap() {
+            MWAVersion::VCSLegacyRecombined => {
+                new_context.rf_inputs.sort_by_key(|k| k.vcs_order);
+            }
+            _ => {}
+        }
+
         // Update the voltage fine channel size now that we know which mwaversion we are using
         if new_context.mwa_version == Some(MWAVersion::VCSMWAXv2) {
             // MWAX VCS- the data is unchannelised so coarse chan width == fine chan width
