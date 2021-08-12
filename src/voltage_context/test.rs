@@ -409,6 +409,16 @@ fn test_context_legacy_v1() {
     rf_input_copy.sort_by_key(|k| k.vcs_order);
     // Now compare this copy with the 'real' rf_inputs
     assert_eq!(&rf_input_copy, &context.metafits_context.rf_inputs);
+    // Ensure the antenna->rf_input mapping is still in tact
+    for i in 0..128 {
+        if context.metafits_context.antennas[i].tile_id == 154 {
+            assert_eq!(context.metafits_context.antennas[i].rfinput_y.vcs_order, 1);
+        }
+
+        if context.metafits_context.antennas[i].tile_id == 104 {
+            assert_eq!(context.metafits_context.antennas[i].rfinput_y.vcs_order, 0);
+        }
+    }
 }
 
 #[test]

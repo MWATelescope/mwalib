@@ -40,6 +40,16 @@ fn test_metafits_context_new_vcslegacy_valid() {
 
     assert_eq!(context.volt_fine_chan_width_hz, 10_000);
     assert_eq!(context.num_volt_fine_chans_per_coarse, 128);
+
+    for i in 0..128 {
+        if context.antennas[i].tile_id == 154 {
+            assert_eq!(context.antennas[i].rfinput_y.vcs_order, 1);
+        }
+
+        if context.antennas[i].tile_id == 104 {
+            assert_eq!(context.antennas[i].rfinput_y.vcs_order, 0);
+        }
+    }
 }
 
 #[test]

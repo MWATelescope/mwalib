@@ -1527,8 +1527,16 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 ant: *ant,
                 tile_id: *tile_id,
                 tile_name: CString::new(tile_name.as_str()).unwrap().into_raw(),
-                rfinput_x: rfinput_x.subfile_order as usize,
-                rfinput_y: rfinput_y.subfile_order as usize,
+                rfinput_x: metafits_context
+                    .rf_inputs
+                    .iter()
+                    .position(|x| x == rfinput_x)
+                    .unwrap(),
+                rfinput_y: metafits_context
+                    .rf_inputs
+                    .iter()
+                    .position(|y| y == rfinput_y)
+                    .unwrap(),
                 electrical_length_m: *electrical_length_m,
                 north_m: *north_m,
                 east_m: *east_m,

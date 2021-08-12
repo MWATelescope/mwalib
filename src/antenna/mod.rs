@@ -83,9 +83,23 @@ impl Antenna {
     ///
     pub(crate) fn populate_antennas(rf_inputs: &[Rfinput]) -> Vec<Antenna> {
         let mut antennas: Vec<Antenna> = Vec::with_capacity(rf_inputs.len() / 2);
-        for index in (0..rf_inputs.len()).step_by(2) {
-            antennas.push(Antenna::new(&rf_inputs[index], &rf_inputs[index + 1]));
+
+        // Loop through the rf inputs
+        for x_index in 0..rf_inputs.len() {
+            // Find the X pol
+            if rf_inputs[x_index].pol == Pol::X {
+                // Find the Y pol
+                for y_index in 0..rf_inputs.len() {
+                    if rf_inputs[y_index].pol == Pol::Y
+                        && rf_inputs[x_index].tile_id == rf_inputs[y_index].tile_id
+                    {
+                        // Create the antenna
+                        antennas.push(Antenna::new(&rf_inputs[x_index], &rf_inputs[y_index]));
+                    }
+                }
+            }
         }
+
         antennas
     }
 }

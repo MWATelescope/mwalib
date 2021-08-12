@@ -2,6 +2,9 @@
 
 Changes in each release are listed below.
 
+## 0.9.3 10-Aug-2021 (Pre-release)
+* Antenna rf_input_x and rf_input_y are now correctly indexed/sorted for the VCSLegacyRecombined case.
+
 ## 0.9.2 09-Aug-2021 (Pre-release)
 * When using a stand-alone MetafitsContext, the rf_inputs are now correctly sorted for the VCSLegacyRecombined case.
 

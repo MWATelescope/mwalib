@@ -1686,7 +1686,69 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         assert_eq!(item[0].unix_time_ms, 1_417_468_096_000);
         assert_eq!(item[55].unix_time_ms, 1_417_468_206_000);
 
-        // Note- don't try to do any free's here since, in order to test, we have reconstituded some of the arrays
+        // Note- don't try to do any free's here since, in order to test, we have had to reconstituded some of the arrays which will result in a double free
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_metadata_get_from_metafits_context_legacy_vcs_valid() {
+    // This tests for a valid metafits context and metadata returned
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    // Create a MetafitsContext
+    let metafits_context_ptr: *mut MetafitsContext =
+        get_test_ffi_metafits_context(MWAVersion::VCSLegacyRecombined);
+    unsafe {
+        // Check we got valid MetafitsContext pointer
+        let context_ptr = metafits_context_ptr.as_mut();
+        assert!(context_ptr.is_some());
+
+        // Populate a mwalibMetafitsMetadata struct
+        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
+        let retval = mwalib_metafits_metadata_get(
+            metafits_context_ptr,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut metafits_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // Check return value
+        let mut ret_error_message: String = String::new();
+
+        if retval != 0 {
+            let c_str: &CStr = CStr::from_ptr(error_message_ptr);
+            let str_slice: &str = c_str.to_str().unwrap();
+            ret_error_message = str_slice.to_owned();
+        }
+        assert_eq!(
+            retval, 0,
+            "mwalib_metafits_metadata_get failure {}",
+            ret_error_message
+        );
+
+        // Get the mwalibMetadata struct from the pointer
+        let metafits_metadata = Box::from_raw(*metafits_metadata_ptr);
+
+        //
+        // Test antennas
+        //
+        let item: Vec<Antenna> =
+            ffi_boxed_slice_to_array(metafits_metadata.antennas, metafits_metadata.num_ants);
+
+        assert_eq!(item.len(), 128, "Array length is not correct");
+
+        for i in 0..128 {
+            if item[i].tile_id == 154 {
+                assert_eq!(item[i].rfinput_y, 1);
+            }
+
+            if item[i].tile_id == 104 {
+                assert_eq!(item[i].rfinput_y, 0);
+            }
+        }
     }
 }
 
@@ -1801,14 +1863,25 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
         // We should get a valid obsid and no error message
         assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
 
-        // Now ensure we can free the rust memory
-        assert_eq!(
-            mwalib_metafits_metadata_free(Box::into_raw(metafits_metadata)),
-            0
-        );
+        //
+        // Test antennas
+        //
+        let item: Vec<Antenna> =
+            ffi_boxed_slice_to_array(metafits_metadata.antennas, metafits_metadata.num_ants);
 
-        // Now ensure we don't panic if we try to free a null pointer
-        assert_eq!(mwalib_metafits_metadata_free(std::ptr::null_mut()), 0);
+        assert_eq!(item.len(), 128, "Array length is not correct");
+
+        for i in 0..128 {
+            if item[i].tile_id == 154 {
+                assert_eq!(item[i].rfinput_y, 1);
+            }
+
+            if item[i].tile_id == 104 {
+                assert_eq!(item[i].rfinput_y, 0);
+            }
+        }
+
+        // Note- don't try to do any free's here since, in order to test, we have had to reconstituded some of the arrays which will result in a double free
     }
 }
 
