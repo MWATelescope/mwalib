@@ -11,7 +11,7 @@ pub use error::FitsError;
 use fitsio::{hdu::*, FitsFile};
 use fitsio_sys::{ffgkls, fitsfile};
 use libc::c_char;
-use log::debug;
+use log::trace;
 use std::ffi::*;
 use std::ptr;
 
@@ -282,7 +282,7 @@ pub fn _open_fits<T: AsRef<std::path::Path>>(
 ) -> Result<FitsFile, FitsError> {
     match FitsFile::open(file) {
         Ok(f) => {
-            debug!(
+            trace!(
                 "_open_fits() filename: '{}'",
                 file.as_ref().to_str().unwrap().to_string()
             );
@@ -309,9 +309,10 @@ pub fn _open_hdu(
 ) -> Result<FitsHdu, FitsError> {
     match fits_fptr.hdu(hdu_num) {
         Ok(f) => {
-            debug!(
+            trace!(
                 "_open_hdu() filename: '{}' hdu: {}",
-                fits_fptr.filename, hdu_num
+                fits_fptr.filename,
+                hdu_num
             );
             Ok(f)
         }
@@ -370,7 +371,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
         },
     };
 
-    debug!(
+    trace!(
         "_get_optional_fits_key() filename: '{}' hdu: {} keyword: '{}' value: '{}'",
         &fits_fptr.filename,
         hdu.number,
@@ -427,7 +428,7 @@ pub fn _get_fits_col<T: fitsio::tables::ReadsCol>(
 ) -> Result<Vec<T>, FitsError> {
     match hdu.read_col(fits_fptr, keyword) {
         Ok(c) => {
-            debug!(
+            trace!(
                 "_get_fits_col() filename: '{}' hdu: {} keyword: '{}' values: {}",
                 fits_fptr.filename,
                 hdu.number,
@@ -468,9 +469,11 @@ pub fn _get_optional_fits_key_long_string(
 
     match status {
         0 => {
-            debug!(
+            trace!(
                 "_get_optional_fits_key_long_string() filename: {} keyword: '{}' value: '{}'",
-                &fits_fptr.filename, keyword, long_string
+                &fits_fptr.filename,
+                keyword,
+                long_string
             );
             Ok(Some(long_string))
         }
@@ -527,9 +530,11 @@ pub fn _get_hdu_image_size(
 ) -> Result<Vec<usize>, FitsError> {
     match &hdu.info {
         HduInfo::ImageInfo { shape, .. } => {
-            debug!(
+            trace!(
                 "_get_hdu_image_size() filename: '{}' hdu: {} shape: {:?}",
-                fits_fptr.filename, hdu.number, shape
+                fits_fptr.filename,
+                hdu.number,
+                shape
             );
             Ok(shape.clone())
         }
@@ -555,9 +560,10 @@ pub fn _get_fits_image<T: fitsio::images::ReadImage>(
     match &hdu.info {
         HduInfo::ImageInfo { .. } => match hdu.read_image(fits_fptr) {
             Ok(img) => {
-                debug!(
+                trace!(
                     "_get_fits_image() filename: '{}' hdu: {}",
-                    fits_fptr.filename, hdu.number
+                    fits_fptr.filename,
+                    hdu.number
                 );
                 Ok(img)
             }
@@ -620,9 +626,10 @@ pub fn _get_fits_float_img_into_buf(
         }
     }
 
-    debug!(
+    trace!(
         "_get_fits_float_img_into_buf() filename: '{}' hdu: {}",
-        fits_fptr.filename, hdu.number
+        fits_fptr.filename,
+        hdu.number
     );
 
     Ok(())
