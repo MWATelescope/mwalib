@@ -544,10 +544,10 @@ fn test_geometric_delays_applied_enum() {
     assert!(GeometricDelaysApplied::from_str("Az/El Tracking").is_ok());
     assert!(GeometricDelaysApplied::from_str("something invalid").is_err());
 
-    let i32_none: GeometricDelaysApplied = num::FromPrimitive::from_i32(0).unwrap();
-    let i32_zen: GeometricDelaysApplied = num::FromPrimitive::from_i32(1).unwrap();
-    let i32_tile: GeometricDelaysApplied = num::FromPrimitive::from_i32(2).unwrap();
-    let i32_azel: GeometricDelaysApplied = num::FromPrimitive::from_i32(3).unwrap();
+    let i32_none: GeometricDelaysApplied = num_traits::FromPrimitive::from_i32(0).unwrap();
+    let i32_zen: GeometricDelaysApplied = num_traits::FromPrimitive::from_i32(1).unwrap();
+    let i32_tile: GeometricDelaysApplied = num_traits::FromPrimitive::from_i32(2).unwrap();
+    let i32_azel: GeometricDelaysApplied = num_traits::FromPrimitive::from_i32(3).unwrap();
 
     assert_eq!(i32_none, GeometricDelaysApplied::No);
     assert_eq!(i32_zen, GeometricDelaysApplied::Zenith);
@@ -555,7 +555,7 @@ fn test_geometric_delays_applied_enum() {
     assert_eq!(i32_azel, GeometricDelaysApplied::AzElTracking);
 
     let geo_delay: GeometricDelaysApplied = match Some(1) {
-        Some(g) => num::FromPrimitive::from_i32(g).unwrap(),
+        Some(g) => num_traits::FromPrimitive::from_i32(g).unwrap(),
         None => GeometricDelaysApplied::No,
     };
     assert_eq!(geo_delay, GeometricDelaysApplied::Zenith);

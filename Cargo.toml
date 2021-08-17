@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "0.9.3"
+version = "0.9.4"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
@@ -34,9 +34,8 @@ fitsio-sys = "^0"  # fitsio also uses fitsio-sys so ensure we both use the same
 lazy_static = "1.4.*"
 libc = "0.2.*"
 log = "0.4.*"
-num = "0.4"
-num-derive = "0.3"
-num-traits = "0.2"
+num-derive = "0.3.*"
+num-traits = "0.2.*"
 rayon = ">=1.3,<1.6" # Allow downstream users to select the rayon version to use.
 regex = "1.5.*"
 thiserror = "1.0.*"

@@ -632,7 +632,7 @@ impl MetafitsContext {
 
         let geometric_delays_applied: GeometricDelaysApplied =
             match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GEODEL")? {
-                Some(g) => match num::FromPrimitive::from_i32(g) {
+                Some(g) => match num_traits::FromPrimitive::from_i32(g) {
                     Some(gda) => gda,
                     None => {
                         return Err(MwalibError::Parse {
