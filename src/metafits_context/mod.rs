@@ -475,6 +475,7 @@ impl MetafitsContext {
                 }
             },
         );
+        new_context.num_metafits_fine_chan_freqs = new_context.metafits_fine_chan_freqs_hz.len();
 
         // Populate the timesteps
         new_context.populate_expected_timesteps(new_context.mwa_version.unwrap())?;
@@ -708,9 +709,9 @@ impl MetafitsContext {
             Vec::with_capacity(metafits_coarse_chan_vec.len());
         let num_metafits_coarse_chans: usize = 0;
 
-        // Populate fine channel frequencies- we know enough to do this now
-        let num_metafits_fine_chan_freqs: usize = metafits_coarse_chan_vec.len();
-        let metafits_fine_chan_freqs: Vec<f64> = Vec::with_capacity(num_metafits_fine_chan_freqs);
+        // Placeholder values- we work these out once we know the mwa_version
+        let num_metafits_fine_chan_freqs: usize = 0;
+        let metafits_fine_chan_freqs: Vec<f64> = Vec::new();
 
         // Fine-channel resolution. The FINECHAN value in the metafits is in units
         // of kHz - make it Hz.

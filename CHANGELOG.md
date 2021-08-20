@@ -2,6 +2,14 @@
 
 Changes in each release are listed below.
 
+## 0.10.0 20-Aug-2021 (Pre-release)
+* Fixed bug where the `num_metafits_fine_chan_freqs` and `metafits_fine_chan_freqs_hz` were not being populated correctly for a stand-alone `MetafitsContext` usecase.
+* Fixed attribute name `metafits_fine_chan_freqs` to `metafits_fine_chan_freqs_hz` in FFI `MetafitsMetadata`to be consistent with the rest of the library.
+* Removed constants `SPEED_OF_LIGHT_IN_VACUUM_M_PER_S`, `MWA_LATITUDE_RADIANS`, `MWA_LONGITUDE_RADIANS`, `MWA_ALTITUDE_METRES` as these are now provided by the [mwa_rust_core](https://github.com/MWATelescope/mwa_rust_core) repo.
+* Simplified the dependency rules for `regex` and `rayon` crates.
+
+## 0.9.4 19-Aug-2021 (Pre-release)
+
 ## 0.9.3 10-Aug-2021 (Pre-release)
 * Antenna rf_input_x and rf_input_y are now correctly indexed/sorted for the VCSLegacyRecombined case.
 

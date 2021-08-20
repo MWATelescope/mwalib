@@ -22,7 +22,7 @@ fn test_metafits_context_new_invalid() {
 }
 
 #[test]
-fn test_metafits_context_new_vcslegacy_valid() {
+fn test_metafits_context_new_vcs_legacy_valid() {
     // Open the test mwa v 1 metafits file
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
@@ -33,23 +33,25 @@ fn test_metafits_context_new_vcslegacy_valid() {
     let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined))
         .expect("Failed to create MetafitsContext");
 
+    // rf_inputs:                [Tile104Y, ..., Tile055X],
+    assert_eq!(context.num_rf_inputs, 256);
+    assert_eq!(context.rf_inputs[0].pol, Pol::Y);
+    assert_eq!(context.rf_inputs[0].tile_name, "Tile104");
+    assert_eq!(context.rf_inputs[255].pol, Pol::X);
+    assert_eq!(context.rf_inputs[255].tile_name, "Tile055");
+
     // Test the properties of the context object match what we expect
+    // antennas:                 [Tile011, Tile012, ... Tile167, Tile168],
+    // NOTE: since in Legacy VCS the VCS order may look like Tile104Y, Tile103Y, Tile102Y, Tile104X, ...
+    // so the order of antennas makes no sense, since 104 needs to be first AND further down the list!, so we leave it in the MWAX order.
+    assert_eq!(context.antennas[0].tile_name, "Tile011");
+    assert_eq!(context.antennas[127].tile_name, "Tile168");
 
-    // obsid:                    1101503312,
-    assert_eq!(context.obs_id, 1_101_503_312);
-
-    assert_eq!(context.volt_fine_chan_width_hz, 10_000);
-    assert_eq!(context.num_volt_fine_chans_per_coarse, 128);
-
-    for i in 0..128 {
-        if context.antennas[i].tile_id == 154 {
-            assert_eq!(context.antennas[i].rfinput_y.vcs_order, 1);
-        }
-
-        if context.antennas[i].tile_id == 104 {
-            assert_eq!(context.antennas[i].rfinput_y.vcs_order, 0);
-        }
-    }
+    assert_eq!(context.metafits_fine_chan_freqs_hz.len(), 3072);
+    assert_eq!(
+        context.metafits_fine_chan_freqs_hz.len(),
+        context.num_metafits_fine_chan_freqs
+    );
 }
 
 #[test]
@@ -231,6 +233,41 @@ fn test_metafits_context_new_corrlegacy_valid() {
     assert_eq!(VisPol::XY.to_string(), "XY");
     assert_eq!(VisPol::YX.to_string(), "YX");
     assert_eq!(VisPol::YY.to_string(), "YY");
+
+    // Check correlator mode
+    assert_eq!(context.corr_fine_chan_width_hz, 10_000);
+    assert_eq!(context.corr_int_time_ms, 2_000);
+
+    // Check metafits fine chan freqs
+    assert_eq!(context.metafits_fine_chan_freqs_hz.len(), 3072);
+    assert_eq!(
+        context.metafits_fine_chan_freqs_hz.len(),
+        context.num_metafits_fine_chan_freqs
+    );
+}
+
+#[test]
+fn test_metafits_context_new_corrmwaxv2_valid() {
+    // Open the test mwa v 1 metafits file
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    //
+    // Read the observation using mwalib
+    //
+    // Open a context and load in a test metafits
+    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::CorrMWAXv2))
+        .expect("Failed to create MetafitsContext");
+
+    // Test the properties of the context object match what we expect
+
+    // obsid:                    1101503312,
+    assert_eq!(context.obs_id, 1_101_503_312);
+
+    assert_eq!(context.metafits_fine_chan_freqs_hz.len(), 3072);
+    assert_eq!(
+        context.metafits_fine_chan_freqs_hz.len(),
+        context.num_metafits_fine_chan_freqs
+    );
 }
 
 #[test]
@@ -252,33 +289,12 @@ fn test_metafits_context_new_vcsmwax2_valid() {
 
     assert_eq!(context.volt_fine_chan_width_hz, 1_280_000);
     assert_eq!(context.num_volt_fine_chans_per_coarse, 1);
-}
 
-#[test]
-fn test_metafits_context_new_vcs_legacy_valid() {
-    // Open the test mwa v 1 metafits file
-    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
-
-    //
-    // Read the observation using mwalib
-    //
-    // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined))
-        .expect("Failed to create MetafitsContext");
-
-    // rf_inputs:                [Tile104Y, ..., Tile055X],
-    assert_eq!(context.num_rf_inputs, 256);
-    assert_eq!(context.rf_inputs[0].pol, Pol::Y);
-    assert_eq!(context.rf_inputs[0].tile_name, "Tile104");
-    assert_eq!(context.rf_inputs[255].pol, Pol::X);
-    assert_eq!(context.rf_inputs[255].tile_name, "Tile055");
-
-    // Test the properties of the context object match what we expect
-    // antennas:                 [Tile011, Tile012, ... Tile167, Tile168],
-    // NOTE: since in Legacy VCS the VCS order may look like Tile104Y, Tile103Y, Tile102Y, Tile104X, ...
-    // so the order of antennas makes no sense, since 104 needs to be first AND further down the list!, so we leave it in the MWAX order.
-    assert_eq!(context.antennas[0].tile_name, "Tile011");
-    assert_eq!(context.antennas[127].tile_name, "Tile168");
+    assert_eq!(context.metafits_fine_chan_freqs_hz.len(), 24);
+    assert_eq!(
+        context.metafits_fine_chan_freqs_hz.len(),
+        context.num_metafits_fine_chan_freqs
+    );
 }
 
 #[test]

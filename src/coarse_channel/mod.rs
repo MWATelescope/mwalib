@@ -380,7 +380,7 @@ impl CoarseChannel {
         };
 
         // Return a vector of f64s which are the fine channel centre frequencies for all the fine channels in [coarse_channels]
-        coarse_channels
+        let return_vec: Vec<f64> = coarse_channels
             .iter()
             .flat_map(|coarse_chan| {
                 (0..num_fine_chans_per_coarse).map(move |fine_chan_idx| {
@@ -389,7 +389,9 @@ impl CoarseChannel {
                         + offset_hz
                 })
             })
-            .collect()
+            .collect();
+
+        return_vec
     }
 }
 
