@@ -229,7 +229,7 @@ impl CoarseChannel {
                                         coarse_chans.push(CoarseChannel::new(
                                             correlator_chan_number,
                                             *rec_chan_number,
-                                            *rec_chan_number,
+                                            gpubox_chan_number,
                                             metafits_coarse_chan_width_hz,
                                         ))
                                     }

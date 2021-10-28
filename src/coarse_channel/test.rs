@@ -123,10 +123,18 @@ fn test_process_coarse_chans_vcs_legacy_middle_two_channels() {
         assert_eq!(coarse_chan_array.len(), 2);
         assert_eq!(coarse_chan_array[0].corr_chan_number, 1);
         assert_eq!(coarse_chan_array[0].rec_chan_number, 110);
-        assert_eq!(coarse_chan_array[0].gpubox_number, 110);
+        if mwa_version == MWAVersion::VCSLegacyRecombined {
+            assert_eq!(coarse_chan_array[0].gpubox_number, 2);
+        } else {
+            assert_eq!(coarse_chan_array[0].gpubox_number, 110);
+        }
         assert_eq!(coarse_chan_array[1].corr_chan_number, 2);
         assert_eq!(coarse_chan_array[1].rec_chan_number, 111);
-        assert_eq!(coarse_chan_array[1].gpubox_number, 111);
+        if mwa_version == MWAVersion::VCSLegacyRecombined {
+            assert_eq!(coarse_chan_array[1].gpubox_number, 3);
+        } else {
+            assert_eq!(coarse_chan_array[1].gpubox_number, 111);
+        }
     }
 }
 
@@ -208,19 +216,19 @@ fn test_process_coarse_chans_vcs_legacy_chan_reversal() {
     assert_eq!(coarse_chan_array.len(), 5);
     assert_eq!(coarse_chan_array[0].corr_chan_number, 0);
     assert_eq!(coarse_chan_array[0].rec_chan_number, 126);
-    assert_eq!(coarse_chan_array[0].gpubox_number, 126);
+    assert_eq!(coarse_chan_array[0].gpubox_number, 1);
     assert_eq!(coarse_chan_array[1].corr_chan_number, 1);
     assert_eq!(coarse_chan_array[1].rec_chan_number, 127);
-    assert_eq!(coarse_chan_array[1].gpubox_number, 127);
+    assert_eq!(coarse_chan_array[1].gpubox_number, 2);
     assert_eq!(coarse_chan_array[2].corr_chan_number, 2);
     assert_eq!(coarse_chan_array[2].rec_chan_number, 128);
-    assert_eq!(coarse_chan_array[2].gpubox_number, 128);
+    assert_eq!(coarse_chan_array[2].gpubox_number, 3);
     assert_eq!(coarse_chan_array[3].corr_chan_number, 4);
     assert_eq!(coarse_chan_array[3].rec_chan_number, 129);
-    assert_eq!(coarse_chan_array[3].gpubox_number, 129);
+    assert_eq!(coarse_chan_array[3].gpubox_number, 5);
     assert_eq!(coarse_chan_array[4].corr_chan_number, 3);
     assert_eq!(coarse_chan_array[4].rec_chan_number, 130);
-    assert_eq!(coarse_chan_array[4].gpubox_number, 130);
+    assert_eq!(coarse_chan_array[4].gpubox_number, 4);
 }
 
 #[test]
@@ -345,10 +353,20 @@ fn test_process_coarse_chans_vcs_legacy_first_and_last() {
         assert_eq!(coarse_chan_array.len(), 2);
         assert_eq!(coarse_chan_array[0].corr_chan_number, 0);
         assert_eq!(coarse_chan_array[0].rec_chan_number, 109);
-        assert_eq!(coarse_chan_array[0].gpubox_number, 109);
+        if mwa_version == MWAVersion::VCSLegacyRecombined {
+            assert_eq!(coarse_chan_array[0].gpubox_number, 1);
+        } else {
+            assert_eq!(coarse_chan_array[0].gpubox_number, 109);
+        }
+
         assert_eq!(coarse_chan_array[1].corr_chan_number, 3);
         assert_eq!(coarse_chan_array[1].rec_chan_number, 112);
-        assert_eq!(coarse_chan_array[1].gpubox_number, 112);
+
+        if mwa_version == MWAVersion::VCSLegacyRecombined {
+            assert_eq!(coarse_chan_array[1].gpubox_number, 4);
+        } else {
+            assert_eq!(coarse_chan_array[1].gpubox_number, 112);
+        }
     }
 }
 
