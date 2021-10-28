@@ -22,8 +22,24 @@ mod timestep;
 mod voltage_context;
 mod voltage_files;
 
+////////////////////////////////////////////////////////////////////////////
+/// NOTE: the below constants are here for FFI compatibility
+/// If you are using `mwa_rust_core`, then it's recommended to use
+/// the constants from that library
+///
+/// The MWA's latitude on Earth in radians. This is -26d42m11.94986s.
+pub const MWALIB_MWA_LATITUDE_RADIANS: f64 = -0.4660608448386394;
+/// The MWA's longitude on Earth in radians. This is 116d40m14.93485s.
+pub const MWALIB_MWA_LONGITUDE_RADIANS: f64 = 2.0362898668561042;
+/// The MWA's altitude in metres.
+pub const MWALIB_MWA_ALTITUDE_METRES: f64 = 377.827;
+/// speed of light in m/s
+pub const MWALIB_SPEED_OF_LIGHT_IN_VACUUM_M_PER_S: f64 = 299792458.0;
+///
+/////////////////////////////////////////////////////////////////////////////
+
 /// the velocity factor of electic fields in RG-6 like coax cable
-pub const MWA_COAX_V_FACTOR: f64 = 1.204;
+pub const MWALIB_MWA_COAX_V_FACTOR: f64 = 1.204;
 /// the number of seconds per file in MWA Legacy Recmbined VCS
 pub(crate) const MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS: u64 = 1;
 /// the number of seconds per subfile in MWAX v2 VCS

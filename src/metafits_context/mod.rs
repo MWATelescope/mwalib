@@ -540,7 +540,7 @@ impl MetafitsContext {
             num_rf_inputs,
             &mut metafits_fptr,
             metafits_tile_table_hdu,
-            MWA_COAX_V_FACTOR,
+            MWALIB_MWA_COAX_V_FACTOR,
         )?;
 
         // Sort the rf_inputs back into the correct output order
