@@ -1895,7 +1895,7 @@ fn test_mwalib_metafits_get_expected_volt_filename() {
     let error_message = CString::new(" ".repeat(error_message_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
-    let filename_len: size_t = 31;
+    let filename_len: size_t = 32; // 31 + null terminator
     let filename = CString::new(" ".repeat(filename_len)).unwrap();
     let filename_ptr = filename.as_ptr() as *const c_char;
 
@@ -1913,10 +1913,12 @@ fn test_mwalib_metafits_get_expected_volt_filename() {
         // Should be success
         assert_eq!(retval, 0);
 
-        // Check the filename
+        // Check the filename (NOTE it already has a nul terminator)
         assert_eq!(
-            filename,
-            CString::new("1101503312_1101503315_ch110.dat").unwrap()
+            filename.as_bytes(),
+            CString::new("1101503312_1101503315_ch110.dat")
+                .unwrap()
+                .as_bytes_with_nul()
         );
     }
 }

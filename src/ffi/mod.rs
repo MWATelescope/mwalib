@@ -65,7 +65,7 @@ fn set_c_string(in_message: &str, error_buffer_ptr: *mut u8, error_buffer_len: s
     let error_message = CString::new(message).unwrap();
 
     // Add null terminator
-    let error_message_bytes = error_message.as_bytes();
+    let error_message_bytes = error_message.as_bytes_with_nul();
 
     unsafe {
         // Reconstruct a string to write into
