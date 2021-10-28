@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "0.10.0"
+version = "0.11.0"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
@@ -29,7 +29,7 @@ cfitsio-static = ["fitsio-sys/fitsio-src"]
 
 [dependencies]
 chrono = "0.4.*"
-fitsio = "0.17.*"
+fitsio = "0.19.*"
 fitsio-sys = "^0"  # fitsio also uses fitsio-sys so ensure we both use the same
 lazy_static = "1.4.*"
 libc = "0.2.*"

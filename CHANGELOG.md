@@ -1,6 +1,12 @@
 # Change Log
 
 Changes in each release are listed below.
+## 0.11.0 28-Oct-2021 (Pre-release)
+* Added new metafits key RAWSCALE to metafits context
+* Made gridnum and global_analogue_attenuation_db optional (since they are not in every historical metafits)
+* For Legacy VCS, coarse channel.gpuboxnumber now matches the values used by the Legacy Correlator (instead of receiver channel number)
+* Added back constants recently removed as they were needed by FFI users: MWALIB_MWA_LATITUDE_RADIANS, MWALIB_MWA_LONGITUDE_RADIANS, MWALIB_MWA_ALTITUDE_METRES, MWALIB_SPEED_OF_LIGHT_IN_VACUUM_M_PER_S. The constants are prefixed with "MWALIB_" to ensure no clashes with mwa_rust_core constants
+* Fixed missing nul terminators on returned strings in mwalib FFI functions
 
 ## 0.10.0 20-Aug-2021 (Pre-release)
 * Fixed bug where the `num_metafits_fine_chan_freqs` and `metafits_fine_chan_freqs_hz` were not being populated correctly for a stand-alone `MetafitsContext` usecase.
