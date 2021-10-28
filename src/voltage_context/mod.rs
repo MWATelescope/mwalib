@@ -28,8 +28,8 @@ pub struct VoltageContext {
     pub metafits_context: MetafitsContext,
     /// MWA version, derived from the files passed in
     pub mwa_version: MWAVersion,
-
-    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files)
+    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
+    /// offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
     pub timesteps: Vec<TimeStep>,
     /// Number of timesteps in the timesteps vector
     pub num_timesteps: usize,

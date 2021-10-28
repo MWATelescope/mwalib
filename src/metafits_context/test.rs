@@ -192,7 +192,7 @@ fn test_metafits_context_new_corrlegacy_valid() {
     assert_eq!(context.grid_name, "sweet");
 
     // Grid number:              0,
-    assert_eq!(context.grid_number, 0);
+    assert_eq!(context.grid_number, Some(0));
 
     // num antennas:             128,
     assert_eq!(context.num_ants, 128);

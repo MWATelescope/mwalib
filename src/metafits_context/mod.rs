@@ -318,7 +318,7 @@ pub struct MetafitsContext {
     /// GRIDNAME
     pub grid_name: String,
     /// GRIDNUM
-    pub grid_number: i32,
+    pub grid_number: Option<i32>,
     /// CREATOR
     pub creator: String,
     /// PROJECT
@@ -337,6 +337,8 @@ pub struct MetafitsContext {
     pub corr_fine_chan_width_hz: u32,
     /// Correlator mode dump time
     pub corr_int_time_ms: u64,
+    /// Correlator visibility scaling factor used to get the visibilities in Jansky-like units
+    pub corr_raw_scale_factor: f32,
     /// Number of fine channels in each coarse channel for a correlator observation
     pub num_corr_fine_chans_per_coarse: usize,
     /// Voltage fine_chan_resolution
@@ -624,7 +626,7 @@ impl MetafitsContext {
         let lst_degrees: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "LST")?;
         let hour_angle_string = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "HA")?;
         let grid_name = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNAME")?;
-        let grid_number = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")?;
+        let grid_number = get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")?;
         let creator = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "CREATOR")?;
         let project_id = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "PROJECT")?;
         let observation_name =
@@ -666,6 +668,10 @@ impl MetafitsContext {
         let receivers_string: String =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "RECVRS")?;
 
+        // This is a new metafits key as of Oct 2021. So assume this value is 1.0 unless it is provided
+        let corr_raw_scale_factor: f32 =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "RAWSCALE")?.unwrap_or(1.0);
+
         let receivers: Vec<usize> = receivers_string
             .replace(&['\'', '&'][..], "")
             .split(',')
@@ -685,8 +691,9 @@ impl MetafitsContext {
 
         let num_delays = delays.len();
 
+        // ATTEN_DB is not garaunteed to be in the metafits. Default to 0
         let global_analogue_attenuation_db: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?;
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?.unwrap_or(0.0);
 
         // observation bandwidth (read from metafits in MHz)
         let metafits_observation_bandwidth_hz: u32 = {
@@ -772,6 +779,7 @@ impl MetafitsContext {
             calibration_delays_and_gains_applied,
             corr_fine_chan_width_hz,
             corr_int_time_ms: integration_time_ms,
+            corr_raw_scale_factor,
             num_corr_fine_chans_per_coarse,
             volt_fine_chan_width_hz,
             num_volt_fine_chans_per_coarse,
@@ -1023,6 +1031,7 @@ impl fmt::Display for MetafitsContext {
     baselines:                {bl01} v {bl02} to {bll1} v {bll2}
     num auto-correlations:    {n_ants},
     num cross-correlations:   {n_ccs},
+    visibility raw scale fact {crsf},
 
     num visibility pols:      {n_vps},
     visibility pols:          {vp0}, {vp1}, {vp2}, {vp3},
@@ -1071,7 +1080,10 @@ impl fmt::Display for MetafitsContext {
             lst = self.lst_deg,
             ha = self.hour_angle_string,
             grid = self.grid_name,
-            grid_n = self.grid_number,
+            grid_n = match self.grid_number {
+                Some(g) => g.to_string(),
+                None => String::from("None"),
+            },
             n_ants = self.num_ants,
             ants = self.antennas,
             rfs = self.rf_inputs,
@@ -1097,6 +1109,7 @@ impl fmt::Display for MetafitsContext {
             fcw = self.corr_fine_chan_width_hz as f64 / 1e3,
             nfcpc = self.num_corr_fine_chans_per_coarse,
             int_time = self.corr_int_time_ms as f64 / 1e3,
+            crsf = self.corr_raw_scale_factor,
             meta = self.metafits_filename,
         )
     }

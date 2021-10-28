@@ -1353,6 +1353,8 @@ pub struct MetafitsMetadata {
     pub corr_fine_chan_width_hz: u32,
     /// Correlator mode dump time
     pub corr_int_time_ms: u64,
+    /// Correlator visibility scaling factor used to get the visibilities in Jansky-like units
+    pub corr_raw_scale_factor: f32,
     /// Number of fine channels in each coarse channel for a correlator observation
     pub num_corr_fine_chans_per_coarse: usize,
     /// Voltage fine_chan_resolution
@@ -1686,6 +1688,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             calibration_delays_and_gains_applied,
             corr_fine_chan_width_hz,
             corr_int_time_ms,
+            corr_raw_scale_factor,
             num_corr_fine_chans_per_coarse,
             volt_fine_chan_width_hz,
             num_volt_fine_chans_per_coarse,
@@ -1740,7 +1743,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 .unwrap()
                 .into_raw(),
             grid_name: CString::new(String::from(&*grid_name)).unwrap().into_raw(),
-            grid_number: *grid_number,
+            grid_number: grid_number.unwrap_or(-1),
             creator: CString::new(String::from(&*creator)).unwrap().into_raw(),
             project_id: CString::new(String::from(&*project_id)).unwrap().into_raw(),
             obs_name: CString::new(String::from(&*obs_name)).unwrap().into_raw(),
@@ -1750,6 +1753,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             calibration_delays_and_gains_applied: *calibration_delays_and_gains_applied,
             corr_fine_chan_width_hz: *corr_fine_chan_width_hz,
             corr_int_time_ms: *corr_int_time_ms,
+            corr_raw_scale_factor: *corr_raw_scale_factor,
             num_corr_fine_chans_per_coarse: *num_corr_fine_chans_per_coarse,
             volt_fine_chan_width_hz: *volt_fine_chan_width_hz,
             num_volt_fine_chans_per_coarse: *num_volt_fine_chans_per_coarse,
@@ -1923,9 +1927,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
 pub struct CorrelatorMetadata {
     /// Version of the correlator format
     pub mwa_version: MWAVersion,
-    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files)
+    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
+    /// offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
     pub timesteps: *mut TimeStep,
-    /// Count all known timesteps (union of metafits and provided timesteps from data files)
+    /// Number of timesteps in the timestep array
     pub num_timesteps: usize,
     /// Vector of coarse channels which is the effectively the same as the metafits provided coarse channels
     pub coarse_chans: *mut CoarseChannel,
@@ -2281,9 +2286,10 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
 pub struct VoltageMetadata {
     /// Version of the correlator format
     pub mwa_version: MWAVersion,
-    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files)
+    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
+    /// offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
     pub timesteps: *mut TimeStep,
-    /// Number of timesteps in the observation
+    /// Number of timesteps in the timestep array
     pub num_timesteps: usize,
     /// The number of millseconds interval between timestep indices
     pub timestep_duration_ms: u64,
