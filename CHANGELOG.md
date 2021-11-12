@@ -1,6 +1,11 @@
 # Change Log
 
 Changes in each release are listed below.
+
+## 0.12.0 12-Nov-2021 (Pre-release)
+* Added calibrator and calibrator_source to `metafits_context`
+* Reverted efa8ca41edccbe15079642b26ed5049a8656e3a9 (behaviour of coarse_chan.gpubox_number for VoltageContext LegacyVCS use-case)
+
 ## 0.11.0 28-Oct-2021 (Pre-release)
 * Added new metafits key RAWSCALE to metafits context
 * Made gridnum and global_analogue_attenuation_db optional (since they are not in every historical metafits)

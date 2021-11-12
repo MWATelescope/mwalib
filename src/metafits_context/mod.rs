@@ -353,6 +353,10 @@ pub struct MetafitsContext {
     pub delays: Vec<u32>,
     /// Number of beamformer delays
     pub num_delays: usize,
+    /// Intended for calibration
+    pub calibrator: bool,
+    /// Calibrator source
+    pub calibrator_source: String,
     /// ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
     /// Seconds of bad data after observation starts
@@ -691,6 +695,17 @@ impl MetafitsContext {
 
         let num_delays = delays.len();
 
+        // CALIBRAT - defalut to F if not found
+        let calibration_string: String =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CALIBRAT")?
+                .unwrap_or(String::from("F"));
+        let calibrator: bool = calibration_string == String::from("T");
+
+        // CALIBSRC - default to empty string if not found
+        let calibrator_source: String =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CALIBSRC")?
+                .unwrap_or(String::from(""));
+
         // ATTEN_DB is not garaunteed to be in the metafits. Default to 0
         let global_analogue_attenuation_db: f64 =
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?.unwrap_or(0.0);
@@ -787,6 +802,8 @@ impl MetafitsContext {
             num_receivers,
             delays,
             num_delays,
+            calibrator,
+            calibrator_source,
             global_analogue_attenuation_db,
             quack_time_duration_ms,
             good_time_unix_ms,
@@ -984,6 +1001,8 @@ impl fmt::Display for MetafitsContext {
     Observation Name:         {obs_name},
     Receivers:                {receivers:?},
     Delays:                   {delays:?},
+    Calibration:              {calib},
+    Calibrator Source:        {calsrc},
     Global attenuation:       {atten} dB,
 
     Scheduled start (UNIX)    {sched_start_unix},
@@ -1084,6 +1103,8 @@ impl fmt::Display for MetafitsContext {
                 Some(g) => g.to_string(),
                 None => String::from("None"),
             },
+            calib = self.calibrator,
+            calsrc = self.calibrator_source,
             n_ants = self.num_ants,
             ants = self.antennas,
             rfs = self.rf_inputs,

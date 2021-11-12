@@ -25,6 +25,7 @@ pub struct CoarseChannel {
     pub rec_chan_number: usize,
 
     /// gpubox channel number
+    /// This is better described as the identifier which would be in the filename of visibility files
     /// Legacy e.g. obsid_datetime_gpuboxXX_00
     /// v2     e.g. obsid_datetime_gpuboxXXX_00
     pub gpubox_number: usize,
@@ -229,7 +230,7 @@ impl CoarseChannel {
                                         coarse_chans.push(CoarseChannel::new(
                                             correlator_chan_number,
                                             *rec_chan_number,
-                                            gpubox_chan_number,
+                                            *rec_chan_number,
                                             metafits_coarse_chan_width_hz,
                                         ))
                                     }

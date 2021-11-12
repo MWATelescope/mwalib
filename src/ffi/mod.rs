@@ -1369,6 +1369,10 @@ pub struct MetafitsMetadata {
     pub delays: *mut u32,
     /// Number of beamformer delays
     pub num_delays: usize,
+    /// Intended for calibration
+    pub calibrator: bool,
+    /// Calibrator source
+    pub calibrator_source: *mut c_char,
     /// Scheduled start (UTC) of observation as a time_t (unix timestamp)
     pub sched_start_utc: libc::time_t,
     /// Scheduled end (UTC) of observation as a time_t (unix timestamp)
@@ -1696,6 +1700,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_receivers,
             delays,
             num_delays,
+            calibrator,
+            calibrator_source,
             global_analogue_attenuation_db,
             quack_time_duration_ms,
             good_time_unix_ms,
@@ -1761,6 +1767,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_receivers: *num_receivers,
             delays: ffi_array_to_boxed_slice(delays.clone()),
             num_delays: *num_delays,
+            calibrator: *calibrator,
+            calibrator_source: CString::new(String::from(&*calibrator_source))
+                .unwrap()
+                .into_raw(),
             sched_start_utc: sched_start_utc.timestamp(),
             sched_end_utc: sched_end_utc.timestamp(),
             sched_start_mjd: *sched_start_mjd,
@@ -2716,6 +2726,7 @@ pub struct CoarseChannel {
     /// Receiver channel is 0-255 in the RRI recivers
     pub rec_chan_number: usize,
     /// gpubox channel number
+    /// This is better described as the identifier which would be in the filename of visibility files
     /// Legacy e.g. obsid_datetime_gpuboxXX_00
     /// v2     e.g. obsid_datetime_gpuboxXXX_00
     pub gpubox_number: usize,
