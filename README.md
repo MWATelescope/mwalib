@@ -1,5 +1,9 @@
 # mwalib
 
+<div class="bg-gray-dark" align="center" style="background-color:#24292e">
+<img src="img/mwalib_logo.png" alt="mwalib logo" height="200px"/>
+</div>
+
 ![Linux Tests](https://github.com/MWATelescope/mwalib/workflows/Linux%20Tests/badge.svg)
 ![MacOS Tests](https://github.com/MWATelescope/mwalib/workflows/MacOS%20Tests/badge.svg)
 ![Code Coverage](https://github.com/MWATelescope/mwalib/workflows/Code%20Coverage/badge.svg)
@@ -17,7 +21,16 @@ mwalib supports the existing "legacy" MWA correlator, as well as the in-developm
 all incarnations of MWA metadatam correlator and voltage formats and abstract away
 the nitty gritty details about reading MWA data.
 
+----
 For installation instructions, concepts and usage info, please see the [`mwalib GitHub Wiki`](https://github.com/MWATelescope/mwalib/wiki).
+
+----
+
+Be sure to also check out these related repositories:
+* [`pymwalib`](https://github.com/MWATelescope/pymwalib) - a Python interface for mwalib.
+* [`Birli`](https://github.com/MWATelescope/Birli) - A Murchison Widefield Array (MWA) pre-processing pipeline.
+* [`Marlu`](https://github.com/MWATelescope/Marlu) - Convenience Rust code that handles coordinate transformations, Jones matrices, etc.
+* [`Hyperdrive`](https://github.com/MWATelescope/mwa_hyperdrive) - Calibration software for the Murchison Widefield Array (MWA) radio telescope.
 
 ## Example test output
 
@@ -128,3 +141,7 @@ CorrelatorContext (
 ],
         )
 ```
+
+This repo is approved by...
+
+<img src="img/CIRA_Rust_Evangelism_Strike_Force.png" height="200px" alt="CIRA Rust Evangelism Strike Force logo">
