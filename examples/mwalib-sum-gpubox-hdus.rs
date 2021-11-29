@@ -4,9 +4,9 @@
 
 /// Given gpubox files, add the contents of their HDUs and report the sum.
 use anyhow::*;
-use structopt::StructOpt;
-
+use core::result::Result::Ok;
 use mwalib::*;
+use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "mwalib-sum-gpubox-hdus", author)]
