@@ -2,6 +2,9 @@
 
 Changes in each release are listed below.
 
+## 0.12.1 29-Nov-2021 (Pre-release)
+* Fixed issue and covered with tests the case where mwalib would panic when creating `CorrelatorContext` with only gpubox file(s) from the second or higher batch (e.g. 001,002...).
+
 ## 0.12.0 12-Nov-2021 (Pre-release)
 * Added calibrator and calibrator_source to `metafits_context`
 * Reverted efa8ca41edccbe15079642b26ed5049a8656e3a9 (behaviour of coarse_chan.gpubox_number for VoltageContext LegacyVCS use-case)

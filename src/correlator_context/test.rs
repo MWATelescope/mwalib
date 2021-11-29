@@ -10,6 +10,56 @@ use super::*;
 use float_cmp::*;
 
 #[test]
+fn test_context_new_with_only_non000_batch() {
+    // The _001 fits file contains 1 timestep too- it is at time index 1560938480 / marker 10 (so the 10th timestep - zero indexed!)
+    let metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+    let mut gpuboxfiles = Vec::new();
+    gpuboxfiles.push("test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_001.fits");
+
+    // No gpubox files provided
+    let context_result = CorrelatorContext::new(&metafits_filename, &gpuboxfiles);
+
+    assert!(context_result.is_ok());
+
+    let context = context_result.unwrap();
+    println!("{:?}", context.gpubox_time_map);
+    let data_result = context.read_by_baseline(10, 10);
+    assert!(data_result.is_ok(), "Error was {:?}", data_result);
+}
+
+#[test]
+fn test_context_new_with_000_and_001_batch() {
+    // The _001 fits file contains 1 timestep too- it is at time index 1560938480 / marker 10 (so the 10th timestep - zero indexed!)
+    let metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+    let mut gpuboxfiles = Vec::new();
+    gpuboxfiles.push("test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits");
+    gpuboxfiles.push("test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_001.fits");
+
+    // No gpubox files provided
+    let context_result = CorrelatorContext::new(&metafits_filename, &gpuboxfiles);
+
+    assert!(context_result.is_ok());
+
+    let context = context_result.unwrap();
+    println!("{:?}", context.gpubox_time_map);
+    // Read from batch 0
+    let data_result1 = context.read_by_baseline(0, 10);
+    assert!(data_result1.is_ok(), "Error was {:?}", data_result1);
+    // Read from batch 1
+    let data_result2 = context.read_by_baseline(10, 10);
+    assert!(data_result2.is_ok(), "Error was {:?}", data_result2);
+    // Read from a timestep that does not exist
+    let data_result3 = context.read_by_baseline(15, 10);
+    assert!(matches!(
+        data_result3.unwrap_err(),
+        GpuboxError::NoDataForTimeStepCoarseChannel {
+            timestep_index: _,
+            coarse_chan_index: _
+        }
+    ));
+}
+
+#[test]
 fn test_context_new_missing_gpubox_files() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
     let gpuboxfiles = Vec::new();

@@ -197,17 +197,19 @@ impl CorrelatorContext {
             );
         let num_provided_coarse_chan_indices = provided_coarse_chan_indices.len();
 
-        // We have enough information to validate HDU matches metafits for the first batch/first coarse channel we have data for
+        // We have enough information to validate HDU matches metafits for the each gpubox file we have data for
         if !gpubox_filenames.is_empty() {
-            let mut fptr = fits_open!(&gpubox_info.batches[0].gpubox_files[0].filename)?;
+            for g in gpubox_filenames.iter() {
+                let mut fptr = fits_open!(&g)?;
 
-            CorrelatorContext::validate_first_hdu(
-                gpubox_info.mwa_version,
-                metafits_context.num_corr_fine_chans_per_coarse,
-                metafits_context.num_baselines,
-                metafits_context.num_visibility_pols,
-                &mut fptr,
-            )?;
+                CorrelatorContext::validate_first_hdu(
+                    gpubox_info.mwa_version,
+                    metafits_context.num_corr_fine_chans_per_coarse,
+                    metafits_context.num_baselines,
+                    metafits_context.num_visibility_pols,
+                    &mut fptr,
+                )?;
+            }
         }
 
         // Populate the start and end times of the observation based on common channels.
