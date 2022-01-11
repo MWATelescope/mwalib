@@ -348,7 +348,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
         Ok(key_value) => key_value,
         Err(e) => match &e {
             fitsio::errors::Error::Fits(fe) => match fe.status {
-                202 => return Ok(None),
+                202 | 204 => return Ok(None),
                 _ => {
                     return Err(FitsError::Fitsio {
                         fits_error: e,
