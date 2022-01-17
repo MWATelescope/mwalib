@@ -59,7 +59,7 @@ jobs:
         cargo build
         cargo test
         zip -0 ccov.zip `find . \( -name "mwalib*.gc*" \) -print`
-        grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o coverage/coverage.lcov
+        grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" --excl-br-line "^.*((debug_)?assert(_eq|_ne|_abs_diff_(eq|ne))?!|#\[derive\()" -o coverage/coverage.lcov
 
     - name: Upload reports to codecov.io
       uses: codecov/codecov-action@v1
