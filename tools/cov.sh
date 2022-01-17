@@ -2,34 +2,17 @@
 # This is a script to generate test coverage reports in lcov format
 # it assumes your default rust is NOT nightly and that you have the nightly rust installed.
 # 
-cd ..
-rustup run nightly cargo clean
-RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests
-rustup run nightly cargo profdata -- merge -sparse json5format-*.profraw -o json5format.profdata
-rustup run nightly cargo cov -- export --format=lcov --ignore-filename-regex='(/.cargo/registry|/rustc|test.rs$)' --instr-profile=json5format.profdata \
-$( \
-     for file in \
-            $( \
-                 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests --no-run --message-format=json \
-	                 | jq -r "select(.profile.test == true) | .filenames[]" \
-	                 | grep -v dSYM - \
-         ); \
-       do \
-          printf "%s %s " -object $file; \
-       done \
-) > coverage/coverage.lcov
-echo Exported coverage.lcov
-rustup run nightly cargo cov -- report --ignore-filename-regex='(/.cargo/registry|/rustc|test.rs$)' --instr-profile=json5format.profdata \
-$( \
-     for file in \
-            $( \
-                 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="json5format-%m.profraw" rustup run nightly cargo test --tests --no-run --message-format=json \
-                         | jq -r "select(.profile.test == true) | .filenames[]" \
-                         | grep -v dSYM - \
-         ); \
-       do \
-          printf "%s %s " -object $file; \
-       done \
-)
-rm *.profraw
-rm *.profdata
+echo This should be run from the mwalib base directory!
+
+export LD_LIBRARY_PATH=/usr/local/lib/
+export CARGO_INCREMENTAL=0
+#export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
+export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Coverflow-checks=off"
+export RUSTDOCFLAGS="-Cpanic=abort"
+export LLVM_PROFILE_FILE=json5format-%m.profraw
+
+mkdir -p coverage
+rustup run nightly cargo build
+rustup run nightly cargo test
+zip -0 ccov.zip `find . \( -name "mwalib*.gc*" \) -print`
+grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o coverage/coverage.lcov

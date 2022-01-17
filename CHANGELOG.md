@@ -2,6 +2,12 @@
 
 Changes in each release are listed below.
 
+## 0.12.2 17-Jan-2022 (Pre-release)
+* `get_optional_fits_key` now handles the CFITSIO return code of 204 (when there no value for the key) and correctly returns None instead of an error
+* The `digital_gains array` in `rf_input` is now sized based on the `num_metafits_coarse_chans` rather than hardcoded to be 24
+* `VoltageContext`'s voltage batches and voltage time map are now (library) public like the equivalent attributes in `CorrelatorContext`
+* Updated code coverage github action as it had stopped working
+
 ## 0.12.1 29-Nov-2021 (Pre-release)
 * Fixed issue and covered with tests the case where mwalib would panic when creating `CorrelatorContext` with only gpubox file(s) from the second or higher batch (e.g. 001,002...).
 

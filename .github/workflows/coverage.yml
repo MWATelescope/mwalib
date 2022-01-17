@@ -38,32 +38,28 @@ jobs:
           sudo ldconfig
           cd ..
 
-    - name: Install Cargo Packages
-      run: |
-        export DEBIAN_FRONTEND=noninteractive \
-        && sudo apt-get update \
-        && sudo apt-get install -y unzip libssl-dev jq \
-        && cargo install --force cargo-make cargo-binutils
+    - name: Install OS and Cargo Packages
+      run: |         
+        sudo apt-get update 
+        && sudo apt-get install -y lcov clang curl zip unzip libssl-dev jq 
+        && cargo update
+        && cargo install --force cargo-make cargo-binutils grcov
+      env:
+        DEBIAN_FRONTEND=noninteractive
         
     - name: Generate test lcov coverage into coverage/ dir
       env:
-        RUSTFLAGS: -Zinstrument-coverage
+        LD_LIBRARY_PATH: /usr/local/lib/
+        CARGO_INCREMENTAL: 0
+        RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Coverflow-checks=off"
+        RUSTDOCFLAGS: "-Cpanic=abort"
         LLVM_PROFILE_FILE: json5format-%m.profraw
       run: |
         mkdir -p coverage
-        cargo test --tests
-        cargo profdata -- \
-          merge -sparse json5format-*.profraw -o json5format.profdata
-        cargo cov -- export --format=lcov \
-          --ignore-filename-regex='(/.cargo/registry|/rustc|test.rs$)' \
-          --instr-profile=json5format.profdata \
-          $(cargo test --tests --no-run --message-format=json | jq -r '
-            select(.profile.test == true)
-            | .filenames[]
-            | select(endswith(".dSYM")|not)
-            | " -object \(.)"
-          ') \
-          > coverage/coverage.lcov
+        cargo build
+        cargo test
+        zip -0 ccov.zip `find . \( -name "mwalib*.gc*" \) -print`
+        grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o coverage/coverage.lcov
 
     - name: Upload reports to codecov.io
       uses: codecov/codecov-action@v1

@@ -13,3 +13,4 @@ include/
 /tools/comparison_tools/.python-version
 /test_files/1101503312_1_timestep/*.sub
 /test_files/1101503312_1_timestep/*.dat
+ccov.zip
