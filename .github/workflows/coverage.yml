@@ -45,7 +45,7 @@ jobs:
         && cargo update
         && cargo install --force cargo-make cargo-binutils grcov
       env:
-        DEBIAN_FRONTEND=noninteractive
+        DEBIAN_FRONTEND: noninteractive
         
     - name: Generate test lcov coverage into coverage/ dir
       env:
