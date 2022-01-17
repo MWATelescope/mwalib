@@ -41,9 +41,9 @@ jobs:
     - name: Install OS and Cargo Packages
       run: |         
         sudo apt-get update 
-        && sudo apt-get install -y lcov clang curl zip unzip libssl-dev jq 
-        && cargo update
-        && cargo install --force cargo-make cargo-binutils grcov
+        sudo apt-get install -y lcov clang curl zip unzip libssl-dev jq 
+        cargo update
+        cargo install --force cargo-make cargo-binutils grcov
       env:
         DEBIAN_FRONTEND: noninteractive
         
