@@ -531,6 +531,27 @@ impl MetafitsContext {
             (gt * 1000.).round() as _
         };
 
+        // observation bandwidth (read from metafits in MHz)
+        let metafits_observation_bandwidth_hz: u32 = {
+            let bw: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")?;
+            (bw * 1e6).round() as _
+        };
+
+        // Populate coarse channels
+        // Get metafits info
+        let (metafits_coarse_chan_vec, metafits_coarse_chan_width_hz) =
+            CoarseChannel::get_metafits_coarse_channel_info(
+                &mut metafits_fptr,
+                &metafits_hdu,
+                metafits_observation_bandwidth_hz,
+            )?;
+
+        // Populate an empty vector for the coarse channels until we know the MWAVersion
+        // This is because the coarse channel vector will be different depending on the MWAVersion
+        let metafits_coarse_chans: Vec<CoarseChannel> =
+            Vec::with_capacity(metafits_coarse_chan_vec.len());
+        let num_metafits_coarse_chans: usize = 0;
+
         // Create a vector of rf_input structs from the metafits
         let num_rf_inputs: usize =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "NINPUTS")?;
@@ -545,6 +566,7 @@ impl MetafitsContext {
             &mut metafits_fptr,
             metafits_tile_table_hdu,
             MWALIB_MWA_COAX_V_FACTOR,
+            metafits_coarse_chan_vec.len(),
         )?;
 
         // Sort the rf_inputs back into the correct output order
@@ -709,27 +731,6 @@ impl MetafitsContext {
         // ATTEN_DB is not garaunteed to be in the metafits. Default to 0
         let global_analogue_attenuation_db: f64 =
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?.unwrap_or(0.0);
-
-        // observation bandwidth (read from metafits in MHz)
-        let metafits_observation_bandwidth_hz: u32 = {
-            let bw: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "BANDWDTH")?;
-            (bw * 1e6).round() as _
-        };
-
-        // Populate coarse channels
-        // Get metafits info
-        let (metafits_coarse_chan_vec, metafits_coarse_chan_width_hz) =
-            CoarseChannel::get_metafits_coarse_channel_info(
-                &mut metafits_fptr,
-                &metafits_hdu,
-                metafits_observation_bandwidth_hz,
-            )?;
-
-        // Populate an empty vector for the coarse channels until we know the MWAVersion
-        // This is because the coarse channel vector will be different depending on the MWAVersion
-        let metafits_coarse_chans: Vec<CoarseChannel> =
-            Vec::with_capacity(metafits_coarse_chan_vec.len());
-        let num_metafits_coarse_chans: usize = 0;
 
         // Placeholder values- we work these out once we know the mwa_version
         let num_metafits_fine_chan_freqs: usize = 0;

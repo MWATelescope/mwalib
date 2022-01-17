@@ -210,6 +210,8 @@ impl Rfinput {
     ///
     /// * `row` - row index to read from the TILEDATA table in the metafits.
     ///
+    /// * `num_coarse_chans` - the number of coarse channels in this observation.
+    ///
     ///
     /// # Returns
     ///
@@ -219,6 +221,7 @@ impl Rfinput {
         metafits_fptr: &mut fitsio::FitsFile,
         metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
         row: usize,
+        num_coarse_chans: usize,
     ) -> Result<RfInputMetafitsTableRow, RfinputError> {
         let input = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Input", row)?;
         let antenna = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Antenna", row)?;
@@ -251,7 +254,7 @@ impl Rfinput {
             metafits_tile_table_hdu,
             "Gains",
             row as i64,
-            24,
+            num_coarse_chans,
         )?;
         let dipole_delays = read_cell_array(
             metafits_fptr,
@@ -311,12 +314,17 @@ impl Rfinput {
         metafits_fptr: &mut fitsio::FitsFile,
         metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
         coax_v_factor: f64,
+        num_coarse_chans: usize,
     ) -> Result<Vec<Self>, RfinputError> {
         let mut rf_inputs: Vec<Self> = Vec::with_capacity(num_inputs);
         for input in 0..num_inputs {
             // Note fits row numbers start at 1
-            let metafits_row =
-                Self::read_metafits_values(metafits_fptr, &metafits_tile_table_hdu, input)?;
+            let metafits_row = Self::read_metafits_values(
+                metafits_fptr,
+                &metafits_tile_table_hdu,
+                input,
+                num_coarse_chans,
+            )?;
 
             // The metafits TILEDATA table contains 2 rows for each antenna.
             // Some metafits will have
@@ -387,7 +395,7 @@ fn read_cell_array(
     metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
     col_name: &str,
     row: i64,
-    n_elem: i64,
+    n_elem: usize,
 ) -> Result<Vec<u32>, RfinputError> {
     unsafe {
         // With the column name, get the column number.
@@ -414,7 +422,7 @@ fn read_cell_array(
         // Now get the specified row from that column.
         // cfitsio is stupid. The data we want fits in i16, but we're forced to
         // unpack it into i32. Demote the data at the end.
-        let mut array: Vec<u32> = vec![0; n_elem as usize];
+        let mut array: Vec<u32> = vec![0; n_elem];
         array.shrink_to_fit();
         let array_ptr = array.as_mut_ptr();
         fitsio_sys::ffgcv(
@@ -423,7 +431,7 @@ fn read_cell_array(
             col_num,
             row + 1,
             1,
-            n_elem,
+            n_elem as i64,
             std::ptr::null_mut(),
             array_ptr as *mut core::ffi::c_void,
             &mut 0,
@@ -434,7 +442,7 @@ fn read_cell_array(
         match status {
             0 => {
                 // Re-assemble the raw array into a Rust Vector.
-                let v = std::slice::from_raw_parts(array_ptr, n_elem as usize);
+                let v = std::slice::from_raw_parts(array_ptr, n_elem);
 
                 trace!(
                     "read_cell_array() filename: '{}' hdu: {} col_name: '{}' row '{}'",

@@ -125,7 +125,7 @@ pub struct VoltageContext {
     /// corresponds directly to other voltage-related objects
     /// (e.g. `voltage_hdu_limits`). Structured:
     /// `voltage_batches[batch][filename]`.
-    pub(crate) voltage_batches: Vec<VoltageFileBatch>,
+    pub voltage_batches: Vec<VoltageFileBatch>,
 
     /// We assume as little as possible about the data layout in the voltage
     /// files; here, a `BTreeMap` contains each unique GPS time from every
@@ -133,7 +133,7 @@ pub struct VoltageContext {
     /// voltage number with a voltage batch number and HDU index. The voltage
     /// number, batch number and HDU index are everything needed to find the
     /// correct HDU out of all voltage files.
-    pub(crate) voltage_time_map: VoltageFileTimeMap,
+    pub voltage_time_map: VoltageFileTimeMap,
 }
 
 impl VoltageContext {
@@ -951,14 +951,14 @@ impl fmt::Display for VoltageContext {
             fine channel resolution:  {fcw} Hz,
             num fine channels/coarse: {nfcpc},
 
-            Number of bytes/sample:          {ssb} bytes,
-            Voltage block/timestep:          {vbpts},
+            Number of bytes/sample:          {ssb} bytes,
+            Voltage block/timestep:          {vbpts},
             Voltage blocks/sec:              {vbps}, 
-            Samples per voltage_blocks for each second of data per rf_input,fine_chan,r|i: {sprffcvb},
-            Size per voltage block:          {vbsb} bytes,
+            Samples per voltage_blocks for each second of data per rf_input,fine_chan,r|i: {sprffcvb},
+            Size per voltage block:          {vbsb} bytes,
             Delay block size:                {dbsb} bytes,
             Data file header size:           {dfhsb} bytes,
-            Expected voltage data file size: {evdfsb} bytes,
+            Expected voltage data file size: {evdfsb} bytes,
             
             voltage batches:          {batches:#?},
         )"#,

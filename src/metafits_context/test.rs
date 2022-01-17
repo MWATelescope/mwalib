@@ -248,6 +248,12 @@ fn test_metafits_context_new_corrlegacy_valid() {
         context.metafits_fine_chan_freqs_hz.len(),
         context.num_metafits_fine_chan_freqs
     );
+
+    // Check that the correct num of digital gains elements (which are based on coarse channels from the metafits) appear in the rf_inputs
+    assert_eq!(
+        context.rf_inputs[0].digital_gains.len(),
+        context.num_metafits_coarse_chans
+    );
 }
 
 #[test]

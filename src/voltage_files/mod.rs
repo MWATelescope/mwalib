@@ -30,7 +30,7 @@ pub(crate) struct ObsTimesAndChans {
 /// e.g.
 /// MWA Legacy: obsid_gpstime_datetime_chan
 /// MWAX      : obsid_gpstime_datetime_chan
-pub(crate) struct VoltageFileBatch {
+pub struct VoltageFileBatch {
     pub gps_time_seconds: u64,           // 1234567890
     pub voltage_files: Vec<VoltageFile>, // Vector storing the details of each voltage file in this batch
 }
@@ -55,7 +55,7 @@ impl fmt::Debug for VoltageFileBatch {
 }
 
 /// This represents one voltage file
-pub(crate) struct VoltageFile {
+pub struct VoltageFile {
     /// Filename of voltage file
     pub filename: String,
     /// channel number (receiver channel number 001..255)
@@ -143,6 +143,7 @@ pub(crate) struct VoltageFileInfo {
     pub gpstime_batches: Vec<VoltageFileBatch>,
     pub mwa_version: MWAVersion,
     pub time_map: VoltageFileTimeMap,
+    #[allow(dead_code)]
     pub file_size: u64,
     pub voltage_file_interval_ms: u64,
 }
@@ -396,7 +397,7 @@ pub(crate) fn examine_voltage_files<T: AsRef<Path>>(
             metafits_context.obs_id as usize,
         )?;
 
-    let time_map = create_time_map(&temp_voltage_files);
+    let time_map: VoltageFileTimeMap = create_time_map(&temp_voltage_files);
 
     let mut gpstime_batches: HashMap<u64, VoltageFileBatch> =
         convert_temp_voltage_files(temp_voltage_files);

@@ -150,7 +150,7 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
     if rust_cstring.is_null() {
         return MWALIB_SUCCESS;
     }
-    CString::from_raw(rust_cstring);
+    drop(CString::from_raw(rust_cstring));
 
     // return success
     MWALIB_SUCCESS
