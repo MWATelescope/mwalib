@@ -4,15 +4,19 @@
 # 
 echo This should be run from the mwalib base directory!
 
-export LD_LIBRARY_PATH=/usr/local/lib/
-export CARGO_INCREMENTAL=0
-#export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
-export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Coverflow-checks=off"
-export RUSTDOCFLAGS="-Cpanic=abort"
-export LLVM_PROFILE_FILE=json5format-%m.profraw
+rm -rf target
 
-mkdir -p coverage
-rustup run nightly cargo build
-rustup run nightly cargo test
-zip -0 ccov.zip `find . \( -name "mwalib*.gc*" \) -print`
-grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o coverage/coverage.lcov
+#
+# Setup cargo-llvm-cov
+# See: https://github.com/taiki-e/cargo-llvm-cov for more info
+#
+# Toolchain is pinned due to this issue with nightly >2022-01-14: https://github.com/rust-lang/rust/issues/93054
+rustup toolchain install nightly-2022-01-14
+rustup component add llvm-tools-preview --toolchain nightly-2022-01-14
+rustup run nightly-2022-01-14 cargo install cargo-llvm-cov
+
+# Generate coverage and show summary on the console
+# The extra options specified:
+# * --lib == only cover the library 
+# * --ignore-filename-regex="test.rs" == skip tests
+rustup run nightly-2022-01-14 cargo llvm-cov --lib --ignore-filename-regex="test.rs"

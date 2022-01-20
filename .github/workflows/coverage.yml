@@ -13,13 +13,16 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v2
     
-    - name: Install nightly toolchain
+    - name: Install nightly toolchain pinned at 2022-01-14
       uses: actions-rs/toolchain@v1
       with:
           profile: minimal
-          toolchain: nightly
+          toolchain: nightly-2022-01-14
           override: true
           components: llvm-tools-preview
+
+    - name: Install cargo-llvm-cov
+      run: rustup run nightly-2022-01-14 cargo install cargo-llvm-cov
     
     - name: Build cfitsio
       run: |
@@ -38,28 +41,17 @@ jobs:
           sudo ldconfig
           cd ..
 
-    - name: Install OS and Cargo Packages
+    - name: Install OS packages
       run: |         
         sudo apt-get update 
-        sudo apt-get install -y lcov clang curl zip unzip libssl-dev jq 
-        cargo update
-        cargo install --force cargo-make cargo-binutils grcov
+        sudo apt-get install -y lcov clang curl zip unzip libssl-dev jq         
       env:
         DEBIAN_FRONTEND: noninteractive
         
-    - name: Generate test lcov coverage into coverage/ dir
-      env:
-        LD_LIBRARY_PATH: /usr/local/lib/
-        CARGO_INCREMENTAL: 0
-        RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Coverflow-checks=off"
-        RUSTDOCFLAGS: "-Cpanic=abort"
-        LLVM_PROFILE_FILE: json5format-%m.profraw
+    - name: Generate test lcov coverage into coverage/ dir      
       run: |
         mkdir -p coverage
-        cargo build
-        cargo test
-        zip -0 ccov.zip `find . \( -name "mwalib*.gc*" \) -print`
-        grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" --excl-br-line "^.*((debug_)?assert(_eq|_ne|_abs_diff_(eq|ne))?!|#\[derive\()" -o coverage/coverage.lcov
+        rustup run nightly-2022-01-14 cargo llvm-cov --lib --ignore-filename-regex="test.rs" --lcov --output-path coverage/coverage.lcov
 
     - name: Upload reports to codecov.io
       uses: codecov/codecov-action@v1
