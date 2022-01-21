@@ -8,27 +8,27 @@
 ///
 /// Works only on MWAX data for now.
 use anyhow::*;
-use structopt::StructOpt;
+use clap::Parser;
 
 use mwalib::*;
 
 #[cfg(not(tarpaulin_include))]
-#[derive(StructOpt, Debug)]
-#[structopt(name = "mwalib-sum-first-fine-channel-gpubox-hdus", author)]
+#[derive(Parser, Debug)]
+#[clap(name = "mwalib-sum-first-fine-channel-gpubox-hdus", author)]
 struct Opt {
     /// Path to the metafits file.
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     metafits: std::path::PathBuf,
 
     /// Paths to the gpubox files.
-    #[structopt(name = "GPUBOX FILE", parse(from_os_str))]
+    #[clap(name = "GPUBOX FILE", parse(from_os_str))]
     files: Vec<std::path::PathBuf>,
 }
 
 #[cfg(not(tarpaulin_include))]
 #[allow(clippy::needless_range_loop)] // Ignoring this, as it is a false positive
 fn main() -> Result<(), anyhow::Error> {
-    let opts = Opt::from_args();
+    let opts = Opt::parse();
 
     let context = CorrelatorContext::new(&opts.metafits, &opts.files)?;
     if context.mwa_version != MWAVersion::CorrMWAXv2 {

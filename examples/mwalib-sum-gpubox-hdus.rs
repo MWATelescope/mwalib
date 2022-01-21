@@ -4,25 +4,25 @@
 
 /// Given gpubox files, add the contents of their HDUs and report the sum.
 use anyhow::*;
+use clap::Parser;
 use core::result::Result::Ok;
 use mwalib::*;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "mwalib-sum-gpubox-hdus", author)]
+#[derive(Parser, Debug)]
+#[clap(name = "mwalib-sum-gpubox-hdus", author)]
 struct Opt {
     /// Don't use mwalib - just iterate over the HDUs and add them. The result
     /// might be different because the start/end times of the observation may
     /// not be consistent.
-    #[structopt(long)]
+    #[clap(long)]
     direct: bool,
 
     /// Path to the metafits file.
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     metafits: std::path::PathBuf,
 
     /// Paths to the gpubox files.
-    #[structopt(name = "GPUBOX FILE", parse(from_os_str))]
+    #[clap(name = "GPUBOX FILE", parse(from_os_str))]
     files: Vec<std::path::PathBuf>,
 }
 
@@ -85,7 +85,7 @@ fn sum_mwalib<T: AsRef<std::path::Path>>(metafits: &T, files: &[T]) -> Result<()
 
 fn main() -> Result<(), anyhow::Error> {
     env_logger::try_init().unwrap_or(());
-    let opts = Opt::from_args();
+    let opts = Opt::parse();
     if opts.direct {
         sum_direct(opts.files)?;
     } else {
