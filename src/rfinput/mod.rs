@@ -134,7 +134,8 @@ struct RfInputMetafitsTableRow {
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     flag: i32,
     /// Digital gains
-    digital_gains: Vec<u32>,
+    /// Digital gains read from metafits need to be divided by 64 and stored in this vec
+    digital_gains: Vec<f64>,
     /// Dipole delays
     dipole_delays: Vec<u32>,
     /// Dipole gains.
@@ -183,7 +184,8 @@ pub struct Rfinput {
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flagged: bool,
     /// Digital gains
-    pub digital_gains: Vec<u32>,
+    /// metafits digital gains will be divided by 64
+    pub digital_gains: Vec<f64>,
     /// Dipole gains.
     ///
     /// These are either 1 or 0 (on or off), depending on the dipole delay; a
@@ -249,13 +251,16 @@ impl Rfinput {
         let east_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "East", row)?;
         let height_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Height", row)?;
         let flag = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flag", row)?;
+        
+        // digital gains values in metafits need to be divided by 64
         let digital_gains = read_cell_array(
             metafits_fptr,
             metafits_tile_table_hdu,
             "Gains",
             row as i64,
             num_coarse_chans,
-        )?;
+        )?.iter().map(|gains| *gains as f64 / 64.0).collect();
+
         let dipole_delays = read_cell_array(
             metafits_fptr,
             metafits_tile_table_hdu,

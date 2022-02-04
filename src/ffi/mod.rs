@@ -2773,7 +2773,7 @@ pub struct Rfinput {
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flagged: bool,
     /// Digital gains
-    pub digital_gains: *mut u32,
+    pub digital_gains: *mut f64,
     pub num_digital_gains: usize,
     /// Dipole delays
     pub dipole_delays: *mut u32,

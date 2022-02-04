@@ -1646,7 +1646,13 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         let rfinput_digital_gains =
             ffi_boxed_slice_to_array(item[2].digital_gains, item[2].num_digital_gains);
         assert_eq!(item[2].num_digital_gains, rfinput_digital_gains.len());
-        assert_eq!(rfinput_digital_gains[4], 76);
+        
+        assert!(approx_eq!(
+            f64,
+            rfinput_digital_gains[4],
+            76. / 64.,
+            F64Margin::default()
+        ));        
 
         assert_eq!(item[2].num_dipole_delays, 16);
         let rfinput_dipole_delays =

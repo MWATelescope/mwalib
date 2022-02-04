@@ -194,13 +194,28 @@ fn test_populate_rf_inputs() {
         float_cmp::F64Margin::default()
     ));
     assert!(rfinput[0].flagged);
-    assert_eq!(
-        rfinput[0].digital_gains,
-        vec![
-            74, 73, 73, 72, 71, 70, 68, 67, 66, 65, 65, 65, 66, 66, 65, 65, 64, 64, 64, 65, 65, 66,
-            67, 68
-        ]
-    );
+
+    assert!(float_cmp::approx_eq!(
+        f64,
+        rfinput[0].digital_gains[0],
+        74. / 64.,
+        float_cmp::F64Margin::default()
+    ));
+
+    assert!(float_cmp::approx_eq!(
+        f64,
+        rfinput[0].digital_gains[12],
+        66. / 64.,
+        float_cmp::F64Margin::default()
+    ));
+
+    assert!(float_cmp::approx_eq!(
+        f64,
+        rfinput[0].digital_gains[23],
+        68. / 64.,
+        float_cmp::F64Margin::default()
+    ));
+    
     assert_eq!(
         rfinput[0].dipole_delays,
         vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]

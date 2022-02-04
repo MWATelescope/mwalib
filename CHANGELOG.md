@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 0.13.0 04-Feb-2022 (Pre-release)
+* rfinput->digital_gains are now f64 and are divided by 64 (the value in the metafits is 64x larger to allow more flexible gains settings)
+* Modernised examples using clap 3.0 and reduced dependencies
+
 ## 0.12.2 17-Jan-2022 (Pre-release)
 * `get_optional_fits_key` now handles the CFITSIO return code of 204 (when there no value for the key) and correctly returns None instead of an error
 * The `digital_gains array` in `rf_input` is now sized based on the `num_metafits_coarse_chans` rather than hardcoded to be 24
