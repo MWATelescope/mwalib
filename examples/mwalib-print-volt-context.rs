@@ -5,25 +5,25 @@
 /// Given an voltage observation's data, verify that `mwalib` is functioning correctly
 /// by printing an observation context.
 use anyhow::*;
-use structopt::StructOpt;
+use clap::Parser;
 
 use mwalib::*;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "mwalib-print-volt-context", author)]
+#[derive(Parser, Debug)]
+#[clap(name = "mwalib-print-volt-context", author)]
 struct Opt {
     /// The path to an observation's metafits file.
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     metafits: std::path::PathBuf,
 
     /// Paths to the observation's voltage files.
-    #[structopt(name = "VOLTAGE FILE", parse(from_os_str))]
+    #[clap(name = "VOLTAGE FILE", parse(from_os_str))]
     files: Vec<std::path::PathBuf>,
 }
 
 fn main() -> Result<(), anyhow::Error> {
     env_logger::try_init().unwrap_or(());
-    let opts = Opt::from_args();
+    let opts = Opt::parse();
     let context = VoltageContext::new(&opts.metafits, &opts.files)?;
 
     println!("{}", context);

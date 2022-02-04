@@ -4,43 +4,43 @@
 
 /// Given gpubox files, provide a way to output/dump visibilities.
 use anyhow::*;
+use clap::Parser;
 use mwalib::*;
 use std::fs::File;
 use std::io::Write;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "mwalib-data-dump", author)]
+#[derive(Parser, Debug)]
+#[clap(name = "mwalib-data-dump", author)]
 struct Opt {
     /// timestep number (0 indexed)
-    #[structopt(short, long)]
+    #[clap(short, long)]
     timestep: usize,
 
     /// baseline number (0 indexed)
-    #[structopt(short, long)]
+    #[clap(short, long)]
     baseline: usize,
 
     /// Fine channel to start with
-    #[structopt(long)]
+    #[clap(long)]
     fine_chan1: usize,
     /// Fine channel to end with
-    #[structopt(long)]
+    #[clap(long)]
     fine_chan2: usize,
 
     /// Coarse channel
-    #[structopt(long)]
+    #[clap(long)]
     coarse_chan: usize,
 
     /// Path to the metafits file.
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     metafits: std::path::PathBuf,
 
     /// Paths to the gpubox files.
-    #[structopt(name = "GPUBOX FILE", parse(from_os_str))]
+    #[clap(name = "GPUBOX FILE", parse(from_os_str))]
     files: Vec<std::path::PathBuf>,
 
     // Dump filename
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     dump_filename: std::path::PathBuf,
 }
 
@@ -145,7 +145,7 @@ fn dump_data<T: AsRef<std::path::Path>>(
 
 fn main() -> Result<(), anyhow::Error> {
     env_logger::try_init().unwrap_or(());
-    let opts = Opt::from_args();
+    let opts = Opt::parse();
 
     dump_data(
         &opts.metafits,
