@@ -2773,6 +2773,8 @@ pub struct Rfinput {
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     pub flagged: bool,
     /// Digital gains
+    /// The values from the metafits are scaled by 64, so mwalib divides by 64.
+    /// Digital gains are in mwalib metafits coarse channel order (ascending sky frequency order)
     pub digital_gains: *mut f64,
     pub num_digital_gains: usize,
     /// Dipole delays

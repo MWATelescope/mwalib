@@ -185,6 +185,7 @@ pub struct Rfinput {
     pub flagged: bool,
     /// Digital gains
     /// metafits digital gains will be divided by 64
+    /// Digital gains are in mwalib metafits coarse channel order (ascending sky frequency order)
     pub digital_gains: Vec<f64>,
     /// Dipole gains.
     ///
@@ -252,7 +253,8 @@ impl Rfinput {
         let height_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Height", row)?;
         let flag = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flag", row)?;
         
-        // digital gains values in metafits need to be divided by 64
+        // Digital gains values in metafits need to be divided by 64
+        // Digital gains are in mwalib metafits coarse channel order (ascending sky frequency order)
         let digital_gains = read_cell_array(
             metafits_fptr,
             metafits_tile_table_hdu,
