@@ -387,12 +387,11 @@ impl CorrelatorContext {
     ///   given coarse channels.
     ///
     pub fn get_fine_chan_freqs_hz_array(&self, corr_coarse_chan_indices: &[usize]) -> Vec<f64> {
-        CoarseChannel::get_fine_chan_centres_array_hz(
+        CoarseChannel::get_fine_chan_centres_array_hz_inner(
             self.mwa_version,
-            &corr_coarse_chan_indices
+            corr_coarse_chan_indices
                 .iter()
-                .map(|c| self.coarse_chans[*c].clone())
-                .collect::<Vec<CoarseChannel>>(),
+                .map(|c| &self.coarse_chans[*c]),
             self.metafits_context.corr_fine_chan_width_hz,
             self.metafits_context.num_corr_fine_chans_per_coarse,
         )

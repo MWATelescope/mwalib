@@ -338,7 +338,7 @@ impl CoarseChannel {
         coarse_chan_indices
     }
 
-    /// Calculate the centre frequency of each fine channel of this coarse channel.
+    /// Calculate the centre frequency of each fine channel of the provided coarse channels.
     ///
     ///
     /// # Arguments    
@@ -358,6 +358,24 @@ impl CoarseChannel {
     pub fn get_fine_chan_centres_array_hz(
         mwa_version: MWAVersion,
         coarse_channels: &[CoarseChannel],
+        fine_chan_width_hz: u32,
+        num_fine_chans_per_coarse: usize,
+    ) -> Vec<f64> {
+        Self::get_fine_chan_centres_array_hz_inner(
+            mwa_version,
+            coarse_channels.iter(),
+            fine_chan_width_hz,
+            num_fine_chans_per_coarse,
+        )
+    }
+
+    /// Calculate the centre frequency of each fine channel of the provided
+    /// coarse channels. This function actually does the work of the public
+    /// function above and mostly exists to provide a generic interface (an
+    /// iterator rather than a slice, allowing allocations to be avoided).
+    pub(crate) fn get_fine_chan_centres_array_hz_inner<'a>(
+        mwa_version: MWAVersion,
+        coarse_channels: impl Iterator<Item = &'a CoarseChannel>,
         fine_chan_width_hz: u32,
         num_fine_chans_per_coarse: usize,
     ) -> Vec<f64> {
@@ -382,7 +400,7 @@ impl CoarseChannel {
 
         // Return a vector of f64s which are the fine channel centre frequencies for all the fine channels in [coarse_channels]
         let return_vec: Vec<f64> = coarse_channels
-            .iter()
+            .into_iter()
             .flat_map(|coarse_chan| {
                 (0..num_fine_chans_per_coarse).map(move |fine_chan_idx| {
                     coarse_chan.chan_start_hz as f64
