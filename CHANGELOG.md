@@ -2,6 +2,9 @@
 
 Changes in each release are listed below.
 
+## Unreleased
+* Specify minimum-required dependency versions.
+
 ## 0.13.1 13-Apr-2022 (Pre-release)
 * Fixed calculation of number of baselines for cases where num_antennas is odd.
 
