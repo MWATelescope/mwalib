@@ -252,7 +252,7 @@ impl Rfinput {
         let east_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "East", row)?;
         let height_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Height", row)?;
         let flag = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flag", row)?;
-        
+
         // Digital gains values in metafits need to be divided by 64
         // Digital gains are in mwalib metafits coarse channel order (ascending sky frequency order)
         let digital_gains = read_cell_array(
@@ -261,7 +261,10 @@ impl Rfinput {
             "Gains",
             row as i64,
             num_coarse_chans,
-        )?.iter().map(|gains| *gains as f64 / 64.0).collect();
+        )?
+        .iter()
+        .map(|gains| *gains as f64 / 64.0)
+        .collect();
 
         let dipole_delays = read_cell_array(
             metafits_fptr,
@@ -408,11 +411,11 @@ fn read_cell_array(
         // With the column name, get the column number.
         let mut status = 0;
         let mut col_num = -1;
-        let keyword = std::ffi::CString::new(col_name).unwrap();
+        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
         fitsio_sys::ffgcno(
             metafits_fptr.as_raw(),
             0,
-            keyword.as_ptr() as *mut libc::c_char,
+            keyword,
             &mut col_num,
             &mut status,
         );
@@ -425,6 +428,7 @@ fn read_cell_array(
                 col_name: col_name.to_string(),
             });
         }
+        drop(std::ffi::CString::from_raw(keyword));
 
         // Now get the specified row from that column.
         // cfitsio is stupid. The data we want fits in i16, but we're forced to

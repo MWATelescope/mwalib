@@ -386,9 +386,10 @@ fn test_get_fits_long_string() {
             );
         }
 
-        let (status, fits_value_str) = unsafe { get_fits_long_string(fptr.as_raw(), "FOO") };
-        assert_eq!(status, 0);
-        assert_eq!(fits_value_str, complete_string);
+        let hdu = fptr.hdu(0).unwrap();
+        let fits_value_str = get_required_fits_key_long_string!(fptr, &hdu, "FOO");
+        assert!(fits_value_str.is_ok());
+        assert_eq!(fits_value_str.unwrap(), complete_string);
 
         // Try out the `fitsio` read key.
         let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
@@ -543,8 +544,9 @@ fn test_get_fits_long_string_failure() {
             );
         }
 
-        let (status, _) = unsafe { get_fits_long_string(fptr.as_raw(), "NOTfits_value") };
-        assert_ne!(status, 0);
+        let hdu = fptr.hdu(0).unwrap();
+        let fits_value_str = get_required_fits_key_long_string!(fptr, &hdu, "NOTfits_value");
+        assert!(fits_value_str.is_err());
     });
 }
 

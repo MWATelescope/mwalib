@@ -9,8 +9,6 @@ pub mod error;
 pub use error::FitsError;
 
 use fitsio::{hdu::*, FitsFile};
-use fitsio_sys::{ffgkls, fitsfile};
-use libc::c_char;
 use log::trace;
 use std::ffi::*;
 use std::ptr;
@@ -455,7 +453,13 @@ pub fn _get_fits_col<T: fitsio::tables::ReadsCol>(
 /// right place.
 ///
 /// To only be used internally; use the `get_optional_fits_key_long_string!`
-/// macro instead.
+/// macro instead. This function exists because the rust library `fitsio` does
+/// not support reading in long strings (i.e. those that have CONTINUE
+/// statements).
+///
+/// # Safety
+///
+/// This function calls cfitsio. Anything goes!
 #[doc(hidden)]
 pub fn _get_optional_fits_key_long_string(
     fits_fptr: &mut fitsio::FitsFile,
@@ -465,27 +469,46 @@ pub fn _get_optional_fits_key_long_string(
     source_line: u32,
 ) -> Result<Option<String>, FitsError> {
     // Read the long string.
-    let (status, long_string) = unsafe { get_fits_long_string(fits_fptr.as_raw(), keyword) };
-
-    match status {
-        0 => {
-            trace!(
-                "_get_optional_fits_key_long_string() filename: {} keyword: '{}' value: '{}'",
-                &fits_fptr.filename,
-                keyword,
-                long_string
-            );
-            Ok(Some(long_string))
+    let keyword_ffi = CString::new(keyword)
+        .expect("_get_optional_fits_key_long_string: CString::new() failed for keyword");
+    let long_string = unsafe {
+        let mut status = 0;
+        let mut long_string_ptr = ptr::null_mut();
+        fitsio_sys::ffgkls(
+            fits_fptr.as_raw(),
+            keyword_ffi.as_ptr(),
+            &mut long_string_ptr,
+            ptr::null_mut(),
+            &mut status,
+        );
+        // Check the call worked!
+        match status {
+            0 => {
+                let long_string = CString::from_raw(long_string_ptr)
+                    .into_string()
+                    .expect("_get_optional_fits_key_long_string: converting string_ptr failed");
+                Some(long_string)
+            }
+            202 | 204 => None,
+            _ => {
+                return Err(FitsError::LongString {
+                    key: keyword.to_string(),
+                    fits_filename: fits_fptr.filename.clone(),
+                    hdu_num: hdu.number + 1,
+                    source_file,
+                    source_line,
+                })
+            }
         }
-        202 => Ok(None),
-        _ => Err(FitsError::LongString {
-            key: keyword.to_string(),
-            fits_filename: fits_fptr.filename.clone(),
-            hdu_num: hdu.number + 1,
-            source_file,
-            source_line,
-        }),
-    }
+    };
+
+    trace!(
+        "_get_optional_fits_key_long_string() filename: {} keyword: '{}' value: '{:?}'",
+        &fits_fptr.filename,
+        keyword,
+        long_string
+    );
+    Ok(long_string)
 }
 
 /// Get a required long string out of a FITS file.
@@ -633,54 +656,4 @@ pub fn _get_fits_float_img_into_buf(
     );
 
     Ok(())
-}
-
-/// Get a long string from a FITS file. The supplied FITS file pointer *must* be
-/// using the appropriate HDU already, or this function will fail.
-///
-/// This function exists because the rust library `fitsio` does not support
-/// reading in long strings (i.e. those that have CONTINUE statements).
-///
-///
-/// # Arguments
-///
-/// * `fits_fptr` - A reference to the `FITSFile` object.
-///
-/// * `keyword` - String containing the keyword to read.
-///
-///
-/// # Returns
-///
-/// *  A FITS status code and the long string
-///
-///
-/// # Safety
-///
-/// This function is no less safe than calling cfitsio itself.
-///
-unsafe fn get_fits_long_string(fptr: *mut fitsfile, keyword: &str) -> (i32, String) {
-    let keyword_ffi =
-        CString::new(keyword).expect("get_fits_long_string: CString::new() failed for keyword");
-    // For reasons I cannot fathom, ffgkls expects `value` to be a malloc'd
-    // char** in C, but will only use a single char* inside it, and that doesn't
-    // need to be allocated. Anyway, Vec<*mut c_char> works for me in rust.
-    let mut value: [*mut c_char; 1] = [ptr::null_mut()];
-    let mut status = 0;
-    ffgkls(
-        fptr,
-        keyword_ffi.as_ptr(),
-        value.as_mut_ptr(),
-        ptr::null_mut(),
-        &mut status,
-    );
-
-    // Check the call worked!
-    let long_string = match status {
-        0 => CString::from_raw(value[0])
-            .into_string()
-            .expect("get_fits_long_string: converting string_ptr failed"),
-        _ => String::from(""),
-    };
-
-    (status, long_string)
 }
