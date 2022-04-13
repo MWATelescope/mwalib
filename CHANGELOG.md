@@ -8,6 +8,10 @@ Changes in each release are listed below.
 * Stop borrowing generic types.
   * This applied only to single files (like a metafits file); the required was
     type `&T` (where `T` is `AsRef<Path>`) when `T` alone is sufficient.
+* Clippy lints and Rust 2021.
+  * Appeased most Clippy lints and upped the Rust edition to 2021. mwalib now
+    also specifies the minimum supported Rust version and has CI tests against
+    this version.
 
 ## 0.13.1 13-Apr-2022 (Pre-release)
 * Fixed calculation of number of baselines for cases where num_antennas is odd.

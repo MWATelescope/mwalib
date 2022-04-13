@@ -3,25 +3,26 @@ name: MacOS Tests
 on: [push, pull_request]
 
 env:
-  RUST_BACKTRACE: 1  
+  RUST_BACKTRACE: 1
 
 jobs:
   test_macos:
     strategy:
       matrix:
         os: ["macOS-latest"]
-    runs-on: ${{ matrix.os }}    
+    runs-on: ${{ matrix.os }}
 
     steps:
     - name: Checkout sources
       uses: actions/checkout@v2
-    
+
     - name: Install stable toolchain
       uses: actions-rs/toolchain@v1
       with:
+          profile: minimal
           toolchain: stable
           override: true
-    
+
     - name: Build cfitsio
       run: |
           # Install dependencies
@@ -33,10 +34,17 @@ jobs:
           # is using such a CPU...
           # https://stackoverflow.com/questions/52858556/most-recent-processor-without-support-of-ssse3-instructions
           # Disabling curl just means you cannot fits_open() using a URL.
-          CFLAGS="-O3" ./configure --prefix=/usr/local --enable-reentrant --enable-sse2 --enable-ssse3 --disable-curl          
+          CFLAGS="-O3" ./configure --prefix=/usr/local --enable-reentrant --enable-sse2 --enable-ssse3 --disable-curl
           sudo make shared
           sudo make install
           cd ..
 
     - name: Run tests
       run: MWALIB_LINK_STATIC_CFITSIO=1 cargo test --release --verbose
+
+    - name: Minimum-specified Rust version works
+      run: |
+          MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
+          ~/.cargo/bin/rustup install $MIN_RUST --profile minimal
+          cargo +${MIN_RUST} test
+          cargo +${MIN_RUST} test --all-features

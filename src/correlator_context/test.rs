@@ -13,8 +13,8 @@ use float_cmp::*;
 fn test_context_new_with_only_non000_batch() {
     // The _001 fits file contains 1 timestep too- it is at time index 1560938480 / marker 10 (so the 10th timestep - zero indexed!)
     let metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
-    let mut gpuboxfiles = Vec::new();
-    gpuboxfiles.push("test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_001.fits");
+    let gpuboxfiles =
+        vec!["test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_001.fits"];
 
     // No gpubox files provided
     let context_result = CorrelatorContext::new(metafits_filename, &gpuboxfiles);
@@ -31,9 +31,10 @@ fn test_context_new_with_only_non000_batch() {
 fn test_context_new_with_000_and_001_batch() {
     // The _001 fits file contains 1 timestep too- it is at time index 1560938480 / marker 10 (so the 10th timestep - zero indexed!)
     let metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
-    let mut gpuboxfiles = Vec::new();
-    gpuboxfiles.push("test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits");
-    gpuboxfiles.push("test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_001.fits");
+    let gpuboxfiles = vec![
+        "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits",
+        "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_001.fits",
+    ];
 
     // No gpubox files provided
     let context_result = CorrelatorContext::new(metafits_filename, &gpuboxfiles);

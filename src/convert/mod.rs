@@ -227,7 +227,7 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
 /// to get data from (and whether it needs to be conjugated).
 ///
 pub(crate) fn generate_conversion_array(
-    rf_inputs: &mut Vec<Rfinput>,
+    rf_inputs: &mut [Rfinput],
 ) -> Vec<LegacyConversionBaseline> {
     // Sort the rf_inputs by "Input / metafits" order
     rf_inputs.sort_by(|a, b| a.input.cmp(&b.input));

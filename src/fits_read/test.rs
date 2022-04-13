@@ -69,7 +69,7 @@ fn test_get_hdu_image_size_non_image() {
 #[test]
 fn test_get_fits_image_valid_f32() {
     // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-    with_new_temp_fits_file("test_get_fits_image.fits", |mut fptr| {
+    with_new_temp_fits_file("test_get_fits_image.fits", |fptr| {
         // Ensure we have 1 hdu
         fits_open_hdu!(fptr, 0).expect("Couldn't open HDU 0");
 
@@ -84,7 +84,7 @@ fn test_get_fits_image_valid_f32() {
         let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
 
         // Write some data
-        assert!(hdu.write_image(&mut fptr, &[1.0, 2.0, 3.0]).is_ok());
+        assert!(hdu.write_image(fptr, &[1.0, 2.0, 3.0]).is_ok());
 
         // Run our test, check dimensions
         let size_vec = get_hdu_image_size!(fptr, &hdu).unwrap();
@@ -103,7 +103,7 @@ fn test_get_fits_image_valid_f32() {
 #[test]
 fn test_get_fits_image_valid_i32() {
     // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-    with_new_temp_fits_file("test_get_fits_image.fits", |mut fptr| {
+    with_new_temp_fits_file("test_get_fits_image.fits", |fptr| {
         // Ensure we have 1 hdu
         fits_open_hdu!(fptr, 0).expect("Couldn't open HDU 0");
 
@@ -118,7 +118,7 @@ fn test_get_fits_image_valid_i32() {
         let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
 
         // Write some data
-        assert!(hdu.write_image(&mut fptr, &[-1, 0, 1]).is_ok());
+        assert!(hdu.write_image(fptr, &[-1, 0, 1]).is_ok());
 
         // Run our test, check dimensions
         let size_vec = get_hdu_image_size!(fptr, &hdu).unwrap();
@@ -137,7 +137,7 @@ fn test_get_fits_image_valid_i32() {
 #[test]
 fn test_get_fits_image_invalid() {
     // with_temp_file creates a temp dir and temp file, then removes them once out of scope
-    with_new_temp_fits_file("test_get_fits_image.fits", |mut fptr| {
+    with_new_temp_fits_file("test_get_fits_image.fits", |fptr| {
         // Ensure we have 1 hdu
         fits_open_hdu!(fptr, 0).expect("Couldn't open HDU 0");
 
@@ -152,9 +152,7 @@ fn test_get_fits_image_invalid() {
         let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
 
         // Write some data
-        assert!(hdu
-            .write_image(&mut fptr, &[-12345678, 0, 12345678])
-            .is_ok());
+        assert!(hdu.write_image(fptr, &[-12345678, 0, 12345678]).is_ok());
 
         // Run our test, check dimensions
         let size_vec = get_hdu_image_size!(fptr, &hdu).unwrap();

@@ -1521,7 +1521,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_get_and_free() {
         assert!(context_ptr.is_some());
 
         // Populate a mwalibMetafitsMetadata struct
-        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
         let retval = mwalib_metafits_metadata_get(
             metafits_context_ptr,
             std::ptr::null_mut(),
@@ -1546,7 +1546,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_get_and_free() {
         );
 
         // Get the mwalibMetadata struct from the pointer
-        let metafits_metadata = Box::from_raw(*metafits_metadata_ptr);
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // Now ensure we can free the rust memory
         assert_eq!(
@@ -1574,7 +1574,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         assert!(context_ptr.is_some());
 
         // Populate a mwalibMetafitsMetadata struct
-        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
         let retval = mwalib_metafits_metadata_get(
             metafits_context_ptr,
             std::ptr::null_mut(),
@@ -1599,7 +1599,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         );
 
         // Get the mwalibMetadata struct from the pointer
-        let metafits_metadata = Box::from_raw(*metafits_metadata_ptr);
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
         assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
@@ -1646,13 +1646,13 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         let rfinput_digital_gains =
             ffi_boxed_slice_to_array(item[2].digital_gains, item[2].num_digital_gains);
         assert_eq!(item[2].num_digital_gains, rfinput_digital_gains.len());
-        
+
         assert!(approx_eq!(
             f64,
             rfinput_digital_gains[4],
             76. / 64.,
             F64Margin::default()
-        ));        
+        ));
 
         assert_eq!(item[2].num_dipole_delays, 16);
         let rfinput_dipole_delays =
@@ -1711,7 +1711,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_legacy_vcs_valid() {
         assert!(context_ptr.is_some());
 
         // Populate a mwalibMetafitsMetadata struct
-        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
         let retval = mwalib_metafits_metadata_get(
             metafits_context_ptr,
             std::ptr::null_mut(),
@@ -1736,7 +1736,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_legacy_vcs_valid() {
         );
 
         // Get the mwalibMetadata struct from the pointer
-        let metafits_metadata = Box::from_raw(*metafits_metadata_ptr);
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         //
         // Test antennas
@@ -1766,7 +1766,7 @@ fn test_mwalib_metafits_metadata_get_null_contexts() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
         let ret_val = mwalib_metafits_metadata_get(
             std::ptr::null_mut(),
             std::ptr::null_mut(),
@@ -1797,7 +1797,7 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
         assert!(context_ptr.is_some());
 
         // Populate a mwalibMetafitsMetadata struct
-        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
         let retval = mwalib_metafits_metadata_get(
             std::ptr::null_mut(),
             correlator_context_ptr,
@@ -1814,7 +1814,7 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
         );
 
         // Get the mwalibMetadata struct from the pointer
-        let metafits_metadata = Box::from_raw(*metafits_metadata_ptr);
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
         assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
@@ -1847,7 +1847,7 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
         assert!(context_ptr.is_some());
 
         // Populate a mwalibMetafitsMetadata struct
-        let mut metafits_metadata_ptr: &mut *mut MetafitsMetadata = &mut std::ptr::null_mut();
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
         let retval = mwalib_metafits_metadata_get(
             std::ptr::null_mut(),
             std::ptr::null_mut(),
@@ -1864,7 +1864,7 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
         );
 
         // Get the metafits metadata struct from the pointer
-        let metafits_metadata = Box::from_raw(*metafits_metadata_ptr);
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
         assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
@@ -1945,7 +1945,7 @@ fn test_mwalib_correlator_metadata_get_valid() {
         assert!(context_ptr.is_some());
 
         // Populate a CorrelatorMetadata struct
-        let mut correlator_metadata_ptr: &mut *mut CorrelatorMetadata = &mut std::ptr::null_mut();
+        let mut correlator_metadata_ptr: *mut CorrelatorMetadata = std::ptr::null_mut();
         let retval = mwalib_correlator_metadata_get(
             correlator_context_ptr,
             &mut correlator_metadata_ptr,
@@ -1960,7 +1960,7 @@ fn test_mwalib_correlator_metadata_get_valid() {
         );
 
         // Get the correlator metadata struct from the pointer
-        let mut correlator_metadata = Box::from_raw(*correlator_metadata_ptr);
+        let mut correlator_metadata = Box::from_raw(correlator_metadata_ptr);
 
         // We should get a valid number of coarse channels and no error message
         assert_eq!(correlator_metadata.num_coarse_chans, 24);
@@ -2000,7 +2000,7 @@ fn test_mwalib_correlator_metadata_get_null_context() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut correlator_metadata_ptr: &mut *mut CorrelatorMetadata = &mut std::ptr::null_mut();
+        let mut correlator_metadata_ptr: *mut CorrelatorMetadata = std::ptr::null_mut();
 
         let context_ptr = std::ptr::null_mut();
         let ret_val = mwalib_correlator_metadata_get(
@@ -2032,7 +2032,7 @@ fn test_mwalib_voltage_metadata_get_valid() {
         assert!(context_ptr.is_some());
 
         // Populate a VoltageMetadata struct
-        let mut voltage_metadata_ptr: &mut *mut VoltageMetadata = &mut std::ptr::null_mut();
+        let mut voltage_metadata_ptr: *mut VoltageMetadata = std::ptr::null_mut();
         let retval = mwalib_voltage_metadata_get(
             voltage_context_ptr,
             &mut voltage_metadata_ptr,
@@ -2047,7 +2047,7 @@ fn test_mwalib_voltage_metadata_get_valid() {
         );
 
         // Get the voltage metadata struct from the pointer
-        let mut voltage_metadata = Box::from_raw(*voltage_metadata_ptr);
+        let mut voltage_metadata = Box::from_raw(voltage_metadata_ptr);
 
         // We should get a valid number of coarse channels and no error message
         assert_eq!(voltage_metadata.num_coarse_chans, 24);
@@ -2084,7 +2084,7 @@ fn test_mwalib_voltage_metadata_get_null_context() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     unsafe {
-        let mut voltage_metadata_ptr: &mut *mut VoltageMetadata = &mut std::ptr::null_mut();
+        let mut voltage_metadata_ptr: *mut VoltageMetadata = std::ptr::null_mut();
 
         let context_ptr = std::ptr::null_mut();
         let ret_val = mwalib_voltage_metadata_get(

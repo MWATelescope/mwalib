@@ -345,25 +345,23 @@ pub unsafe extern "C" fn mwalib_metafits_get_expected_volt_filename(
 
     let context = &*metafits_context_ptr;
 
-    let result = context
-        .generate_expected_volt_filename(metafits_timestep_index, metafits_coarse_chan_index);
+    match context
+        .generate_expected_volt_filename(metafits_timestep_index, metafits_coarse_chan_index)
+    {
+        Err(e) => {
+            set_c_string(
+                &e.to_string(),
+                error_message as *mut u8,
+                error_message_length,
+            );
+            MWALIB_FAILURE
+        }
+        Ok(s) => {
+            set_c_string(&s, out_filename_ptr as *mut u8, out_filename_len);
 
-    if result.is_err() {
-        set_c_string(
-            &format!("{}", result.unwrap_err()),
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    } else {
-        set_c_string(
-            &result.unwrap(),
-            out_filename_ptr as *mut u8,
-            out_filename_len,
-        );
-
-        // Return success
-        return MWALIB_SUCCESS;
+            // Return success
+            MWALIB_SUCCESS
+        }
     }
 }
 

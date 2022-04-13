@@ -443,11 +443,11 @@ impl MetafitsContext {
         };
 
         // The rf inputs should be sorted depending on the Version
-        match new_context.mwa_version.unwrap() {
-            MWAVersion::VCSLegacyRecombined => {
-                new_context.rf_inputs.sort_by_key(|k| k.vcs_order);
-            }
-            _ => {}
+        if matches!(
+            new_context.mwa_version,
+            Some(MWAVersion::VCSLegacyRecombined)
+        ) {
+            new_context.rf_inputs.sort_by_key(|k| k.vcs_order);
         }
 
         // Update the voltage fine channel size now that we know which mwaversion we are using
@@ -720,13 +720,13 @@ impl MetafitsContext {
         // CALIBRAT - defalut to F if not found
         let calibration_string: String =
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CALIBRAT")?
-                .unwrap_or(String::from("F"));
-        let calibrator: bool = calibration_string == String::from("T");
+                .unwrap_or_else(|| String::from("F"));
+        let calibrator: bool = calibration_string == "T";
 
         // CALIBSRC - default to empty string if not found
         let calibrator_source: String =
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CALIBSRC")?
-                .unwrap_or(String::from(""));
+                .unwrap_or_else(|| String::from(""));
 
         // ATTEN_DB is not garaunteed to be in the metafits. Default to 0
         let global_analogue_attenuation_db: f64 =
@@ -1117,10 +1117,10 @@ impl fmt::Display for MetafitsContext {
             bll2 = self.baselines[self.num_baselines - 1].ant2_index,
             n_ccs = self.num_baselines - self.num_ants,
             n_vps = self.num_visibility_pols,
-            vp0 = VisPol::XX.to_string(),
-            vp1 = VisPol::XY.to_string(),
-            vp2 = VisPol::YX.to_string(),
-            vp3 = VisPol::YY.to_string(),
+            vp0 = VisPol::XX,
+            vp1 = VisPol::XY,
+            vp2 = VisPol::YX,
+            vp3 = VisPol::YY,
             freqcent = self.centre_freq_hz as f64 / 1e6,
             mode = self.mode,
             geodel = self.geometric_delays_applied,

@@ -407,12 +407,9 @@ pub(crate) fn examine_voltage_files<T: AsRef<Path>>(
     let mut voltage_file_size: Option<u64> = None;
     for b in gpstime_batches.values_mut() {
         for v in &mut b.voltage_files {
-            let this_size;
             let metadata = std::fs::metadata(&v.filename);
-            match metadata {
-                Ok(m) => {
-                    this_size = m.len();
-                }
+            let this_size = match metadata {
+                Ok(m) => m.len(),
                 Err(e) => {
                     return Err(VoltageFileError::VoltageFileError(
                         (*v.filename).to_string(),
