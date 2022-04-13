@@ -274,11 +274,11 @@ macro_rules! get_fits_float_image_into_buffer {
 /// To only be used internally; use the `fits_open!` macro instead.
 #[doc(hidden)]
 pub fn _open_fits<T: AsRef<std::path::Path>>(
-    file: &T,
+    file: T,
     source_file: &'static str,
     source_line: u32,
 ) -> Result<FitsFile, FitsError> {
-    match FitsFile::open(file) {
+    match FitsFile::open(file.as_ref()) {
         Ok(f) => {
             trace!(
                 "_open_fits() filename: '{}'",

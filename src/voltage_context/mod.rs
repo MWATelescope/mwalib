@@ -154,7 +154,7 @@ impl VoltageContext {
     ///
     ///
     pub fn new<T: AsRef<std::path::Path>>(
-        metafits_filename: &T,
+        metafits_filename: T,
         voltage_filenames: &[T],
     ) -> Result<Self, MwalibError> {
         let mut metafits_context = MetafitsContext::new_internal(metafits_filename)?;

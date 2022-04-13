@@ -284,7 +284,7 @@ pub(crate) fn get_test_voltage_context(mwa_version: MWAVersion) -> VoltageContex
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits and gpubox file
-    let context = VoltageContext::new(&metafits_filename, &test_filenames)
+    let context = VoltageContext::new(metafits_filename, &test_filenames)
         .expect("Failed to create VoltageContext");
 
     // Also check our test file is the right size!
@@ -325,7 +325,7 @@ fn test_context_new_invalid_metafits() {
     let voltage_files = vec![filename];
 
     // No gpubox files provided
-    let context = VoltageContext::new(&metafits_filename, &voltage_files);
+    let context = VoltageContext::new(metafits_filename, &voltage_files);
 
     assert!(context.is_err());
 }

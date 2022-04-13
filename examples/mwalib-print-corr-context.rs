@@ -31,7 +31,7 @@ struct Opt {
 fn main() -> Result<(), anyhow::Error> {
     env_logger::try_init().unwrap_or(());
     let opts = Opt::parse();
-    let context = CorrelatorContext::new(&opts.metafits, &opts.files)?;
+    let context = CorrelatorContext::new(opts.metafits, &opts.files)?;
 
     println!("{}", context);
 

@@ -5,6 +5,9 @@ Changes in each release are listed below.
 ## Unreleased
 * Specify minimum-required dependency versions.
 * Clean up fits long-string functions.
+* Stop borrowing generic types.
+  * This applied only to single files (like a metafits file); the required was
+    type `&T` (where `T` is `AsRef<Path>`) when `T` alone is sufficient.
 
 ## 0.13.1 13-Apr-2022 (Pre-release)
 * Fixed calculation of number of baselines for cases where num_antennas is odd.

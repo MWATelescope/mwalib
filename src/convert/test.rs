@@ -138,8 +138,8 @@ fn test_conversion_of_legacy_hdu_to_mwax_baseline_ordervs_pyuvdata() {
     let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
     let gpuboxfiles =
         vec!["test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits"];
-    let context = CorrelatorContext::new(&metafits, &gpuboxfiles)
-        .expect("Failed to create CorrelatorContext");
+    let context =
+        CorrelatorContext::new(metafits, &gpuboxfiles).expect("Failed to create CorrelatorContext");
 
     // Read and convert first HDU
     let mwalib_hdu: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
@@ -291,7 +291,7 @@ fn test_conversion_of_legacy_hdu_to_mwax_frequency_order_vs_pyuvdata() {
     let gpuboxfiles =
         vec!["test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits"];
     let context =
-        CorrelatorContext::new(&metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
+        CorrelatorContext::new(metafits, &gpuboxfiles).expect("Failed to create mwalibContext");
 
     // Read and convert first HDU
     let mwalib_hdu: Vec<f32> = context.read_by_frequency(0, 0).expect("Error!");
@@ -451,8 +451,8 @@ fn test_conversion_of_legacy_hdu_to_mwax_baseline_order_vs_cotter() {
     let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
     let gpuboxfiles =
         vec!["test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits"];
-    let context = CorrelatorContext::new(&metafits, &gpuboxfiles)
-        .expect("Failed to create CorrelatorContext");
+    let context =
+        CorrelatorContext::new(metafits, &gpuboxfiles).expect("Failed to create CorrelatorContext");
 
     // Read and convert first HDU
     let mwalib_hdu: Vec<f32> = context.read_by_baseline(0, 0).expect("Error!");
@@ -635,7 +635,7 @@ fn test_mwax_conversion_to_frequency_order() {
     //
     // Open a context and load in a test metafits and gpubox file
     let gpuboxfiles = vec![mwax_filename];
-    let context = CorrelatorContext::new(&mwax_metafits_filename, &gpuboxfiles)
+    let context = CorrelatorContext::new(mwax_metafits_filename, &gpuboxfiles)
         .expect("Failed to create mwalibContext");
 
     // Read and convert first HDU

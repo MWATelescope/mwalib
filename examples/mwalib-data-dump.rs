@@ -45,13 +45,13 @@ struct Opt {
 }
 
 fn dump_data<T: AsRef<std::path::Path>>(
-    metafits: &T,
+    metafits: T,
     files: &[T],
     timestep: usize,
     baseline: usize,
     fine_chan_range: (usize, usize),
     coarse_chan: usize,
-    dump_filename: &T,
+    dump_filename: T,
 ) -> Result<(), anyhow::Error> {
     let mut dump_file = File::create(dump_filename)?;
     println!("Dumping data via mwalib...");
@@ -148,13 +148,13 @@ fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::parse();
 
     dump_data(
-        &opts.metafits,
+        opts.metafits,
         &opts.files,
         opts.timestep,
         opts.baseline,
         (opts.fine_chan1, opts.fine_chan2),
         opts.coarse_chan,
-        &opts.dump_filename,
+        opts.dump_filename,
     )?;
     Ok(())
 }

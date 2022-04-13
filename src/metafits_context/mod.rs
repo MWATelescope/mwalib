@@ -404,11 +404,11 @@ pub struct MetafitsContext {
 }
 
 impl MetafitsContext {
-    /// From a path to a metafits file, create a `MetafitsContext`.        
+    /// From a path to a metafits file, create a `MetafitsContext`.
     ///
     /// # Arguments
     ///
-    /// * `metafits_filename` - filename of metafits file as a path or string.        
+    /// * `metafits_filename` - filename of metafits file as a path or string.
     ///
     /// * `mwa_version` - an Option containing the MWA version the metafits should be interpreted as. Pass None to have mwalib guess based on the MODE in the metafits.
     ///
@@ -418,7 +418,7 @@ impl MetafitsContext {
     ///
     ///
     pub fn new<T: AsRef<std::path::Path>>(
-        metafits: &T,
+        metafits: T,
         mwa_version: Option<MWAVersion>,
     ) -> Result<Self, MwalibError> {
         // Call the internal new metafits method
@@ -494,7 +494,7 @@ impl MetafitsContext {
     ///
     /// # Arguments
     ///
-    /// * `metafits_filename` - filename of metafits file as a path or string.        
+    /// * `metafits_filename` - filename of metafits file as a path or string.
     ///
     ///
     /// # Returns
@@ -503,7 +503,7 @@ impl MetafitsContext {
     ///
     ///
     pub(crate) fn new_internal<T: AsRef<std::path::Path>>(
-        metafits: &T,
+        metafits: T,
     ) -> Result<Self, MwalibError> {
         // Pull out observation details. Save the metafits HDU for faster
         // accesses.

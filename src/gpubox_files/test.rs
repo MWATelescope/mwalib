@@ -360,7 +360,7 @@ fn test_no_hdus() {
     let filename = "test_files/no_hdus/1196175296_20171201145440_gpubox01_00.fits";
     let gpuboxfiles = vec![filename];
 
-    let result = CorrelatorContext::new(&metafits_filename, &gpuboxfiles);
+    let result = CorrelatorContext::new(metafits_filename, &gpuboxfiles);
 
     assert!(matches!(
         result.unwrap_err(),

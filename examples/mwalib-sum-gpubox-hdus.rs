@@ -48,7 +48,7 @@ fn sum_direct(files: Vec<std::path::PathBuf>) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn sum_mwalib<T: AsRef<std::path::Path>>(metafits: &T, files: &[T]) -> Result<(), anyhow::Error> {
+fn sum_mwalib<T: AsRef<std::path::Path>>(metafits: T, files: &[T]) -> Result<(), anyhow::Error> {
     println!("Summing via mwalib using read_by_baseline()...");
     let context = CorrelatorContext::new(metafits, files)?;
     println!("Correlator version: {}", context.mwa_version);
@@ -89,7 +89,7 @@ fn main() -> Result<(), anyhow::Error> {
     if opts.direct {
         sum_direct(opts.files)?;
     } else {
-        sum_mwalib(&opts.metafits, &opts.files)?;
+        sum_mwalib(opts.metafits, &opts.files)?;
     }
 
     Ok(())

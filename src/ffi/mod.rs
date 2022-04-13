@@ -485,7 +485,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
         let s = CStr::from_ptr(*g).to_str().unwrap();
         gpubox_files.push(s.to_string())
     }
-    let context = match CorrelatorContext::new(&m, &gpubox_files) {
+    let context = match CorrelatorContext::new(m, &gpubox_files) {
         Ok(c) => c,
         Err(e) => {
             set_c_string(
@@ -1004,7 +1004,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_new(
         let s = CStr::from_ptr(*v).to_str().unwrap();
         voltage_files.push(s.to_string())
     }
-    let context = match VoltageContext::new(&m, &voltage_files) {
+    let context = match VoltageContext::new(m, &voltage_files) {
         Ok(c) => c,
         Err(e) => {
             set_c_string(
