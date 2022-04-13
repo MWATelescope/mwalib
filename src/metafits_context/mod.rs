@@ -586,7 +586,7 @@ impl MetafitsContext {
 
         // `num_baselines` is the number of cross-correlations + the number of
         // auto-correlations.
-        let num_baselines = (num_antennas / 2) * (num_antennas + 1);
+        let num_baselines = (num_antennas * (num_antennas + 1)) / 2;
 
         // The FREQCENT value in the metafits is in units of kHz - make it Hz.
         let centre_freq_hz: u32 = {

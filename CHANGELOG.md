@@ -2,6 +2,9 @@
 
 Changes in each release are listed below.
 
+## 0.13.1 13-Apr-2022 (Pre-release)
+* Fixed calculation of number of baselines for cases where num_antennas is odd.
+
 ## 0.13.0 04-Feb-2022 (Pre-release)
 * rfinput->digital_gains are now f64 and are divided by 64 (the value in the metafits is 64x larger to allow more flexible gains settings)
 * Modernised examples using clap 3.0 and reduced dependencies
