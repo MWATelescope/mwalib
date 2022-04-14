@@ -154,6 +154,56 @@ impl std::str::FromStr for GeometricDelaysApplied {
 }
 
 #[repr(C)]
+#[derive(Debug, PartialEq, Clone, Copy, FromPrimitive)]
+pub enum CableDelaysApplied {
+    No = 0,
+    CableAndRecClock = 1,
+    CableAndRecClockAndBeamformerDipoleDelays = 2,
+}
+
+/// Implements fmt::Display for CableDelaysApplied enum
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+impl fmt::Display for CableDelaysApplied {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CableDelaysApplied::No => "No",
+                CableDelaysApplied::CableAndRecClock => "Cable and receiver clock cable length",
+                CableDelaysApplied::CableAndRecClockAndBeamformerDipoleDelays =>
+                    "Cable, receiver clock cable and pointing-dependent beamformer dipole delays",
+            }
+        )
+    }
+}
+
+impl std::str::FromStr for CableDelaysApplied {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<CableDelaysApplied, Self::Err> {
+        match input {
+            "No" => Ok(CableDelaysApplied::No),
+            "Cable and receiver clock cable length" => Ok(CableDelaysApplied::CableAndRecClock),
+            "Cable, receiver clock cable and pointing-dependent beamformer dipole delays" => {
+                Ok(CableDelaysApplied::CableAndRecClockAndBeamformerDipoleDelays)
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+#[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum MWAMode {
@@ -330,7 +380,7 @@ pub struct MetafitsContext {
     /// Which Geometric delays have been applied to the data?
     pub geometric_delays_applied: GeometricDelaysApplied,
     /// Have cable delays been applied to the data?    
-    pub cable_delays_applied: bool,
+    pub cable_delays_applied: CableDelaysApplied,
     /// Have calibration delays and gains been applied to the data?
     pub calibration_delays_and_gains_applied: bool,
     /// Correlator fine_chan_resolution
@@ -676,11 +726,24 @@ impl MetafitsContext {
                 None => GeometricDelaysApplied::No,
             };
 
-        // These next two keys are specified as TINT not TBOOL in the metafits, so we need to translate 0=false, 1=true
-        let cable_delays_applied: bool = matches!(
-            (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CABLEDEL")?).unwrap_or(0),
-            1
-        );
+        let cable_delays_applied: CableDelaysApplied =
+            match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CABLEDEL")? {
+                Some(g) => match num_traits::FromPrimitive::from_i32(g) {
+                    Some(gda) => gda,
+                    None => {
+                        return Err(MwalibError::Parse {
+                            key: String::from("CABLEDEL"),
+                            fits_filename: metafits_filename,
+                            hdu_num: 0,
+                            source_file: String::from(file!()),
+                            source_line: line!(),
+                        })
+                    }
+                },
+                None => CableDelaysApplied::No,
+            };
+
+        // This next key is specified as TINT not TBOOL in the metafits, so we need to translate 0=false, 1=true
         let calibration_delays_and_gains_applied: bool = matches!(
             (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CALIBDEL")?).unwrap_or(0),
             1

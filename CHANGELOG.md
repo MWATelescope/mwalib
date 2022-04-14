@@ -2,7 +2,7 @@
 
 Changes in each release are listed below.
 
-## Unreleased
+## 0.14.0 13-Apr-2022 (Pre-release)
 * Specify minimum-required dependency versions.
 * Clean up fits long-string functions.
 * Stop borrowing generic types.
@@ -13,6 +13,7 @@ Changes in each release are listed below.
     also specifies the minimum supported Rust version and has CI tests against
     this version.
 * Lighten code to get channel frequencies.
+* Changed metafits_context `cable_delays_applied` from bool to an enum `CableDelaysApplied`.
 
 ## 0.13.1 13-Apr-2022 (Pre-release)
 * Fixed calculation of number of baselines for cases where num_antennas is odd.

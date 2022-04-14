@@ -221,10 +221,10 @@ fn test_metafits_context_new_corrlegacy_valid() {
     // Mode:                     HW_LFILES,
     assert_eq!(context.mode, MWAMode::Hw_Lfiles);
 
-    // Geometric delays - this old metafits has none of these keys so it will be None
+    // Geometric delays - this old metafits has none of these keys so it will be No
     assert_eq!(context.geometric_delays_applied, GeometricDelaysApplied::No);
-    // Cable delays applied - this old metafits has none of these keys so it will be false
-    assert!(!context.cable_delays_applied);
+    // Cable delays applied - this old metafits has none of these keys so it will be No
+    assert_eq!(context.cable_delays_applied, CableDelaysApplied::No);
 
     // Calibration delays & gains applied  - this old metafits has none of these keys so it will be false
     assert!(!context.calibration_delays_and_gains_applied);

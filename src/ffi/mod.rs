@@ -1344,7 +1344,7 @@ pub struct MetafitsMetadata {
     /// Which Geometric delays have been applied to the data
     pub geometric_delays_applied: GeometricDelaysApplied,
     /// Have cable delays been applied to the data?    
-    pub cable_delays_applied: bool,
+    pub cable_delays_applied: CableDelaysApplied,
     /// Have calibration delays and gains been applied to the data?
     pub calibration_delays_and_gains_applied: bool,
     /// Correlator fine_chan_resolution
