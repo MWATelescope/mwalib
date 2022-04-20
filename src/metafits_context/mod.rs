@@ -156,7 +156,7 @@ impl std::str::FromStr for GeometricDelaysApplied {
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy, FromPrimitive)]
 pub enum CableDelaysApplied {
-    No = 0,
+    NoCableDelaysApplied = 0,
     CableAndRecClock = 1,
     CableAndRecClockAndBeamformerDipoleDelays = 2,
 }
@@ -179,7 +179,7 @@ impl fmt::Display for CableDelaysApplied {
             f,
             "{}",
             match self {
-                CableDelaysApplied::No => "No",
+                CableDelaysApplied::NoCableDelaysApplied => "No",
                 CableDelaysApplied::CableAndRecClock => "Cable and receiver clock cable length",
                 CableDelaysApplied::CableAndRecClockAndBeamformerDipoleDelays =>
                     "Cable, receiver clock cable and pointing-dependent beamformer dipole delays",
@@ -193,7 +193,7 @@ impl std::str::FromStr for CableDelaysApplied {
 
     fn from_str(input: &str) -> Result<CableDelaysApplied, Self::Err> {
         match input {
-            "No" => Ok(CableDelaysApplied::No),
+            "No" => Ok(CableDelaysApplied::NoCableDelaysApplied),
             "Cable and receiver clock cable length" => Ok(CableDelaysApplied::CableAndRecClock),
             "Cable, receiver clock cable and pointing-dependent beamformer dipole delays" => {
                 Ok(CableDelaysApplied::CableAndRecClockAndBeamformerDipoleDelays)
@@ -740,7 +740,7 @@ impl MetafitsContext {
                         })
                     }
                 },
-                None => CableDelaysApplied::No,
+                None => CableDelaysApplied::NoCableDelaysApplied,
             };
 
         // This next key is specified as TINT not TBOOL in the metafits, so we need to translate 0=false, 1=true
