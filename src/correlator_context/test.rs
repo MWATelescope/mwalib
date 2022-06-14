@@ -5,9 +5,9 @@
 /*!
 Unit tests for correlator context
 */
-#[cfg(test)]
 use super::*;
 use float_cmp::*;
+use std::path::PathBuf;
 
 #[test]
 fn test_context_new_with_only_non000_batch() {
@@ -63,7 +63,7 @@ fn test_context_new_with_000_and_001_batch() {
 #[test]
 fn test_context_new_missing_gpubox_files() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
-    let gpuboxfiles = Vec::new();
+    let gpuboxfiles: Vec<PathBuf> = Vec::new();
 
     // No gpubox files provided
     let context = CorrelatorContext::new(metafits_filename, &gpuboxfiles);

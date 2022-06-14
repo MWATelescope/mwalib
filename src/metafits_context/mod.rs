@@ -5,9 +5,11 @@
 /*!
 The main interface to MWA data.
  */
+use std::fmt;
+use std::path::Path;
+
 use chrono::{DateTime, Duration, FixedOffset};
 use num_derive::FromPrimitive;
-use std::fmt;
 
 use crate::antenna::*;
 use crate::baseline::*;
@@ -467,10 +469,14 @@ impl MetafitsContext {
     /// * Result containing a populated MetafitsContext object if Ok.
     ///
     ///
-    pub fn new<T: AsRef<std::path::Path>>(
-        metafits: T,
+    pub fn new<P: AsRef<Path>>(
+        metafits: P,
         mwa_version: Option<MWAVersion>,
     ) -> Result<Self, MwalibError> {
+        Self::new_inner(metafits.as_ref(), mwa_version)
+    }
+
+    fn new_inner(metafits: &Path, mwa_version: Option<MWAVersion>) -> Result<Self, MwalibError> {
         // Call the internal new metafits method
         let mut new_context = MetafitsContext::new_internal(metafits)?;
 

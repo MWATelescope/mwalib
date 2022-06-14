@@ -10,6 +10,7 @@ use super::*;
 use float_cmp::*;
 use std::fs::File;
 use std::io::{Error, Write};
+use std::path::PathBuf;
 use std::sync::Once;
 
 // Define two static "once" variables to control creation of VCS test data (so it only happens once, the first time it's needed)
@@ -308,7 +309,7 @@ pub(crate) fn get_test_voltage_context(mwa_version: MWAVersion) -> VoltageContex
 #[test]
 fn test_context_new_missing_voltage_files() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
-    let voltagefiles = Vec::new();
+    let voltagefiles: Vec<PathBuf> = Vec::new();
 
     // No gpubox files provided
     let context = VoltageContext::new(&metafits_filename, &voltagefiles);
