@@ -333,6 +333,9 @@ pub struct MetafitsContext {
     pub sched_end_mjd: f64,
     /// Scheduled duration of observation
     pub sched_duration_ms: u64,
+    /// DUT1 (i.e. UTC-UT1). The UTC of the obsid is used to determine this
+    /// value. Calculated by astropy. Made optional for compatibility.
+    pub dut1: Option<f64>,
     /// RA tile pointing
     pub ra_tile_pointing_degrees: f64,
     /// DEC tile pointing
@@ -666,6 +669,8 @@ impl MetafitsContext {
             ex * 1000
         };
 
+        let dut1: Option<f64> = get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DUT1")?;
+
         let num_metafits_timesteps: usize = 0;
         let metafits_timesteps: Vec<TimeStep> = Vec::new();
 
@@ -836,6 +841,7 @@ impl MetafitsContext {
             sched_start_mjd: scheduled_start_mjd,
             sched_end_mjd: scheduled_end_mjd,
             sched_duration_ms: scheduled_duration_ms,
+            dut1,
             ra_tile_pointing_degrees,
             dec_tile_pointing_degrees,
             ra_phase_center_degrees,
@@ -883,19 +889,19 @@ impl MetafitsContext {
             num_rf_inputs,
             rf_inputs,
             num_ant_pols: num_antenna_pols,
+            num_metafits_timesteps,
+            metafits_timesteps,
             num_metafits_coarse_chans,
             metafits_coarse_chans,
             num_metafits_fine_chan_freqs,
             metafits_fine_chan_freqs_hz: metafits_fine_chan_freqs,
-            num_metafits_timesteps,
-            metafits_timesteps,
             obs_bandwidth_hz: metafits_observation_bandwidth_hz,
             coarse_chan_width_hz: metafits_coarse_chan_width_hz,
             centre_freq_hz,
-            metafits_filename,
             num_baselines,
             baselines,
             num_visibility_pols,
+            metafits_filename,
         })
     }
 
