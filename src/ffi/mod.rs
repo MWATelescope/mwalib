@@ -1389,6 +1389,9 @@ pub struct MetafitsMetadata {
     pub sched_end_gps_time_ms: u64,
     /// Scheduled duration of observation
     pub sched_duration_ms: u64,
+    /// DUT1 (i.e. UTC-UT1). The UTC of the obsid is used to determine this
+    /// value. Calculated by astropy. Made optional for compatibility.
+    pub dut1: f64,
     /// Seconds of bad data after observation starts
     pub quack_time_duration_ms: u64,
     /// OBSID+QUACKTIM as Unix timestamp (first good timestep)
@@ -1662,6 +1665,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             sched_start_mjd,
             sched_end_mjd,
             sched_duration_ms,
+            dut1,
             ra_tile_pointing_degrees,
             dec_tile_pointing_degrees,
             ra_phase_center_degrees,
@@ -1709,18 +1713,18 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_rf_inputs,
             rf_inputs: _, // This is populated seperately
             num_ant_pols,
-            num_baselines,
-            baselines: _, // This is populated seperately
-            num_visibility_pols,
-            metafits_timesteps: _, // This is populated seperately
             num_metafits_timesteps,
-            metafits_fine_chan_freqs_hz,
-            num_metafits_fine_chan_freqs,
-            metafits_coarse_chans: _, // This is populated seperately
+            metafits_timesteps: _, // This is populated seperately
             num_metafits_coarse_chans,
+            metafits_coarse_chans: _, // This is populated seperately
+            num_metafits_fine_chan_freqs,
+            metafits_fine_chan_freqs_hz,
             obs_bandwidth_hz,
             coarse_chan_width_hz,
             centre_freq_hz,
+            num_baselines,
+            baselines: _, // This is populated seperately
+            num_visibility_pols,
             metafits_filename,
         } = metafits_context;
         MetafitsMetadata {
@@ -1778,6 +1782,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             sched_start_gps_time_ms: *sched_start_gps_time_ms,
             sched_end_gps_time_ms: *sched_end_gps_time_ms,
             sched_duration_ms: *sched_duration_ms,
+            dut1: dut1.unwrap_or(0.0),
             quack_time_duration_ms: *quack_time_duration_ms,
             good_time_unix_ms: *good_time_unix_ms,
             good_time_gps_ms: *good_time_gps_ms,

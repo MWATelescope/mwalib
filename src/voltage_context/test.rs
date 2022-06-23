@@ -10,6 +10,7 @@ use super::*;
 use float_cmp::*;
 use std::fs::File;
 use std::io::{Error, Write};
+use std::path::PathBuf;
 use std::sync::Once;
 
 // Define two static "once" variables to control creation of VCS test data (so it only happens once, the first time it's needed)
@@ -150,8 +151,6 @@ pub(crate) fn get_index_for_location_in_test_voltage_file_legacy(
     rfinput_index: usize,
 ) -> usize {
     let num_rfinputs = 2;
-    let rf: usize;
-    let fc: usize;
 
     // Note for legacy always only have 1 block (i.e. no concept of a block)
     let bytes_per_rfinput = 1;
@@ -164,10 +163,10 @@ pub(crate) fn get_index_for_location_in_test_voltage_file_legacy(
     let s = sample_index * bytes_per_sample;
 
     // Now within the sample, move to the correct fine chan
-    fc = fine_chan_index * bytes_per_fine_chan;
+    let fc = fine_chan_index * bytes_per_fine_chan;
 
     // Now within the fine channel get the rf_input
-    rf = rfinput_index * bytes_per_rfinput;
+    let rf = rfinput_index * bytes_per_rfinput;
 
     // Return the correct index
     s + rf + fc
@@ -182,8 +181,6 @@ pub(crate) fn get_index_for_location_in_test_voltage_file_mwaxv2(
 ) -> usize {
     let num_finechan = 1;
     let num_rfinputs = 2;
-    let vb: usize;
-    let rf: usize;
 
     let bytes_per_fine_chan = 64000 * 2;
 
@@ -192,10 +189,10 @@ pub(crate) fn get_index_for_location_in_test_voltage_file_mwaxv2(
     let bytes_per_voltage_block = num_rfinputs * bytes_per_rfinput;
 
     // This will position us at the correct block
-    vb = voltage_block_index * bytes_per_voltage_block;
+    let vb = voltage_block_index * bytes_per_voltage_block;
 
     // Now within the block, move to the correct rf_input
-    rf = rfinput_index * bytes_per_rfinput;
+    let rf = rfinput_index * bytes_per_rfinput;
 
     // Return the correct index
     vb + rf + (sample_index * 2) + value_index
@@ -308,7 +305,7 @@ pub(crate) fn get_test_voltage_context(mwa_version: MWAVersion) -> VoltageContex
 #[test]
 fn test_context_new_missing_voltage_files() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
-    let voltagefiles = Vec::new();
+    let voltagefiles: Vec<PathBuf> = Vec::new();
 
     // No gpubox files provided
     let context = VoltageContext::new(&metafits_filename, &voltagefiles);

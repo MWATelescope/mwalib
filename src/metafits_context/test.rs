@@ -91,7 +91,7 @@ fn test_metafits_context_new_corrlegacy_valid() {
     assert_eq!(context.delays[15], 0);
 
     // Calibrator
-    assert_eq!(context.calibrator, false);
+    assert!(!context.calibrator);
     assert_eq!(context.calibrator_source, "");
 
     // Global attenuation:       1 dB,

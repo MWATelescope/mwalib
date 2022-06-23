@@ -2,6 +2,11 @@
 
 Changes in each release are listed below.
 
+## Unreleased
+* Provide DUT1 in the metafits context.
+* API tweaks surrounding generic types.
+  * Things should be slightly more flexible than before.
+
 ## 0.14.0 13-Apr-2022 (Pre-release)
 * Specify minimum-required dependency versions.
 * Clean up fits long-string functions.

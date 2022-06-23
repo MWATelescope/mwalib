@@ -24,7 +24,7 @@ mod voltage_files;
 
 ////////////////////////////////////////////////////////////////////////////
 /// NOTE: the below constants are here for FFI compatibility
-/// If you are using `mwa_rust_core`, then it's recommended to use
+/// If you are using `Marlu`, then it's recommended to use
 /// the constants from that library
 ///
 /// The MWA's latitude on Earth in radians. This is -26d42m11.94986s.

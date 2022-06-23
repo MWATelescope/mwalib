@@ -1741,18 +1741,16 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_legacy_vcs_valid() {
         //
         // Test antennas
         //
-        let item: Vec<Antenna> =
+        let items: Vec<Antenna> =
             ffi_boxed_slice_to_array(metafits_metadata.antennas, metafits_metadata.num_ants);
 
-        assert_eq!(item.len(), 128, "Array length is not correct");
+        assert_eq!(items.len(), 128, "Array length is not correct");
 
-        for i in 0..128 {
-            if item[i].tile_id == 154 {
-                assert_eq!(item[i].rfinput_y, 1);
-            }
-
-            if item[i].tile_id == 104 {
-                assert_eq!(item[i].rfinput_y, 0);
+        for item in items {
+            if item.tile_id == 154 {
+                assert_eq!(item.rfinput_y, 1);
+            } else if item.tile_id == 104 {
+                assert_eq!(item.rfinput_y, 0);
             }
         }
     }
@@ -1872,18 +1870,16 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
         //
         // Test antennas
         //
-        let item: Vec<Antenna> =
+        let items: Vec<Antenna> =
             ffi_boxed_slice_to_array(metafits_metadata.antennas, metafits_metadata.num_ants);
 
-        assert_eq!(item.len(), 128, "Array length is not correct");
+        assert_eq!(items.len(), 128, "Array length is not correct");
 
-        for i in 0..128 {
-            if item[i].tile_id == 154 {
-                assert_eq!(item[i].rfinput_y, 1);
-            }
-
-            if item[i].tile_id == 104 {
-                assert_eq!(item[i].rfinput_y, 0);
+        for item in items {
+            if item.tile_id == 154 {
+                assert_eq!(item.rfinput_y, 1);
+            } else if item.tile_id == 104 {
+                assert_eq!(item.rfinput_y, 0);
             }
         }
 

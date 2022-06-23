@@ -15,6 +15,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::{Read, Seek, SeekFrom};
+use std::path::Path;
 
 #[cfg(test)]
 pub(crate) mod test; // It's pub crate because I reuse some test code in the ffi tests.
@@ -153,9 +154,16 @@ impl VoltageContext {
     /// * Result containing a populated VoltageContext object if Ok.
     ///
     ///
-    pub fn new<T: AsRef<std::path::Path>>(
-        metafits_filename: T,
-        voltage_filenames: &[T],
+    pub fn new<P: AsRef<Path>, P2: AsRef<Path>>(
+        metafits_filename: P,
+        voltage_filenames: &[P2],
+    ) -> Result<Self, MwalibError> {
+        Self::new_inner(metafits_filename.as_ref(), voltage_filenames)
+    }
+
+    fn new_inner<P: AsRef<Path>>(
+        metafits_filename: &Path,
+        voltage_filenames: &[P],
     ) -> Result<Self, MwalibError> {
         let mut metafits_context = MetafitsContext::new_internal(metafits_filename)?;
 

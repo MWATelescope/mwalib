@@ -72,13 +72,13 @@ impl LegacyConversionBaseline {
             baseline,
             ant1,
             ant2,
-            xx_index: xx.abs() as usize,
+            xx_index: xx.unsigned_abs() as usize,
             xx_conjugate: xx < 0,
-            xy_index: xy.abs() as usize,
+            xy_index: xy.unsigned_abs() as usize,
             xy_conjugate: xy < 0,
-            yx_index: yx.abs() as usize,
+            yx_index: yx.unsigned_abs() as usize,
             yx_conjugate: yx < 0,
-            yy_index: yy.abs() as usize,
+            yy_index: yy.unsigned_abs() as usize,
             yy_conjugate: yy < 0,
         }
     }

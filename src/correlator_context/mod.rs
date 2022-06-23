@@ -7,6 +7,7 @@ The main interface to MWA data.
  */
 use std::collections::BTreeMap;
 use std::fmt;
+use std::path::Path;
 
 use crate::coarse_channel::*;
 use crate::convert::*;
@@ -132,9 +133,16 @@ impl CorrelatorContext {
     /// * Result containing a populated CorrelatorContext object if Ok.
     ///
     ///
-    pub fn new<T: AsRef<std::path::Path>>(
-        metafits_filename: T,
-        gpubox_filenames: &[T],
+    pub fn new<P: AsRef<Path>, P2: AsRef<Path>>(
+        metafits_filename: P,
+        gpubox_filenames: &[P2],
+    ) -> Result<Self, MwalibError> {
+        Self::new_inner(metafits_filename.as_ref(), gpubox_filenames)
+    }
+
+    fn new_inner<P: AsRef<Path>>(
+        metafits_filename: &Path,
+        gpubox_filenames: &[P],
     ) -> Result<Self, MwalibError> {
         let mut metafits_context = MetafitsContext::new_internal(metafits_filename)?;
 
