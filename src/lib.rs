@@ -54,17 +54,21 @@ pub mod built_info {
 // Re-exports (public to other crates and in a flat structure)
 pub use antenna::Antenna;
 pub use baseline::Baseline;
+pub use coarse_channel::error::CoarseChannelError;
 pub use coarse_channel::CoarseChannel;
 pub use correlator_context::CorrelatorContext;
 pub use error::MwalibError;
 pub use fits_read::*;
+pub use gpubox_files::GpuboxError;
+pub use metafits_context::error::MetafitsError;
 pub use metafits_context::{
     CableDelaysApplied, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, VisPol,
 };
 pub use misc::*;
-pub use rfinput::{Pol, Rfinput};
+pub use rfinput::{error::RfinputError, Pol, Rfinput};
 pub use timestep::TimeStep;
 pub use voltage_context::VoltageContext;
+pub use voltage_files::error::VoltageFileError;
 
 // So that callers don't use a different version of fitsio, export them here.
 pub use fitsio;
