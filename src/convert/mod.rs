@@ -320,15 +320,15 @@ pub(crate) fn convert_legacy_hdu_to_mwax_baseline_order(
     // Striding for output array
     let floats_per_baseline = floats_per_baseline_fine_chan * num_fine_chans;
 
+    assert!(input_buffer.len() >= num_fine_chans * floats_per_fine_chan);
+    assert!(output_buffer.len() >= num_fine_chans * floats_per_fine_chan);
+
     // Read from the input buffer and write into the temp buffer
+    // convert one fine channel at a time
     for fine_chan_index in 0..num_fine_chans {
-        // convert one fine channel at a time
         for (baseline_index, baseline) in conversion_table.iter().enumerate() {
             // Input visibilities are in [fine_chan][baseline][pol][real][imag] order so we need to stride
             // through it.
-            // source index =
-            // (fine_chan_index * num_baselines * floats per baseline_chan) +
-            // (baseline_index * floats per baseline_chan)
 
             // We need to work out where to start indexing the source data
             // Go "down" the fine channels as if they are rows
@@ -339,51 +339,58 @@ pub(crate) fn convert_legacy_hdu_to_mwax_baseline_order(
             // Go "across" the fine channels as if they are columns
             let destination_index = (baseline_index * floats_per_baseline)
                 + (fine_chan_index * floats_per_baseline_fine_chan);
-            // xx_r
-            output_buffer[destination_index] = input_buffer[source_index + baseline.xx_index];
-            // xx_i
-            output_buffer[destination_index + 1] = if baseline.xx_conjugate {
-                // We have to conjugate the visibility
-                -input_buffer[source_index + baseline.xx_index + 1]
-            } else {
-                input_buffer[source_index + baseline.xx_index + 1]
-            };
 
-            // xy_r
-            output_buffer[destination_index + 2] = input_buffer[source_index + baseline.xy_index];
-            // xy_i
-            output_buffer[destination_index + 3] = if baseline.xy_conjugate {
-                // We have to conjugate the visibility
-                -input_buffer[source_index + baseline.xy_index + 1]
-            } else {
-                input_buffer[source_index + baseline.xy_index + 1]
-            };
+            unsafe {
+                // xx_r
+                *output_buffer.get_unchecked_mut(destination_index) =
+                    *input_buffer.get_unchecked(source_index + baseline.xx_index);
+                // xx_i
+                *output_buffer.get_unchecked_mut(destination_index + 1) = if baseline.xx_conjugate {
+                    // We have to conjugate the visibility
+                    -input_buffer.get_unchecked(source_index + baseline.xx_index + 1)
+                } else {
+                    *input_buffer.get_unchecked(source_index + baseline.xx_index + 1)
+                };
 
-            // yx_r
-            output_buffer[destination_index + 4] = input_buffer[source_index + baseline.yx_index];
-            // yx_i
-            output_buffer[destination_index + 5] = if baseline.yx_conjugate {
-                // We have to conjugate the visibility
-                -input_buffer[source_index + baseline.yx_index + 1]
-            } else {
-                input_buffer[source_index + baseline.yx_index + 1]
-            };
+                // xy_r
+                *output_buffer.get_unchecked_mut(destination_index + 2) =
+                    *input_buffer.get_unchecked(source_index + baseline.xy_index);
+                // xy_i
+                *output_buffer.get_unchecked_mut(destination_index + 3) = if baseline.xy_conjugate {
+                    // We have to conjugate the visibility
+                    -input_buffer.get_unchecked(source_index + baseline.xy_index + 1)
+                } else {
+                    *input_buffer.get_unchecked(source_index + baseline.xy_index + 1)
+                };
 
-            // yy_r
-            output_buffer[destination_index + 6] = input_buffer[source_index + baseline.yy_index];
-            // yy_i
-            output_buffer[destination_index + 7] = if baseline.yy_conjugate {
-                // We have to conjugate the visibility
-                -input_buffer[source_index + baseline.yy_index + 1]
-            } else {
-                input_buffer[source_index + baseline.yy_index + 1]
-            };
+                // yx_r
+                *output_buffer.get_unchecked_mut(destination_index + 4) =
+                    *input_buffer.get_unchecked(source_index + baseline.yx_index);
+                // yx_i
+                *output_buffer.get_unchecked_mut(destination_index + 5) = if baseline.yx_conjugate {
+                    // We have to conjugate the visibility
+                    -input_buffer.get_unchecked(source_index + baseline.yx_index + 1)
+                } else {
+                    *input_buffer.get_unchecked(source_index + baseline.yx_index + 1)
+                };
 
-            // Finally take the conjugate so we are in the correct triangle
-            output_buffer[destination_index + 1] = -output_buffer[destination_index + 1];
-            output_buffer[destination_index + 3] = -output_buffer[destination_index + 3];
-            output_buffer[destination_index + 5] = -output_buffer[destination_index + 5];
-            output_buffer[destination_index + 7] = -output_buffer[destination_index + 7];
+                // yy_r
+                *output_buffer.get_unchecked_mut(destination_index + 6) =
+                    *input_buffer.get_unchecked(source_index + baseline.yy_index);
+                // yy_i
+                *output_buffer.get_unchecked_mut(destination_index + 7) = if baseline.yy_conjugate {
+                    // We have to conjugate the visibility
+                    -input_buffer.get_unchecked(source_index + baseline.yy_index + 1)
+                } else {
+                    *input_buffer.get_unchecked(source_index + baseline.yy_index + 1)
+                };
+
+                // Finally take the conjugate so we are in the correct triangle
+                *output_buffer.get_unchecked_mut(destination_index + 1) *= -1.0;
+                *output_buffer.get_unchecked_mut(destination_index + 3) *= -1.0;
+                *output_buffer.get_unchecked_mut(destination_index + 5) *= -1.0;
+                *output_buffer.get_unchecked_mut(destination_index + 7) *= -1.0;
+            }
         }
     }
 }
@@ -420,7 +427,11 @@ pub(crate) fn convert_legacy_hdu_to_mwax_frequency_order(
     // Striding for input array
     let floats_per_baseline_fine_chan = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
     let floats_per_fine_chan = num_baselines * floats_per_baseline_fine_chan; // All floats for all baselines and 1 fine channel
-                                                                              // Read from the input buffer and write into the temp buffer
+
+    assert!(input_buffer.len() >= num_fine_chans * floats_per_fine_chan);
+    assert!(output_buffer.len() >= num_fine_chans * floats_per_fine_chan);
+
+    // Read from the input buffer and write into the temp buffer
     for fine_chan_index in 0..num_fine_chans {
         // convert one fine channel at a time
         for (baseline_index, baseline) in conversion_table.iter().enumerate() {
@@ -433,51 +444,57 @@ pub(crate) fn convert_legacy_hdu_to_mwax_frequency_order(
             // For the destination, we have to stride along each baseline for this channel
             let destination_index = source_index + (baseline_index * floats_per_baseline_fine_chan);
 
-            // xx_r
-            output_buffer[destination_index] = input_buffer[source_index + baseline.xx_index];
-            // xx_i
-            output_buffer[destination_index + 1] = if baseline.xx_conjugate {
-                // We have to conjugate the visibility
-                -input_buffer[source_index + baseline.xx_index + 1]
-            } else {
-                input_buffer[source_index + baseline.xx_index + 1]
-            };
+            unsafe {
+                // xx_r
+                *output_buffer.get_unchecked_mut(destination_index) =
+                    *input_buffer.get_unchecked(source_index + baseline.xx_index);
+                // xx_i
+                *output_buffer.get_unchecked_mut(destination_index + 1) = if baseline.xx_conjugate {
+                    // We have to conjugate the visibility
+                    -input_buffer.get_unchecked(source_index + baseline.xx_index + 1)
+                } else {
+                    *input_buffer.get_unchecked(source_index + baseline.xx_index + 1)
+                };
 
-            // xy_r
-            output_buffer[destination_index + 2] = input_buffer[source_index + baseline.xy_index];
-            // xy_i
-            output_buffer[destination_index + 3] = if baseline.xy_conjugate {
-                // We have to conjugate the visibility
-                -input_buffer[source_index + baseline.xy_index + 1]
-            } else {
-                input_buffer[source_index + baseline.xy_index + 1]
-            };
+                // xy_r
+                *output_buffer.get_unchecked_mut(destination_index + 2) =
+                    *input_buffer.get_unchecked(source_index + baseline.xy_index);
+                // xy_i
+                *output_buffer.get_unchecked_mut(destination_index + 3) = if baseline.xy_conjugate {
+                    // We have to conjugate the visibility
+                    -input_buffer.get_unchecked(source_index + baseline.xy_index + 1)
+                } else {
+                    *input_buffer.get_unchecked(source_index + baseline.xy_index + 1)
+                };
 
-            // yx_r
-            output_buffer[destination_index + 4] = input_buffer[source_index + baseline.yx_index];
-            // yx_i
-            output_buffer[destination_index + 5] = if baseline.yx_conjugate {
-                // We have to conjugate the visibility
-                -input_buffer[source_index + baseline.yx_index + 1]
-            } else {
-                input_buffer[source_index + baseline.yx_index + 1]
-            };
+                // yx_r
+                *output_buffer.get_unchecked_mut(destination_index + 4) =
+                    *input_buffer.get_unchecked(source_index + baseline.yx_index);
+                // yx_i
+                *output_buffer.get_unchecked_mut(destination_index + 5) = if baseline.yx_conjugate {
+                    // We have to conjugate the visibility
+                    -input_buffer.get_unchecked(source_index + baseline.yx_index + 1)
+                } else {
+                    *input_buffer.get_unchecked(source_index + baseline.yx_index + 1)
+                };
 
-            // yy_r
-            output_buffer[destination_index + 6] = input_buffer[source_index + baseline.yy_index];
-            // yy_i
-            output_buffer[destination_index + 7] = if baseline.yy_conjugate {
-                // We have to conjugate the visibility
-                -input_buffer[source_index + baseline.yy_index + 1]
-            } else {
-                input_buffer[source_index + baseline.yy_index + 1]
-            };
+                // yy_r
+                *output_buffer.get_unchecked_mut(destination_index + 6) =
+                    *input_buffer.get_unchecked(source_index + baseline.yy_index);
+                // yy_i
+                *output_buffer.get_unchecked_mut(destination_index + 7) = if baseline.yy_conjugate {
+                    // We have to conjugate the visibility
+                    -input_buffer.get_unchecked(source_index + baseline.yy_index + 1)
+                } else {
+                    *input_buffer.get_unchecked(source_index + baseline.yy_index + 1)
+                };
 
-            // Finally take the conjugate so we are in the correct triangle
-            output_buffer[destination_index + 1] = -output_buffer[destination_index + 1];
-            output_buffer[destination_index + 3] = -output_buffer[destination_index + 3];
-            output_buffer[destination_index + 5] = -output_buffer[destination_index + 5];
-            output_buffer[destination_index + 7] = -output_buffer[destination_index + 7];
+                // Finally take the conjugate so we are in the correct triangle
+                *output_buffer.get_unchecked_mut(destination_index + 1) *= -1.0;
+                *output_buffer.get_unchecked_mut(destination_index + 3) *= -1.0;
+                *output_buffer.get_unchecked_mut(destination_index + 5) *= -1.0;
+                *output_buffer.get_unchecked_mut(destination_index + 7) *= -1.0;
+            }
         }
     }
 }
@@ -511,7 +528,11 @@ pub(crate) fn convert_mwax_hdu_to_frequency_order(
     let floats_per_baseline_fine_chan = num_visibility_pols * 2; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
     let floats_per_baseline = num_fine_chans * floats_per_baseline_fine_chan; // All floats for 1 baseline and all fine channels
     let floats_per_fine_chan = num_baselines * floats_per_baseline_fine_chan; // All floats for all baselines and 1 fine channel
-                                                                              // Read from the input buffer and write into the temp buffer
+
+    assert!(input_buffer.len() >= num_fine_chans * floats_per_fine_chan);
+    assert!(output_buffer.len() >= num_fine_chans * floats_per_fine_chan);
+
+    // Read from the input buffer and write into the temp buffer
     for baseline_index in 0..num_baselines {
         // convert one baseline at a time
         for fine_chan_index in 0..num_fine_chans {
