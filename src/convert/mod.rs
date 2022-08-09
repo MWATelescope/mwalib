@@ -226,22 +226,22 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
 ///LegacyConversionBaseline`s which tell us, for a specific output baseline, where in the input HDU
 /// to get data from (and whether it needs to be conjugated).
 ///
-pub(crate) fn generate_conversion_array(
-    rf_inputs: &mut [Rfinput],
-) -> Vec<LegacyConversionBaseline> {
-    // Sort the rf_inputs by "Input / metafits" order
-    rf_inputs.sort_by(|a, b| a.input.cmp(&b.input));
-
+pub(crate) fn generate_conversion_array(rf_inputs: &[Rfinput]) -> Vec<LegacyConversionBaseline> {
     // Ensure we have a 256 element array of rf_inputs
     // This is an OK assumption since we only use this for Legacy and OldLegacy MWA data which always must have 128 tiles
     // which is 256 rf inputs.
     assert_eq!(rf_inputs.len(), 256);
 
     // Create a vector which contains all the mwax_orders, sorted by "input" from the metafits
-    let mut mwax_order: Vec<usize> = vec![0; 256];
-    for index in 0..256 {
-        mwax_order[index] = rf_inputs[index].subfile_order as usize;
-    }
+    let mut map = rf_inputs
+        .iter()
+        .map(|rf| (rf.input, rf.subfile_order))
+        .collect::<Vec<_>>();
+    map.sort_unstable();
+    let mwax_order = map
+        .into_iter()
+        .map(|(_, subfile_order)| subfile_order as usize)
+        .collect();
 
     // Generate the full matrix
     let full_matrix: Vec<i32> = generate_full_matrix(mwax_order);

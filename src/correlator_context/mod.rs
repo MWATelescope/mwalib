@@ -334,7 +334,7 @@ impl CorrelatorContext {
         // or just leave it empty if we're in any other format
         let legacy_conversion_table: Vec<LegacyConversionBaseline> = match gpubox_info.mwa_version {
             MWAVersion::CorrOldLegacy | MWAVersion::CorrLegacy => {
-                convert::generate_conversion_array(&mut metafits_context.rf_inputs.clone())
+                convert::generate_conversion_array(&metafits_context.rf_inputs)
             }
             _ => Vec::new(),
         };
