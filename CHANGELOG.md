@@ -2,6 +2,11 @@
 
 Changes in each release are listed below.
 
+## 0.15.1 09-Aug-2022 (Pre-release)
+* mwalib now requires Rust version 1.57 or newer
+* Speed up conversion of legacy -> MWAX visibility ordering
+* Expose all mwalib error types
+
 ## 0.15.0 23-Jun-2022 (Pre-release)
 * Provide DUT1 in the metafits context
 * API tweaks surrounding generic types
