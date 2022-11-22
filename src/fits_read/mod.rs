@@ -288,7 +288,7 @@ pub fn _open_fits<T: AsRef<std::path::Path>>(
         }
         Err(e) => Err(FitsError::Open {
             fits_error: e,
-            fits_filename: file.as_ref().to_str().unwrap().to_string(),
+            fits_filename: file.as_ref().to_path_buf(),
             source_file,
             source_line,
         }),
@@ -309,7 +309,7 @@ pub fn _open_hdu(
         Ok(f) => {
             trace!(
                 "_open_hdu() filename: '{}' hdu: {}",
-                fits_fptr.filename,
+                fits_fptr.filename.display(),
                 hdu_num
             );
             Ok(f)
@@ -371,7 +371,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
 
     trace!(
         "_get_optional_fits_key() filename: '{}' hdu: {} keyword: '{}' value: '{}'",
-        &fits_fptr.filename,
+        fits_fptr.filename.display(),
         hdu.number,
         String::from(keyword),
         unparsed_value
@@ -381,7 +381,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
         Ok(parsed_value) => Ok(Some(parsed_value)),
         Err(_) => Err(FitsError::Parse {
             key: keyword.to_string(),
-            fits_filename: fits_fptr.filename.to_string(),
+            fits_filename: fits_fptr.filename.clone(),
             hdu_num: hdu.number + 1,
             source_file,
             source_line,
@@ -404,7 +404,7 @@ pub fn _get_required_fits_key<T: std::str::FromStr>(
         Ok(Some(value)) => Ok(value),
         Ok(None) => Err(FitsError::MissingKey {
             key: keyword.to_string(),
-            fits_filename: fits_fptr.filename.to_string(),
+            fits_filename: fits_fptr.filename.clone(),
             hdu_num: hdu.number + 1,
             source_file,
             source_line,
@@ -428,7 +428,7 @@ pub fn _get_fits_col<T: fitsio::tables::ReadsCol>(
         Ok(c) => {
             trace!(
                 "_get_fits_col() filename: '{}' hdu: {} keyword: '{}' values: {}",
-                fits_fptr.filename,
+                fits_fptr.filename.display(),
                 hdu.number,
                 keyword,
                 c.len()
@@ -504,7 +504,7 @@ pub fn _get_optional_fits_key_long_string(
 
     trace!(
         "_get_optional_fits_key_long_string() filename: {} keyword: '{}' value: '{:?}'",
-        &fits_fptr.filename,
+        fits_fptr.filename.display(),
         keyword,
         long_string
     );
@@ -555,7 +555,7 @@ pub fn _get_hdu_image_size(
         HduInfo::ImageInfo { shape, .. } => {
             trace!(
                 "_get_hdu_image_size() filename: '{}' hdu: {} shape: {:?}",
-                fits_fptr.filename,
+                fits_fptr.filename.display(),
                 hdu.number,
                 shape
             );
@@ -585,7 +585,7 @@ pub fn _get_fits_image<T: fitsio::images::ReadImage>(
             Ok(img) => {
                 trace!(
                     "_get_fits_image() filename: '{}' hdu: {}",
-                    fits_fptr.filename,
+                    fits_fptr.filename.display(),
                     hdu.number
                 );
                 Ok(img)
@@ -651,7 +651,7 @@ pub fn _get_fits_float_img_into_buf(
 
     trace!(
         "_get_fits_float_img_into_buf() filename: '{}' hdu: {}",
-        fits_fptr.filename,
+        fits_fptr.filename.display(),
         hdu.number
     );
 

@@ -383,7 +383,7 @@ fn read_cell_value<T: fitsio::tables::ReadsCol>(
         Ok(c) => {
             trace!(
                 "read_cell_value() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                &metafits_fptr.filename,
+                metafits_fptr.filename.display(),
                 metafits_tile_table_hdu.number,
                 col_name,
                 row
@@ -459,7 +459,7 @@ fn read_cell_array(
 
                 trace!(
                     "read_cell_array() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                    &metafits_fptr.filename,
+                    metafits_fptr.filename.display(),
                     metafits_tile_table_hdu.number,
                     col_name,
                     row
