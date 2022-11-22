@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Structs and helper methods for rf_input metadata
-*/
+//! Structs and helper methods for rf_input metadata
+
 pub mod error;
 use error::RfinputError;
 use log::trace;

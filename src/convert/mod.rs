@@ -2,12 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Structs and helper methods for coverting Legacy MWA data into a sensible ordering/format.
+//! Structs and helper methods for coverting Legacy MWA data into a sensible
+//! ordering/format.
+//!
+//! Major contributor: Brian Crosse (Curtin Institute for Radio Astronomy)
 
-Major contributor: Brian Crosse (Curtin Institute for Radio Astronomy)
-
-*/
 use crate::misc::*;
 use crate::rfinput::*;
 use log::trace;

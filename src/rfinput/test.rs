@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Unit tests for rfinput metadata
-*/
+//! Unit tests for rfinput metadata
+
 #[cfg(test)]
 use super::*;
 use crate::misc::test::*;
@@ -215,7 +214,7 @@ fn test_populate_rf_inputs() {
         68. / 64.,
         float_cmp::F64Margin::default()
     ));
-    
+
     assert_eq!(
         rfinput[0].dipole_delays,
         vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]

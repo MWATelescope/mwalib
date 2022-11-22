@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Unit tests for misc utility functions
-*/
+//! Unit tests for misc utility functions
+
 #[cfg(test)]
 use super::*;
 use crate::antenna::*;

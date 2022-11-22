@@ -3,6 +3,7 @@
 Changes in each release are listed below.
 
 ## 0.16.0 (unreleased)
+* Update module docs.
 * Update dependencies.
 * Fixed a bunch of clippy lints.
 

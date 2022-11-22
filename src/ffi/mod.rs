@@ -2,9 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-This module exists purely for other languages to interface with mwalib.
- */
+//! This module exists purely for other languages to interface with mwalib.
 
 use crate::*;
 use gpubox_files::GpuboxError;
