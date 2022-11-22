@@ -5,6 +5,16 @@ Changes in each release are listed below.
 * FFI/C: `MetafitsMetadata`->`ra_phase_center_deg` is now NaN not 0 when missing from metafits file
 * FFI/C: `MetafitsMetadata`->`dec_phase_center_deg` is now NaN not 0 when missing from metafits file
 
+## 0.16.0 (unreleased)
+* Update module docs.
+* Update dependencies.
+* Fixed a bunch of clippy lints.
+
+## 0.15.1 09-Aug-2022 (Pre-release)
+* mwalib now requires Rust version 1.57 or newer
+* Speed up conversion of legacy -> MWAX visibility ordering
+* Expose all mwalib error types
+
 ## 0.15.0 23-Jun-2022 (Pre-release)
 * Provide DUT1 in the metafits context
 * API tweaks surrounding generic types

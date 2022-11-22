@@ -2,10 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Definitions for what we expose to the library
-Public items will be exposed as mwalib::module.
-*/
+//! A library to simplify reading Murchison Widefield Array (MWA) raw visibilities, voltages and metadata.
+
+// Definitions for what we expose to the library
+// Public items will be exposed as mwalib::module.
 mod antenna;
 mod baseline;
 mod coarse_channel;

@@ -2,12 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Structs and helper methods for coverting Legacy MWA data into a sensible ordering/format.
+//! Structs and helper methods for coverting Legacy MWA data into a sensible
+//! ordering/format.
+//!
+//! Major contributor: Brian Crosse (Curtin Institute for Radio Astronomy)
 
-Major contributor: Brian Crosse (Curtin Institute for Radio Astronomy)
-
-*/
 use crate::misc::*;
 use crate::rfinput::*;
 use log::trace;
@@ -253,8 +252,7 @@ pub(crate) fn generate_conversion_array(rf_inputs: &[Rfinput]) -> Vec<LegacyConv
     // Create an output vector so we can lookup where to get data from the legacy HDU, given a baseline/ant1/ant2
     let baseline_count = get_baseline_count(128);
 
-    let mut conversion_table: Vec<LegacyConversionBaseline> =
-        Vec::with_capacity(baseline_count as usize);
+    let mut conversion_table: Vec<LegacyConversionBaseline> = Vec::with_capacity(baseline_count);
 
     // Our row tile and column tile.  Now 2 pols each so only 128 in legacy obs
     for row_tile in 0..128 {
@@ -276,8 +274,8 @@ pub(crate) fn generate_conversion_array(rf_inputs: &[Rfinput]) -> Vec<LegacyConv
     }
 
     // Ensure we processed all baselines
-    assert_eq!(baseline, baseline_count as usize);
-    assert_eq!(conversion_table.len(), baseline_count as usize);
+    assert_eq!(baseline, baseline_count);
+    assert_eq!(conversion_table.len(), baseline_count);
 
     trace!("legacy_conversion_table: {:?}", conversion_table);
 

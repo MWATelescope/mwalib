@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Unit tests for voltage context
-*/
+//! Unit tests for voltage context
+
 #[cfg(test)]
 use super::*;
 use float_cmp::*;
@@ -35,7 +34,7 @@ fn generate_test_voltage_file(
     initial_value: u8,
 ) -> Result<String, Error> {
     // initialization test data
-    let mut output_file: File = File::create(&filename)?;
+    let mut output_file: File = File::create(filename)?;
 
     // Write out header if one is needed
     if header_bytes > 0 {
@@ -288,7 +287,7 @@ pub(crate) fn get_test_voltage_context(mwa_version: MWAVersion) -> VoltageContex
     // Note our test file only has 2 rfinputs, not 256!
     // Check the files are the right size
     // Obtain metadata
-    let metadata = std::fs::metadata(&test_filenames[0]).expect("unable to read metadata");
+    let metadata = std::fs::metadata(test_filenames[0]).expect("unable to read metadata");
 
     // Also check our test file is the right size!
     // Note our test files have 2 rfinputs, not 256, so we divide the block size by 128!
@@ -308,7 +307,7 @@ fn test_context_new_missing_voltage_files() {
     let voltagefiles: Vec<PathBuf> = Vec::new();
 
     // No gpubox files provided
-    let context = VoltageContext::new(&metafits_filename, &voltagefiles);
+    let context = VoltageContext::new(metafits_filename, &voltagefiles);
     assert!(matches!(
         context.unwrap_err(),
         MwalibError::Voltage(VoltageFileError::NoVoltageFiles)

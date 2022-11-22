@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Unit tests for code dealing with conversion from legacy to mwax format
-*/
+//! Unit tests for code dealing with conversion from legacy to mwax format
+
 #[cfg(test)]
 use super::*;
 use crate::*;
@@ -242,18 +241,12 @@ fn test_conversion_of_legacy_hdu_to_mwax_baseline_ordervs_pyuvdata() {
         } else {
             // We are at the end of a baseline
             // Get value from mwa_lib
-            let good: u8 = if approx_eq!(
+            let good = u8::from(approx_eq!(
                 f64,
                 mwalib_sum_of_baseline,
                 pyuvdata_sum_of_baseline,
                 F64Margin::default()
-            ) {
-                // match
-                1
-            } else {
-                // no match
-                0
-            };
+            ));
 
             assert_eq!(
                 good,
@@ -406,18 +399,12 @@ fn test_conversion_of_legacy_hdu_to_mwax_frequency_order_vs_pyuvdata() {
         } else {
             // We are at the end of a fine channel
             // Get value from mwa_lib
-            let good: u8 = if approx_eq!(
+            let good = u8::from(approx_eq!(
                 f64,
                 mwalib_sum_of_fine_chan,
                 pyuvdata_sum_of_fine_chan,
                 F64Margin::default()
-            ) {
-                // match
-                1
-            } else {
-                // no match
-                0
-            };
+            ));
 
             assert_eq!(
                 good,
@@ -570,18 +557,12 @@ fn test_conversion_of_legacy_hdu_to_mwax_baseline_order_vs_cotter() {
         } else {
             // We are at the end of a baseline
             // Get value from mwa_lib
-            let good: u8 = if approx_eq!(
+            let good = u8::from(approx_eq!(
                 f64,
                 mwalib_sum_of_baseline,
                 cotter_sum_of_baseline,
                 F64Margin::default()
-            ) {
-                // match
-                1
-            } else {
-                // no match
-                0
-            };
+            ));
 
             assert_eq!(
                 good,

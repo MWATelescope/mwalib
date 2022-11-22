@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Functions for organising and checking the consistency of voltage files.
-*/
+//! Functions for organising and checking the consistency of voltage files.
+
 pub mod error;
 use crate::*;
 pub use error::VoltageFileError;
@@ -175,7 +174,7 @@ fn convert_temp_voltage_files(
     let batches = temp_voltage_files.iter().map(|g| g.gps_time_seconds);
     let mut voltage_file_batches: HashMap<u64, VoltageFileBatch> = HashMap::new();
     for b in batches {
-        voltage_file_batches.insert(b, VoltageFileBatch::new(b as u64));
+        voltage_file_batches.insert(b, VoltageFileBatch::new(b));
     }
 
     for temp_v in temp_voltage_files.iter() {

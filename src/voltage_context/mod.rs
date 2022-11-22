@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-The main interface to MWA voltage data.
- */
+//! The main interface to MWA voltage data.
+
 use crate::coarse_channel::*;
 use crate::error::*;
 use crate::metafits_context::*;
@@ -656,7 +655,7 @@ impl VoltageContext {
 
         // Variables to keep track of where in the buffer we are writing to
         let mut start_pos: usize = 0;
-        let mut end_pos: usize = chunk_size as usize;
+        let mut end_pos: usize = chunk_size;
 
         // Loop through the timesteps / files
         for timestep_index in timestep_index_start..timestep_index_end + 1 {
@@ -687,10 +686,10 @@ impl VoltageContext {
             };
 
             // Open the file
-            let file_handle = File::open(&filename).expect("no file found");
+            let file_handle = File::open(filename).expect("no file found");
 
             // Obtain metadata
-            let metadata = std::fs::metadata(&filename).expect("unable to read metadata");
+            let metadata = std::fs::metadata(filename).expect("unable to read metadata");
 
             // Check file is as big as we expect
             if metadata.len() != calc_file_size {
@@ -850,10 +849,10 @@ impl VoltageContext {
         };
 
         // Open the file
-        let file_handle = File::open(&filename).expect("no file found");
+        let file_handle = File::open(filename).expect("no file found");
 
         // Obtain metadata
-        let metadata = std::fs::metadata(&filename).expect("unable to read metadata");
+        let metadata = std::fs::metadata(filename).expect("unable to read metadata");
 
         // Check file is as big as we expect
         // normally we would compare the file len to context.expected_voltage_data_file_size_bytes,
@@ -890,7 +889,7 @@ impl VoltageContext {
 
         // Read the data into the final output buffer in blocks, spaced out with delay blocks (possibly)
         let mut start_pos: usize = 0;
-        let mut end_pos: usize = chunk_size as usize;
+        let mut end_pos: usize = chunk_size;
 
         // Loop until all data is read into our buffer
         for _ in 0..self.num_voltage_blocks_per_timestep {

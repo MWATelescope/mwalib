@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Functions for organising and checking the consistency of gpubox files.
-*/
+//! Functions for organising and checking the consistency of gpubox files.
+
 pub mod error;
 
 use std::collections::BTreeMap;
@@ -423,7 +422,7 @@ fn determine_hdu_time(
     let start_unix_time: u64 = get_required_fits_key!(gpubox_fptr, gpubox_hdu_fptr, "TIME")?;
     let start_unix_millitime: u64 =
         get_required_fits_key!(gpubox_fptr, gpubox_hdu_fptr, "MILLITIM")?;
-    Ok((start_unix_time * 1000 + start_unix_millitime) as u64)
+    Ok(start_unix_time * 1000 + start_unix_millitime)
 }
 
 /// Iterate over each HDU of the given gpubox file, tracking which UNIX times

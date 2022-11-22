@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Structs and helper methods for rf_input metadata
-*/
+//! Structs and helper methods for rf_input metadata
+
 pub mod error;
 use error::RfinputError;
 use log::trace;
@@ -45,7 +44,9 @@ fn get_vcs_order(input: u32) -> u32 {
 ///   Second tile would have 2 for X, 3 for Y, etc.
 ///
 fn get_mwax_order(antenna: u32, pol: Pol) -> u32 {
-    (antenna * 2) + (if pol == Pol::Y { 1 } else { 0 })
+    // `u32::from` converts the boolean to a number; in this case, 1 if pol is
+    // Y, 0 otherwise.
+    (antenna * 2) + u32::from(pol == Pol::Y)
 }
 
 /// Returns the electrical length for this rf_input.
@@ -75,7 +76,7 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
 }
 
 /// Instrument polarisation.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Pol {
     X,
     Y,
@@ -381,7 +382,7 @@ fn read_cell_value<T: fitsio::tables::ReadsCol>(
         Ok(c) => {
             trace!(
                 "read_cell_value() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                &metafits_fptr.filename,
+                metafits_fptr.filename.display(),
                 metafits_tile_table_hdu.number,
                 col_name,
                 row
@@ -457,7 +458,7 @@ fn read_cell_array(
 
                 trace!(
                     "read_cell_array() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                    &metafits_fptr.filename,
+                    metafits_fptr.filename.display(),
                     metafits_tile_table_hdu.number,
                     col_name,
                     row

@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Unit tests for timestep metadata
-*/
+//! Unit tests for timestep metadata
+
 #[cfg(test)]
 use super::*;
 use crate::gpubox_files::GpuboxTimeMap;
@@ -375,7 +374,7 @@ fn test_timestep_new() {
 
 #[test]
 fn test_populate_timesteps_metafits_corr() {
-    let metafits_file = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
+    let metafits_file = "test_files/1101503312_1_timestep/1101503312.metafits";
 
     let versions: Vec<MWAVersion> = vec![
         MWAVersion::CorrOldLegacy,
@@ -385,7 +384,7 @@ fn test_populate_timesteps_metafits_corr() {
 
     for mwa_version in versions {
         let metafits_context =
-            MetafitsContext::new_internal(&metafits_file).expect("Error creating metafits context");
+            MetafitsContext::new_internal(metafits_file).expect("Error creating metafits context");
 
         let timesteps = TimeStep::populate_timesteps(
             &metafits_context,
@@ -410,10 +409,10 @@ fn test_populate_timesteps_metafits_corr() {
 
 #[test]
 fn test_populate_timesteps_metafits_vcs_legacy_recombined() {
-    let metafits_file = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
+    let metafits_file = "test_files/1101503312_1_timestep/1101503312.metafits";
 
     let metafits_context =
-        MetafitsContext::new_internal(&metafits_file).expect("Error creating metafits context");
+        MetafitsContext::new_internal(metafits_file).expect("Error creating metafits context");
 
     let timesteps = TimeStep::populate_timesteps(
         &metafits_context,
@@ -437,10 +436,10 @@ fn test_populate_timesteps_metafits_vcs_legacy_recombined() {
 
 #[test]
 fn test_populate_timesteps_metafits_vcs_mwaxv2() {
-    let metafits_file = String::from("test_files/1101503312_1_timestep/1101503312.metafits");
+    let metafits_file = "test_files/1101503312_1_timestep/1101503312.metafits";
 
     let metafits_context =
-        MetafitsContext::new_internal(&metafits_file).expect("Error creating metafits context");
+        MetafitsContext::new_internal(metafits_file).expect("Error creating metafits context");
 
     let timesteps = TimeStep::populate_timesteps(
         &metafits_context,

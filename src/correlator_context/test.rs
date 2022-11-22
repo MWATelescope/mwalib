@@ -2,9 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-Unit tests for correlator context
-*/
+//! Unit tests for correlator context
+
 use super::*;
 use float_cmp::*;
 use std::path::PathBuf;

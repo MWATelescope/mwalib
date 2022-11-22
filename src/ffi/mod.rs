@@ -2,9 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/*!
-This module exists purely for other languages to interface with mwalib.
- */
+//! This module exists purely for other languages to interface with mwalib.
 
 use crate::*;
 use gpubox_files::GpuboxError;
@@ -216,12 +214,9 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    let m = CStr::from_ptr(metafits_filename)
-        .to_str()
-        .unwrap()
-        .to_string();
+    let m = CStr::from_ptr(metafits_filename).to_str().unwrap();
 
-    let context = match MetafitsContext::new(&m, Some(mwa_version)) {
+    let context = match MetafitsContext::new(m, Some(mwa_version)) {
         Ok(c) => c,
         Err(e) => {
             set_c_string(
@@ -268,12 +263,9 @@ pub unsafe extern "C" fn mwalib_metafits_context_new2(
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    let m = CStr::from_ptr(metafits_filename)
-        .to_str()
-        .unwrap()
-        .to_string();
+    let m = CStr::from_ptr(metafits_filename).to_str().unwrap();
 
-    let context = match MetafitsContext::new(&m, None) {
+    let context = match MetafitsContext::new(m, None) {
         Ok(c) => c,
         Err(e) => {
             set_c_string(
@@ -434,7 +426,7 @@ pub unsafe extern "C" fn mwalib_metafits_context_free(
     }
 
     // Release correlator context if applicable
-    Box::from_raw(metafits_context_ptr);
+    drop(Box::from_raw(metafits_context_ptr));
 
     // Return success
     MWALIB_SUCCESS
@@ -474,10 +466,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    let m = CStr::from_ptr(metafits_filename)
-        .to_str()
-        .unwrap()
-        .to_string();
+    let m = CStr::from_ptr(metafits_filename).to_str().unwrap();
     let gpubox_slice = slice::from_raw_parts(gpubox_filenames, gpubox_count);
     let mut gpubox_files = Vec::with_capacity(gpubox_count);
     for g in gpubox_slice {
@@ -954,7 +943,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_free(
         return MWALIB_SUCCESS;
     }
     // Release correlator context if applicable
-    Box::from_raw(correlator_context_ptr);
+    drop(Box::from_raw(correlator_context_ptr));
 
     // Return success
     MWALIB_SUCCESS
@@ -994,10 +983,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_new(
     error_message: *const c_char,
     error_message_length: size_t,
 ) -> i32 {
-    let m = CStr::from_ptr(metafits_filename)
-        .to_str()
-        .unwrap()
-        .to_string();
+    let m = CStr::from_ptr(metafits_filename).to_str().unwrap();
     let voltage_slice = slice::from_raw_parts(voltage_filenames, voltage_file_count);
     let mut voltage_files = Vec::with_capacity(voltage_file_count);
     for v in voltage_slice {
@@ -1281,7 +1267,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_free(
         return MWALIB_SUCCESS;
     }
     // Release voltage context if applicable
-    Box::from_raw(voltage_context_ptr);
+    drop(Box::from_raw(voltage_context_ptr));
 
     // Return success
     MWALIB_SUCCESS
@@ -1584,7 +1570,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 input: *input,
                 ant: *ant,
                 tile_id: *tile_id,
-                tile_name: CString::new(String::from(&*tile_name)).unwrap().into_raw(),
+                tile_name: CString::new(String::from(tile_name)).unwrap().into_raw(),
                 pol: CString::new(pol.to_string()).unwrap().into_raw(),
                 electrical_length_m: *electrical_length_m,
                 north_m: *north_m,
@@ -1750,14 +1736,14 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             jupiter_distance_deg: *jupiter_distance_deg,
             lst_deg: *lst_degrees,
             lst_rad: *lst_radians,
-            hour_angle_string: CString::new(String::from(&*hour_angle_string))
+            hour_angle_string: CString::new(String::from(hour_angle_string))
                 .unwrap()
                 .into_raw(),
-            grid_name: CString::new(String::from(&*grid_name)).unwrap().into_raw(),
+            grid_name: CString::new(String::from(grid_name)).unwrap().into_raw(),
             grid_number: grid_number.unwrap_or(-1),
-            creator: CString::new(String::from(&*creator)).unwrap().into_raw(),
-            project_id: CString::new(String::from(&*project_id)).unwrap().into_raw(),
-            obs_name: CString::new(String::from(&*obs_name)).unwrap().into_raw(),
+            creator: CString::new(String::from(creator)).unwrap().into_raw(),
+            project_id: CString::new(String::from(project_id)).unwrap().into_raw(),
+            obs_name: CString::new(String::from(obs_name)).unwrap().into_raw(),
             mode: *mode,
             geometric_delays_applied: *geometric_delays_applied,
             cable_delays_applied: *cable_delays_applied,
@@ -1773,7 +1759,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             delays: ffi_array_to_boxed_slice(delays.clone()),
             num_delays: *num_delays,
             calibrator: *calibrator,
-            calibrator_source: CString::new(String::from(&*calibrator_source))
+            calibrator_source: CString::new(String::from(calibrator_source))
                 .unwrap()
                 .into_raw(),
             sched_start_utc: sched_start_utc.timestamp(),
@@ -1808,7 +1794,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             obs_bandwidth_hz: *obs_bandwidth_hz,
             coarse_chan_width_hz: *coarse_chan_width_hz,
             centre_freq_hz: *centre_freq_hz,
-            metafits_filename: CString::new(String::from(&*metafits_filename))
+            metafits_filename: CString::new(String::from(metafits_filename))
                 .unwrap()
                 .into_raw(),
         }
@@ -1882,14 +1868,14 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
             drop(Box::from_raw(i.tile_name));
             drop(Box::from_raw(i.pol));
 
-            if !(*i).digital_gains.is_null() {
-                drop(Box::from_raw((*i).digital_gains));
+            if !i.digital_gains.is_null() {
+                drop(Box::from_raw(i.digital_gains));
             }
-            if !(*i).dipole_gains.is_null() {
-                drop(Box::from_raw((*i).dipole_gains));
+            if !i.dipole_gains.is_null() {
+                drop(Box::from_raw(i.dipole_gains));
             }
-            if !(*i).dipole_delays.is_null() {
-                drop(Box::from_raw((*i).dipole_delays));
+            if !i.dipole_delays.is_null() {
+                drop(Box::from_raw(i.dipole_delays));
             }
         }
 
