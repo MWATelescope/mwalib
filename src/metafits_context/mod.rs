@@ -27,7 +27,7 @@ mod test;
 /// Enum for all of the known variants of file format based on Correlator version
 ///
 #[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MWAVersion {
     /// MWA correlator (v1.0), having data files without any batch numbers.
     CorrOldLegacy = 1,
@@ -106,7 +106,7 @@ impl fmt::Display for VisPol {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy, FromPrimitive)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
 pub enum GeometricDelaysApplied {
     No = 0,
     Zenith = 1,
@@ -156,7 +156,7 @@ impl std::str::FromStr for GeometricDelaysApplied {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy, FromPrimitive)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
 pub enum CableDelaysApplied {
     NoCableDelaysApplied = 0,
     CableAndRecClock = 1,
@@ -206,7 +206,7 @@ impl std::str::FromStr for CableDelaysApplied {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum MWAMode {
     No_Capture = 0,

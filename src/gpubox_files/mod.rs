@@ -423,7 +423,7 @@ fn determine_hdu_time(
     let start_unix_time: u64 = get_required_fits_key!(gpubox_fptr, gpubox_hdu_fptr, "TIME")?;
     let start_unix_millitime: u64 =
         get_required_fits_key!(gpubox_fptr, gpubox_hdu_fptr, "MILLITIM")?;
-    Ok((start_unix_time * 1000 + start_unix_millitime) as u64)
+    Ok(start_unix_time * 1000 + start_unix_millitime)
 }
 
 /// Iterate over each HDU of the given gpubox file, tracking which UNIX times

@@ -2,6 +2,9 @@
 
 Changes in each release are listed below.
 
+## 0.16.0 (unreleased)
+* Fixed a bunch of clippy lints.
+
 ## 0.15.1 09-Aug-2022 (Pre-release)
 * mwalib now requires Rust version 1.57 or newer
 * Speed up conversion of legacy -> MWAX visibility ordering

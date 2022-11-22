@@ -175,7 +175,7 @@ fn convert_temp_voltage_files(
     let batches = temp_voltage_files.iter().map(|g| g.gps_time_seconds);
     let mut voltage_file_batches: HashMap<u64, VoltageFileBatch> = HashMap::new();
     for b in batches {
-        voltage_file_batches.insert(b, VoltageFileBatch::new(b as u64));
+        voltage_file_batches.insert(b, VoltageFileBatch::new(b));
     }
 
     for temp_v in temp_voltage_files.iter() {

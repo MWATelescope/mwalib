@@ -4,9 +4,9 @@ use std::env;
 // (https://github.com/rust-lang/pkg-config-rs).
 fn infer_static(name: &str) -> bool {
     #[allow(clippy::if_same_then_else, clippy::needless_bool)]
-    if env::var(&format!("{}_STATIC", name.to_uppercase())).is_ok() {
+    if env::var(format!("{}_STATIC", name.to_uppercase())).is_ok() {
         true
-    } else if env::var(&format!("{}_DYNAMIC", name.to_uppercase())).is_ok() {
+    } else if env::var(format!("{}_DYNAMIC", name.to_uppercase())).is_ok() {
         false
     } else if env::var("PKG_CONFIG_ALL_STATIC").is_ok() {
         true

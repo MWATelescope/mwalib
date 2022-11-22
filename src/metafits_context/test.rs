@@ -16,7 +16,7 @@ fn test_metafits_context_new_invalid() {
     let metafits_filename = "invalid.metafits";
 
     // No gpubox files provided
-    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::CorrMWAXv2));
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrMWAXv2));
 
     assert!(context.is_err());
 }
@@ -30,7 +30,7 @@ fn test_metafits_context_new_vcs_legacy_valid() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined))
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::VCSLegacyRecombined))
         .expect("Failed to create MetafitsContext");
 
     // rf_inputs:                [Tile104Y, ..., Tile055X],
@@ -63,7 +63,7 @@ fn test_metafits_context_new_corrlegacy_valid() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::CorrLegacy))
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrLegacy))
         .expect("Failed to create MetafitsContext");
 
     // Test the properties of the context object match what we expect
@@ -268,7 +268,7 @@ fn test_metafits_context_new_corrmwaxv2_valid() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::CorrMWAXv2))
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrMWAXv2))
         .expect("Failed to create MetafitsContext");
 
     // Test the properties of the context object match what we expect
@@ -292,7 +292,7 @@ fn test_metafits_context_new_vcsmwax2_valid() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSMWAXv2))
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::VCSMWAXv2))
         .expect("Failed to create MetafitsContext");
 
     // Test the properties of the context object match what we expect
@@ -326,7 +326,7 @@ fn test_populate_expected_timesteps() {
 
     for mwa_version in mwa_versions {
         // Open a context and load in a test metafits
-        let result = MetafitsContext::new_internal(&metafits_filename);
+        let result = MetafitsContext::new_internal(metafits_filename);
 
         assert!(result.is_ok());
 
@@ -367,7 +367,7 @@ fn test_populate_expected_coarse_channels_legacy() {
 
     for mwa_version in mwa_versions {
         // Open a context and load in a test metafits
-        let result = MetafitsContext::new_internal(&metafits_filename);
+        let result = MetafitsContext::new_internal(metafits_filename);
 
         assert!(result.is_ok());
 
@@ -410,7 +410,7 @@ fn test_populate_expected_coarse_channels_corr_mwaxv2() {
 
     for mwa_version in mwa_versions {
         // Open a context and load in a test metafits
-        let result = MetafitsContext::new_internal(&metafits_filename);
+        let result = MetafitsContext::new_internal(metafits_filename);
 
         assert!(result.is_ok());
 
@@ -450,7 +450,7 @@ fn test_metafits_context_new_guess_version() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
     // Open a context and load in a test metafits
-    let result = MetafitsContext::new(&metafits_filename, None);
+    let result = MetafitsContext::new(metafits_filename, None);
     assert!(result.is_ok());
 
     let context = result.unwrap();
@@ -463,7 +463,7 @@ fn test_generate_expected_volt_filename_legacy_vcs() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
     // Open a context and load in a test metafits
-    let result = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined));
+    let result = MetafitsContext::new(metafits_filename, Some(MWAVersion::VCSLegacyRecombined));
     assert!(result.is_ok());
 
     let context = result.unwrap();
@@ -479,7 +479,7 @@ fn test_generate_expected_volt_filename_mwax_vcs() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
     // Open a context and load in a test metafits
-    let result = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSMWAXv2));
+    let result = MetafitsContext::new(metafits_filename, Some(MWAVersion::VCSMWAXv2));
     assert!(result.is_ok());
 
     let context = result.unwrap();
@@ -495,7 +495,7 @@ fn test_generate_expected_volt_filename_invalid_timestep() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
     // Open a context and load in a test metafits
-    let result = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined));
+    let result = MetafitsContext::new(metafits_filename, Some(MWAVersion::VCSLegacyRecombined));
     assert!(result.is_ok());
 
     let context = result.unwrap();
@@ -509,7 +509,7 @@ fn test_generate_expected_volt_filename_invalid_coarse_chan() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
 
     // Open a context and load in a test metafits
-    let result = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSLegacyRecombined));
+    let result = MetafitsContext::new(metafits_filename, Some(MWAVersion::VCSLegacyRecombined));
     assert!(result.is_ok());
 
     let context = result.unwrap();

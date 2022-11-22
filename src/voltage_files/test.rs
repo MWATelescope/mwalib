@@ -553,7 +553,7 @@ fn test_examine_voltage_files_valid() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSMWAXv2))
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::VCSMWAXv2))
         .expect("Failed to create MetafitsContext");
 
     // Create a temp dir for the temp files
@@ -593,7 +593,7 @@ fn test_examine_voltage_files_error_mismatched_sizes() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSMWAXv2))
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::VCSMWAXv2))
         .expect("Failed to create MetafitsContext");
 
     // Create a temp dir for the temp files
@@ -641,7 +641,7 @@ fn test_examine_voltage_files_error_gpstime_gaps() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSMWAXv2))
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::VCSMWAXv2))
         .expect("Failed to create MetafitsContext");
 
     // Create a temp dir for the temp files
@@ -686,7 +686,7 @@ fn test_examine_voltage_files_error_file_not_found() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(&metafits_filename, Some(MWAVersion::VCSMWAXv2))
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::VCSMWAXv2))
         .expect("Failed to create MetafitsContext");
 
     // Populate vector of filenames
