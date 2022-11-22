@@ -425,6 +425,7 @@ pub unsafe extern "C" fn mwalib_metafits_context_display(
 /// * `metafits_context_ptr` must point to a populated `MetafitsContext` object from the `mwalib_metafits_context_new` functions.
 /// * `metafits_context_ptr` must not have already been freed.
 #[no_mangle]
+#[allow(unused_must_use)]
 pub unsafe extern "C" fn mwalib_metafits_context_free(
     metafits_context_ptr: *mut MetafitsContext,
 ) -> i32 {
@@ -945,6 +946,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
 /// * `correlator_context_ptr` must point to a populated `CorrelatorContext` object from the `mwalib_correlator_context_new` function.
 /// * `correlator_context_ptr` must not have already been freed.
 #[no_mangle]
+#[allow(unused_must_use)]
 pub unsafe extern "C" fn mwalib_correlator_context_free(
     correlator_context_ptr: *mut CorrelatorContext,
 ) -> i32 {
@@ -1271,6 +1273,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
 /// * `voltage_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_voltage_context_new` function.
 /// * `voltage_context_ptr` must not have already been freed.
 #[no_mangle]
+#[allow(unused_must_use)]
 pub unsafe extern "C" fn mwalib_voltage_context_free(
     voltage_context_ptr: *mut VoltageContext,
 ) -> i32 {
@@ -1733,8 +1736,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             global_analogue_attenuation_db: *global_analogue_attenuation_db,
             ra_tile_pointing_deg: *ra_tile_pointing_degrees,
             dec_tile_pointing_deg: *dec_tile_pointing_degrees,
-            ra_phase_center_deg: (*ra_phase_center_degrees).unwrap_or(0.),
-            dec_phase_center_deg: (*dec_phase_center_degrees).unwrap_or(0.),
+            ra_phase_center_deg: (*ra_phase_center_degrees).unwrap_or(f64::NAN),
+            dec_phase_center_deg: (*dec_phase_center_degrees).unwrap_or(f64::NAN),
             az_deg: *az_deg,
             alt_deg: *alt_deg,
             za_deg: *za_deg,

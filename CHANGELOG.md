@@ -1,6 +1,9 @@
 # Change Log
 
 Changes in each release are listed below.
+## 0.16.0 22-Nov-2022 (Pre-release)
+* FFI/C: `MetafitsMetadata`->`ra_phase_center_deg` is now NaN not 0 when missing from metafits file
+* FFI/C: `MetafitsMetadata`->`dec_phase_center_deg` is now NaN not 0 when missing from metafits file
 
 ## 0.15.0 23-Jun-2022 (Pre-release)
 * Provide DUT1 in the metafits context
