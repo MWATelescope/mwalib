@@ -4,6 +4,12 @@
 
 //! Errors associated with reading in gpubox files.
 
+#[cfg(feature = "python")]
+use pyo3::create_exception;
+
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+
 use thiserror::Error;
 
 use crate::MWAVersion;
@@ -107,4 +113,15 @@ maybe you have a mix of different files?"#)]
     /// An error derived from `FitsError`.
     #[error("{0}")]
     Fits(#[from] crate::fits_read::error::FitsError),
+}
+
+// Add a python exception for MwalibError.
+#[cfg(feature = "python")]
+create_exception!(mwalib, PyGpuboxError, pyo3::exceptions::PyException);
+
+#[cfg(feature = "python")]
+impl std::convert::From<GpuboxError> for PyErr {
+    fn from(err: GpuboxError) -> PyErr {
+        PyGpuboxError::new_err(err.to_string())
+    }
 }

@@ -27,7 +27,6 @@ For installation instructions, concepts and usage info, please see the [`mwalib 
 ----
 
 Be sure to also check out these related repositories:
-* [`pymwalib`](https://github.com/MWATelescope/pymwalib) - a Python interface for mwalib.
 * [`Birli`](https://github.com/MWATelescope/Birli) - A Murchison Widefield Array (MWA) pre-processing pipeline.
 * [`Marlu`](https://github.com/MWATelescope/Marlu) - Convenience Rust code that handles coordinate transformations, Jones matrices, etc.
 * [`Hyperdrive`](https://github.com/MWATelescope/mwa_hyperdrive) - Calibration software for the Murchison Widefield Array (MWA) radio telescope.

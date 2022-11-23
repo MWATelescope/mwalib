@@ -11,6 +11,7 @@ use std::fmt;
 mod test;
 /// This is a struct for our baselines, so callers know the antenna ordering
 #[derive(Clone)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct Baseline {
     /// Index in the mwalibContext.antenna array for antenna1 for this baseline
     pub ant1_index: usize,

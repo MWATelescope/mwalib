@@ -73,3 +73,6 @@ pub use voltage_files::error::VoltageFileError;
 // So that callers don't use a different version of fitsio, export them here.
 pub use fitsio;
 pub use fitsio_sys;
+
+#[cfg(feature = "python")]
+mod python;

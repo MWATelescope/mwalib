@@ -27,6 +27,7 @@ mod test;
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub enum MWAVersion {
     /// MWA correlator (v1.0), having data files without any batch numbers.
     CorrOldLegacy = 1,
@@ -106,6 +107,7 @@ impl fmt::Display for VisPol {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub enum GeometricDelaysApplied {
     No = 0,
     Zenith = 1,
@@ -156,6 +158,7 @@ impl std::str::FromStr for GeometricDelaysApplied {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub enum CableDelaysApplied {
     NoCableDelaysApplied = 0,
     CableAndRecClock = 1,
@@ -207,6 +210,7 @@ impl std::str::FromStr for CableDelaysApplied {
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub enum MWAMode {
     No_Capture = 0,
     Burst_Vsib = 1,
@@ -309,6 +313,7 @@ impl std::str::FromStr for MWAMode {
 /// `mwalib` metafits context. This represents the basic metadata for the observation.
 ///
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct MetafitsContext {
     /// mwa version
     pub mwa_version: Option<MWAVersion>,
@@ -1221,4 +1226,31 @@ impl fmt::Display for MetafitsContext {
             meta = self.metafits_filename,
         )
     }
+}
+
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+
+#[cfg(feature = "python")]
+#[pymethods]
+impl MetafitsContext {
+    #[new]
+    fn pyo3_new(
+        metafits_filename: pyo3::PyObject,
+        mwa_version: Option<MWAVersion>,
+    ) -> pyo3::PyResult<Self> {
+        let m = Self::new(metafits_filename.to_string(), mwa_version)?;
+        Ok(m)
+    }
+
+    // https://pyo3.rs/v0.17.3/class/object.html#string-representations
+    fn __repr__(&self) -> String {
+        format!("{}", self)
+    }
+
+    fn __enter__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+
+    fn __exit__(&mut self, _exc_type: &PyAny, _exc_value: &PyAny, _traceback: &PyAny) {}
 }

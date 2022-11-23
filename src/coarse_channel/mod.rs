@@ -16,6 +16,7 @@ mod test;
 
 /// This is a struct for our coarse channels
 #[derive(Clone)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct CoarseChannel {
     /// Correlator channel is 0 indexed (0..N-1)
     pub corr_chan_number: usize,

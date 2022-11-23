@@ -77,6 +77,7 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
 
 /// Instrument polarisation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub enum Pol {
     X,
     Y,
@@ -154,6 +155,7 @@ struct RfInputMetafitsTableRow {
 
 // Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
