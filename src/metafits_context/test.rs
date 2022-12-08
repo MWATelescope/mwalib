@@ -153,7 +153,7 @@ fn test_metafits_context_new_corrlegacy_valid() {
     // Sun altitude:             -1.53222775573148 degrees,
     assert!(approx_eq!(
         f64,
-        context.sun_alt_deg,
+        context.sun_alt_deg.unwrap(),
         -1.532_227_755_731_48,
         F64Margin::default()
     ));
@@ -161,7 +161,7 @@ fn test_metafits_context_new_corrlegacy_valid() {
     // Sun distance:             91.5322277557315 degrees,
     assert!(approx_eq!(
         f64,
-        context.sun_distance_deg,
+        context.sun_distance_deg.unwrap(),
         91.532_227_755_731_5,
         F64Margin::default()
     ));
@@ -169,7 +169,7 @@ fn test_metafits_context_new_corrlegacy_valid() {
     // Moon distance:            131.880015235607 degrees,
     assert!(approx_eq!(
         f64,
-        context.moon_distance_deg,
+        context.moon_distance_deg.unwrap(),
         131.880_015_235_607,
         F64Margin::default()
     ));
@@ -177,7 +177,7 @@ fn test_metafits_context_new_corrlegacy_valid() {
     // Jupiter distance:         41.401684338269 degrees,
     assert!(approx_eq!(
         f64,
-        context.jupiter_distance_deg,
+        context.jupiter_distance_deg.unwrap(),
         41.401_684_338_269,
         F64Margin::default()
     ));
@@ -192,10 +192,10 @@ fn test_metafits_context_new_corrlegacy_valid() {
 
     // Hour angle:               -00:00:00.00 degrees,
     // Grid name:                sweet,
-    assert_eq!(context.grid_name, "sweet");
+    assert_eq!(context.grid_name, String::from("sweet"));
 
     // Grid number:              0,
-    assert_eq!(context.grid_number, Some(0));
+    assert_eq!(context.grid_number, 0);
 
     // num antennas:             128,
     assert_eq!(context.num_ants, 128);

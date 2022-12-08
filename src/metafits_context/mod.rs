@@ -356,13 +356,13 @@ pub struct MetafitsContext {
     /// Zenith angle of the pointing centre in radians
     pub za_rad: f64,
     /// Altitude of Sun
-    pub sun_alt_deg: f64,
+    pub sun_alt_deg: Option<f64>,
     /// Distance from pointing center to Sun
-    pub sun_distance_deg: f64,
+    pub sun_distance_deg: Option<f64>,
     /// Distance from pointing center to the Moon
-    pub moon_distance_deg: f64,
+    pub moon_distance_deg: Option<f64>,
     /// Distance from pointing center to Jupiter
-    pub jupiter_distance_deg: f64,
+    pub jupiter_distance_deg: Option<f64>,
     /// Local Sidereal Time in degrees (at the midpoint of the observation)
     pub lst_deg: f64,
     /// Local Sidereal Time in radians (at the midpoint of the observation)
@@ -372,7 +372,7 @@ pub struct MetafitsContext {
     /// GRIDNAME
     pub grid_name: String,
     /// GRIDNUM
-    pub grid_number: Option<i32>,
+    pub grid_number: i32,
     /// CREATOR
     pub creator: String,
     /// PROJECT
@@ -701,18 +701,21 @@ impl MetafitsContext {
         let altitude_degrees: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "ALTITUDE")?;
         let zenith_angle_degrees: f64 = 90.0 - altitude_degrees;
-        let sun_altitude_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "SUN-ALT")?;
-        let sun_distance_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "SUN-DIST")?;
-        let moon_distance_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MOONDIST")?;
-        let jupiter_distance_degrees: f64 =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "JUP-DIST")?;
+        let sun_altitude_degrees: Option<f64> =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "SUN-ALT")?;
+        let sun_distance_degrees: Option<f64> =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "SUN-DIST")?;
+        let moon_distance_degrees: Option<f64> =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "MOONDIST")?;
+        let jupiter_distance_degrees: Option<f64> =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "JUP-DIST")?;
         let lst_degrees: f64 = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "LST")?;
         let hour_angle_string = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "HA")?;
-        let grid_name = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNAME")?;
-        let grid_number = get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")?;
+        let grid_name: String =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNAME")?
+                .unwrap_or(String::from("NOGRID"));
+        let grid_number =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")?.unwrap_or(0);
         let creator = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "CREATOR")?;
         let project_id = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "PROJECT")?;
         let observation_name =
@@ -1167,17 +1170,26 @@ impl fmt::Display for MetafitsContext {
             dppc = Some(self.dec_phase_center_degrees),
             az = self.az_deg,
             alt = self.alt_deg,
-            sun_alt = self.sun_alt_deg,
-            sun_dis = self.sun_distance_deg,
-            moon_dis = self.moon_distance_deg,
-            jup_dis = self.jupiter_distance_deg,
+            sun_alt = match self.sun_alt_deg {
+                Some(s) => s.to_string(),
+                None => String::from("None"),
+            },
+            sun_dis = match self.sun_distance_deg {
+                Some(s) => s.to_string(),
+                None => String::from("None"),
+            },
+            moon_dis = match self.moon_distance_deg {
+                Some(s) => s.to_string(),
+                None => String::from("None"),
+            },
+            jup_dis = match self.jupiter_distance_deg {
+                Some(s) => s.to_string(),
+                None => String::from("None"),
+            },
             lst = self.lst_deg,
             ha = self.hour_angle_string,
             grid = self.grid_name,
-            grid_n = match self.grid_number {
-                Some(g) => g.to_string(),
-                None => String::from("None"),
-            },
+            grid_n = self.grid_number.to_string(),
             calib = self.calibrator,
             calsrc = self.calibrator_source,
             n_ants = self.num_ants,

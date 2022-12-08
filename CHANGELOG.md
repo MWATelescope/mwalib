@@ -1,11 +1,15 @@
 # Change Log
 
 Changes in each release are listed below.
-## 0.16.0 22-Nov-2022 (Pre-release)
-* FFI/C: `MetafitsMetadata`->`ra_phase_center_deg` is now NaN not 0 when missing from metafits file
-* FFI/C: `MetafitsMetadata`->`dec_phase_center_deg` is now NaN not 0 when missing from metafits file
-
-## 0.16.0 (unreleased)
+## 0.16.0 08-Dec-2022 (Pre-release)
+* FFI/C: `MetafitsMetadata`->`ra_phase_center_deg` is now NaN not 0 when missing from metafits file.
+* FFI/C: `MetafitsMetadata`->`dec_phase_center_deg` is now NaN not 0 when missing from metafits file.
+* `MetafitsContext::grid_name` defaults to 'NOGRID' when key is missing from metafits file.
+* `MetafitsContext::grid_number` defaults to 0 when key is missing from metafits file.
+* `MetafitsContext::sun_alt_deg` is now an Option<f64> to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
+* `MetafitsContext::sun_distance_deg` is now an Option<f64> to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
+* `MetafitsContext::moon_distance_deg` is now an Option<f64> to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
+* `MetafitsContext::jupiter_distance_deg` is now an Option<f64> to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
 * Update module docs.
 * Update dependencies.
 * Fixed a bunch of clippy lints.
