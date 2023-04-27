@@ -2,6 +2,11 @@
 
 Changes in each release are listed below.
 
+## 0.16.2 27-Apr-2023
+
+* Updated min rust version to 1.60
+* Updated linux tests CI to test on Ubuntu 20.04 and 22.04
+
 ## 0.16.1 27-Apr-2023
 
 * MWAX Voltage Buffer mode `MWAX_BUFFER` is now supported.
