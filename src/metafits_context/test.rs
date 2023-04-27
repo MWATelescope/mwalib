@@ -612,6 +612,7 @@ fn test_mode_enum() {
     let voltage_buffer = MWAMode::Voltage_Buffer;
     let mwax_correlator = MWAMode::Mwax_Correlator;
     let mwax_vcs = MWAMode::Mwax_Vcs;
+    let mwax_buffer = MWAMode::Mwax_Buffer;
 
     assert_eq!(format!("{}", no_capture), "NO_CAPTURE");
     assert_eq!(format!("{}", burst_vsib), "BURST_VSIB");
@@ -634,6 +635,7 @@ fn test_mode_enum() {
     assert_eq!(format!("{}", voltage_buffer), "VOLTAGE_BUFFER");
     assert_eq!(format!("{}", mwax_correlator), "MWAX_CORRELATOR");
     assert_eq!(format!("{}", mwax_vcs), "MWAX_VCS");
+    assert_eq!(format!("{}", mwax_buffer), "MWAX_BUFFER");
 
     assert!(MWAMode::from_str("NO_CAPTURE").is_ok());
     assert!(MWAMode::from_str("BURST_VSIB").is_ok());
@@ -656,5 +658,6 @@ fn test_mode_enum() {
     assert!(MWAMode::from_str("VOLTAGE_BUFFER").is_ok());
     assert!(MWAMode::from_str("MWAX_CORRELATOR").is_ok());
     assert!(MWAMode::from_str("MWAX_VCS").is_ok());
+    assert!(MWAMode::from_str("MWAX_BUFFER").is_ok());
     assert!(MWAMode::from_str("something invalid").is_err());
 }

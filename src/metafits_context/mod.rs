@@ -229,6 +229,7 @@ pub enum MWAMode {
     Voltage_Buffer = 24,
     Mwax_Correlator = 30,
     Mwax_Vcs = 31,
+    Mwax_Buffer = 32,
 }
 
 /// Implements fmt::Display for MWAMode enum
@@ -270,6 +271,7 @@ impl fmt::Display for MWAMode {
                 MWAMode::Voltage_Buffer => "VOLTAGE_BUFFER",
                 MWAMode::Mwax_Correlator => "MWAX_CORRELATOR",
                 MWAMode::Mwax_Vcs => "MWAX_VCS",
+                MWAMode::Mwax_Buffer => "MWAX_BUFFER",
             }
         )
     }
@@ -301,6 +303,7 @@ impl std::str::FromStr for MWAMode {
             "VOLTAGE_BUFFER" => Ok(MWAMode::Voltage_Buffer),
             "MWAX_CORRELATOR" => Ok(MWAMode::Mwax_Correlator),
             "MWAX_VCS" => Ok(MWAMode::Mwax_Vcs),
+            "MWAX_BUFFER" => Ok(MWAMode::Mwax_Buffer),
             _ => Err(()),
         }
     }
@@ -490,7 +493,7 @@ impl MetafitsContext {
                     Some(MWAVersion::VCSLegacyRecombined)
                 }
                 MWAMode::Mwax_Correlator => Some(MWAVersion::CorrMWAXv2),
-                MWAMode::Mwax_Vcs => Some(MWAVersion::VCSMWAXv2),
+                MWAMode::Mwax_Vcs | MWAMode::Mwax_Buffer => Some(MWAVersion::VCSMWAXv2),
                 _ => {
                     return Err(MwalibError::Metafits(
                         MetafitsError::UnableToDetermineMWAVersionFromMode(new_context.mode),
