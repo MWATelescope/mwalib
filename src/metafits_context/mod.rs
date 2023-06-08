@@ -1192,7 +1192,7 @@ impl fmt::Display for MetafitsContext {
             lst = self.lst_deg,
             ha = self.hour_angle_string,
             grid = self.grid_name,
-            grid_n = self.grid_number.to_string(),
+            grid_n = self.grid_number,
             calib = self.calibrator,
             calsrc = self.calibrator_source,
             n_ants = self.num_ants,

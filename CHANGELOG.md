@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 0.16.3 09-Jun-2023
+
+* Removed dependence on clap 3 via cbindgen
+
 ## 0.16.2 27-Apr-2023
 
 * Updated min rust version to 1.60
