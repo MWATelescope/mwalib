@@ -309,6 +309,50 @@ impl std::str::FromStr for MWAMode {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
+pub enum DerippleParamApplied {
+    None = 0,
+    RRI = 1,
+}
+
+/// Implements fmt::Display for DerippleParamApplied enum
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+impl fmt::Display for DerippleParamApplied {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                DerippleParamApplied::None => "None",
+                DerippleParamApplied::RRI => "RRI",
+            }
+        )
+    }
+}
+
+impl std::str::FromStr for DerippleParamApplied {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<DerippleParamApplied, Self::Err> {
+        match input {
+            "None" => Ok(DerippleParamApplied::None),
+            "RRI" => Ok(DerippleParamApplied::RRI),
+            _ => Err(()),
+        }
+    }
+}
+
 /// `mwalib` metafits context. This represents the basic metadata for the observation.
 ///
 #[derive(Clone, Debug)]
@@ -458,6 +502,10 @@ pub struct MetafitsContext {
     pub num_visibility_pols: usize,
     /// Filename of the metafits we were given
     pub metafits_filename: String,
+    /// Was this observation using oversampled coarse channels?
+    pub oversampled: bool,
+    /// Was deripple applied to this observation?
+    pub deripple_applied: DerippleParamApplied,
 }
 
 impl MetafitsContext {
@@ -580,6 +628,15 @@ impl MetafitsContext {
 
         // Populate obsid from the metafits
         let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
+
+        // oversampled not garaunteed to be in the metafits. Default to False
+        let oversampled: bool =
+            match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "OVERSAMP")?
+                .unwrap_or(0)
+            {
+                1 => true,
+                _ => false,
+            };
 
         // from MWA_Tools/CONV2UVFITS/convutils.h
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
@@ -811,6 +868,34 @@ impl MetafitsContext {
         let global_analogue_attenuation_db: f64 =
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?.unwrap_or(0.0);
 
+        // Deripple
+        // It is stored as a bool DR_FLAG. If True, check DR_PARM for type of deripple
+        // If its TRUE but no DR_PARAM, use the default "RRI"
+        let deripple_applied: DerippleParamApplied = match get_optional_fits_key!(
+            &mut metafits_fptr,
+            &metafits_hdu,
+            "DR_FLAG"
+        )?
+        .unwrap_or(0)
+        {
+            1 => match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DR_PARAM")? {
+                Some(g) => match num_traits::FromPrimitive::from_i32(g) {
+                    Some(dpa) => dpa,
+                    None => {
+                        return Err(MwalibError::Parse {
+                            key: String::from("DR_PARAM"),
+                            fits_filename: metafits_filename,
+                            hdu_num: 0,
+                            source_file: String::from(file!()),
+                            source_line: line!(),
+                        })
+                    }
+                },
+                None => DerippleParamApplied::RRI,
+            },
+            _ => DerippleParamApplied::None,
+        };
+
         // Placeholder values- we work these out once we know the mwa_version
         let num_metafits_fine_chan_freqs: usize = 0;
         let metafits_fine_chan_freqs: Vec<f64> = Vec::new();
@@ -907,6 +992,8 @@ impl MetafitsContext {
             baselines,
             num_visibility_pols,
             metafits_filename,
+            oversampled,
+            deripple_applied,
         })
     }
 

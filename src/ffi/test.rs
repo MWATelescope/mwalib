@@ -1691,6 +1691,15 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         assert_eq!(item[0].unix_time_ms, 1_417_468_096_000);
         assert_eq!(item[55].unix_time_ms, 1_417_468_206_000);
 
+        // Test oversample flag
+        assert_eq!(metafits_metadata.oversampled, false);
+
+        // test deripple
+        assert_eq!(
+            metafits_metadata.deripple_applied,
+            DerippleParamApplied::None
+        );
+
         // Note- don't try to do any free's here since, in order to test, we have had to reconstituded some of the arrays which will result in a double free
     }
 }

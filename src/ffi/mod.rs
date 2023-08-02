@@ -1423,6 +1423,10 @@ pub struct MetafitsMetadata {
     pub centre_freq_hz: u32,
     /// filename of metafits file used
     pub metafits_filename: *mut c_char,
+    /// Was this observation using oversampled coarse channels?
+    pub oversampled: bool,
+    /// Was deripple applied to this observation?
+    pub deripple_applied: DerippleParamApplied,
 }
 
 /// This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext, CorrelatorContext or VoltageContext
@@ -1715,6 +1719,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             baselines: _, // This is populated seperately
             num_visibility_pols,
             metafits_filename,
+            oversampled,
+            deripple_applied,
         } = metafits_context;
         MetafitsMetadata {
             mwa_version: mwa_version.unwrap(),
@@ -1797,6 +1803,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             metafits_filename: CString::new(String::from(metafits_filename))
                 .unwrap()
                 .into_raw(),
+            oversampled: *oversampled,
+            deripple_applied: *deripple_applied,
         }
     };
 

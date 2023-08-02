@@ -62,7 +62,8 @@ pub use fits_read::*;
 pub use gpubox_files::GpuboxError;
 pub use metafits_context::error::MetafitsError;
 pub use metafits_context::{
-    CableDelaysApplied, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, VisPol,
+    CableDelaysApplied, DerippleParamApplied, GeometricDelaysApplied, MWAMode, MWAVersion,
+    MetafitsContext, VisPol,
 };
 pub use misc::*;
 pub use rfinput::{error::RfinputError, Pol, Rfinput};
