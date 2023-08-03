@@ -1426,7 +1426,10 @@ pub struct MetafitsMetadata {
     /// Was this observation using oversampled coarse channels?
     pub oversampled: bool,
     /// Was deripple applied to this observation?
-    pub deripple_applied: DerippleParamApplied,
+    pub deripple_applied: bool,
+    /// What was the configured deripple_param?
+    /// If deripple_applied is False then this deripple param was not applied
+    pub deripple_param: *mut c_char,
 }
 
 /// This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext, CorrelatorContext or VoltageContext
@@ -1721,6 +1724,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             metafits_filename,
             oversampled,
             deripple_applied,
+            deripple_param,
         } = metafits_context;
         MetafitsMetadata {
             mwa_version: mwa_version.unwrap(),
@@ -1805,6 +1809,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 .into_raw(),
             oversampled: *oversampled,
             deripple_applied: *deripple_applied,
+            deripple_param: CString::new(String::from(deripple_param))
+                .unwrap()
+                .into_raw(),
         }
     };
 

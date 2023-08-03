@@ -309,50 +309,6 @@ impl std::str::FromStr for MWAMode {
     }
 }
 
-#[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
-pub enum DerippleParamApplied {
-    None = 0,
-    RRI = 1,
-}
-
-/// Implements fmt::Display for DerippleParamApplied enum
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for DerippleParamApplied {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                DerippleParamApplied::None => "None",
-                DerippleParamApplied::RRI => "RRI",
-            }
-        )
-    }
-}
-
-impl std::str::FromStr for DerippleParamApplied {
-    type Err = ();
-
-    fn from_str(input: &str) -> Result<DerippleParamApplied, Self::Err> {
-        match input {
-            "None" => Ok(DerippleParamApplied::None),
-            "RRI" => Ok(DerippleParamApplied::RRI),
-            _ => Err(()),
-        }
-    }
-}
-
 /// `mwalib` metafits context. This represents the basic metadata for the observation.
 ///
 #[derive(Clone, Debug)]
@@ -505,7 +461,10 @@ pub struct MetafitsContext {
     /// Was this observation using oversampled coarse channels?
     pub oversampled: bool,
     /// Was deripple applied to this observation?
-    pub deripple_applied: DerippleParamApplied,
+    pub deripple_applied: bool,
+    /// What was the configured deripple_param?
+    /// If deripple_applied is False then this deripple param was not applied
+    pub deripple_param: String,
 }
 
 impl MetafitsContext {
@@ -869,32 +828,22 @@ impl MetafitsContext {
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?.unwrap_or(0.0);
 
         // Deripple
-        // It is stored as a bool DR_FLAG. If True, check DR_PARM for type of deripple
-        // If its TRUE but no DR_PARAM, use the default "RRI"
-        let deripple_applied: DerippleParamApplied = match get_optional_fits_key!(
+        // It is stored as a bool DR_FLAG.
+        let deripple_applied: bool = match get_optional_fits_key!(
             &mut metafits_fptr,
             &metafits_hdu,
             "DR_FLAG"
         )?
         .unwrap_or(0)
         {
-            1 => match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DR_PARAM")? {
-                Some(g) => match num_traits::FromPrimitive::from_i32(g) {
-                    Some(dpa) => dpa,
-                    None => {
-                        return Err(MwalibError::Parse {
-                            key: String::from("DR_PARAM"),
-                            fits_filename: metafits_filename,
-                            hdu_num: 0,
-                            source_file: String::from(file!()),
-                            source_line: line!(),
-                        })
-                    }
-                },
-                None => DerippleParamApplied::RRI,
-            },
-            _ => DerippleParamApplied::None,
+            1 => true,
+            _ => false,
         };
+
+        // deripple_param is the type of deripple applied
+        let deripple_param: String =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DR_PARAM")?
+                .unwrap_or_else(|| String::from(""));
 
         // Placeholder values- we work these out once we know the mwa_version
         let num_metafits_fine_chan_freqs: usize = 0;
@@ -994,6 +943,7 @@ impl MetafitsContext {
             metafits_filename,
             oversampled,
             deripple_applied,
+            deripple_param,
         })
     }
 

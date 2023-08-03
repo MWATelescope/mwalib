@@ -261,7 +261,7 @@ fn test_metafits_context_new_corrlegacy_valid() {
     assert_eq!(context.oversampled, false);
 
     // test deripple
-    assert_eq!(context.deripple_applied, DerippleParamApplied::None);
+    assert_eq!(context.deripple_applied, false);
 }
 
 #[test]
@@ -669,34 +669,9 @@ fn test_mode_enum() {
 }
 
 #[test]
-fn test_deripple_applied_enum() {
-    let none: DerippleParamApplied = DerippleParamApplied::None;
-    let rri: DerippleParamApplied = DerippleParamApplied::RRI;
-
-    assert_eq!(format!("{}", none), "None");
-    assert_eq!(format!("{}", rri), "RRI");
-
-    assert!(DerippleParamApplied::from_str("None").is_ok());
-    assert!(DerippleParamApplied::from_str("RRI").is_ok());
-    assert!(DerippleParamApplied::from_str("something invalid").is_err());
-
-    let i32_none: DerippleParamApplied = num_traits::FromPrimitive::from_i32(0).unwrap();
-    let i32_rri: DerippleParamApplied = num_traits::FromPrimitive::from_i32(1).unwrap();
-
-    assert_eq!(i32_none, DerippleParamApplied::None);
-    assert_eq!(i32_rri, DerippleParamApplied::RRI);
-
-    let deripple: DerippleParamApplied = match Some(1) {
-        Some(d) => num_traits::FromPrimitive::from_i32(d).unwrap(),
-        None => DerippleParamApplied::None,
-    };
-    assert_eq!(deripple, DerippleParamApplied::RRI);
-}
-
-#[test]
 fn test_deripple_on_in_metafits() {
     // Open the test metafits file
-    let metafits_filename = "test_files/metafits_tests/1370752512_metafits_deripple.fits";
+    let metafits_filename = "test_files/metafits_tests/1370752512_metafits_deripple_os.fits";
 
     // Open a context and load in a test metafits
     let result = MetafitsContext::new(metafits_filename, None);
@@ -704,13 +679,14 @@ fn test_deripple_on_in_metafits() {
 
     let context = result.unwrap();
 
-    assert_eq!(context.deripple_applied, DerippleParamApplied::RRI);
+    assert_eq!(context.deripple_applied, true);
+    assert_eq!(context.deripple_param, "deripplev1");
 }
 
 #[test]
 fn test_oversampling_on_in_metafits() {
     // Open the test metafits file
-    let metafits_filename = "test_files/metafits_tests/1370752512_metafits_deripple.fits";
+    let metafits_filename = "test_files/metafits_tests/1370752512_metafits_deripple_os.fits";
 
     // Open a context and load in a test metafits
     let result = MetafitsContext::new(metafits_filename, None);
