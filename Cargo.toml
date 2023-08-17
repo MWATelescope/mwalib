@@ -1,13 +1,13 @@
 [package]
 name = "mwalib"
-version = "0.16.3"
+version = "0.17.0"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
 authors = ["Greg Sleap <greg.sleap@curtin.edu.au>",
            "Christopher H. Jordan <christopherjordan87@gmail.com>"]
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.64"
 description = "A library to simplify reading Murchison Widefield Array (MWA) raw visibilities, voltages and metadata."
 license = "MPL-2.0"
 keywords = ["radioastronomy", "mwa", "astronomy"]
@@ -43,13 +43,13 @@ clap = { version = "3.0.0", features = ["derive"], optional = true }
 env_logger = { version = "0.9.0", optional = true }
 
 [dev-dependencies]
-csv = "1.1.0"
-float-cmp = "0.9.0"
-tempdir = "0.3.6"
+csv = "1.2.*"
+float-cmp = "0.9.*"
+tempdir = "0.3.*"
 
 [build-dependencies]
-built = "0.5.0"
-cbindgen = { version = "0.24.0", default_features = false }
+built = "0.6.*"
+cbindgen = { version = "0.24.*", default_features = false }
 
 [[example]]
 name = "mwalib-data-dump"
