@@ -1140,6 +1140,8 @@ impl fmt::Display for MetafitsContext {
 
     Num coarse channels:      {ncc},
     Coarse Channels:          {cc:?},
+    Oversampled coarse chans: {os},
+    Deripple applied:         {dr} ({dr_param}),
 
     Num fine channels:        {nfc},
     Fine Channels (kHz):      {fc:?},
@@ -1199,6 +1201,12 @@ impl fmt::Display for MetafitsContext {
             nts = self.metafits_timesteps.len(),
             cc = self.metafits_coarse_chans,
             ncc = self.metafits_coarse_chans.len(),
+            os = self.oversampled,
+            dr = self.deripple_applied,
+            dr_param = match self.deripple_applied {
+                true => self.deripple_param.to_string(),
+                false => String::from("N/A"),
+            },
             nfc = self.metafits_fine_chan_freqs_hz.len(),
             fc = self
                 .metafits_fine_chan_freqs_hz

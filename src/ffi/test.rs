@@ -168,7 +168,8 @@ fn get_test_ffi_correlator_context_mwax() -> *mut CorrelatorContext {
 ///
 /// # Arguments
 ///
-/// * None
+/// * 'mwa_version' - Enum of the type of MWA data
+/// * 'oversampled' - bool - is this an oversampled observation (oversampled only applies to MWAXVCSv2)
 ///
 ///
 /// # Returns
@@ -176,14 +177,9 @@ fn get_test_ffi_correlator_context_mwax() -> *mut CorrelatorContext {
 /// * a raw pointer to an instantiated VoltageContext for the test metafits and voltage file
 ///
 #[cfg(test)]
-fn get_test_ffi_voltage_context(mwa_version: MWAVersion) -> *mut VoltageContext {
+fn get_test_ffi_voltage_context(mwa_version: MWAVersion, oversampled: bool) -> *mut VoltageContext {
     // This returns a a valid voltage context
-    let mut context = get_test_voltage_context(mwa_version);
-
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    context.voltage_block_size_bytes /= 128;
+    let context = get_test_voltage_context(mwa_version, oversampled);
 
     Box::into_raw(Box::new(context))
 }
@@ -1162,13 +1158,12 @@ fn test_mwalib_voltage_context_new_valid_mwaxv2() {
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
-    let metafits_file =
-        CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+    let metafits_file = CString::new("test_files/1101503312_mwax_vcs/1101503312.metafits").unwrap();
     let metafits_file_ptr = metafits_file.as_ptr();
 
     // Setup files
     let created_voltage_files =
-        voltage_context::test::get_test_voltage_files(MWAVersion::VCSMWAXv2);
+        voltage_context::test::get_test_voltage_files(MWAVersion::VCSMWAXv2, false);
     let voltage_file = CString::new(created_voltage_files[0].clone()).unwrap();
 
     let voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
@@ -1221,12 +1216,12 @@ fn test_mwalib_voltage_context_new_invalid() {
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
     let metafits_file =
-        CString::new("test_files/1101503312_1_timestep/invalid_filename.metafits").unwrap();
+        CString::new("test_files/1101503312_mwax_vcs/invalid_filename.metafits").unwrap();
     let metafits_file_ptr = metafits_file.as_ptr();
 
     // Setup files
     let created_voltage_files =
-        voltage_context::test::get_test_voltage_files(MWAVersion::VCSMWAXv2);
+        voltage_context::test::get_test_voltage_files(MWAVersion::VCSMWAXv2, false);
     let voltage_file = CString::new(created_voltage_files[0].clone()).unwrap();
 
     let voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
@@ -1265,7 +1260,7 @@ fn test_mwalib_voltage_context_new_invalid() {
 #[test]
 fn test_mwalib_voltage_context_display() {
     let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
@@ -1298,7 +1293,7 @@ fn test_mwalib_voltage_context_display_null_ptr() {
 #[test]
 fn test_mwalib_voltage_context_legacy_read_file_valid() {
     let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
@@ -1308,7 +1303,7 @@ fn test_mwalib_voltage_context_legacy_read_file_valid() {
     let coarse_chan_index = 14;
 
     // 2 pols x 128 fine chans x 1 tile * 10000 samples
-    let buffer_len = 2 * 128 * 10000;
+    let buffer_len = 2 * 128 * 1 * 10000;
 
     unsafe {
         let in_buffer: Vec<u8> = vec![0; buffer_len];
@@ -1383,8 +1378,9 @@ fn test_mwalib_voltage_context_legacy_read_file_valid() {
 
 #[test]
 fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
+    // Read data from a critically sampled MWAXv2 VCS obs
     let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2);
+        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, false);
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
@@ -1477,7 +1473,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
 #[test]
 fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_valid() {
     let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
@@ -1523,7 +1519,7 @@ fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_valid() {
 #[test]
 fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_invalid_buffer_len() {
     let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
@@ -1610,7 +1606,7 @@ fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_context() {
 #[test]
 fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_coarse_chans() {
     let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
@@ -1643,7 +1639,7 @@ fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_coarse_chans() 
 #[test]
 fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_buffer() {
     let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
@@ -2019,7 +2015,7 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
     unsafe {
         // Create a VoltageContext
         let voltage_context_ptr: *mut VoltageContext =
-            get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+            get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
         // Check we got valid MetafitsContext pointer
         let context_ptr = voltage_context_ptr.as_mut();
@@ -2054,15 +2050,11 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
         let items: Vec<Antenna> =
             ffi_boxed_slice_to_array(metafits_metadata.antennas, metafits_metadata.num_ants);
 
-        assert_eq!(items.len(), 128, "Array length is not correct");
+        assert_eq!(items.len(), 1, "Array length is not correct");
 
-        for item in items {
-            if item.tile_id == 154 {
-                assert_eq!(item.rfinput_y, 1);
-            } else if item.tile_id == 104 {
-                assert_eq!(item.rfinput_y, 0);
-            }
-        }
+        assert_eq!(items[0].tile_id, 11);
+        assert_eq!(items[0].rfinput_y, 0);
+        assert_eq!(items[0].rfinput_x, 1);
 
         // Note- don't try to do any free's here since, in order to test, we have had to reconstituded some of the arrays which will result in a double free
     }
@@ -2203,7 +2195,7 @@ fn test_mwalib_voltage_metadata_get_valid() {
     unsafe {
         // Create a VoltageContext
         let voltage_context_ptr: *mut VoltageContext =
-            get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined);
+            get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
         // Check we got valid MetafitsContext pointer
         let context_ptr = voltage_context_ptr.as_mut();
