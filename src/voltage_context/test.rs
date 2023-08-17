@@ -870,6 +870,8 @@ fn test_context_mwaxv2_read_file_no_data_for_timestep() {
 
 #[test]
 fn test_context_mwax_v2_read_file() {
+    // Test reading from an critically sampled mwaxv2 file
+
     // Create voltage context
     let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
@@ -1063,6 +1065,231 @@ fn test_context_mwax_v2_read_file() {
     // block: 159, rfinput: 1, sample: 63999, value: 1
     assert_eq!(
         buffer[get_index_for_location_in_test_voltage_file_mwaxv2(159, 1, 63999, 1)],
+        223
+    );
+}
+
+#[test]
+fn test_context_mwax_v2_oversampled_read_file() {
+    // Test reading from an oversampled mwaxv2 file
+
+    // Create voltage context
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, true);
+
+    // Create output buffer
+    let mut buffer: Vec<u8> = vec![
+        0;
+        (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
+            as usize
+    ];
+
+    //
+    // Now do a read of the data from time 0, channel 0
+    //
+    let read_result: Result<(), VoltageFileError> = context.read_file(0, 14, &mut buffer);
+
+    // Ensure read is ok
+    assert!(read_result.is_ok());
+
+    // Check for various values
+    // block: 0, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
+        0
+    );
+
+    // block: 0, rfinput: 0, sample: 1, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
+        253
+    );
+
+    // block: 0, rfinput: 0, sample: 255, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
+        254
+    );
+
+    // block: 0, rfinput: 0, sample: 256, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
+        255
+    );
+
+    // block: 1, rfinput: 0, sample: 2, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
+        9
+    );
+
+    // block: 159, rfinput: 1, sample: 63999, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
+        226
+    );
+
+    // block: 159, rfinput: 1, sample: 81919, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
+        226
+    );
+
+    // block: 120, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(120, 0, 0, 0)],
+        88
+    );
+
+    //
+    // Now do a read of the data from time 0, channel 1. Values are offset by +1 from time 0, chan 0.
+    //
+    let read_result: Result<(), VoltageFileError> = context.read_file(0, 15, &mut buffer);
+
+    // Ensure read is ok
+    assert!(read_result.is_ok());
+
+    // Check for various values
+    // block: 0, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
+        1
+    );
+
+    // block: 0, rfinput: 0, sample: 1, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
+        252
+    );
+
+    // block: 0, rfinput: 0, sample: 255, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
+        255
+    );
+
+    // block: 0, rfinput: 0, sample: 256, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
+        254
+    );
+
+    // block: 1, rfinput: 0, sample: 2, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
+        10
+    );
+
+    // block: 159, rfinput: 1, sample: 63999, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
+        225
+    );
+
+    // block: 159, rfinput: 1, sample: 81919, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
+        225
+    );
+
+    //
+    // Now do a read of the data from time 1, channel 0. Values are offset by +2 from time 0, chan 0.
+    //
+    let read_result: Result<(), VoltageFileError> = context.read_file(1, 14, &mut buffer);
+
+    // Ensure read is ok
+    assert!(read_result.is_ok());
+
+    // Check for various values
+    // block: 0, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
+        2
+    );
+
+    // block: 0, rfinput: 0, sample: 1, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
+        251
+    );
+
+    // block: 0, rfinput: 0, sample: 255, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
+        0
+    );
+
+    // block: 0, rfinput: 0, sample: 256, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
+        253
+    );
+
+    // block: 1, rfinput: 0, sample: 2, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
+        11
+    );
+
+    // block: 159, rfinput: 1, sample: 63999, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
+        224
+    );
+
+    // block: 159, rfinput: 1, sample: 81919, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
+        224
+    );
+
+    //
+    // Now do a read of the data from time 1, channel 1. Values are offset by +3 from time 0, chan 0.
+    //
+    let read_result: Result<(), VoltageFileError> = context.read_file(1, 15, &mut buffer);
+
+    // Ensure read is ok
+    assert!(read_result.is_ok());
+
+    // Check for various values
+    // block: 0, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
+        3
+    );
+
+    // block: 0, rfinput: 0, sample: 1, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
+        250
+    );
+
+    // block: 0, rfinput: 0, sample: 255, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
+        1
+    );
+
+    // block: 0, rfinput: 0, sample: 256, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
+        252
+    );
+
+    // block: 1, rfinput: 0, sample: 2, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
+        12
+    );
+
+    // block: 159, rfinput: 1, sample: 63999, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
+        223
+    );
+
+    // block: 159, rfinput: 1, sample: 81919, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
         223
     );
 }
