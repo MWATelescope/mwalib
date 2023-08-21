@@ -10,6 +10,10 @@ Changes in each release are listed below.
 * MetafitsContext now supports: DR_FLAG and DR_PARAM from metafits. `deripple_applied`is a boolean and `dreipple_param` is a String. If deripple is true then a deripple has been applied to each coarse channel to smooth the passband.
 * Weights (packet occupancy) is now available via the CorrelatorContext struct method `read_weights_by_baseline()` and `read_weights_by_baseline_into_buffer()`.
 
+## 0.16.4 16-Jun-2023
+
+* Modified rf_input.vcs_order to return `input` if `input` is > 255
+
 ## 0.16.3 09-Jun-2023
 
 * Removed dependence on clap 3 via cbindgen
