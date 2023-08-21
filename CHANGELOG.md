@@ -2,6 +2,14 @@
 
 Changes in each release are listed below.
 
+## 0.17.0 21-Aug-2023
+
+* Bumped MSRV to 1.63.
+* MetafitsContext now supports: OVERSAMP from metafits. Exposed as a bool: `oversampled`. If this is true, then the observation was taken using oversampled coarse channels.
+* VoltageContext now supports handling reading of oversampled subfiles.
+* MetafitsContext now supports: DR_FLAG and DR_PARAM from metafits. `deripple_applied`is a boolean and `dreipple_param` is a String. If deripple is true then a deripple has been applied to each coarse channel to smooth the passband.
+* Weights (packet occupancy) is now available via the CorrelatorContext struct method `read_weights_by_baseline()` and `read_weights_by_baseline_into_buffer()`.
+
 ## 0.16.3 09-Jun-2023
 
 * Removed dependence on clap 3 via cbindgen
@@ -21,10 +29,10 @@ Changes in each release are listed below.
 * FFI/C: `MetafitsMetadata`->`dec_phase_center_deg` is now NaN not 0 when missing from metafits file.
 * `MetafitsContext::grid_name` defaults to 'NOGRID' when key is missing from metafits file.
 * `MetafitsContext::grid_number` defaults to 0 when key is missing from metafits file.
-* `MetafitsContext::sun_alt_deg` is now an Option<f64> to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
-* `MetafitsContext::sun_distance_deg` is now an Option<f64> to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
-* `MetafitsContext::moon_distance_deg` is now an Option<f64> to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
-* `MetafitsContext::jupiter_distance_deg` is now an Option<f64> to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
+* `MetafitsContext::sun_alt_deg` is now an Option&lt;f64&gt; to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
+* `MetafitsContext::sun_distance_deg` is now an Option&lt;f64&gt; to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
+* `MetafitsContext::moon_distance_deg` is now an Option&lt;f64&gt; to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
+* `MetafitsContext::jupiter_distance_deg` is now an Option&lt;f64&gt; to handle cases where key is missing from metafits file. Via FFI/C it is represented by a NaN.
 * Update module docs.
 * Update dependencies.
 * Fixed a bunch of clippy lints.
@@ -114,7 +122,7 @@ Changes in each release are listed below.
 
 ## 0.9.0 09-Aug-2021
 
-* Added mwa_version <Option<MWAVersion>> to MetafitsContext struct.
+* Added mwa_version &lt;Option&lt;MWAVersion&gt;&gt; to MetafitsContext struct.
 * When working only with a MetafitsContext, a None can be passed in lieu of an MWAVersion, and mwalib will attempt to determine the correct MWAVersion based on the MODE keyword from the metafits file.
 * Added method get_expected_volt_filename() function to MetafitsContext.
 * Added digital_gains, dipole_gains and dipole_delays to FFI rfinput struct.
