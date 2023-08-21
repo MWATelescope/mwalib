@@ -4,7 +4,7 @@ Changes in each release are listed below.
 
 ## 0.17.0 21-Aug-2023
 
-* Bumped MSRV to 1.63.
+* Bumped MSRV to 1.64.
 * MetafitsContext now supports: OVERSAMP from metafits. Exposed as a bool: `oversampled`. If this is true, then the observation was taken using oversampled coarse channels.
 * VoltageContext now supports handling reading of oversampled subfiles.
 * MetafitsContext now supports: DR_FLAG and DR_PARAM from metafits. `deripple_applied`is a boolean and `dreipple_param` is a String. If deripple is true then a deripple has been applied to each coarse channel to smooth the passband.
