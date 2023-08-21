@@ -366,7 +366,10 @@ impl VoltageContext {
         let num_samples_per_rf_chain_fine_chan_in_a_voltage_block: u64 =
             match voltage_info.mwa_version {
                 MWAVersion::VCSLegacyRecombined => 10_000,
-                MWAVersion::VCSMWAXv2 => 64_000, // 64000 per rf_inpit x real|imag (no fine chans)
+                MWAVersion::VCSMWAXv2 => match metafits_context.oversampled {
+                    true => 81_920,
+                    false => 64_000,
+                }, // critically sampled = 64000 per rf_inpit x real|imag (no fine chans), or 81920 if oversampled
                 _ => {
                     return Err(MwalibError::Voltage(VoltageFileError::InvalidMwaVersion {
                         mwa_version: voltage_info.mwa_version,
@@ -643,13 +646,6 @@ impl VoltageContext {
             ));
         }
 
-        // Calculate expected data file size (for use later)
-        // normally we would compare the file len to context.expected_voltage_data_file_size_bytes,
-        // but in our unit tests we override the voltage_block_size_bytes because our test files only have 1 tile
-        let calc_file_size = self.data_file_header_size_bytes
-            + self.delay_block_size_bytes
-            + (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep);
-
         // Work out how much to read at once
         let chunk_size: usize = self.voltage_block_size_bytes as usize; // This will be the size of a voltage block
 
@@ -692,11 +688,11 @@ impl VoltageContext {
             let metadata = std::fs::metadata(filename).expect("unable to read metadata");
 
             // Check file is as big as we expect
-            if metadata.len() != calc_file_size {
+            if metadata.len() != self.expected_voltage_data_file_size_bytes {
                 return Err(VoltageFileError::InvalidVoltageFileSize(
                     metadata.len(),
                     String::from(filename),
-                    calc_file_size,
+                    self.expected_voltage_data_file_size_bytes,
                 ));
             }
 
@@ -862,7 +858,12 @@ impl VoltageContext {
             metadata.len(),
             self.data_file_header_size_bytes
                 + self.delay_block_size_bytes
-                + (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep)
+                + (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep),
+            "header={} + delay={} + vb_size={} + vb_per_ts={}",
+            self.data_file_header_size_bytes,
+            self.delay_block_size_bytes,
+            self.voltage_block_size_bytes,
+            self.num_voltage_blocks_per_timestep
         );
 
         // Check buffer is big enough

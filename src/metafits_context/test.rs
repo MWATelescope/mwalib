@@ -256,6 +256,12 @@ fn test_metafits_context_new_corrlegacy_valid() {
         context.rf_inputs[0].digital_gains.len(),
         context.num_metafits_coarse_chans
     );
+
+    // Test oversample flag
+    assert_eq!(context.oversampled, false);
+
+    // test deripple
+    assert_eq!(context.deripple_applied, false);
 }
 
 #[test]
@@ -660,4 +666,33 @@ fn test_mode_enum() {
     assert!(MWAMode::from_str("MWAX_VCS").is_ok());
     assert!(MWAMode::from_str("MWAX_BUFFER").is_ok());
     assert!(MWAMode::from_str("something invalid").is_err());
+}
+
+#[test]
+fn test_deripple_on_in_metafits() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/metafits_tests/1370752512_metafits_deripple_os.fits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(metafits_filename, None);
+    assert!(result.is_ok(), "{}", result.unwrap_err());
+
+    let context = result.unwrap();
+
+    assert_eq!(context.deripple_applied, true);
+    assert_eq!(context.deripple_param, "deripplev1");
+}
+
+#[test]
+fn test_oversampling_on_in_metafits() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/metafits_tests/1370752512_metafits_deripple_os.fits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(metafits_filename, None);
+    assert!(result.is_ok(), "{}", result.unwrap_err());
+
+    let context = result.unwrap();
+
+    assert_eq!(context.oversampled, true);
 }

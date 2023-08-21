@@ -12,9 +12,10 @@ use std::io::{Error, Write};
 use std::path::PathBuf;
 use std::sync::Once;
 
-// Define two static "once" variables to control creation of VCS test data (so it only happens once, the first time it's needed)
+// Define three static "once" variables to control creation of VCS test data (so it only happens once, the first time it's needed)
 pub(crate) static VCS_LEGACY_TEST_DATA_CREATED: Once = Once::new();
 pub(crate) static VCS_MWAXV2_TEST_DATA_CREATED: Once = Once::new();
+pub(crate) static VCS_MWAXV2_OS_TEST_DATA_CREATED: Once = Once::new();
 
 /// Helper fuctions to generate (small-sh) test voltage files
 /// for mwax test files they contain an incrememting byte for the real in each samples and decrementing byte value for the imag value.
@@ -24,8 +25,6 @@ pub(crate) static VCS_MWAXV2_TEST_DATA_CREATED: Once = Once::new();
 fn generate_test_voltage_file(
     filename: &str,
     mwa_version: MWAVersion,
-    header_bytes: usize,
-    delay_block_bytes: usize,
     num_voltage_blocks: usize,
     samples_per_block: usize,
     rf_inputs: usize,
@@ -37,25 +36,32 @@ fn generate_test_voltage_file(
     let mut output_file: File = File::create(filename)?;
 
     // Write out header if one is needed
-    if header_bytes > 0 {
-        let header_buffer: Vec<u8> = vec![0x01; header_bytes];
-        output_file
-            .write_all(&header_buffer)
-            .expect("Cannot write header!");
+    match mwa_version {
+        MWAVersion::VCSMWAXv2 => {
+            let header_buffer: Vec<u8> = vec![0x01; 4096];
+            output_file
+                .write_all(&header_buffer)
+                .expect("Cannot write header!");
+        }
+        _ => {}
     }
 
+    // Each voltage_block has samples_per_rf_fine for each combination of rfinputs x fine_chans
+    let num_bytes_per_voltage_block = samples_per_block * rf_inputs * fine_chans * bytes_per_sample;
+
     // Write out delay block if one is needed
-    if delay_block_bytes > 0 {
-        let delay_buffer: Vec<u8> = vec![0x02; delay_block_bytes];
-        output_file
-            .write_all(&delay_buffer)
-            .expect("Cannot write delay block!");
+    match mwa_version {
+        MWAVersion::VCSMWAXv2 => {
+            let delay_buffer: Vec<u8> = vec![0x02; num_bytes_per_voltage_block];
+            output_file
+                .write_all(&delay_buffer)
+                .expect("Cannot write delay block!");
+        }
+        _ => {}
     }
 
     // Write out num_voltage_blocks
     //
-    // Each voltage_block has samples_per_rf_fine for each combination of rfinputs x fine_chans
-    let num_bytes_per_voltage_block = samples_per_block * rf_inputs * fine_chans * bytes_per_sample;
 
     // Loop for each voltage block
     // legacy: 1 blocks per file
@@ -132,8 +138,6 @@ pub(crate) fn generate_test_voltage_file_legacy_recombined(
     generate_test_voltage_file(
         filename,
         MWAVersion::VCSLegacyRecombined,
-        0,
-        0,
         1,
         10000,
         2,
@@ -141,6 +145,127 @@ pub(crate) fn generate_test_voltage_file_legacy_recombined(
         1,
         initial_value,
     )
+}
+
+#[cfg(test)]
+pub(crate) fn generate_test_voltage_file_mwax(
+    filename: &str,
+    initial_value: u8,
+) -> Result<String, Error> {
+    // Note we are only producing data for 2 rfinputs (ant0 X and ant0 Y)
+    // The initial value is used to differentiate different timesteps and coarse channels
+    generate_test_voltage_file(
+        filename,
+        MWAVersion::VCSMWAXv2,
+        160,
+        64_000,
+        2,
+        1,
+        2,
+        initial_value,
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn generate_test_voltage_file_mwax_os(
+    filename: &str,
+    initial_value: u8,
+) -> Result<String, Error> {
+    // Note we are only producing data for 2 rfinputs (ant0 X and ant0 Y)
+    // The initial value is used to differentiate different timesteps and coarse channels
+    generate_test_voltage_file(
+        filename,
+        MWAVersion::VCSMWAXv2,
+        160,
+        81_920,
+        2,
+        1,
+        2,
+        initial_value,
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn get_test_voltage_files(mwa_version: MWAVersion, oversampled: bool) -> Vec<String> {
+    // Create some test files
+    // Populate vector of filenames
+    let test_filenames: Vec<String>;
+
+    match mwa_version {
+        MWAVersion::VCSMWAXv2 => {
+            match oversampled {
+                true => {
+                    // Now for the oversampled case
+                    test_filenames = vec![
+                        String::from(
+                            "test_files/1370755832_mwax_vcs_os/1370755832_1370755832_123.sub",
+                        ),
+                        String::from(
+                            "test_files/1370755832_mwax_vcs_os/1370755832_1370755832_124.sub",
+                        ),
+                        String::from(
+                            "test_files/1370755832_mwax_vcs_os/1370755832_1370755840_123.sub",
+                        ),
+                        String::from(
+                            "test_files/1370755832_mwax_vcs_os/1370755832_1370755840_124.sub",
+                        ),
+                    ];
+
+                    // This ensure the test data is created once only
+                    VCS_MWAXV2_OS_TEST_DATA_CREATED.call_once(|| {
+                        // Create this test data, but only once!
+                        for (i, f) in test_filenames.iter().enumerate() {
+                            generate_test_voltage_file_mwax_os(f, i as u8).unwrap();
+                        }
+                    });
+                }
+                false => {
+                    test_filenames = vec![
+                        String::from(
+                            "test_files/1101503312_mwax_vcs/1101503312_1101503312_123.sub",
+                        ),
+                        String::from(
+                            "test_files/1101503312_mwax_vcs/1101503312_1101503312_124.sub",
+                        ),
+                        String::from(
+                            "test_files/1101503312_mwax_vcs/1101503312_1101503320_123.sub",
+                        ),
+                        String::from(
+                            "test_files/1101503312_mwax_vcs/1101503312_1101503320_124.sub",
+                        ),
+                    ];
+
+                    // This ensure the test data is created once only
+                    VCS_MWAXV2_TEST_DATA_CREATED.call_once(|| {
+                        // Create this test data, but only once!
+                        for (i, f) in test_filenames.iter().enumerate() {
+                            generate_test_voltage_file_mwax(f, i as u8).unwrap();
+                        }
+                    });
+                }
+            }
+        }
+        MWAVersion::VCSLegacyRecombined => {
+            test_filenames = vec![
+                String::from("test_files/1101503312_vcs/1101503312_1101503312_ch123.dat"),
+                String::from("test_files/1101503312_vcs/1101503312_1101503312_ch124.dat"),
+                String::from("test_files/1101503312_vcs/1101503312_1101503313_ch123.dat"),
+                String::from("test_files/1101503312_vcs/1101503312_1101503313_ch124.dat"),
+            ];
+
+            // This ensure the test data is created once only
+            VCS_LEGACY_TEST_DATA_CREATED.call_once(|| {
+                for (i, f) in test_filenames.iter().enumerate() {
+                    generate_test_voltage_file_legacy_recombined(f, i as u8).unwrap();
+                }
+            });
+        }
+        _ => {
+            panic!("Other mwa_version values are not supported for VCS");
+        }
+    }
+
+    test_filenames
 }
 
 #[cfg(test)]
@@ -198,80 +323,49 @@ pub(crate) fn get_index_for_location_in_test_voltage_file_mwaxv2(
 }
 
 #[cfg(test)]
-pub(crate) fn generate_test_voltage_file_mwax(
-    filename: &str,
-    initial_value: u8,
-) -> Result<String, Error> {
-    // Note we are only producing data for 2 rfinputs (ant0 X and ant0 Y)
-    // The initial value is used to differentiate different timesteps and coarse channels
-    generate_test_voltage_file(
-        filename,
-        MWAVersion::VCSMWAXv2,
-        4096,
-        32_768_000,
-        160,
-        64_000,
-        2,
-        1,
-        2,
-        initial_value,
-    )
+pub(crate) fn get_index_for_location_in_test_voltage_file_mwaxv2_os(
+    voltage_block_index: usize,
+    rfinput_index: usize,
+    sample_index: usize,
+    value_index: usize,
+) -> usize {
+    let num_finechan = 1;
+    let num_rfinputs = 2;
+
+    let bytes_per_fine_chan = 81920 * 2;
+
+    let bytes_per_rfinput = num_finechan * bytes_per_fine_chan;
+
+    let bytes_per_voltage_block = num_rfinputs * bytes_per_rfinput;
+
+    // This will position us at the correct block
+    let vb = voltage_block_index * bytes_per_voltage_block;
+
+    // Now within the block, move to the correct rf_input
+    let rf = rfinput_index * bytes_per_rfinput;
+
+    // Return the correct index
+    vb + rf + (sample_index * 2) + value_index
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_voltage_files(mwa_version: MWAVersion) -> Vec<String> {
-    // Create some test files
-    // Populate vector of filenames
-    let test_filenames: Vec<String>;
-
-    match mwa_version {
-        MWAVersion::VCSMWAXv2 => {
-            test_filenames = vec![
-                String::from("test_files/1101503312_1_timestep/1101503312_1101503312_123.sub"),
-                String::from("test_files/1101503312_1_timestep/1101503312_1101503312_124.sub"),
-                String::from("test_files/1101503312_1_timestep/1101503312_1101503320_123.sub"),
-                String::from("test_files/1101503312_1_timestep/1101503312_1101503320_124.sub"),
-            ];
-
-            // This ensure the test data is created once only
-            VCS_MWAXV2_TEST_DATA_CREATED.call_once(|| {
-                // Create this test data, but only once!
-                for (i, f) in test_filenames.iter().enumerate() {
-                    generate_test_voltage_file_mwax(f, i as u8).unwrap();
-                }
-            });
-        }
-        MWAVersion::VCSLegacyRecombined => {
-            test_filenames = vec![
-                String::from("test_files/1101503312_1_timestep/1101503312_1101503312_ch123.dat"),
-                String::from("test_files/1101503312_1_timestep/1101503312_1101503312_ch124.dat"),
-                String::from("test_files/1101503312_1_timestep/1101503312_1101503313_ch123.dat"),
-                String::from("test_files/1101503312_1_timestep/1101503312_1101503313_ch124.dat"),
-            ];
-
-            // This ensure the test data is created once only
-            VCS_LEGACY_TEST_DATA_CREATED.call_once(|| {
-                for (i, f) in test_filenames.iter().enumerate() {
-                    generate_test_voltage_file_legacy_recombined(f, i as u8).unwrap();
-                }
-            });
-        }
-        _ => {
-            panic!("Other mwa_version values are not supported for VCS");
-        }
-    }
-
-    test_filenames
-}
-
-#[cfg(test)]
-pub(crate) fn get_test_voltage_context(mwa_version: MWAVersion) -> VoltageContext {
-    // Open the test mwax file
-    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+pub(crate) fn get_test_voltage_context(
+    mwa_version: MWAVersion,
+    oversampled: bool,
+) -> VoltageContext {
+    // Open the test metafits file
+    let metafits_filename = match mwa_version {
+        MWAVersion::VCSMWAXv2 => match oversampled {
+            true => "test_files/1370755832_mwax_vcs_os/1370755832_metafits.fits",
+            false => "test_files/1101503312_mwax_vcs/1101503312.metafits",
+        },
+        MWAVersion::VCSLegacyRecombined => "test_files/1101503312_vcs/1101503312.metafits",
+        _ => "",
+    };
 
     // Create some test files
     // Populate vector of filenames
-    let generated_filenames = get_test_voltage_files(mwa_version);
+    let generated_filenames = get_test_voltage_files(mwa_version, oversampled);
 
     let temp_strings = generated_filenames.iter().map(String::as_str);
     let test_filenames: Vec<&str> = temp_strings.collect();
@@ -290,12 +384,18 @@ pub(crate) fn get_test_voltage_context(mwa_version: MWAVersion) -> VoltageContex
     let metadata = std::fs::metadata(test_filenames[0]).expect("unable to read metadata");
 
     // Also check our test file is the right size!
-    // Note our test files have 2 rfinputs, not 256, so we divide the block size by 128!
     assert_eq!(
         metadata.len(),
         context.data_file_header_size_bytes
             + context.delay_block_size_bytes
-            + ((context.voltage_block_size_bytes / 128) * context.num_voltage_blocks_per_timestep)
+            + (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep),
+        "mwa_v={} header={} + delay={}  + (voltage_block={} * vbs per ts={} * finech={})",
+        context.mwa_version,
+        context.data_file_header_size_bytes,
+        context.delay_block_size_bytes,
+        context.voltage_block_size_bytes,
+        context.num_voltage_blocks_per_timestep,
+        context.num_fine_chans_per_coarse
     );
 
     context
@@ -303,7 +403,7 @@ pub(crate) fn get_test_voltage_context(mwa_version: MWAVersion) -> VoltageContex
 
 #[test]
 fn test_context_new_missing_voltage_files() {
-    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+    let metafits_filename = "test_files/1101503312_vcs/1101503312.metafits";
     let voltagefiles: Vec<PathBuf> = Vec::new();
 
     // No gpubox files provided
@@ -317,7 +417,7 @@ fn test_context_new_missing_voltage_files() {
 #[test]
 fn test_context_new_invalid_metafits() {
     let metafits_filename = "invalid.metafits";
-    let filename = "test_files/1101503312_1_timestep/1101503312_1101503312_ch123.dat";
+    let filename = "test_files/1101503312_vcs/1101503312_1101503312_ch123.dat";
     let voltage_files = vec![filename];
 
     // No gpubox files provided
@@ -332,7 +432,7 @@ fn test_context_legacy_v1() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits and gpubox file
-    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     // Test the properties of the context object match what we expect
     // MWA version:       v1 Legacy,
@@ -380,13 +480,13 @@ fn test_context_legacy_v1() {
     // Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
     assert_eq!(context.num_samples_per_voltage_block, 10_000);
     // The size of each voltage block
-    assert_eq!(context.voltage_block_size_bytes, 327_680_000);
+    assert_eq!(context.voltage_block_size_bytes, 2_560_000);
     // Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
     assert_eq!(context.delay_block_size_bytes, 0);
     // The amount of bytes to skip before getting into real data within the voltage files
     assert_eq!(context.data_file_header_size_bytes, 0);
     // Expected voltage file size
-    assert_eq!(context.expected_voltage_data_file_size_bytes, 327_680_000);
+    assert_eq!(context.expected_voltage_data_file_size_bytes, 2_560_000);
     // Check batches
     assert_eq!(context.voltage_batches.len(), 2);
 
@@ -406,6 +506,27 @@ fn test_context_legacy_v1() {
     // Now compare this copy with the 'real' rf_inputs
     assert_eq!(&rf_input_copy, &context.metafits_context.rf_inputs);
     // Ensure the antenna->rf_input mapping is still in tact
+    assert_eq!(context.metafits_context.antennas[0].rfinput_x.vcs_order, 93);
+    assert_eq!(context.metafits_context.antennas[0].rfinput_y.vcs_order, 89);
+}
+
+#[test]
+fn test_context_legacy_v1_128_tiles() {
+    // Create some test files
+    // Populate vector of filenames
+    let generated_filenames = get_test_voltage_files(MWAVersion::VCSLegacyRecombined, false);
+
+    let temp_strings = generated_filenames.iter().map(String::as_str);
+    let test_filenames: Vec<&str> = temp_strings.collect();
+
+    // Open a context and load in a test metafits
+    let context = VoltageContext::new(
+        "test_files/1101503312_vcs/1101503312.metafits128",
+        &test_filenames,
+    )
+    .expect("Failed to create VoltageContext");
+
+    // Ensure the antenna->rf_input mapping is still in tact (voltage context reorders them from the metafits)
     for i in 0..128 {
         if context.metafits_context.antennas[i].tile_id == 154 {
             assert_eq!(context.metafits_context.antennas[i].rfinput_y.vcs_order, 1);
@@ -420,12 +541,7 @@ fn test_context_legacy_v1() {
 #[test]
 fn test_context_legacy_v1_read_file_no_data_for_timestep() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
-
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    context.voltage_block_size_bytes /= 128;
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     //
     // Now do a read of the data from time 0, channel 0
@@ -459,12 +575,7 @@ fn test_context_legacy_v1_read_file_no_data_for_timestep() {
 #[test]
 fn test_context_legacy_v1_read_file() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
-
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    context.voltage_block_size_bytes /= 128;
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     //
     // Now do a read of the data from time 0, channel 0
@@ -656,7 +767,7 @@ fn test_context_legacy_v1_read_file() {
 #[test]
 fn test_context_mwax_v2() {
     // Create voltage context
-    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
     // Test the properties of the context object match what we expect
     // MWA version:       v2 mwax,
@@ -671,7 +782,7 @@ fn test_context_mwax_v2() {
     // Actual duration:          16 s,
     assert_eq!(context.common_duration_ms, 16_000);
 
-    // num timesteps:            14,
+    // num timesteps:            14,  (what the metafits says)
     assert_eq!(context.num_timesteps, 14);
 
     // timesteps:
@@ -703,7 +814,7 @@ fn test_context_mwax_v2() {
     // Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
     assert_eq!(context.num_samples_per_voltage_block, 64_000);
     // The size of each voltage block
-    assert_eq!(context.voltage_block_size_bytes, 32_768_000);
+    assert_eq!(context.voltage_block_size_bytes, 256_000);
     // Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
     assert_eq!(
         context.delay_block_size_bytes,
@@ -712,7 +823,7 @@ fn test_context_mwax_v2() {
     // The amount of bytes to skip before getting into real data within the voltage files
     assert_eq!(context.data_file_header_size_bytes, 4096);
     // Expected voltage file size
-    assert_eq!(context.expected_voltage_data_file_size_bytes, 5_275_652_096);
+    assert_eq!(context.expected_voltage_data_file_size_bytes, 41_220_096);
     // Check number of batches
     assert_eq!(context.voltage_batches.len(), 2);
 
@@ -726,12 +837,7 @@ fn test_context_mwax_v2() {
 #[test]
 fn test_context_mwaxv2_read_file_no_data_for_timestep() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
-
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    context.voltage_block_size_bytes /= 128;
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
     //
     // Now do a read of the data from time 0, channel 0
@@ -764,13 +870,10 @@ fn test_context_mwaxv2_read_file_no_data_for_timestep() {
 
 #[test]
 fn test_context_mwax_v2_read_file() {
-    // Create voltage context
-    let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
+    // Test reading from an critically sampled mwaxv2 file
 
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    context.voltage_block_size_bytes /= 128;
+    // Create voltage context
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
@@ -967,9 +1070,234 @@ fn test_context_mwax_v2_read_file() {
 }
 
 #[test]
+fn test_context_mwax_v2_oversampled_read_file() {
+    // Test reading from an oversampled mwaxv2 file
+
+    // Create voltage context
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, true);
+
+    // Create output buffer
+    let mut buffer: Vec<u8> = vec![
+        0;
+        (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
+            as usize
+    ];
+
+    //
+    // Now do a read of the data from time 0, channel 0
+    //
+    let read_result: Result<(), VoltageFileError> = context.read_file(0, 14, &mut buffer);
+
+    // Ensure read is ok
+    assert!(read_result.is_ok());
+
+    // Check for various values
+    // block: 0, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
+        0
+    );
+
+    // block: 0, rfinput: 0, sample: 1, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
+        253
+    );
+
+    // block: 0, rfinput: 0, sample: 255, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
+        254
+    );
+
+    // block: 0, rfinput: 0, sample: 256, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
+        255
+    );
+
+    // block: 1, rfinput: 0, sample: 2, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
+        9
+    );
+
+    // block: 159, rfinput: 1, sample: 63999, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
+        226
+    );
+
+    // block: 159, rfinput: 1, sample: 81919, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
+        226
+    );
+
+    // block: 120, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(120, 0, 0, 0)],
+        88
+    );
+
+    //
+    // Now do a read of the data from time 0, channel 1. Values are offset by +1 from time 0, chan 0.
+    //
+    let read_result: Result<(), VoltageFileError> = context.read_file(0, 15, &mut buffer);
+
+    // Ensure read is ok
+    assert!(read_result.is_ok());
+
+    // Check for various values
+    // block: 0, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
+        1
+    );
+
+    // block: 0, rfinput: 0, sample: 1, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
+        252
+    );
+
+    // block: 0, rfinput: 0, sample: 255, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
+        255
+    );
+
+    // block: 0, rfinput: 0, sample: 256, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
+        254
+    );
+
+    // block: 1, rfinput: 0, sample: 2, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
+        10
+    );
+
+    // block: 159, rfinput: 1, sample: 63999, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
+        225
+    );
+
+    // block: 159, rfinput: 1, sample: 81919, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
+        225
+    );
+
+    //
+    // Now do a read of the data from time 1, channel 0. Values are offset by +2 from time 0, chan 0.
+    //
+    let read_result: Result<(), VoltageFileError> = context.read_file(1, 14, &mut buffer);
+
+    // Ensure read is ok
+    assert!(read_result.is_ok());
+
+    // Check for various values
+    // block: 0, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
+        2
+    );
+
+    // block: 0, rfinput: 0, sample: 1, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
+        251
+    );
+
+    // block: 0, rfinput: 0, sample: 255, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
+        0
+    );
+
+    // block: 0, rfinput: 0, sample: 256, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
+        253
+    );
+
+    // block: 1, rfinput: 0, sample: 2, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
+        11
+    );
+
+    // block: 159, rfinput: 1, sample: 63999, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
+        224
+    );
+
+    // block: 159, rfinput: 1, sample: 81919, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
+        224
+    );
+
+    //
+    // Now do a read of the data from time 1, channel 1. Values are offset by +3 from time 0, chan 0.
+    //
+    let read_result: Result<(), VoltageFileError> = context.read_file(1, 15, &mut buffer);
+
+    // Ensure read is ok
+    assert!(read_result.is_ok());
+
+    // Check for various values
+    // block: 0, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
+        3
+    );
+
+    // block: 0, rfinput: 0, sample: 1, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
+        250
+    );
+
+    // block: 0, rfinput: 0, sample: 255, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
+        1
+    );
+
+    // block: 0, rfinput: 0, sample: 256, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
+        252
+    );
+
+    // block: 1, rfinput: 0, sample: 2, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
+        12
+    );
+
+    // block: 159, rfinput: 1, sample: 63999, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
+        223
+    );
+
+    // block: 159, rfinput: 1, sample: 81919, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
+        223
+    );
+}
+
+#[test]
 fn test_validate_gps_time_parameters_legacy() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 1);
 
@@ -981,7 +1309,7 @@ fn test_validate_gps_time_parameters_legacy() {
 #[test]
 fn test_validate_gps_time_parameters_mwax_v2() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 10);
 
@@ -993,7 +1321,7 @@ fn test_validate_gps_time_parameters_mwax_v2() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_start_legacy() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_311, 1);
 
@@ -1014,7 +1342,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_legacy() {
 fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
     // This test obs starts at 1_101_503_312 and has 112 seconds.
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_424, 3);
 
@@ -1034,7 +1362,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_start_mwax_v2() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_311, 1);
 
@@ -1054,7 +1382,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_start_mwax_v2() {
 #[test]
 fn test_validate_gps_time_parameters_invalid_gps_second_count_mwax_v2() {
     // Create test files and a test Voltage Context
-    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
     let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 118);
 
@@ -1074,12 +1402,7 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_mwax_v2() {
 #[test]
 fn test_context_read_second_invalid_coarse_chan_index() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
-
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    context.voltage_block_size_bytes /= 128;
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
@@ -1114,12 +1437,7 @@ fn test_context_read_second_invalid_coarse_chan_index() {
 #[test]
 fn test_context_read_second_invalid_buffer_size() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
-
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    context.voltage_block_size_bytes /= 128;
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let gps_second_start = 1_101_503_312;
     let gps_second_count: usize = 1;
@@ -1160,17 +1478,10 @@ fn test_context_read_second_invalid_buffer_size() {
 #[test]
 fn test_context_read_second_legacy_invalid_data_file_size() {
     // Open a context and load in a test metafits and gpubox file
-    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    // In our other tests the below line is uncommented, so the context knows about our smaller test files.
-    // But for this test we want to LEAVE it commented out so it will be expecting the 'real'/full file size
-    //
-    // ** important! ** This is commented out on purpose for this test
-    // context.voltage_block_size_bytes /= 128;
-    // ** important! **
+    // Alter the context values so we generate an invalid file size error
+    context.expected_voltage_data_file_size_bytes += 1;
 
     let gps_second_start = 1_101_503_312;
     let gps_second_count: usize = 1;
@@ -1209,17 +1520,10 @@ fn test_context_read_second_legacy_invalid_data_file_size() {
 #[test]
 fn test_context_read_second_mwaxv2_invalid_data_file_size() {
     // Open a context and load in a test metafits and gpubox file
-    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
+    let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    // In our other tests the below line is uncommented, so the context knows about our smaller test files.
-    // But for this test we want to LEAVE it commented out so it will be expecting the 'real'/full file size
-    //
-    // ** important! ** Next line is commented out on purpose for this test
-    // context.voltage_block_size_bytes /= 128;
-    // ** important! **
+    // Alter the context values so we generate an invalid file size error
+    context.expected_voltage_data_file_size_bytes += 1;
 
     let gps_second_start = 1_101_503_312;
     let gps_second_count: usize = 1;
@@ -1258,9 +1562,7 @@ fn test_context_read_second_mwaxv2_invalid_data_file_size() {
 #[test]
 fn test_context_read_second_legacy_no_data_for_gpstime() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
-
-    context.voltage_block_size_bytes /= 128;
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let gps_second_start = 1_101_503_350; // No data at this timestep
     let gps_second_count: usize = 1;
@@ -1305,9 +1607,7 @@ fn test_context_read_second_legacy_no_data_for_gpstime() {
 #[test]
 fn test_context_read_second_mwaxv2_no_data_for_gpstime() {
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
-
-    context.voltage_block_size_bytes /= 128;
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
     let gps_second_start = 1_101_503_350; // No data at this timestep
     let gps_second_count: usize = 1;
@@ -1360,17 +1660,7 @@ fn test_context_read_second_legacyv1_valid() {
     // which is 1_101_503_312, 1_101_503_313
 
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
-
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    // In our other tests the below line is uncommented, so the context knows about our smaller test files.
-    // But for this test we want to LEAVE it commented out so it will be expecting the 'real'/full file size
-    //
-    // ** important! **
-    context.voltage_block_size_bytes /= 128;
-    // ** important! **
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     let gps_second_start = 1_101_503_312;
     let gps_second_count: usize = 2;
@@ -1439,17 +1729,7 @@ fn test_context_read_second_mwaxv2_valid() {
     // which is 1_101_503_318, 1_101_503_319, 1_101_503_320, 1_101_503_321
 
     // Open a context and load in a test metafits and gpubox file
-    let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2);
-
-    //
-    // In order for our smaller voltage files to work with this test we need to reset the voltage_block_size_bytes
-    //
-    // In our other tests the below line is uncommented, so the context knows about our smaller test files.
-    // But for this test we want to LEAVE it commented out so it will be expecting the 'real'/full file size
-    //
-    // ** important! **
-    context.voltage_block_size_bytes /= 128;
-    // ** important! **
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
     let gps_second_start = 1_101_503_318;
     let gps_second_count: usize = 4;
@@ -1557,7 +1837,7 @@ fn test_context_read_second_mwaxv2_valid() {
 
 #[test]
 fn test_context_legacy_v1_get_fine_chan_feqs_one_coarse_chan() {
-    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     // Get fine channel freqs
     let coarse_channels: Vec<usize> = vec![0];
@@ -1574,7 +1854,7 @@ fn test_context_legacy_v1_get_fine_chan_feqs_one_coarse_chan() {
 
 #[test]
 fn test_context_legacy_v1_get_fine_chan_feqs_some_coarse_chans() {
-    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined);
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
     // Get fine channel freqs
     let coarse_channels: Vec<usize> = vec![10, 20];
@@ -1594,4 +1874,76 @@ fn test_context_legacy_v1_get_fine_chan_feqs_some_coarse_chans() {
         164_480_000.0,
         F64Margin::default()
     ));
+}
+
+//
+// Oversampled tests
+//
+#[test]
+fn test_context_mwax_v2_oversampled() {
+    // Create voltage context
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, true);
+
+    // Test the properties of the context object match what we expect
+    // MWA version:       v2 mwax,
+    assert_eq!(context.mwa_version, MWAVersion::VCSMWAXv2);
+
+    // Actual gps start time:   1_370_755_832,
+    assert_eq!(context.common_start_gps_time_ms, 1_370_755_832_000);
+
+    // Actual gps end time:     1_370_755_848,
+    assert_eq!(context.common_end_gps_time_ms, 1_370_755_848_000);
+
+    // Actual duration:          16 s,
+    assert_eq!(context.common_duration_ms, 16_000);
+
+    // num timesteps:            4, (from metafits)
+    assert_eq!(context.num_timesteps, 4);
+
+    // timesteps:
+    assert_eq!(context.timesteps[0].gps_time_ms, 1_370_755_832_000);
+    assert_eq!(context.timesteps[1].gps_time_ms, 1_370_755_840_000);
+
+    // num coarse channels,      2,
+    assert_eq!(context.num_coarse_chans, 24);
+
+    // observation bandwidth:    3.256_000 MHz,
+    assert_eq!(context.common_bandwidth_hz, 1_280_000 * 2);
+
+    // coarse channels:
+    assert_eq!(context.coarse_chans[14].rec_chan_number, 123);
+    assert_eq!(context.coarse_chans[14].chan_centre_hz, 157_440_000);
+    assert_eq!(context.coarse_chans[15].rec_chan_number, 124);
+    assert_eq!(context.coarse_chans[15].chan_centre_hz, 158_720_000);
+    // fine channel resolution:  1.6384 MHz,
+    assert_eq!(context.fine_chan_width_hz, 1_280_000);
+    // num fine channels/coarse: 1,
+    assert_eq!(context.num_fine_chans_per_coarse, 1);
+    // Number of bytes in each sample
+    assert_eq!(context.sample_size_bytes, 2);
+    // Number of voltage blocks per timestep
+    assert_eq!(context.num_voltage_blocks_per_timestep, 160);
+    // Number of voltage blocks of samples in each second of data
+    assert_eq!(context.num_voltage_blocks_per_second, 20);
+    // Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
+    assert_eq!(context.num_samples_per_voltage_block, 81_920);
+    // The size of each voltage block
+    assert_eq!(context.voltage_block_size_bytes, 327_680);
+    // Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
+    assert_eq!(
+        context.delay_block_size_bytes,
+        context.voltage_block_size_bytes
+    );
+    // The amount of bytes to skip before getting into real data within the voltage files
+    assert_eq!(context.data_file_header_size_bytes, 4096);
+    // Expected voltage file size
+    assert_eq!(context.expected_voltage_data_file_size_bytes, 52_760_576);
+    // Check number of batches
+    assert_eq!(context.voltage_batches.len(), 2);
+
+    // Check rfinput order (for Legacy it is vcs_order, mwax is subfile_order)
+    let mut rf_input_copy = context.metafits_context.rf_inputs.clone();
+    rf_input_copy.sort_by_key(|k| k.subfile_order);
+    // Now compare this copy with the 'real' rf_inputs
+    assert_eq!(&rf_input_copy, &context.metafits_context.rf_inputs);
 }
