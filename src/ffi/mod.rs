@@ -718,6 +718,98 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
     }
 }
 
+/// Read a single timestep / coarse channel of MWA weights data.
+///
+/// This method takes as input a timestep_index and a coarse_chan_index to return one
+/// HDU of weights data in baseline,pol format
+///
+/// # Arguments
+///
+/// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
+///
+/// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep.
+///
+/// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel.
+///
+/// * `buffer_ptr` - pointer to caller-owned and allocated buffer to write data into.
+///
+/// * `buffer_len` - length of `buffer_ptr`.
+///
+/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
+///
+/// * `error_message_length` - length of error_message char* buffer.
+///
+///
+/// # Returns
+///
+/// * MWALIB_SUCCESS on success, MWALIB_NO_DATA_FOR_TIMESTEP_COARSE_CHAN if the combination of timestep and coarse channel has no associated data file (no data), any other non-zero code on failure
+///
+///
+/// # Safety
+/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
+/// * `correlator_context_ptr` must point to a populated object from the `mwalib_correlator_context_new` function.
+/// * Caller *must* call `mwalib_correlator_context_free_read_buffer` function to release the rust memory.
+#[no_mangle]
+pub unsafe extern "C" fn mwalib_correlator_context_read_weights_by_baseline(
+    correlator_context_ptr: *mut CorrelatorContext,
+    corr_timestep_index: size_t,
+    corr_coarse_chan_index: size_t,
+    buffer_ptr: *mut c_float,
+    buffer_len: size_t,
+    error_message: *const c_char,
+    error_message_length: size_t,
+) -> i32 {
+    // Load the previously-initialised context and buffer structs. Exit if
+    // either of these are null.
+    let corr_context = if correlator_context_ptr.is_null() {
+        set_c_string(
+            "mwalib_correlator_context_read_weights_by_baseline() ERROR: null pointer for correlator_context_ptr passed in",
+            error_message as *mut u8,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    } else {
+        &mut *correlator_context_ptr
+    };
+
+    // Don't do anything if the buffer pointer is null.
+    if buffer_ptr.is_null() {
+        return MWALIB_FAILURE;
+    }
+
+    let output_slice = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
+
+    // Read data into provided buffer
+    match corr_context.read_weights_by_baseline_into_buffer(
+        corr_timestep_index,
+        corr_coarse_chan_index,
+        output_slice,
+    ) {
+        Ok(_) => MWALIB_SUCCESS,
+        Err(e) => match e {
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _,
+            } => {
+                set_c_string(
+                    &format!("{}", e),
+                    error_message as *mut u8,
+                    error_message_length,
+                );
+                MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
+            }
+            _ => {
+                set_c_string(
+                    &format!("{}", e),
+                    error_message as *mut u8,
+                    error_message_length,
+                );
+                MWALIB_FAILURE
+            }
+        },
+    }
+}
+
 /// For a given slice of correlator coarse channel indices, return a vector of the center
 /// frequencies for all the fine channels in the given coarse channels
 ///
@@ -1423,6 +1515,13 @@ pub struct MetafitsMetadata {
     pub centre_freq_hz: u32,
     /// filename of metafits file used
     pub metafits_filename: *mut c_char,
+    /// Was this observation using oversampled coarse channels?
+    pub oversampled: bool,
+    /// Was deripple applied to this observation?
+    pub deripple_applied: bool,
+    /// What was the configured deripple_param?
+    /// If deripple_applied is False then this deripple param was not applied
+    pub deripple_param: *mut c_char,
 }
 
 /// This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext, CorrelatorContext or VoltageContext
@@ -1715,6 +1814,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             baselines: _, // This is populated seperately
             num_visibility_pols,
             metafits_filename,
+            oversampled,
+            deripple_applied,
+            deripple_param,
         } = metafits_context;
         MetafitsMetadata {
             mwa_version: mwa_version.unwrap(),
@@ -1795,6 +1897,11 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             coarse_chan_width_hz: *coarse_chan_width_hz,
             centre_freq_hz: *centre_freq_hz,
             metafits_filename: CString::new(String::from(metafits_filename))
+                .unwrap()
+                .into_raw(),
+            oversampled: *oversampled,
+            deripple_applied: *deripple_applied,
+            deripple_param: CString::new(String::from(deripple_param))
                 .unwrap()
                 .into_raw(),
         }
@@ -1992,8 +2099,10 @@ pub struct CorrelatorMetadata {
     pub provided_coarse_chan_indices: *mut usize,
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_chan_bytes: usize,
-    /// The number of floats in each gpubox HDU.
+    /// The number of floats in each gpubox visibility HDU.
     pub num_timestep_coarse_chan_floats: usize,
+    /// The number of floats in each gpubox weights HDU.
+    pub num_timestep_coarse_chan_weight_floats: usize,
     /// This is the number of gpubox files *per batch*.
     pub num_gpubox_files: usize,
 }
@@ -2121,6 +2230,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             num_provided_coarse_chans: num_provided_coarse_chan_indices,
             num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats,
+            num_timestep_coarse_chan_weight_floats,
             num_gpubox_files,
             gpubox_batches: _, // This is currently not provided to FFI as it is private
             gpubox_time_map: _, // This is currently not provided to FFI
@@ -2168,6 +2278,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             ),
             num_timestep_coarse_chan_bytes: *num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats: *num_timestep_coarse_chan_floats,
+            num_timestep_coarse_chan_weight_floats: *num_timestep_coarse_chan_weight_floats,
             num_gpubox_files: *num_gpubox_files,
         }
     };

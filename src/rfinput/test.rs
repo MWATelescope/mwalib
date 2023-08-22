@@ -21,6 +21,8 @@ fn test_get_vcs_order() {
     assert_eq!(194, get_vcs_order(224));
     assert_eq!(251, get_vcs_order(254));
     assert_eq!(255, get_vcs_order(255));
+    assert_eq!(256, get_vcs_order(256));
+    assert_eq!(271, get_vcs_order(271));
 }
 
 #[test]
@@ -33,6 +35,8 @@ fn test_get_mwax_order() {
     assert_eq!(121, get_mwax_order(60, Pol::Y));
     assert_eq!(254, get_mwax_order(127, Pol::X));
     assert_eq!(255, get_mwax_order(127, Pol::Y));
+    assert_eq!(256, get_mwax_order(128, Pol::X));
+    assert_eq!(271, get_mwax_order(135, Pol::Y));
 }
 
 #[test]

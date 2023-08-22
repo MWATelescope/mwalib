@@ -233,6 +233,7 @@ pub enum MWAMode {
     Voltage_Buffer = 24,
     Mwax_Correlator = 30,
     Mwax_Vcs = 31,
+    Mwax_Buffer = 32,
 }
 
 /// Implements fmt::Display for MWAMode enum
@@ -274,6 +275,7 @@ impl fmt::Display for MWAMode {
                 MWAMode::Voltage_Buffer => "VOLTAGE_BUFFER",
                 MWAMode::Mwax_Correlator => "MWAX_CORRELATOR",
                 MWAMode::Mwax_Vcs => "MWAX_VCS",
+                MWAMode::Mwax_Buffer => "MWAX_BUFFER",
             }
         )
     }
@@ -305,6 +307,7 @@ impl std::str::FromStr for MWAMode {
             "VOLTAGE_BUFFER" => Ok(MWAMode::Voltage_Buffer),
             "MWAX_CORRELATOR" => Ok(MWAMode::Mwax_Correlator),
             "MWAX_VCS" => Ok(MWAMode::Mwax_Vcs),
+            "MWAX_BUFFER" => Ok(MWAMode::Mwax_Buffer),
             _ => Err(()),
         }
     }
@@ -460,6 +463,13 @@ pub struct MetafitsContext {
     pub num_visibility_pols: usize,
     /// Filename of the metafits we were given
     pub metafits_filename: String,
+    /// Was this observation using oversampled coarse channels?
+    pub oversampled: bool,
+    /// Was deripple applied to this observation?
+    pub deripple_applied: bool,
+    /// What was the configured deripple_param?
+    /// If deripple_applied is False then this deripple param was not applied
+    pub deripple_param: String,
 }
 
 impl MetafitsContext {
@@ -495,7 +505,7 @@ impl MetafitsContext {
                     Some(MWAVersion::VCSLegacyRecombined)
                 }
                 MWAMode::Mwax_Correlator => Some(MWAVersion::CorrMWAXv2),
-                MWAMode::Mwax_Vcs => Some(MWAVersion::VCSMWAXv2),
+                MWAMode::Mwax_Vcs | MWAMode::Mwax_Buffer => Some(MWAVersion::VCSMWAXv2),
                 _ => {
                     return Err(MwalibError::Metafits(
                         MetafitsError::UnableToDetermineMWAVersionFromMode(new_context.mode),
@@ -582,6 +592,15 @@ impl MetafitsContext {
 
         // Populate obsid from the metafits
         let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
+
+        // oversampled not garaunteed to be in the metafits. Default to False
+        let oversampled: bool =
+            match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "OVERSAMP")?
+                .unwrap_or(0)
+            {
+                1 => true,
+                _ => false,
+            };
 
         // from MWA_Tools/CONV2UVFITS/convutils.h
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
@@ -813,6 +832,24 @@ impl MetafitsContext {
         let global_analogue_attenuation_db: f64 =
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?.unwrap_or(0.0);
 
+        // Deripple
+        // It is stored as a bool DR_FLAG.
+        let deripple_applied: bool = match get_optional_fits_key!(
+            &mut metafits_fptr,
+            &metafits_hdu,
+            "DR_FLAG"
+        )?
+        .unwrap_or(0)
+        {
+            1 => true,
+            _ => false,
+        };
+
+        // deripple_param is the type of deripple applied
+        let deripple_param: String =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DR_PARAM")?
+                .unwrap_or_else(|| String::from(""));
+
         // Placeholder values- we work these out once we know the mwa_version
         let num_metafits_fine_chan_freqs: usize = 0;
         let metafits_fine_chan_freqs: Vec<f64> = Vec::new();
@@ -909,6 +946,9 @@ impl MetafitsContext {
             baselines,
             num_visibility_pols,
             metafits_filename,
+            oversampled,
+            deripple_applied,
+            deripple_param,
         })
     }
 
@@ -1105,6 +1145,8 @@ impl fmt::Display for MetafitsContext {
 
     Num coarse channels:      {ncc},
     Coarse Channels:          {cc:?},
+    Oversampled coarse chans: {os},
+    Deripple applied:         {dr} ({dr_param}),
 
     Num fine channels:        {nfc},
     Fine Channels (kHz):      {fc:?},
@@ -1164,6 +1206,12 @@ impl fmt::Display for MetafitsContext {
             nts = self.metafits_timesteps.len(),
             cc = self.metafits_coarse_chans,
             ncc = self.metafits_coarse_chans.len(),
+            os = self.oversampled,
+            dr = self.deripple_applied,
+            dr_param = match self.deripple_applied {
+                true => self.deripple_param.to_string(),
+                false => String::from("N/A"),
+            },
             nfc = self.metafits_fine_chan_freqs_hz.len(),
             fc = self
                 .metafits_fine_chan_freqs_hz
@@ -1194,7 +1242,7 @@ impl fmt::Display for MetafitsContext {
             lst = self.lst_deg,
             ha = self.hour_angle_string,
             grid = self.grid_name,
-            grid_n = self.grid_number.to_string(),
+            grid_n = self.grid_number,
             calib = self.calibrator,
             calsrc = self.calibrator_source,
             n_ants = self.num_ants,

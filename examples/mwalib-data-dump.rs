@@ -56,8 +56,8 @@ fn dump_data<T: AsRef<std::path::Path>>(
     let mut dump_file = File::create(dump_filename)?;
     println!("Dumping data via mwalib...");
     let context = CorrelatorContext::new(metafits, files)?;
-    let coarse_chan_array = context.coarse_chans.clone();
-    let timestep_array = context.timesteps.clone();
+    let coarse_chan_array = &context.coarse_chans;
+    let timestep_array = &context.timesteps;
 
     println!("MWA version: {}", context.mwa_version);
 

@@ -267,6 +267,12 @@ fn test_context_mwax() {
 
     assert_eq!(context.metafits_context.metafits_coarse_chans.len(), 24);
     assert_eq!(context.metafits_context.metafits_timesteps.len(), 120);
+
+    // weights is baselines x 4 visibility pols
+    assert_eq!(
+        context.num_timestep_coarse_chan_weight_floats,
+        ((128 * 129) / 2) * 4
+    )
 }
 
 #[test]
@@ -1180,4 +1186,124 @@ fn test_context_legacy_v1_get_fine_chan_feqs_some_coarse_chans() {
         "calc value: {}",
         fine_chan_freqs[128]
     );
+}
+
+#[test]
+fn test_read_weights_by_baseline_invalid_inputs() {
+    let mwax_metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+    let mwax_filename = "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
+
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![mwax_filename];
+    let context = CorrelatorContext::new(mwax_metafits_filename, &gpuboxfiles)
+        .expect("Failed to create CorrelatorContext");
+
+    // 99999 is invalid as a timestep for this observation
+    let result_invalid_timestep = context.read_by_baseline(99999, 10);
+
+    assert!(matches!(
+        result_invalid_timestep.unwrap_err(),
+        GpuboxError::InvalidTimeStepIndex(_)
+    ));
+
+    // 99999 is invalid as a coarse_chan for this observation
+    let result_invalid_coarse_chan = context.read_by_baseline(0, 99999);
+
+    assert!(matches!(
+        result_invalid_coarse_chan.unwrap_err(),
+        GpuboxError::InvalidCoarseChanIndex(_)
+    ));
+
+    // Do another test, this time with no data for the timestep/cc combo
+    let result = context.read_weights_by_baseline(10, 0);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            GpuboxError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
+fn test_read_weights_by_baseline_into_buffer_legacy() {
+    // Buffer should end up with 1.0's since legacy does not have ewights HDUs. Only MWAX does.
+    let mwax_metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+    let mwax_filename =
+        "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+
+    //
+    // Read the legacy file by frequency using mwalib
+    //
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![mwax_filename];
+    let context = CorrelatorContext::new(mwax_metafits_filename, &gpuboxfiles)
+        .expect("Failed to create CorrelatorContext");
+
+    // Read into buffer by baseline
+    let mut mwalib_hdu_weights_by_bl1: Vec<f32> =
+        vec![0.; context.num_timestep_coarse_chan_weight_floats];
+
+    let result_read_bl_buffer =
+        context.read_weights_by_baseline_into_buffer(0, 0, &mut mwalib_hdu_weights_by_bl1);
+    assert!(result_read_bl_buffer.is_ok());
+
+    // Read by baseline
+    let mwalib_hdu_weights_by_bl2_result = context.read_weights_by_baseline(0, 0);
+    assert!(mwalib_hdu_weights_by_bl2_result.is_ok());
+    // Unwrap to a vector
+    let mwalib_hdu_weights_by_bl2 = mwalib_hdu_weights_by_bl2_result.unwrap();
+
+    // Expected result
+    let expected_weights_by_bl: Vec<f32> =
+        vec![1.0; context.num_timestep_coarse_chan_weight_floats];
+
+    // Check they all match each other
+    assert_eq!(mwalib_hdu_weights_by_bl1, expected_weights_by_bl);
+    assert_eq!(mwalib_hdu_weights_by_bl2, expected_weights_by_bl);
+}
+
+#[test]
+fn test_read_weights_by_baseline_into_buffer_mwax() {
+    // When this obs was created weights would all be 1.0 (but they are real unlike previous test for legacy MWA!)
+    let mwax_metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+    let mwax_filename = "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
+
+    //
+    // Read the legacy file by frequency using mwalib
+    //
+    // Open a context and load in a test metafits and gpubox file
+    let gpuboxfiles = vec![mwax_filename];
+    let context = CorrelatorContext::new(mwax_metafits_filename, &gpuboxfiles)
+        .expect("Failed to create CorrelatorContext");
+
+    assert_eq!(8256 * 4, context.num_timestep_coarse_chan_weight_floats);
+
+    // Read into buffer by baseline
+    let mut mwalib_hdu_weights_by_bl1: Vec<f32> =
+        vec![0.; context.num_timestep_coarse_chan_weight_floats];
+
+    let result_read_bl_buffer =
+        context.read_weights_by_baseline_into_buffer(0, 10, &mut mwalib_hdu_weights_by_bl1);
+    assert!(result_read_bl_buffer.is_ok());
+
+    // Read by baseline
+    let mwalib_hdu_weights_by_bl2_result = context.read_weights_by_baseline(0, 10);
+    assert!(mwalib_hdu_weights_by_bl2_result.is_ok());
+    // Unwrap to a vector
+    let mwalib_hdu_weights_by_bl2 = mwalib_hdu_weights_by_bl2_result.unwrap();
+
+    // Expected result
+    let expected_weights_by_bl: Vec<f32> =
+        vec![1.0; context.num_timestep_coarse_chan_weight_floats];
+
+    // Check they all match each other
+    assert_eq!(mwalib_hdu_weights_by_bl1, expected_weights_by_bl);
+    assert_eq!(mwalib_hdu_weights_by_bl2, expected_weights_by_bl);
 }

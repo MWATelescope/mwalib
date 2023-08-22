@@ -95,8 +95,10 @@ pub struct CorrelatorContext {
 
     /// The number of bytes taken up by a scan/timestep in each gpubox file.
     pub num_timestep_coarse_chan_bytes: usize,
-    /// The number of floats in each gpubox HDU.
+    /// The number of floats in each gpubox visibility HDU.
     pub num_timestep_coarse_chan_floats: usize,
+    /// The number of floats in each gpubox weights HDU.
+    pub num_timestep_coarse_chan_weight_floats: usize,
     /// This is the number of gpubox files *per batch*.
     pub num_gpubox_files: usize,
     /// `gpubox_batches` *must* be sorted appropriately. See
@@ -339,6 +341,9 @@ impl CorrelatorContext {
             _ => Vec::new(),
         };
 
+        let weight_floats: usize =
+            metafits_context.num_baselines * metafits_context.num_visibility_pols;
+
         Ok(CorrelatorContext {
             metafits_context,
             mwa_version: gpubox_info.mwa_version,
@@ -374,6 +379,7 @@ impl CorrelatorContext {
             gpubox_time_map: gpubox_info.time_map,
             num_timestep_coarse_chan_bytes: gpubox_info.hdu_size * 4,
             num_timestep_coarse_chan_floats: gpubox_info.hdu_size,
+            num_timestep_coarse_chan_weight_floats: weight_floats,
             num_gpubox_files: gpubox_filenames.len(),
             legacy_conversion_table,
         })
@@ -465,6 +471,40 @@ impl CorrelatorContext {
         let mut return_buffer: Vec<f32> = vec![0.; self.num_timestep_coarse_chan_floats];
 
         self.read_by_frequency_into_buffer(
+            corr_timestep_index,
+            corr_coarse_chan_index,
+            &mut return_buffer,
+        )?;
+
+        Ok(return_buffer)
+    }
+
+    /// Read weights for a single timestep for a single coarse channel
+    /// The output weights are in order:
+    /// baseline,pol
+    ///
+    /// # Arguments
+    ///
+    /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
+    ///                      to the element within mwalibContext.timesteps.
+    ///
+    /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
+    ///                      to the element within mwalibContext.coarse_chans.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * A Result containing vector of 32 bit floats containing the data in [baseline][pol] order, if Ok.
+    ///
+    ///
+    pub fn read_weights_by_baseline(
+        &self,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
+    ) -> Result<Vec<f32>, GpuboxError> {
+        let mut return_buffer: Vec<f32> = vec![0.; self.num_timestep_coarse_chan_weight_floats];
+
+        self.read_weights_by_baseline_into_buffer(
             corr_timestep_index,
             corr_coarse_chan_index,
             &mut return_buffer,
@@ -674,6 +714,52 @@ impl CorrelatorContext {
                 self.metafits_context.num_corr_fine_chans_per_coarse,
                 self.metafits_context.num_visibility_pols,
             );
+
+            Ok(())
+        }
+    }
+
+    /// Read weights from a single timestep for a single coarse channel
+    /// The output weights are in order:
+    /// baseline,pol
+    ///
+    /// # Arguments
+    ///
+    /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep.
+    ///
+    /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel.
+    ///
+    /// * `buffer` - Float buffer as a slice which will be filled with data from the HDU read in [baseline][pol] order.
+    ///
+    /// # Returns
+    ///
+    /// * A Result of Ok if success or a GpuboxError on failure.
+    ///
+    pub fn read_weights_by_baseline_into_buffer(
+        &self,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
+        buffer: &mut [f32],
+    ) -> Result<(), GpuboxError> {
+        // Validate input timestep_index and coarse_chan_index and return the fits_filename, batch index and hdu of the corresponding data
+        let (fits_filename, _, hdu_index) =
+            self.get_fits_filename_and_batch_and_hdu(corr_timestep_index, corr_coarse_chan_index)?;
+
+        // If we are not MWAXv2, just return an array of 1's
+        if self.mwa_version == MWAVersion::CorrMWAXv2 {
+            // Open the fits file
+            let mut fptr = fits_open!(&fits_filename)?;
+
+            // Use hdu_index + 1 as weights are always +1 from the visibilities for the same timestep
+            let hdu = fits_open_hdu!(&mut fptr, hdu_index + 1)?;
+
+            // Read into caller's buffer
+            get_fits_float_image_into_buffer!(&mut fptr, &hdu, buffer)?;
+
+            Ok(())
+        } else {
+            // Return an array of 1's
+            buffer.fill(1.0);
 
             Ok(())
         }

@@ -182,17 +182,17 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
             row1st = mwax_order[fine_pfb_reorder(row_order)];
             row2nd = mwax_order[fine_pfb_reorder(row_order + 1)];
 
-            full_matrix[((row1st << 8) | col_a)] = source_legacy_ndx; // Top left complex number in the 2x2 correlation square
+            full_matrix[(row1st << 8) | col_a] = source_legacy_ndx; // Top left complex number in the 2x2 correlation square
             source_legacy_ndx += 1;
             // Unless it's one of the 128 redundant outputs from the old correlator
             if col_order != row_order {
-                full_matrix[((row2nd << 8) | col_a)] = source_legacy_ndx; // Bottom left
+                full_matrix[(row2nd << 8) | col_a] = source_legacy_ndx; // Bottom left
             }
             source_legacy_ndx += 1; // NB the source index *isn't* incremented during the 'if'
-            full_matrix[((row1st << 8) | col_b)] = source_legacy_ndx; // Here is the Top right.
+            full_matrix[(row1st << 8) | col_b] = source_legacy_ndx; // Here is the Top right.
             source_legacy_ndx += 1;
 
-            full_matrix[((row2nd << 8) | col_b)] = source_legacy_ndx; // Bottom Right complex number in the 2x2.
+            full_matrix[(row2nd << 8) | col_b] = source_legacy_ndx; // Bottom Right complex number in the 2x2.
             source_legacy_ndx += 1;
         }
     }
@@ -201,10 +201,10 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
         // Now we want to fill in the pointers to conjugates where we don't have the value itself
         for col_order in 0..256 {
             // Go through every cell by row and column
-            if full_matrix[(row_order << 8 | col_order)] == -1 {
+            if full_matrix[row_order << 8 | col_order] == -1 {
                 // If the entry is currently empty (represented by -1)
-                full_matrix[(row_order << 8 | col_order)] =
-                    -(full_matrix[(col_order << 8 | row_order)]); // copy the result from the inverse and negate it
+                full_matrix[row_order << 8 | col_order] =
+                    -(full_matrix[col_order << 8 | row_order]); // copy the result from the inverse and negate it
             }
             // Useful debug
             // print!("{},", full_matrix[row_order << 8 | col_order]);

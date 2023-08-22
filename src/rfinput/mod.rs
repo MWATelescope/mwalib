@@ -14,7 +14,8 @@ mod test;
 
 /// VCS_ORDER is the order that comes out of PFB and into the correlator (for legacy observations)
 /// It can be calculated, so we do that, rather than make the user get a newer metafits (only metafits after mid 2018
-/// have this column pre populated).
+/// have this column pre populated). The VCS_ORDER since it relates to the 256 input PFB has no value for inputs >255.
+/// Therefore we simply return `input` if `input` is > 255
 ///
 ///
 /// # Arguments
@@ -26,7 +27,11 @@ mod test;
 /// * The PFB order - in other MWA code this is a hardcoded array but we prefer to calculate it.
 ///
 fn get_vcs_order(input: u32) -> u32 {
-    (input & 0xC0) | ((input & 0x30) >> 4) | ((input & 0x0F) << 2)
+    if input < 256 {
+        (input & 0xC0) | ((input & 0x30) >> 4) | ((input & 0x0F) << 2)
+    } else {
+        input
+    }
 }
 
 /// mwax_order (aka subfile_order) is the order we want the antennas in, after conversion.
