@@ -6,7 +6,7 @@
 
 use pyo3::prelude::*;
 
-use crate::{CorrelatorContext, MetafitsContext};
+use crate::{gpubox_files::error::*, CorrelatorContext, MetafitsContext};
 
 // Add a python exception for mwalib.
 pyo3::create_exception!(mwalib, MwalibError, pyo3::exceptions::PyException);
@@ -21,5 +21,88 @@ fn mwalib(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MetafitsContext>()?;
     m.add_class::<CorrelatorContext>()?;
     m.add("MwalibError", py.get_type::<MwalibError>())?;
+    m.add(
+        "GpuboxErrorBatchMissing",
+        py.get_type::<PyGpuboxErrorBatchMissing>(),
+    )?;
+    m.add(
+        "GpuboxErrorCorrVerMismatch",
+        py.get_type::<PyGpuboxErrorCorrVerMismatch>(),
+    )?;
+    m.add(
+        "GpuboxErrorEmptyBTreeMap",
+        py.get_type::<PyGpuboxErrorEmptyBTreeMap>(),
+    )?;
+    m.add("GpuboxErrorFits", py.get_type::<PyGpuboxErrorFits>())?;
+    m.add(
+        "GpuboxErrorInvalidCoarseChanIndex",
+        py.get_type::<PyGpuboxErrorInvalidCoarseChanIndex>(),
+    )?;
+    m.add(
+        "GpuboxErrorInvalidMwaVersion",
+        py.get_type::<PyGpuboxErrorInvalidMwaVersion>(),
+    )?;
+    m.add(
+        "GpuboxErrorInvalidTimeStepIndex",
+        py.get_type::<PyGpuboxErrorInvalidTimeStepIndex>(),
+    )?;
+    m.add(
+        "GpuboxErrorLegacyNaxis1Mismatch",
+        py.get_type::<PyGpuboxErrorLegacyNaxis1Mismatch>(),
+    )?;
+    m.add(
+        "GpuboxErrorLegacyNaxis2Mismatch",
+        py.get_type::<PyGpuboxErrorLegacyNaxis2Mismatch>(),
+    )?;
+    m.add(
+        "GpuboxErrorMissingObsid",
+        py.get_type::<PyGpuboxErrorMissingObsid>(),
+    )?;
+    m.add("GpuboxErrorMixture", py.get_type::<PyGpuboxErrorMixture>())?;
+    m.add(
+        "GpuboxErrorMwaxNaxis1Mismatch",
+        py.get_type::<PyGpuboxErrorMwaxNaxis1Mismatch>(),
+    )?;
+    m.add(
+        "GpuboxErrorMwaxNaxis2Mismatch",
+        py.get_type::<PyGpuboxErrorMwaxNaxis2Mismatch>(),
+    )?;
+    m.add(
+        "GpuboxErrorMwaxCorrVerMismatch",
+        py.get_type::<PyGpuboxErrorMwaxCorrVerMismatch>(),
+    )?;
+    m.add(
+        "GpuboxErrorMwaxCorrVerMissing",
+        py.get_type::<PyGpuboxErrorMwaxCorrVerMissing>(),
+    )?;
+    m.add(
+        "GpuboxErrorNoDataForTimeStepCoarseChannel",
+        py.get_type::<PyGpuboxErrorNoDataForTimeStepCoarseChannel>(),
+    )?;
+    m.add(
+        "GpuboxErrorNoDataHDUsInGpuboxFile",
+        py.get_type::<PyGpuboxErrorNoDataHDUsInGpuboxFile>(),
+    )?;
+    m.add(
+        "GpuboxErrorNoGpuboxes",
+        py.get_type::<PyGpuboxErrorNoGpuboxes>(),
+    )?;
+    m.add(
+        "GpuboxErrorObsidMismatch",
+        py.get_type::<PyGpuboxErrorObsidMismatch>(),
+    )?;
+    m.add(
+        "GpuboxErrorUnequalHduSizes",
+        py.get_type::<PyGpuboxErrorUnequalHduSizes>(),
+    )?;
+    m.add(
+        "GpuboxErrorUnevenCountInBatches",
+        py.get_type::<PyGpuboxErrorUnevenCountInBatches>(),
+    )?;
+    m.add(
+        "GpuboxErrorUnrecognised",
+        py.get_type::<PyGpuboxErrorUnrecognised>(),
+    )?;
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }

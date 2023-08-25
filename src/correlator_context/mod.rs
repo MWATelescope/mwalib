@@ -989,7 +989,11 @@ impl fmt::Display for CorrelatorContext {
 }
 
 #[cfg(feature = "python")]
+use ndarray::Array2;
+#[cfg(feature = "python")]
 use ndarray::Array3;
+#[cfg(feature = "python")]
+use numpy::PyArray2;
 #[cfg(feature = "python")]
 use numpy::PyArray3;
 #[cfg(feature = "python")]
@@ -1059,6 +1063,29 @@ impl CorrelatorContext {
         .expect("shape is correct");
         // Convert to a numpy array.
         let data = PyArray3::from_owned_array(py, data);
+        Ok(data)
+    }
+
+    #[pyo3(name = "read_weights_by_baseline")]
+    fn pyo3_read_weights_by_baseline<'py>(
+        &self,
+        py: Python<'py>,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
+    ) -> PyResult<&'py PyArray2<f32>> {
+        // Use the existing Rust method.
+        let data = self.read_weights_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
+        // Convert the vector to a 3D array (this is free).
+        let data = Array2::from_shape_vec(
+            (
+                self.metafits_context.num_baselines,
+                self.metafits_context.num_visibility_pols,
+            ),
+            data,
+        )
+        .expect("shape is correct");
+        // Convert to a numpy array.
+        let data = PyArray2::from_owned_array(py, data);
         Ok(data)
     }
 

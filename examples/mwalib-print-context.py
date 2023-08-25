@@ -7,23 +7,9 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import argparse
-
-from pymwalib.common import MWAVersion
-from pymwalib.correlator_context import CorrelatorContext
-from pymwalib.metafits_context import MetafitsContext
-from pymwalib.version import check_mwalib_version
-from pymwalib.voltage_context import VoltageContext
+import mwalib
 
 if __name__ == "__main__":
-    # ensure we have a compatible mwalib first
-    # You can skip this if you want, but your first pymwalib call will raise an error. Best trap it here
-    # and provide a nice user message
-    try:
-        check_mwalib_version()
-    except Exception as e:
-        print(e)
-        exit(1)
-
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -42,9 +28,10 @@ if __name__ == "__main__":
     if len(args.datafiles) == 0:
         # We invoke a metafits context
         print(
-            "Only metafits file provided, assuming Legacy Correlator interpretation of metafits."
+            "Only metafits file provided, assuming Legacy Correlator interpretation of"
+            " metafits."
         )
-        context = MetafitsContext(args.metafits, MWAVersion.CorrLegacy)
+        context = mwalib.MetafitsContext(args.metafits)
     else:
         corr_suffixes = [x for x in args.datafiles if x[-5:] == ".fits"]
         dat_suffixes = [x for x in args.datafiles if x[-4:] == ".dat"]
@@ -55,16 +42,17 @@ if __name__ == "__main__":
             exit(-2)
         elif len(corr_suffixes) > 0 and len(dat_suffixes) + len(sub_suffixes) == 0:
             print(f"{len(corr_suffixes)} correlator/gpubox files detected")
-            context = CorrelatorContext(args.metafits, args.datafiles)
+            context = mwalib.CorrelatorContext(args.metafits, args.datafiles)
         elif (
             len(dat_suffixes) > 0 and len(corr_suffixes) + len(sub_suffixes) == 0
         ) or (len(sub_suffixes) > 0 and len(corr_suffixes) + len(dat_suffixes) == 0):
             print(f"{len(dat_suffixes)} voltage data files detected")
-            context = VoltageContext(args.metafits, args.datafiles)
+            pass
+            # context = VoltageContext(args.metafits, args.datafiles)
         else:
             print("Error: Combination of different data files supplied.")
             exit(-3)
 
     # Test the debug "display" method
     print("\nTesting Display method:")
-    context.display()
+    print(context)
