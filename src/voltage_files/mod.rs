@@ -29,6 +29,8 @@ pub(crate) struct ObsTimesAndChans {
 /// e.g.
 /// MWA Legacy: obsid_gpstime_datetime_chan
 /// MWAX      : obsid_gpstime_datetime_chan
+#[derive(Clone)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub struct VoltageFileBatch {
     pub gps_time_seconds: u64,           // 1234567890
     pub voltage_files: Vec<VoltageFile>, // Vector storing the details of each voltage file in this batch
@@ -54,6 +56,8 @@ impl fmt::Debug for VoltageFileBatch {
 }
 
 /// This represents one voltage file
+#[derive(Clone)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub struct VoltageFile {
     /// Filename of voltage file
     pub filename: String,

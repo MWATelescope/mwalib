@@ -2471,11 +2471,11 @@ pub struct VoltageMetadata {
     /// Number of bytes in each sample (a sample is a complex, thus includes r and i)
     pub sample_size_bytes: u64,
     /// Number of voltage blocks per timestep
-    pub num_voltage_blocks_per_timestep: u64,
+    pub num_voltage_blocks_per_timestep: usize,
     /// Number of voltage blocks of samples in each second of data    
-    pub num_voltage_blocks_per_second: u64,
+    pub num_voltage_blocks_per_second: usize,
     /// Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
-    pub num_samples_per_voltage_block: u64,
+    pub num_samples_per_voltage_block: usize,
     /// The size of each voltage block    
     pub voltage_block_size_bytes: u64,
     /// Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0

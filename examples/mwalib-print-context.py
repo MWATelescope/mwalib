@@ -46,9 +46,11 @@ if __name__ == "__main__":
         elif (
             len(dat_suffixes) > 0 and len(corr_suffixes) + len(sub_suffixes) == 0
         ) or (len(sub_suffixes) > 0 and len(corr_suffixes) + len(dat_suffixes) == 0):
-            print(f"{len(dat_suffixes)} voltage data files detected")
-            pass
-            # context = VoltageContext(args.metafits, args.datafiles)
+            print(
+                f"{len(dat_suffixes)} legacy voltage data files detected &"
+                f" {len(sub_suffixes)} MWAX voltage data files detected"
+            )
+            context = mwalib.VoltageContext(args.metafits, args.datafiles)
         else:
             print("Error: Combination of different data files supplied.")
             exit(-3)

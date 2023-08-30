@@ -6,7 +6,10 @@
 
 use pyo3::prelude::*;
 
-use crate::{gpubox_files::error::*, CorrelatorContext, MetafitsContext};
+use crate::{
+    gpubox_files::error::*, voltage_files::error::*, CorrelatorContext, MetafitsContext,
+    VoltageContext,
+};
 
 // Add a python exception for mwalib.
 pyo3::create_exception!(mwalib, MwalibError, pyo3::exceptions::PyException);
@@ -20,6 +23,7 @@ impl std::convert::From<crate::MwalibError> for PyErr {
 fn mwalib(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MetafitsContext>()?;
     m.add_class::<CorrelatorContext>()?;
+    m.add_class::<VoltageContext>()?;
     m.add("MwalibError", py.get_type::<MwalibError>())?;
     m.add(
         "GpuboxErrorBatchMissing",
@@ -102,6 +106,80 @@ fn mwalib(py: Python, m: &PyModule) -> PyResult<()> {
     m.add(
         "GpuboxErrorUnrecognised",
         py.get_type::<PyGpuboxErrorUnrecognised>(),
+    )?;
+
+    m.add(
+        "VoltageErrorInvalidTimeStepIndex",
+        py.get_type::<PyVoltageErrorInvalidTimeStepIndex>(),
+    )?;
+    m.add(
+        "VoltageErrorInvalidCoarseChanIndex",
+        py.get_type::<PyVoltageErrorInvalidCoarseChanIndex>(),
+    )?;
+    m.add(
+        "VoltageErrorNoVoltageFiles",
+        py.get_type::<PyVoltageErrorNoVoltageFiles>(),
+    )?;
+    m.add(
+        "VoltageErrorInvalidBufferSize",
+        py.get_type::<PyVoltageErrorInvalidBufferSize>(),
+    )?;
+    m.add(
+        "VoltageErrorInvalidGpsSecondStart",
+        py.get_type::<PyVoltageErrorInvalidGpsSecondStart>(),
+    )?;
+    m.add(
+        "VoltageErrorInvalidVoltageFileSize",
+        py.get_type::<PyVoltageErrorInvalidVoltageFileSize>(),
+    )?;
+    m.add(
+        "VoltageErrorInvalidGpsSecondCount",
+        py.get_type::<PyVoltageErrorInvalidGpsSecondCount>(),
+    )?;
+    m.add("VoltageError", py.get_type::<PyVoltageError>())?;
+    m.add(
+        "VoltageErrorMixture",
+        py.get_type::<PyVoltageErrorMixture>(),
+    )?;
+    m.add(
+        "VoltageErrorGpsTimeMissing",
+        py.get_type::<PyVoltageErrorGpsTimeMissing>(),
+    )?;
+    m.add(
+        "VoltageErrorUnevenChannelsForGpsTime",
+        py.get_type::<PyVoltageErrorUnevenChannelsForGpsTime>(),
+    )?;
+    m.add(
+        "VoltageErrorUnrecognised",
+        py.get_type::<PyVoltageErrorUnrecognised>(),
+    )?;
+    m.add(
+        "VoltageErrorMissingObsid",
+        py.get_type::<PyVoltageErrorMissingObsid>(),
+    )?;
+    m.add(
+        "VoltageErrorUnequalFileSizes",
+        py.get_type::<PyVoltageErrorUnequalFileSizes>(),
+    )?;
+    m.add(
+        "VoltageErrorMetafitsObsidMismatch",
+        py.get_type::<PyVoltageErrorMetafitsObsidMismatch>(),
+    )?;
+    m.add(
+        "VoltageErrorObsidMismatch",
+        py.get_type::<PyVoltageErrorObsidMismatch>(),
+    )?;
+    m.add(
+        "VoltageErrorEmptyBTreeMap",
+        py.get_type::<PyVoltageErrorEmptyBTreeMap>(),
+    )?;
+    m.add(
+        "VoltageErrorInvalidMwaVersion",
+        py.get_type::<PyVoltageErrorInvalidMwaVersion>(),
+    )?;
+    m.add(
+        "VoltageErrorNoDataForTimeStepCoarseChannel",
+        py.get_type::<PyVoltageErrorNoDataForTimeStepCoarseChannel>(),
     )?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())

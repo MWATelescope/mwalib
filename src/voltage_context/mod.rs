@@ -23,6 +23,7 @@ pub(crate) mod test; // It's pub crate because I reuse some test code in the ffi
 /// `mwalib` voltage captue system (VCS) observation context. This represents the basic metadata for a voltage capture observation.
 ///
 #[derive(Debug)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct VoltageContext {
     /// Observation Metadata obtained from the metafits file
     pub metafits_context: MetafitsContext,
@@ -106,11 +107,11 @@ pub struct VoltageContext {
     /// Number of bytes in each sample (a sample is a complex, thus includes r and i)
     pub sample_size_bytes: u64,
     /// Number of voltage blocks per timestep
-    pub num_voltage_blocks_per_timestep: u64,
+    pub num_voltage_blocks_per_timestep: usize,
     /// Number of voltage blocks of samples in each second of data    
-    pub num_voltage_blocks_per_second: u64,
+    pub num_voltage_blocks_per_second: usize,
     /// Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
-    pub num_samples_per_voltage_block: u64,
+    pub num_samples_per_voltage_block: usize,
     /// The size of each voltage block    
     pub voltage_block_size_bytes: u64,
     /// Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
@@ -348,7 +349,7 @@ impl VoltageContext {
         };
 
         // Number of voltage blocks per timestep
-        let num_voltage_blocks_per_timestep: u64 = match voltage_info.mwa_version {
+        let num_voltage_blocks_per_timestep: usize = match voltage_info.mwa_version {
             MWAVersion::VCSLegacyRecombined => 1,
             MWAVersion::VCSMWAXv2 => 160,
             _ => {
@@ -359,11 +360,11 @@ impl VoltageContext {
         };
 
         // Number of voltage blocks of samples in each second of data
-        let num_voltage_blocks_per_second: u64 =
-            num_voltage_blocks_per_timestep / (voltage_info.voltage_file_interval_ms / 1000);
+        let num_voltage_blocks_per_second: usize = num_voltage_blocks_per_timestep
+            / (voltage_info.voltage_file_interval_ms as usize / 1000);
 
         // Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
-        let num_samples_per_rf_chain_fine_chan_in_a_voltage_block: u64 =
+        let num_samples_per_rf_chain_fine_chan_in_a_voltage_block: usize =
             match voltage_info.mwa_version {
                 MWAVersion::VCSLegacyRecombined => 10_000,
                 MWAVersion::VCSMWAXv2 => match metafits_context.oversampled {
@@ -379,6 +380,7 @@ impl VoltageContext {
 
         // The size of each voltage block
         let voltage_block_size_bytes: u64 = num_samples_per_rf_chain_fine_chan_in_a_voltage_block
+            as u64
             * metafits_context.num_rf_inputs as u64
             * num_fine_chans_per_coarse as u64
             * sample_size_bytes;
@@ -410,7 +412,7 @@ impl VoltageContext {
         // MWAX 128T should be   4096+32768000+(32,768,000  * 160 blocks) == 5,275,652,096 bytes (for 8 secs of data)
         let expected_voltage_data_file_size_bytes: u64 = data_file_header_size_bytes
             + delay_block_size_bytes
-            + (voltage_block_size_bytes * num_voltage_blocks_per_timestep);
+            + (voltage_block_size_bytes * num_voltage_blocks_per_timestep as u64);
 
         // The rf inputs should be sorted depending on the CorrVersion
         match voltage_info.mwa_version {
@@ -635,8 +637,8 @@ impl VoltageContext {
                 .floor() as usize;
 
         // Check output buffer is big enough
-        let expected_buffer_size = (self.voltage_block_size_bytes
-            * self.num_voltage_blocks_per_second) as usize
+        let expected_buffer_size: usize = self.voltage_block_size_bytes as usize
+            * self.num_voltage_blocks_per_second
             * gps_second_count;
 
         if buffer.len() != expected_buffer_size {
@@ -719,7 +721,7 @@ impl VoltageContext {
                         .seek(SeekFrom::Start(
                             self.data_file_header_size_bytes
                                 + self.delay_block_size_bytes
-                                + (block_index * chunk_size as u64),
+                                + (block_index as u64 * chunk_size as u64),
                         ))
                         .expect("Unable to seek to next data block in voltage file");
 
@@ -858,7 +860,7 @@ impl VoltageContext {
             metadata.len(),
             self.data_file_header_size_bytes
                 + self.delay_block_size_bytes
-                + (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep),
+                + (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep as u64),
             "header={} + delay={} + vb_size={} + vb_per_ts={}",
             self.data_file_header_size_bytes,
             self.delay_block_size_bytes,
@@ -868,7 +870,7 @@ impl VoltageContext {
 
         // Check buffer is big enough
         let expected_buffer_size =
-            (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep) as usize;
+            self.voltage_block_size_bytes as usize * self.num_voltage_blocks_per_timestep;
 
         if buffer.len() != expected_buffer_size {
             return Err(VoltageFileError::InvalidBufferSize(
@@ -1013,4 +1015,185 @@ impl fmt::Display for VoltageContext {
             batches = self.voltage_batches,
         )
     }
+}
+
+#[cfg(feature = "python")]
+use ndarray::Array;
+#[cfg(feature = "python")]
+use ndarray::Dim;
+#[cfg(feature = "python")]
+use numpy::PyArray;
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+
+#[cfg(feature = "python")]
+#[pymethods]
+impl VoltageContext {
+    #[new]
+    fn pyo3_new(metafits_filename: PyObject, voltage_filenames: Vec<PyObject>) -> PyResult<Self> {
+        // Convert the gpubox filenames.
+        let voltage_filenames: Vec<String> = voltage_filenames
+            .into_iter()
+            .map(|g| g.to_string())
+            .collect();
+        let c: VoltageContext =
+            VoltageContext::new(metafits_filename.to_string(), &voltage_filenames)?;
+        Ok(c)
+    }
+
+    #[pyo3(name = "read_file")]
+    fn pyo3_read_file<'py>(
+        &self,
+        py: Python<'py>,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
+    ) -> PyResult<&'py PyArray<u8, Dim<[usize; 5]>>> {
+        // Use the existing Rust method.
+        let mut data: Vec<u8> = vec![
+            0;
+            self.num_voltage_blocks_per_timestep as usize
+                * self.metafits_context.num_rf_inputs
+                * self.num_fine_chans_per_coarse
+                * self.num_samples_per_voltage_block as usize
+                * self.sample_size_bytes as usize
+        ];
+        self.read_file(corr_timestep_index, corr_coarse_chan_index, &mut data)?;
+
+        // Convert the vector to a 3D array (this is free).
+        // NOTE: The shape is different between LegacyVCS and MWAX VCS
+        // Legacy: [time sample][chan][ant][pol][complexity]
+        //         where complexity is a byte (4 bits for real, 4 bits for imaginary) in 2's compliment
+        //
+        // MWAX  : [voltage_block][antenna][pol][sample][r,i]
+        let data = match self.mwa_version {
+            MWAVersion::VCSLegacyRecombined => Array::from_shape_vec(
+                (
+                    self.num_samples_per_voltage_block,
+                    self.num_fine_chans_per_coarse,
+                    self.metafits_context.num_ants,
+                    self.metafits_context.num_ant_pols,
+                    self.sample_size_bytes as usize,
+                ),
+                data,
+            )
+            .expect("shape of data should match expected dimensions of Legacy VCS Recombined data (num_samples_per_voltage_block, num_fine_chans_per_coarse, num_ants, num_ant_pols, 1)"),
+            MWAVersion::VCSMWAXv2 => Array::from_shape_vec(
+                (
+                    self.num_voltage_blocks_per_timestep,
+                    self.metafits_context.num_ants,
+                    self.metafits_context.num_ant_pols,
+                    self.num_samples_per_voltage_block,
+                    self.sample_size_bytes as usize,
+                ),
+                data,
+            )
+            .expect("shape of data should match expected dimensions of MWAX VCS data (num_voltage_blocks_per_timestep, num_ants, num_ant_pols, num_samples_per_voltage_block, 2)"),
+            _ => {
+                return Err(voltage_files::error::PyVoltageErrorInvalidMwaVersion::new_err(
+                    "Invalid MwaVersion",
+                ));
+            }
+        };
+        // Convert to a numpy array.
+        let data = PyArray::from_owned_array(py, data);
+        Ok(data)
+    }
+
+    #[pyo3(name = "read_second")]
+    fn pyo3_read_second<'py>(
+        &self,
+        py: Python<'py>,
+        gps_second_start: u64,
+        gps_second_count: usize,
+        corr_coarse_chan_index: usize,
+    ) -> PyResult<&'py PyArray<u8, Dim<[usize; 6]>>> {
+        // Use the existing Rust method.
+        let mut data: Vec<u8> = match self.mwa_version {
+            MWAVersion::VCSMWAXv2 => vec![
+                0;
+                self.num_voltage_blocks_per_second as usize
+                    * self.metafits_context.num_rf_inputs
+                    * self.num_samples_per_voltage_block as usize
+                    * self.metafits_context.num_volt_fine_chans_per_coarse
+                    * self.sample_size_bytes as usize
+                    * gps_second_count
+            ],
+            MWAVersion::VCSLegacyRecombined => {
+                vec![
+                    0;
+                    self.num_voltage_blocks_per_second as usize
+                        * self.metafits_context.num_rf_inputs
+                        * self.num_samples_per_voltage_block as usize
+                        * self.metafits_context.num_volt_fine_chans_per_coarse
+                        * self.sample_size_bytes as usize
+                        * gps_second_count
+                ]
+            }
+            _ => {
+                return Err(
+                    voltage_files::error::PyVoltageErrorInvalidMwaVersion::new_err(
+                        "Invalid MwaVersion",
+                    ),
+                );
+            }
+        };
+        self.read_second(
+            gps_second_start,
+            gps_second_count,
+            corr_coarse_chan_index,
+            &mut data,
+        )?;
+
+        // Convert the vector to a 3D array (this is free).
+        // NOTE: The shape is different between LegacyVCS and MWAX VCS
+        // Legacy: [time sample][chan][ant][pol][complexity]
+        //         where complexity is a byte (4 bits for real, 4 bits for imaginary) in 2's compliment
+        //
+        // MWAX  : [voltage_block][antenna][pol][sample][r,i]
+        let data = match self.mwa_version {
+            MWAVersion::VCSLegacyRecombined => Array::from_shape_vec(
+                (
+                    gps_second_count,
+                    self.num_samples_per_voltage_block,
+                    self.num_fine_chans_per_coarse,
+                    self.metafits_context.num_ants,
+                    self.metafits_context.num_ant_pols,
+                    self.sample_size_bytes as usize,
+                ),
+                data,
+            )
+            .expect("shape of data should match expected dimensions of Legacy VCS Recombined data (gps_second_count, num_samples_per_voltage_block, num_fine_chans_per_coarse, num_ants, num_ant_pols, 1)"),
+            MWAVersion::VCSMWAXv2 => Array::from_shape_vec(
+                (
+                    gps_second_count,
+                    self.num_voltage_blocks_per_second,
+                    self.metafits_context.num_ants,
+                    self.metafits_context.num_ant_pols,
+                    self.num_samples_per_voltage_block,
+                    self.sample_size_bytes as usize,
+                ),
+                data,
+            )
+            .expect("shape of data should match expected dimensions of MWAX VCS data (gps_second_count, num_voltage_blocks_per_timestep, num_ants, num_ant_pols, num_samples_per_voltage_block, 2)"),
+            _ => {
+                return Err(voltage_files::error::PyVoltageErrorInvalidMwaVersion::new_err(
+                    "Invalid MwaVersion",
+                ));
+            }
+        };
+        // Convert to a numpy array.
+        let data = PyArray::from_owned_array(py, data);
+        Ok(data)
+    }
+
+    // https://pyo3.rs/v0.17.3/class/object.html#string-representations
+    fn __repr__(&self) -> String {
+        format!("{}", self)
+    }
+
+    fn __enter__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+
+    fn __exit__(&mut self, _exc_type: &PyAny, _exc_value: &PyAny, _traceback: &PyAny) {}
 }

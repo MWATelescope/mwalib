@@ -291,75 +291,55 @@ create_exception!(
 impl std::convert::From<GpuboxError> for PyErr {
     fn from(err: GpuboxError) -> PyErr {
         match &err {
-            GpuboxError::BatchMissing {
-                expected: _,
-                got: _,
-            } => PyGpuboxErrorBatchMissing::new_err(err.to_string()),
-            GpuboxError::CorrVerMismatch {
-                gpubox_filename: _,
-                gpu_corr_version_value: _,
-            } => PyGpuboxErrorCorrVerMismatch::new_err(err.to_string()),
+            GpuboxError::BatchMissing { .. } => PyGpuboxErrorBatchMissing::new_err(err.to_string()),
+            GpuboxError::CorrVerMismatch { .. } => {
+                PyGpuboxErrorCorrVerMismatch::new_err(err.to_string())
+            }
             GpuboxError::EmptyBTreeMap {} => PyGpuboxErrorEmptyBTreeMap::new_err(err.to_string()),
             GpuboxError::Fits(_) => PyGpuboxErrorFits::new_err(err.to_string()),
             GpuboxError::InvalidCoarseChanIndex(_) => {
                 PyGpuboxErrorInvalidCoarseChanIndex::new_err(err.to_string())
             }
-            GpuboxError::InvalidMwaVersion { mwa_version: _ } => {
+            GpuboxError::InvalidMwaVersion { .. } => {
                 PyGpuboxErrorInvalidMwaVersion::new_err(err.to_string())
             }
             GpuboxError::InvalidTimeStepIndex(_) => {
                 PyGpuboxErrorInvalidTimeStepIndex::new_err(err.to_string())
             }
-            GpuboxError::LegacyNaxis1Mismatch {
-                calculated_naxis1: _,
-                metafits_baselines: _,
-                naxis1: _,
-                visibility_pols: _,
-                naxis2: _,
-            } => PyGpuboxErrorLegacyNaxis1Mismatch::new_err(err.to_string()),
-            GpuboxError::LegacyNaxis2Mismatch {
-                naxis2: _,
-                calculated_naxis2: _,
-                metafits_fine_chans_per_coarse: _,
-            } => PyGpuboxErrorLegacyNaxis2Mismatch::new_err(err.to_string()),
+            GpuboxError::LegacyNaxis1Mismatch { .. } => {
+                PyGpuboxErrorLegacyNaxis1Mismatch::new_err(err.to_string())
+            }
+            GpuboxError::LegacyNaxis2Mismatch { .. } => {
+                PyGpuboxErrorLegacyNaxis2Mismatch::new_err(err.to_string())
+            }
             GpuboxError::MissingObsid(_) => PyGpuboxErrorMissingObsid::new_err(err.to_string()),
             GpuboxError::Mixture {} => PyGpuboxErrorMixture::new_err(err.to_string()),
-            GpuboxError::MwaxNaxis1Mismatch {
-                naxis1: _,
-                calculated_naxis1: _,
-                metafits_fine_chans_per_coarse: _,
-                visibility_pols: _,
-                naxis2: _,
-            } => PyGpuboxErrorMwaxNaxis1Mismatch::new_err(err.to_string()),
-            GpuboxError::MwaxNaxis2Mismatch {
-                naxis2: _,
-                calculated_naxis2: _,
-                metafits_baselines: _,
-            } => PyGpuboxErrorMwaxNaxis2Mismatch::new_err(err.to_string()),
+            GpuboxError::MwaxNaxis1Mismatch { .. } => {
+                PyGpuboxErrorMwaxNaxis1Mismatch::new_err(err.to_string())
+            }
+            GpuboxError::MwaxNaxis2Mismatch { .. } => {
+                PyGpuboxErrorMwaxNaxis2Mismatch::new_err(err.to_string())
+            }
             GpuboxError::MwaxCorrVerMismatch(_) => {
                 PyGpuboxErrorMwaxCorrVerMismatch::new_err(err.to_string())
             }
             GpuboxError::MwaxCorrVerMissing(_) => {
                 PyGpuboxErrorMwaxCorrVerMissing::new_err(err.to_string())
             }
-            GpuboxError::NoDataForTimeStepCoarseChannel {
-                timestep_index: _,
-                coarse_chan_index: _,
-            } => PyGpuboxErrorNoDataForTimeStepCoarseChannel::new_err(err.to_string()),
+            GpuboxError::NoDataForTimeStepCoarseChannel { .. } => {
+                PyGpuboxErrorNoDataForTimeStepCoarseChannel::new_err(err.to_string())
+            }
             GpuboxError::NoDataHDUsInGpuboxFile { gpubox_filename: _ } => {
                 PyGpuboxErrorNoDataHDUsInGpuboxFile::new_err(err.to_string())
             }
             GpuboxError::NoGpuboxes => PyGpuboxErrorNoGpuboxes::new_err(err.to_string()),
-            GpuboxError::ObsidMismatch {
-                obsid: _,
-                gpubox_filename: _,
-                gpubox_obsid: _,
-            } => PyGpuboxErrorObsidMismatch::new_err(err.to_string()),
+            GpuboxError::ObsidMismatch { .. } => {
+                PyGpuboxErrorObsidMismatch::new_err(err.to_string())
+            }
             GpuboxError::UnequalHduSizes => PyGpuboxErrorUnequalHduSizes::new_err(err.to_string()),
-            GpuboxError::UnevenCountInBatches {
-                expected: _,
-                got: _,
-            } => PyGpuboxErrorUnevenCountInBatches::new_err(err.to_string()),
+            GpuboxError::UnevenCountInBatches { .. } => {
+                PyGpuboxErrorUnevenCountInBatches::new_err(err.to_string())
+            }
             GpuboxError::Unrecognised(_) => PyGpuboxErrorUnrecognised::new_err(err.to_string()),
         }
     }
