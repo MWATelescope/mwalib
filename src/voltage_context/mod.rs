@@ -1051,10 +1051,10 @@ impl VoltageContext {
         // Use the existing Rust method.
         let mut data: Vec<u8> = vec![
             0;
-            self.num_voltage_blocks_per_timestep as usize
+            self.num_voltage_blocks_per_timestep
                 * self.metafits_context.num_rf_inputs
                 * self.num_fine_chans_per_coarse
-                * self.num_samples_per_voltage_block as usize
+                * self.num_samples_per_voltage_block
                 * self.sample_size_bytes as usize
         ];
         self.read_file(corr_timestep_index, corr_coarse_chan_index, &mut data)?;
@@ -1113,9 +1113,9 @@ impl VoltageContext {
         let mut data: Vec<u8> = match self.mwa_version {
             MWAVersion::VCSMWAXv2 => vec![
                 0;
-                self.num_voltage_blocks_per_second as usize
+                self.num_voltage_blocks_per_second
                     * self.metafits_context.num_rf_inputs
-                    * self.num_samples_per_voltage_block as usize
+                    * self.num_samples_per_voltage_block
                     * self.metafits_context.num_volt_fine_chans_per_coarse
                     * self.sample_size_bytes as usize
                     * gps_second_count
@@ -1123,9 +1123,9 @@ impl VoltageContext {
             MWAVersion::VCSLegacyRecombined => {
                 vec![
                     0;
-                    self.num_voltage_blocks_per_second as usize
+                    self.num_voltage_blocks_per_second
                         * self.metafits_context.num_rf_inputs
-                        * self.num_samples_per_voltage_block as usize
+                        * self.num_samples_per_voltage_block
                         * self.metafits_context.num_volt_fine_chans_per_coarse
                         * self.sample_size_bytes as usize
                         * gps_second_count

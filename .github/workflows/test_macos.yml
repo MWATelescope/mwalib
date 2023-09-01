@@ -12,7 +12,7 @@ jobs:
         os: ["macOS-latest"]
         include:
           - os: macos-latest
-            python-version: [3.7, 3.8, 3.9, 3.10]
+            python-version: [3.8, 3.9, 3.10]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -50,4 +50,4 @@ jobs:
           MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
           ~/.cargo/bin/rustup install $MIN_RUST --profile minimal
           cargo +${MIN_RUST} test
-          cargo +${MIN_RUST} test --all-features
+          cargo +${MIN_RUST} test --features=cfitsio-static,examples

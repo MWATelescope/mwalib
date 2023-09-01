@@ -594,13 +594,10 @@ impl MetafitsContext {
         let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
 
         // oversampled not garaunteed to be in the metafits. Default to False
-        let oversampled: bool =
-            match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "OVERSAMP")?
-                .unwrap_or(0)
-            {
-                1 => true,
-                _ => false,
-            };
+        let oversampled: bool = matches!(
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "OVERSAMP")?.unwrap_or(0),
+            1
+        );
 
         // from MWA_Tools/CONV2UVFITS/convutils.h
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
@@ -834,16 +831,10 @@ impl MetafitsContext {
 
         // Deripple
         // It is stored as a bool DR_FLAG.
-        let deripple_applied: bool = match get_optional_fits_key!(
-            &mut metafits_fptr,
-            &metafits_hdu,
-            "DR_FLAG"
-        )?
-        .unwrap_or(0)
-        {
-            1 => true,
-            _ => false,
-        };
+        let deripple_applied: bool = matches!(
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DR_FLAG")?.unwrap_or(0),
+            1
+        );
 
         // deripple_param is the type of deripple applied
         let deripple_param: String =

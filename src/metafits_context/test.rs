@@ -258,10 +258,10 @@ fn test_metafits_context_new_corrlegacy_valid() {
     );
 
     // Test oversample flag
-    assert_eq!(context.oversampled, false);
+    assert!(!context.oversampled);
 
     // test deripple
-    assert_eq!(context.deripple_applied, false);
+    assert!(!context.deripple_applied);
 }
 
 #[test]
@@ -679,7 +679,7 @@ fn test_deripple_on_in_metafits() {
 
     let context = result.unwrap();
 
-    assert_eq!(context.deripple_applied, true);
+    assert!(context.deripple_applied);
     assert_eq!(context.deripple_param, "deripplev1");
 }
 
@@ -694,5 +694,5 @@ fn test_oversampling_on_in_metafits() {
 
     let context = result.unwrap();
 
-    assert_eq!(context.oversampled, true);
+    assert!(context.oversampled);
 }

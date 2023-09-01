@@ -36,28 +36,22 @@ fn generate_test_voltage_file(
     let mut output_file: File = File::create(filename)?;
 
     // Write out header if one is needed
-    match mwa_version {
-        MWAVersion::VCSMWAXv2 => {
-            let header_buffer: Vec<u8> = vec![0x01; 4096];
-            output_file
-                .write_all(&header_buffer)
-                .expect("Cannot write header!");
-        }
-        _ => {}
+    if mwa_version == MWAVersion::VCSMWAXv2 {
+        let header_buffer: Vec<u8> = vec![0x01; 4096];
+        output_file
+            .write_all(&header_buffer)
+            .expect("Cannot write header!");
     }
 
     // Each voltage_block has samples_per_rf_fine for each combination of rfinputs x fine_chans
     let num_bytes_per_voltage_block = samples_per_block * rf_inputs * fine_chans * bytes_per_sample;
 
     // Write out delay block if one is needed
-    match mwa_version {
-        MWAVersion::VCSMWAXv2 => {
-            let delay_buffer: Vec<u8> = vec![0x02; num_bytes_per_voltage_block];
-            output_file
-                .write_all(&delay_buffer)
-                .expect("Cannot write delay block!");
-        }
-        _ => {}
+    if mwa_version == MWAVersion::VCSMWAXv2 {
+        let delay_buffer: Vec<u8> = vec![0x02; num_bytes_per_voltage_block];
+        output_file
+            .write_all(&delay_buffer)
+            .expect("Cannot write delay block!");
     }
 
     // Write out num_voltage_blocks
