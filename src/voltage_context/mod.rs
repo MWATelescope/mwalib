@@ -1047,7 +1047,7 @@ impl VoltageContext {
         py: Python<'py>,
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray<u8, Dim<[usize; 5]>>> {
+    ) -> PyResult<&'py PyArray<u8, Dim<[usize; 6]>>> {
         // Use the existing Rust method.
         let mut data: Vec<u8> = vec![
             0;
@@ -1068,6 +1068,7 @@ impl VoltageContext {
         let data = match self.mwa_version {
             MWAVersion::VCSLegacyRecombined => Array::from_shape_vec(
                 (
+                    1, // There is 1 second per timestep for Legacy VCS 
                     self.num_samples_per_voltage_block,
                     self.num_fine_chans_per_coarse,
                     self.metafits_context.num_ants,
@@ -1079,7 +1080,8 @@ impl VoltageContext {
             .expect("shape of data should match expected dimensions of Legacy VCS Recombined data (num_samples_per_voltage_block, num_fine_chans_per_coarse, num_ants, num_ant_pols, 1)"),
             MWAVersion::VCSMWAXv2 => Array::from_shape_vec(
                 (
-                    self.num_voltage_blocks_per_timestep,
+                    8, // There are 8 seconds in a timestep for MWAX VCS
+                    self.num_voltage_blocks_per_second,
                     self.metafits_context.num_ants,
                     self.metafits_context.num_ant_pols,
                     self.num_samples_per_voltage_block,

@@ -9,7 +9,7 @@ jobs:
   test_linux:
     strategy:
       matrix:
-        os: ["ubuntu-20.04", "ubuntu-22.04"]
+        os: ["ubuntu-20.04", "ubuntu-22.04"] 
     runs-on: ${{ matrix.os }}
 
     steps:
