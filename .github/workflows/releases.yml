@@ -19,7 +19,7 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v3
     
-    - name: Build hyperbeam
+    - name: Build mwalib
       uses: docker://chjordan/maturin:latest
       with:
         entrypoint: /bin/bash
