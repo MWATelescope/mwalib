@@ -52,6 +52,9 @@ jobs:
         override: true
         components: llvm-tools
 
+    - name: Install cargo-llvm-cov
+      run: cargo install cargo-llvm-cov
+
     - uses: actions/checkout@v3
     - name: Set up Python 3.10
       uses: actions/setup-python@v4
@@ -67,10 +70,20 @@ jobs:
         pip3 install maturin==1.2.3 
 
         mkdir -p coverage
-        cargo llvm-cov clean --workspace
+        cargo llvm-cov clean --workspace      
+
+        # Run rust tests to generate test data
+        cargo test --features=cfitsio-static
+
+        # build python
         maturin develop --features=python,cfitsio-static
+
+        # Coverage for python tests
         pytest tests --cov=mwalib --cov-report xml:coverage/coverage.xml tests
+
+        # Coverage for rust tests
         cargo llvm-cov --features cfitsio-static,examples --lcov --output-path coverage/coverage.lcov
+
         # this uses the result of the previous run to generate a text summary
         cargo llvm-cov report
 
