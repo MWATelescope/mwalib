@@ -7,13 +7,7 @@ This directory is for tests relating to the python bindings.
 * Build from the root `mwalib` directory using:
 
 ```bash
-maturin develop -b pyo3 --features=python --strip
-```
-
-* Change to the `tests` directory:
-
-```bash
-cd tests
+maturin develop --features=python,cfitsio-static --strip
 ```
 
 * Install prerequisites

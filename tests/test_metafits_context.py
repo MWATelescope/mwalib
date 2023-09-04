@@ -11,8 +11,8 @@ import datetime
 import mwalib
 import pytest
 
-MWAX_CORRELATOR_METAFITS = "../test_files/1244973688_1_timestep/1244973688.metafits"
-LEGACY_CORRELATOR_METAFITS = "../test_files/1101503312_1_timestep/1101503312.metafits"
+MWAX_CORRELATOR_METAFITS = "test_files/1244973688_1_timestep/1244973688.metafits"
+LEGACY_CORRELATOR_METAFITS = "test_files/1101503312_1_timestep/1101503312.metafits"
 
 
 @pytest.fixture

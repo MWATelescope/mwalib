@@ -11,21 +11,21 @@ import mwalib
 import numpy as np
 import pytest
 
-MWAX_VCS_METAFITS = "../test_files/1101503312_mwax_vcs/1101503312.metafits"
+MWAX_VCS_METAFITS = "test_files/1101503312_mwax_vcs/1101503312.metafits"
 MWAX_VCS_VOLTAGE_FILES = [
-    "../test_files/1101503312_mwax_vcs/1101503312_1101503312_123.sub",
-    "../test_files/1101503312_mwax_vcs/1101503312_1101503312_124.sub",
-    "../test_files/1101503312_mwax_vcs/1101503312_1101503320_123.sub",
-    "../test_files/1101503312_mwax_vcs/1101503312_1101503320_124.sub",
+    "test_files/1101503312_mwax_vcs/1101503312_1101503312_123.sub",
+    "test_files/1101503312_mwax_vcs/1101503312_1101503312_124.sub",
+    "test_files/1101503312_mwax_vcs/1101503312_1101503320_123.sub",
+    "test_files/1101503312_mwax_vcs/1101503312_1101503320_124.sub",
 ]
 
 
-LEGACY_VCS_METAFITS = "../test_files/1101503312_vcs/1101503312.metafits"
+LEGACY_VCS_METAFITS = "test_files/1101503312_vcs/1101503312.metafits"
 LEGACY_VCS_VOLTAGE_FILES = [
-    "../test_files/1101503312_vcs/1101503312_1101503312_ch123.dat",
-    "../test_files/1101503312_vcs/1101503312_1101503312_ch124.dat",
-    "../test_files/1101503312_vcs/1101503312_1101503313_ch123.dat",
-    "../test_files/1101503312_vcs/1101503312_1101503313_ch124.dat",
+    "test_files/1101503312_vcs/1101503312_1101503312_ch123.dat",
+    "test_files/1101503312_vcs/1101503312_1101503312_ch124.dat",
+    "test_files/1101503312_vcs/1101503312_1101503313_ch123.dat",
+    "test_files/1101503312_vcs/1101503312_1101503313_ch124.dat",
 ]
 
 

@@ -11,15 +11,15 @@ import mwalib
 import numpy as np
 import pytest
 
-MWAX_CORRELATOR_METAFITS = "../test_files/1244973688_1_timestep/1244973688.metafits"
+MWAX_CORRELATOR_METAFITS = "test_files/1244973688_1_timestep/1244973688.metafits"
 MWAX_CORRELATOR_GPUBOX_FILES = [
-    "../test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits",
-    "../test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_001.fits",
+    "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits",
+    "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_001.fits",
 ]
 
-LEGACY_CORRELATOR_METAFITS = "../test_files/1101503312_1_timestep/1101503312.metafits"
+LEGACY_CORRELATOR_METAFITS = "test_files/1101503312_1_timestep/1101503312.metafits"
 LEGACY_CORRELATOR_GPUBOX_FILES = [
-    "../test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
+    "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits",
 ]
 
 
