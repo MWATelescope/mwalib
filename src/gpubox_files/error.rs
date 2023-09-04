@@ -14,6 +14,7 @@ use thiserror::Error;
 
 use crate::MWAVersion;
 
+/// GpuboxError subtypes - mainly used by CorrelatorContext
 #[derive(Error, Debug)]
 pub enum GpuboxError {
     #[error("Invalid timestep index provided. The timestep index must be between 0 and {0}")]

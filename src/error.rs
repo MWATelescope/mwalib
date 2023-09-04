@@ -6,6 +6,7 @@
 
 use thiserror::Error;
 
+/// MwalibError subtypes
 #[derive(Error, Debug)]
 pub enum MwalibError {
     /// An error derived from `FitsError`.

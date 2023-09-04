@@ -158,7 +158,7 @@ struct RfInputMetafitsTableRow {
     slot: u32,
 }
 
-// Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
+/// Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct Rfinput {

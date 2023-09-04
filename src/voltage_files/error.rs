@@ -13,6 +13,7 @@ use pyo3::create_exception;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
+/// VoltageFileError subtypes - mainly used by VoltageContext
 #[derive(Error, Debug)]
 pub enum VoltageFileError {
     #[error("Invalid timestep index provided. The timestep index must be between 0 and {0}")]

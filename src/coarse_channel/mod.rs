@@ -14,7 +14,7 @@ use std::fmt;
 #[cfg(test)]
 mod test;
 
-/// This is a struct for our coarse channels
+/// This is a struct for coarse channels
 #[derive(Clone)]
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct CoarseChannel {

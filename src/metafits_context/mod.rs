@@ -69,7 +69,8 @@ impl fmt::Display for MWAVersion {
     }
 }
 
-/// Visibility polarisation.
+/// Visibility polarisations
+///
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum VisPol {
@@ -105,6 +106,8 @@ impl fmt::Display for VisPol {
     }
 }
 
+/// The type of geometric delays applied to the data
+///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
 #[cfg_attr(feature = "python", pyo3::pyclass)]
@@ -156,6 +159,8 @@ impl std::str::FromStr for GeometricDelaysApplied {
     }
 }
 
+/// The type of cable delays applied to the data
+///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
 #[cfg_attr(feature = "python", pyo3::pyclass)]
@@ -207,6 +212,7 @@ impl std::str::FromStr for CableDelaysApplied {
     }
 }
 
+/// The MODE the system was in for this observation
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]

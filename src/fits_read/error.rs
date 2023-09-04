@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
+/// FitsError subtypes - mainly used by CorrelatorContext
 #[derive(Error, Debug)]
 pub enum FitsError {
     /// Error when opening a fits file.

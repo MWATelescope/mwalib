@@ -10,7 +10,7 @@ use std::fmt;
 #[cfg(test)]
 mod test;
 
-// Structure for storing MWA antennas (tiles without polarisation) information from the metafits file
+/// Structure for storing MWA antennas (tiles without polarisation) information from the metafits file
 #[derive(Clone)]
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct Antenna {
