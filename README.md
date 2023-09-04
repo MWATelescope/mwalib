@@ -4,22 +4,33 @@
 <img src="img/mwalib_logo.png" alt="mwalib logo" height="200px"/>
 </div>
 
-![Linux Tests](https://github.com/MWATelescope/mwalib/workflows/Linux%20Tests/badge.svg)
-![MacOS Tests](https://github.com/MWATelescope/mwalib/workflows/MacOS%20Tests/badge.svg)
+![Tests](https://github.com/MWATelescope/mwalib/workflows/Cross-platform%20tests/badge.svg)
+![Python tests](https://github.com/MWATelescope/mwalib/workflows/Python%20tests/badge.svg)
 ![Code Coverage](https://github.com/MWATelescope/mwalib/workflows/Code%20Coverage/badge.svg)
-[![codecov](https://codecov.io/gh/MWATelescope/mwalib/branch/master/graph/badge.svg)](https://app.codecov.io/gh/MWATelescope/mwalib/)
+[![codecov](https://codecov.io/gh/MWATelescope/mwalib/branch/main/graph/badge.svg)](https://app.codecov.io/gh/MWATelescope/mwalib/)
 [![Crates.io](https://img.shields.io/crates/v/mwalib)](https://crates.io/crates/mwalib)
 ![Crates.io](https://img.shields.io/crates/d/mwalib)
 ![Crates.io](https://img.shields.io/crates/l/mwalib)
 [![docs](https://docs.rs/mwalib/badge.svg)](https://docs.rs/crate/mwalib/latest)
 [![Rust Report Card](https://rust-reportcard.xuri.me/badge/github.com/MWATelescope/mwalib)](https://rust-reportcard.xuri.me/report/github.com/MWATelescope/mwalib)
 
+mwalib is an MWA library to read raw visibilities, voltages and metadata into a common structure.
+mwalib supports the existing "legacy" MWA correlator, as well as the "MWAX" correlator. This library
+strives to provide a single interface to work with all incarnations of MWA metadata, correlator and
+voltage formats and abstract away the nitty gritty details about reading MWA data. The only exception
+is that raw legacy VCS data which has not been recombined is not currently supported.
 
-mwa is an MWA library to read raw visibilities, voltages and metadata into a common structure.
-mwalib supports the existing "legacy" MWA correlator, as well as the in-development
-"MWAX" correlator. This library strives to provide a single interface to work with
-all incarnations of MWA metadatam correlator and voltage formats and abstract away
-the nitty gritty details about reading MWA data.
+mwalib provides the following binaries and implementations with releases starting from v0.18.0 onwards:
+
+| Filename  | Purpose  |
+|-----------|----------|
+|mwalib-vX.X.X-linux-x86-64.tar.gz | Linux "C"/"C++" compatible library - includes ".h" and "libmwalib.a" and "libmwalib.so" library files. |
+|mwalib-vX.X.X-linux-python-x86-64.tar.gz | Linux compatible Python wheel. |
+|mwalib-vX.X.X-macosx-x86-64.tar.gz | MacOSX "C"/"C++" compatible library - includes ".h" and "libmwalib.a" and "libmwalib.so" library files. |
+|mwalib-vX.X.X-macosx-python-x86-64.tar.gz | MacOSX compatible Python wheel. |
+
+NOTE: for both MacOSX and Linux, more optimised build are named with a v2 and v3 after the "x86-64". These suffixes denote that the compilation was optimised for the specified [CPU microarchitecture levels](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels), with "x86-64" being the most compatible with the very oldest CPUs. If you have a CPU which was manufactured after 2008 you are safe with x86-64-v2, and if it is newer than 2015 then you are safe using
+x86-64-v3.
 
 ----
 For installation instructions, concepts and usage info, please see the [`mwalib GitHub Wiki`](https://github.com/MWATelescope/mwalib/wiki).
@@ -27,13 +38,14 @@ For installation instructions, concepts and usage info, please see the [`mwalib 
 ----
 
 Be sure to also check out these related repositories:
+
 * [`Birli`](https://github.com/MWATelescope/Birli) - A Murchison Widefield Array (MWA) pre-processing pipeline.
 * [`Marlu`](https://github.com/MWATelescope/Marlu) - Convenience Rust code that handles coordinate transformations, Jones matrices, etc.
 * [`Hyperdrive`](https://github.com/MWATelescope/mwa_hyperdrive) - Calibration software for the Murchison Widefield Array (MWA) radio telescope.
 
 ## Example test output
 
-```
+```text
 CorrelatorContext (
             Metafits Context:           MetafitsContext (
     obsid:                    1101503312,

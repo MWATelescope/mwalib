@@ -1,4 +1,4 @@
-name: Cross-platform tests
+name: Python tests
 
 on: [push, pull_request]
 
@@ -27,13 +27,15 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-
-    - name: Run tests
-      run: cargo test --release --features cfitsio-static,examples
-
-    - name: Minimum-specified Rust version works
+    
+    - name: Run pytests
       run: |
-          MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
-          ~/.cargo/bin/rustup install $MIN_RUST --profile minimal
-          cargo +${MIN_RUST} test
-          cargo +${MIN_RUST} test --features cfitsio-static,examples
+          pip3 install maturin==1.2.3
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            brew install automake
+          fi
+
+          maturin develop --features=python,cfitsio-static --strip
+
+          pip install pytest          
+          pytest

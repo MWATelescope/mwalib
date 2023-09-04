@@ -3,7 +3,9 @@ name: Code Coverage
 on: [push, pull_request]
 
 env:
-  RUST_BACKTRACE: 1
+  RUST_BACKTRACE: 1  
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
 
 jobs:
   generate_coverage:
@@ -35,17 +37,17 @@ jobs:
         override: true
         components: llvm-tools-preview
 
-    - name: install cargo-llvm-cov
-      run: cargo install cargo-llvm-cov
-
     - name: Generate test lcov coverage into coverage/ dir
       run: |
         mkdir -p coverage
-        cargo llvm-cov --lib --lcov --output-path coverage/coverage.lcov
+        cargo llvm-cov clean --workspace
+        maturin develop --features=python,cfitsio-static
+        pytest tests --cov=mwalib --cov-report xml:coverage/coverage.xml tests
+        cargo llvm-cov --features cfitsio-static,examples --lcov --output-path coverage/coverage.lcov
         # this uses the result of the previous run to generate a text summary
-        cargo llvm-cov --no-run
+        cargo llvm-cov report
 
-    - name: Upload reports to codecov.io
+    - name: Upload reports to codecov.io. Codecov should automatically merge the python and rust coverage
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
