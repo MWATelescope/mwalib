@@ -74,7 +74,8 @@ jobs:
         architecture: "x64"
 
     - name: Build mwalib
-      run: .github/workflows/build.sh      
+      run: ./.github/workflows/build.sh
+      shell: bash   
 
     - name: Upload tarball
       uses: actions/upload-artifact@v2
