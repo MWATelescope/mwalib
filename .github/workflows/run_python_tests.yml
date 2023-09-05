@@ -18,6 +18,7 @@ jobs:
     steps:    
     - name: Install cfitsio
       run: .github/workflows/make_cfitsio.sh
+      shell: bash
 
     - name: Install stable toolchain
       uses: actions-rs/toolchain@v1
