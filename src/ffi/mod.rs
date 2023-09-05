@@ -2879,9 +2879,11 @@ pub struct Rfinput {
     /// The values from the metafits are scaled by 64, so mwalib divides by 64.
     /// Digital gains are in mwalib metafits coarse channel order (ascending sky frequency order)
     pub digital_gains: *mut f64,
+    /// Number of elements in the digital_gains array
     pub num_digital_gains: usize,
     /// Dipole delays
     pub dipole_delays: *mut u32,
+    /// Number of elements in the dipole_delays array
     pub num_dipole_delays: usize,
     /// Dipole gains.
     ///
@@ -2890,6 +2892,7 @@ pub struct Rfinput {
     /// reflects that. All other dipoles are assumed to be "live". The values
     /// are made floats for easy use in beam code.
     pub dipole_gains: *mut f64,
+    /// Number of elements in the dipole_gains array
     pub num_dipole_gains: usize,
     /// Receiver number
     pub rec_number: u32,
@@ -2904,5 +2907,6 @@ pub struct Rfinput {
 pub struct TimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,
+    /// gps time (in milliseconds)
     pub gps_time_ms: u64,
 }
