@@ -9,9 +9,12 @@ env:
 
 jobs:
   generate_coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest    
 
-    steps:    
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v3
+
     - name: Install dependencies
       run: |
         sudo apt update -y
@@ -39,8 +42,7 @@ jobs:
 
     - name: Install cargo-llvm-cov
       run: cargo install cargo-llvm-cov
-
-    - uses: actions/checkout@v3
+    
     - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:

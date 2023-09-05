@@ -16,7 +16,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]                
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v3    
+      uses: actions/checkout@v3
 
     - name: Install cfitsio
       run: ./.github/workflows/make_cfitsio.sh
