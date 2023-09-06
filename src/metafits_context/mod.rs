@@ -145,6 +145,18 @@ impl fmt::Display for GeometricDelaysApplied {
     }
 }
 
+/// Implements str::FromStr for GeometricDelaysApplied enum
+///
+/// # Arguments
+///
+/// * `input` - A &str which we want to convert to an enum
+///
+///
+/// # Returns
+///
+/// * `Result<GeometricDelaysApplied, Err>` - Result of this method
+///
+///
 impl std::str::FromStr for GeometricDelaysApplied {
     type Err = ();
 

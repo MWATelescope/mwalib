@@ -2,6 +2,13 @@
 
 Changes in each release are listed below.
 
+## 1.0.0 06-Sep-2023
+
+* Python bindings using pyO3 replaces the `pymwalib` python project.
+* Added `rec_type` to the `rf_input` struct so the client can determine the receiver type of the connected receiver.
+* Minor linting and documentation fixes.
+* Overhaul of CI workflows to produce Python wheels and various levels of optimisation for Linux and MacOSX for the library itself.
+
 ## 0.17.0 21-Aug-2023
 
 * Bumped MSRV to 1.64.

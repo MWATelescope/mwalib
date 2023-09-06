@@ -65,7 +65,7 @@ pub use metafits_context::{
     CableDelaysApplied, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, VisPol,
 };
 pub use misc::*;
-pub use rfinput::{error::RfinputError, Pol, Rfinput};
+pub use rfinput::{error::RfinputError, Pol, ReceiverType, Rfinput};
 pub use timestep::TimeStep;
 pub use voltage_context::VoltageContext;
 pub use voltage_files::error::VoltageFileError;

@@ -588,8 +588,8 @@ fn test_1244973688_metafits() -> Result<(), FitsError> {
     let hdu = fits_open_hdu!(&mut fptr, 0)?;
     let freq_centre: f64 = get_required_fits_key!(&mut fptr, &hdu, "FREQCENT")?;
     assert!(approx_eq!(f64, freq_centre, 147.84, F64Margin::default()));
-    let fine_chan_width: u8 = get_required_fits_key!(&mut fptr, &hdu, "FINECHAN")?;
-    assert_eq!(fine_chan_width, 10);
+    let fine_chan_width: f32 = get_required_fits_key!(&mut fptr, &hdu, "FINECHAN")?;
+    assert_eq!(fine_chan_width, 10.0);
 
     let doesnt_exist: Result<f64, FitsError> = get_required_fits_key!(&mut fptr, &hdu, "FINE");
     assert!(doesnt_exist.is_err());

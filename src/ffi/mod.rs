@@ -4,6 +4,7 @@
 
 //! This module exists purely for other languages to interface with mwalib.
 
+use crate::rfinput::ReceiverType;
 use crate::*;
 use gpubox_files::GpuboxError;
 use libc::{c_char, c_double, c_float, c_uchar, c_uint, c_ulong, size_t};
@@ -1664,6 +1665,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 dipole_delays,
                 rec_number,
                 rec_slot_number,
+                rec_type,
             } = item;
             Rfinput {
                 input: *input,
@@ -1686,6 +1688,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 num_dipole_delays: dipole_delays.len(),
                 rec_number: *rec_number,
                 rec_slot_number: *rec_slot_number,
+                rec_type: *rec_type,
             }
         };
         rfinput_vec.push(out_item);
@@ -2898,6 +2901,8 @@ pub struct Rfinput {
     pub rec_number: u32,
     /// Receiver slot number
     pub rec_slot_number: u32,
+    /// Receiver type
+    pub rec_type: ReceiverType,
 }
 
 ///

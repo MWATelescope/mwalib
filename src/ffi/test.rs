@@ -1938,6 +1938,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
             1.0,
             F64Margin::default()
         ));
+        assert_eq!(item[2].rec_type, ReceiverType::Unknown);
 
         //
         // Test metafits_coarse_channels

@@ -7,9 +7,11 @@
 use pyo3::prelude::*;
 
 use crate::{
-    gpubox_files::error::*, rfinput::Pol, voltage_files::error::*, CableDelaysApplied,
-    CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext,
-    VoltageContext,
+    gpubox_files::error::*,
+    rfinput::{Pol, ReceiverType},
+    voltage_files::error::*,
+    CableDelaysApplied, CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion,
+    MetafitsContext, VoltageContext,
 };
 
 // Add a python exception for mwalib.
@@ -30,6 +32,7 @@ fn mwalib(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MWAVersion>()?;
     m.add_class::<MWAMode>()?;
     m.add_class::<Pol>()?;
+    m.add_class::<ReceiverType>()?;
     m.add("MwalibError", py.get_type::<MwalibError>())?;
     m.add(
         "GpuboxErrorBatchMissing",
