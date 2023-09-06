@@ -1,11 +1,39 @@
 [project]
 name = "mwalib"
-repository = "https://github.com/MWATelescope/mwalib"
+version = "1.0.0"
+description = "A library to work with raw data and metadata from the Murchison Widefield Array (MWA)"
+readme = "README.md"
 requires-python = ">=3.7"
+license = {file = "LICENSE"}
+keywords = ["MWA", "radioastronomy"]
+authors = [
+  {name = "Greg Sleap", email = "greg.sleap@curtin.edu.au"},
+  {name = "Christopher H. Jordan", email = "christopherjordan87@gmail.com"},
+  {name = "Dev Null", email = "dev.null@curtin.edu.au"}
+]
+maintainers = [
+  {name = "Greg Sleap", email = "greg.sleap@curtin.edu.au"},  
+]
+classifiers = [
+"Development Status :: 5 - Production/Stable",
+"Intended Audience :: Science/Research",
+"Topic :: Scientific/Engineering :: Astronomy",
+"License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+"Programming Language :: Python :: 3.7",
+"Programming Language :: Python :: 3.8",
+"Programming Language :: Python :: 3.9",
+"Programming Language :: Python :: 3.10",
+"Programming Language :: Python :: 3 :: Only"
+]
 dependencies = ["numpy"]
 
+[project.urls]  # Optional
+"Homepage" = "https://github.com/MWATelescope/mwalib"
+"Bug Reports" = "https://github.com/MWATelescope/mwalib/issues"
+"Source" = "https://github.com/MWATelescope/mwalib"
+
 [build-system]
-requires = ["setuptools", "python_version>=3.7"]
+requires = ["setuptools", "wheel", "python_version>=3.7"]
 build-backend = "maturin"
 
 [tool.maturin]

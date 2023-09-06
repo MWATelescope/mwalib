@@ -162,6 +162,7 @@ struct RfInputMetafitsTableRow {
 
 /// ReceiverType enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
 #[cfg_attr(feature = "python", pyo3::pyclass)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum ReceiverType {

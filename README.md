@@ -15,12 +15,18 @@
 [![Rust Report Card](https://rust-reportcard.xuri.me/badge/github.com/MWATelescope/mwalib)](https://rust-reportcard.xuri.me/report/github.com/MWATelescope/mwalib)
 
 mwalib is an MWA library to read raw visibilities, voltages and metadata into a common structure.
-mwalib supports the existing "legacy" MWA correlator, as well as the "MWAX" correlator. This library
+mwalib supports the existing "legacy" MWA correlator, as well as the "MWAX" correlator observations. This library
 strives to provide a single interface to work with all incarnations of MWA metadata, correlator and
 voltage formats and abstract away the nitty gritty details about reading MWA data. The only exception
 is that raw legacy VCS data which has not been recombined is not currently supported.
 
-mwalib provides the following binaries and implementations with releases starting from v0.18.0 onwards:
+mwalib is a library you can use in:
+
+* Rust (see examples/*.rs)
+* C (see examples/*.c)
+* Python (see examples/*.py)
+
+mwalib provides the following binaries and implementations with releases starting from v1.0.0 onwards:
 
 | Filename  | Purpose  |
 |-----------|----------|
