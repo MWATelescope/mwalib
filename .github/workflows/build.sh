@@ -25,6 +25,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     make shared
     make install    
 fi
+cd ..
 
 PATH=/root/.cargo/bin:$PATH
 
