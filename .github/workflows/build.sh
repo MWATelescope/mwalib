@@ -5,7 +5,7 @@ set -eux
 #
 # Build cfitsio
 #
-./github/workflows/make_cfitsio.sh
+./make_cfitsio.sh
 
 PATH=/root/.cargo/bin:$PATH
 # 1.63 is the newest rustc version that can use glibc >= 2.11, and we use it
