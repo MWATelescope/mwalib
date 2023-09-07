@@ -18,12 +18,12 @@ CFLAGS="-O3" ./configure --prefix=/usr/local --enable-reentrant --enable-sse2 --
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then    
     make -j
-    sudo make install
-    sudo ldconfig
-    cd ..
+    make install
+    ldconfig    
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then    
-    sudo make shared
-    sudo make install
-    cd ..
+    make shared
+    make install    
 fi
+
+cd ..
