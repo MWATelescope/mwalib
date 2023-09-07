@@ -1,0 +1,55 @@
+name: Python tests
+
+on: [push, pull_request]
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  test:
+    name: Test ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
+    steps:    
+    - name: Checkout sources
+      uses: actions/checkout@v3   
+
+    - name: Install cfitsio
+      run: ./.github/workflows/make_cfitsio.sh
+      shell: bash
+
+    - name: Install stable toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+          profile: minimal
+          toolchain: stable
+          override: true
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Run rust tests to generate test data
+      run: cargo test --features=cfitsio-static
+
+    - name: Run pytests
+      run: |
+          pip3 install --upgrade pip
+          python3 -m venv env
+          source env/bin/activate
+
+          pip3 install maturin==1.2.3
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            brew install automake
+          fi
+
+          maturin develop --features=python,cfitsio-static --strip
+
+          pip install pytest          
+          pytest

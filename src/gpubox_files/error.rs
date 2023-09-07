@@ -4,10 +4,17 @@
 
 //! Errors associated with reading in gpubox files.
 
+#[cfg(feature = "python")]
+use pyo3::create_exception;
+
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+
 use thiserror::Error;
 
 use crate::MWAVersion;
 
+/// GpuboxError subtypes - mainly used by CorrelatorContext
 #[derive(Error, Debug)]
 pub enum GpuboxError {
     #[error("Invalid timestep index provided. The timestep index must be between 0 and {0}")]
@@ -107,4 +114,234 @@ maybe you have a mix of different files?"#)]
     /// An error derived from `FitsError`.
     #[error("{0}")]
     Fits(#[from] crate::fits_read::error::FitsError),
+}
+
+//
+// Create Python Exceptions for rust errors
+//
+// Add exception for PyGpuboxErrorBatchMissing
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorBatchMissing,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorCorrVerMismatch
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorCorrVerMismatch,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorEmptyBTreeMap
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorEmptyBTreeMap,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorFits
+#[cfg(feature = "python")]
+create_exception!(mwalib, PyGpuboxErrorFits, pyo3::exceptions::PyException);
+
+// Add exception for PyGpuboxErrorInvalidCoarseChanIndex
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorInvalidCoarseChanIndex,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorInvalidMwaVersion
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorInvalidMwaVersion,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorInvalidTimeStepIndex
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorInvalidTimeStepIndex,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorLegacyNaxis1Mismatch
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorLegacyNaxis1Mismatch,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorLegacyNaxis2Mismatch
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorLegacyNaxis2Mismatch,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorMissingObsid
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorMissingObsid,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorMixture
+#[cfg(feature = "python")]
+create_exception!(mwalib, PyGpuboxErrorMixture, pyo3::exceptions::PyException);
+
+// Add exception for PyGpuboxErrorMwaxNaxis1Mismatch
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorMwaxNaxis1Mismatch,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorMwaxNaxis2Mismatch
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorMwaxNaxis2Mismatch,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorMwaxCorrVerMismatch
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorMwaxCorrVerMismatch,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorMwaxCorrVerMissing
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorMwaxCorrVerMissing,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorNoDataForTimeStepCoarseChannel
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorNoDataForTimeStepCoarseChannel,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorNoDataHDUsInGpuboxFile
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorNoDataHDUsInGpuboxFile,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorNoGpuboxes
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorNoGpuboxes,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorObsidMismatch
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorObsidMismatch,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorUnequalHduSizes
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorUnequalHduSizes,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorUnevenCountInBatches
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorUnevenCountInBatches,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorUnrecognised
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorUnrecognised,
+    pyo3::exceptions::PyException
+);
+
+// Convert a rust GpuBoxError to a python exception
+#[cfg(feature = "python")]
+impl std::convert::From<GpuboxError> for PyErr {
+    fn from(err: GpuboxError) -> PyErr {
+        match &err {
+            GpuboxError::BatchMissing { .. } => PyGpuboxErrorBatchMissing::new_err(err.to_string()),
+            GpuboxError::CorrVerMismatch { .. } => {
+                PyGpuboxErrorCorrVerMismatch::new_err(err.to_string())
+            }
+            GpuboxError::EmptyBTreeMap {} => PyGpuboxErrorEmptyBTreeMap::new_err(err.to_string()),
+            GpuboxError::Fits(_) => PyGpuboxErrorFits::new_err(err.to_string()),
+            GpuboxError::InvalidCoarseChanIndex(_) => {
+                PyGpuboxErrorInvalidCoarseChanIndex::new_err(err.to_string())
+            }
+            GpuboxError::InvalidMwaVersion { .. } => {
+                PyGpuboxErrorInvalidMwaVersion::new_err(err.to_string())
+            }
+            GpuboxError::InvalidTimeStepIndex(_) => {
+                PyGpuboxErrorInvalidTimeStepIndex::new_err(err.to_string())
+            }
+            GpuboxError::LegacyNaxis1Mismatch { .. } => {
+                PyGpuboxErrorLegacyNaxis1Mismatch::new_err(err.to_string())
+            }
+            GpuboxError::LegacyNaxis2Mismatch { .. } => {
+                PyGpuboxErrorLegacyNaxis2Mismatch::new_err(err.to_string())
+            }
+            GpuboxError::MissingObsid(_) => PyGpuboxErrorMissingObsid::new_err(err.to_string()),
+            GpuboxError::Mixture {} => PyGpuboxErrorMixture::new_err(err.to_string()),
+            GpuboxError::MwaxNaxis1Mismatch { .. } => {
+                PyGpuboxErrorMwaxNaxis1Mismatch::new_err(err.to_string())
+            }
+            GpuboxError::MwaxNaxis2Mismatch { .. } => {
+                PyGpuboxErrorMwaxNaxis2Mismatch::new_err(err.to_string())
+            }
+            GpuboxError::MwaxCorrVerMismatch(_) => {
+                PyGpuboxErrorMwaxCorrVerMismatch::new_err(err.to_string())
+            }
+            GpuboxError::MwaxCorrVerMissing(_) => {
+                PyGpuboxErrorMwaxCorrVerMissing::new_err(err.to_string())
+            }
+            GpuboxError::NoDataForTimeStepCoarseChannel { .. } => {
+                PyGpuboxErrorNoDataForTimeStepCoarseChannel::new_err(err.to_string())
+            }
+            GpuboxError::NoDataHDUsInGpuboxFile { gpubox_filename: _ } => {
+                PyGpuboxErrorNoDataHDUsInGpuboxFile::new_err(err.to_string())
+            }
+            GpuboxError::NoGpuboxes => PyGpuboxErrorNoGpuboxes::new_err(err.to_string()),
+            GpuboxError::ObsidMismatch { .. } => {
+                PyGpuboxErrorObsidMismatch::new_err(err.to_string())
+            }
+            GpuboxError::UnequalHduSizes => PyGpuboxErrorUnequalHduSizes::new_err(err.to_string()),
+            GpuboxError::UnevenCountInBatches { .. } => {
+                PyGpuboxErrorUnevenCountInBatches::new_err(err.to_string())
+            }
+            GpuboxError::Unrecognised(_) => PyGpuboxErrorUnrecognised::new_err(err.to_string()),
+        }
+    }
 }

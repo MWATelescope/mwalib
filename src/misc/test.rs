@@ -110,6 +110,7 @@ fn test_get_baseline_from_antenna_names1() {
         dipole_delays: vec![],
         rec_number: 1,
         rec_slot_number: 0,
+        rec_type: ReceiverType::Unknown,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -130,6 +131,7 @@ fn test_get_baseline_from_antenna_names1() {
         dipole_delays: vec![],
         rec_number: 1,
         rec_slot_number: 1,
+        rec_type: ReceiverType::Unknown,
     };
 
     ants.push(Antenna {
@@ -281,6 +283,7 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         dipole_delays: vec![],
         rec_number: 1,
         rec_slot_number: 0,
+        rec_type: ReceiverType::Unknown,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -301,6 +304,7 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         dipole_delays: vec![],
         rec_number: 1,
         rec_slot_number: 1,
+        rec_type: ReceiverType::Unknown,
     };
 
     ants.push(Antenna {
@@ -357,6 +361,7 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         dipole_delays: vec![],
         rec_number: 1,
         rec_slot_number: 0,
+        rec_type: ReceiverType::Unknown,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -377,6 +382,7 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         dipole_delays: vec![],
         rec_number: 1,
         rec_slot_number: 1,
+        rec_type: ReceiverType::Unknown,
     };
 
     ants.push(Antenna {

@@ -17,6 +17,7 @@ mod test;
 /// This is a struct for our timesteps
 /// NOTE: correlator timesteps use unix time, voltage timesteps use gpstime, but we convert the two depending on what we are given
 #[derive(Clone)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct TimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,

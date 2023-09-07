@@ -3,11 +3,13 @@ name: Code Coverage
 on: [push, pull_request]
 
 env:
-  RUST_BACKTRACE: 1
+  RUST_BACKTRACE: 1  
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
 
 jobs:
   generate_coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest    
 
     steps:
     - name: Checkout sources
@@ -22,30 +24,57 @@ jobs:
           pkg-config \
           git \
           lcov \
-          libcfitsio-dev \
           ;
       env:
         DEBIAN_FRONTEND: noninteractive
 
+    - name: Install cfitsio
+      run: ./.github/workflows/make_cfitsio.sh
+      shell: bash
+    
     - name: Install stable toolchain
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: stable
         override: true
-        components: llvm-tools-preview
+        components: llvm-tools
 
-    - name: install cargo-llvm-cov
+    - name: Install cargo-llvm-cov
       run: cargo install cargo-llvm-cov
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
 
     - name: Generate test lcov coverage into coverage/ dir
       run: |
-        mkdir -p coverage
-        cargo llvm-cov --lib --lcov --output-path coverage/coverage.lcov
-        # this uses the result of the previous run to generate a text summary
-        cargo llvm-cov --no-run
+        pip3 install --upgrade pip
+        python3 -m venv env
+        source env/bin/activate
+        
+        pip3 install maturin==1.2.3 pytest pytest-cov
 
-    - name: Upload reports to codecov.io
-      uses: codecov/codecov-action@v2
+        mkdir -p coverage
+        cargo llvm-cov clean --workspace      
+
+        # Run rust tests to generate test data
+        cargo test --features=cfitsio-static
+
+        # build python
+        maturin develop --features=python,cfitsio-static
+
+        # Coverage for python tests
+        pytest tests --cov=mwalib --cov-report xml:coverage/coverage.xml tests
+
+        # Coverage for rust tests
+        cargo llvm-cov --features cfitsio-static,examples --lcov --output-path coverage/coverage.lcov
+
+        # this uses the result of the previous run to generate a text summary
+        cargo llvm-cov report
+
+    - name: Upload reports to codecov.io. Codecov should automatically merge the python and rust coverage
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

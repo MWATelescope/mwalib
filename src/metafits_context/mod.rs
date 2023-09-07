@@ -27,6 +27,7 @@ mod test;
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub enum MWAVersion {
     /// MWA correlator (v1.0), having data files without any batch numbers.
     CorrOldLegacy = 1,
@@ -68,7 +69,8 @@ impl fmt::Display for MWAVersion {
     }
 }
 
-/// Visibility polarisation.
+/// Visibility polarisations
+///
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum VisPol {
@@ -104,8 +106,11 @@ impl fmt::Display for VisPol {
     }
 }
 
+/// The type of geometric delays applied to the data
+///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub enum GeometricDelaysApplied {
     No = 0,
     Zenith = 1,
@@ -140,6 +145,18 @@ impl fmt::Display for GeometricDelaysApplied {
     }
 }
 
+/// Implements str::FromStr for GeometricDelaysApplied enum
+///
+/// # Arguments
+///
+/// * `input` - A &str which we want to convert to an enum
+///
+///
+/// # Returns
+///
+/// * `Result<GeometricDelaysApplied, Err>` - Result of this method
+///
+///
 impl std::str::FromStr for GeometricDelaysApplied {
     type Err = ();
 
@@ -154,8 +171,11 @@ impl std::str::FromStr for GeometricDelaysApplied {
     }
 }
 
+/// The type of cable delays applied to the data
+///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub enum CableDelaysApplied {
     NoCableDelaysApplied = 0,
     CableAndRecClock = 1,
@@ -204,9 +224,11 @@ impl std::str::FromStr for CableDelaysApplied {
     }
 }
 
+/// The MODE the system was in for this observation
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub enum MWAMode {
     No_Capture = 0,
     Burst_Vsib = 1,
@@ -312,6 +334,7 @@ impl std::str::FromStr for MWAMode {
 /// `mwalib` metafits context. This represents the basic metadata for the observation.
 ///
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct MetafitsContext {
     /// mwa version
     pub mwa_version: Option<MWAVersion>,
@@ -589,13 +612,10 @@ impl MetafitsContext {
         let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
 
         // oversampled not garaunteed to be in the metafits. Default to False
-        let oversampled: bool =
-            match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "OVERSAMP")?
-                .unwrap_or(0)
-            {
-                1 => true,
-                _ => false,
-            };
+        let oversampled: bool = matches!(
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "OVERSAMP")?.unwrap_or(0),
+            1
+        );
 
         // from MWA_Tools/CONV2UVFITS/convutils.h
         // Used to determine electrical lengths if EL_ not present in metafits for an rf_input
@@ -829,16 +849,10 @@ impl MetafitsContext {
 
         // Deripple
         // It is stored as a bool DR_FLAG.
-        let deripple_applied: bool = match get_optional_fits_key!(
-            &mut metafits_fptr,
-            &metafits_hdu,
-            "DR_FLAG"
-        )?
-        .unwrap_or(0)
-        {
-            1 => true,
-            _ => false,
-        };
+        let deripple_applied: bool = matches!(
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DR_FLAG")?.unwrap_or(0),
+            1
+        );
 
         // deripple_param is the type of deripple applied
         let deripple_param: String =
@@ -1269,4 +1283,31 @@ impl fmt::Display for MetafitsContext {
             meta = self.metafits_filename,
         )
     }
+}
+
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+
+#[cfg(feature = "python")]
+#[pymethods]
+impl MetafitsContext {
+    #[new]
+    fn pyo3_new(
+        metafits_filename: pyo3::PyObject,
+        mwa_version: Option<MWAVersion>,
+    ) -> pyo3::PyResult<Self> {
+        let m = Self::new(metafits_filename.to_string(), mwa_version)?;
+        Ok(m)
+    }
+
+    // https://pyo3.rs/v0.17.3/class/object.html#string-representations
+    fn __repr__(&self) -> String {
+        format!("{}", self)
+    }
+
+    fn __enter__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+
+    fn __exit__(&mut self, _exc_type: &PyAny, _exc_value: &PyAny, _traceback: &PyAny) {}
 }

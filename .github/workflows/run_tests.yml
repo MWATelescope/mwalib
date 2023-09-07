@@ -1,0 +1,40 @@
+name: Cross-platform tests
+
+on: [push, pull_request]
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  test:
+    name: Test ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]                
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v3
+
+    - name: Install cfitsio
+      run: ./.github/workflows/make_cfitsio.sh
+      shell: bash
+          
+    - name: Install stable toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+    - name: Run tests
+      run: cargo test --release --features cfitsio-static,examples
+
+    - name: Minimum-specified Rust version works
+      run: |
+          MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
+          ~/.cargo/bin/rustup install $MIN_RUST --profile minimal
+          cargo +${MIN_RUST} test
+          cargo +${MIN_RUST} test --features cfitsio-static,examples

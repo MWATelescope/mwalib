@@ -36,28 +36,22 @@ fn generate_test_voltage_file(
     let mut output_file: File = File::create(filename)?;
 
     // Write out header if one is needed
-    match mwa_version {
-        MWAVersion::VCSMWAXv2 => {
-            let header_buffer: Vec<u8> = vec![0x01; 4096];
-            output_file
-                .write_all(&header_buffer)
-                .expect("Cannot write header!");
-        }
-        _ => {}
+    if mwa_version == MWAVersion::VCSMWAXv2 {
+        let header_buffer: Vec<u8> = vec![0x01; 4096];
+        output_file
+            .write_all(&header_buffer)
+            .expect("Cannot write header!");
     }
 
     // Each voltage_block has samples_per_rf_fine for each combination of rfinputs x fine_chans
     let num_bytes_per_voltage_block = samples_per_block * rf_inputs * fine_chans * bytes_per_sample;
 
     // Write out delay block if one is needed
-    match mwa_version {
-        MWAVersion::VCSMWAXv2 => {
-            let delay_buffer: Vec<u8> = vec![0x02; num_bytes_per_voltage_block];
-            output_file
-                .write_all(&delay_buffer)
-                .expect("Cannot write delay block!");
-        }
-        _ => {}
+    if mwa_version == MWAVersion::VCSMWAXv2 {
+        let delay_buffer: Vec<u8> = vec![0x02; num_bytes_per_voltage_block];
+        output_file
+            .write_all(&delay_buffer)
+            .expect("Cannot write delay block!");
     }
 
     // Write out num_voltage_blocks
@@ -388,7 +382,7 @@ pub(crate) fn get_test_voltage_context(
         metadata.len(),
         context.data_file_header_size_bytes
             + context.delay_block_size_bytes
-            + (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep),
+            + (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep as u64),
         "mwa_v={} header={} + delay={}  + (voltage_block={} * vbs per ts={} * finech={})",
         context.mwa_version,
         context.data_file_header_size_bytes,
@@ -549,8 +543,8 @@ fn test_context_legacy_v1_read_file_no_data_for_timestep() {
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
         0;
-        (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
-            as usize
+        context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_timestep
     ];
     // No data for timestep index 10
     let read_result: Result<(), VoltageFileError> = context.read_file(10, 14, &mut buffer);
@@ -583,8 +577,8 @@ fn test_context_legacy_v1_read_file() {
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
         0;
-        (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
-            as usize
+        context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_timestep
     ];
     let read_result: Result<(), VoltageFileError> = context.read_file(0, 14, &mut buffer);
 
@@ -845,8 +839,8 @@ fn test_context_mwaxv2_read_file_no_data_for_timestep() {
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
         0;
-        (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
-            as usize
+        context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_timestep
     ];
     // No data for timestep index 10
     let read_result: Result<(), VoltageFileError> = context.read_file(10, 14, &mut buffer);
@@ -878,8 +872,8 @@ fn test_context_mwax_v2_read_file() {
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
         0;
-        (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
-            as usize
+        context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_timestep
     ];
 
     //
@@ -1079,8 +1073,8 @@ fn test_context_mwax_v2_oversampled_read_file() {
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
         0;
-        (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
-            as usize
+        context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_timestep
     ];
 
     //
@@ -1407,8 +1401,8 @@ fn test_context_read_second_invalid_coarse_chan_index() {
     // Create output buffer
     let mut buffer: Vec<u8> = vec![
         0;
-        (context.voltage_block_size_bytes * context.num_voltage_blocks_per_timestep)
-            as usize
+        context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_timestep
     ];
 
     // Do the read
@@ -1448,7 +1442,7 @@ fn test_context_read_second_invalid_buffer_size() {
     let mut buffer: Vec<u8> = vec![
         0;
         (context.voltage_block_size_bytes
-            * context.num_voltage_blocks_per_second
+            * context.num_voltage_blocks_per_second as u64
             * gps_second_count as u64
             / 2) as usize
     ];
@@ -1494,7 +1488,7 @@ fn test_context_read_second_legacy_invalid_data_file_size() {
     let mut buffer: Vec<u8> = vec![
         0;
         (context.voltage_block_size_bytes
-            * context.num_voltage_blocks_per_second
+            * context.num_voltage_blocks_per_second as u64
             * gps_second_count as u64) as usize
     ];
 
@@ -1536,7 +1530,7 @@ fn test_context_read_second_mwaxv2_invalid_data_file_size() {
     let mut buffer: Vec<u8> = vec![
         0;
         (context.voltage_block_size_bytes
-            * context.num_voltage_blocks_per_second
+            * context.num_voltage_blocks_per_second as u64
             * gps_second_count as u64) as usize
     ];
 
@@ -1575,7 +1569,7 @@ fn test_context_read_second_legacy_no_data_for_gpstime() {
     let mut buffer: Vec<u8> = vec![
         0;
         (context.voltage_block_size_bytes
-            * context.num_voltage_blocks_per_second
+            * context.num_voltage_blocks_per_second as u64
             * gps_second_count as u64) as usize
     ];
 
@@ -1620,7 +1614,7 @@ fn test_context_read_second_mwaxv2_no_data_for_gpstime() {
     let mut buffer: Vec<u8> = vec![
         0;
         (context.voltage_block_size_bytes
-            * context.num_voltage_blocks_per_second
+            * context.num_voltage_blocks_per_second as u64
             * gps_second_count as u64) as usize
     ];
 
@@ -1673,7 +1667,7 @@ fn test_context_read_second_legacyv1_valid() {
     let mut buffer: Vec<u8> = vec![
         0;
         (context.voltage_block_size_bytes
-            * context.num_voltage_blocks_per_second
+            * context.num_voltage_blocks_per_second as u64
             * gps_second_count as u64) as usize
     ];
 
@@ -1698,7 +1692,7 @@ fn test_context_read_second_legacyv1_valid() {
 
     // Second 1_101_503_313 data is offset by +2
     assert_eq!(
-        buffer[(context.voltage_block_size_bytes * context.num_voltage_blocks_per_second) as usize
+        buffer[context.voltage_block_size_bytes as usize * context.num_voltage_blocks_per_second
             + get_index_for_location_in_test_voltage_file_legacy(0, 0, 0)],
         2
     );
@@ -1712,7 +1706,7 @@ fn test_context_read_second_legacyv1_valid() {
 
     // Second 1_101_503_313 data is offset by +2
     assert_eq!(
-        buffer[(context.voltage_block_size_bytes * context.num_voltage_blocks_per_second) as usize
+        buffer[context.voltage_block_size_bytes as usize * context.num_voltage_blocks_per_second
             + get_index_for_location_in_test_voltage_file_legacy(1000, 13, 1)],
         203
     );
@@ -1742,7 +1736,7 @@ fn test_context_read_second_mwaxv2_valid() {
     let mut buffer: Vec<u8> = vec![
         0;
         (context.voltage_block_size_bytes
-            * context.num_voltage_blocks_per_second
+            * context.num_voltage_blocks_per_second as u64
             * gps_second_count as u64) as usize
     ];
 
@@ -1782,8 +1776,9 @@ fn test_context_read_second_mwaxv2_valid() {
     // location in buffer: block: 40+0, rfinput: 0, sample: 0, value: 0
     // location in file1:  block: 0, rfinput: 0, sample: 0, value: 0
     assert_eq!(
-        buffer[(2 * context.voltage_block_size_bytes * context.num_voltage_blocks_per_second)
-            as usize
+        buffer[2
+            * context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_second
             + get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
         2
     );
@@ -1792,8 +1787,9 @@ fn test_context_read_second_mwaxv2_valid() {
     // location in buffer: block: 40+20, rfinput: 0, sample: 0, value: 0
     // location in file1:  block: 20, rfinput: 0, sample: 0, value: 0
     assert_eq!(
-        buffer[(2 * context.voltage_block_size_bytes * context.num_voltage_blocks_per_second)
-            as usize
+        buffer[2
+            * context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_second
             + get_index_for_location_in_test_voltage_file_mwaxv2(20, 0, 0, 0)],
         102
     );
@@ -1818,8 +1814,9 @@ fn test_context_read_second_mwaxv2_valid() {
     // location in buffer: block: 40+0, rfinput: 1, sample: 16750, value: 1
     // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
     assert_eq!(
-        buffer[(2 * context.voltage_block_size_bytes * context.num_voltage_blocks_per_second)
-            as usize
+        buffer[2
+            * context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_second
             + get_index_for_location_in_test_voltage_file_mwaxv2(0, 1, 16750, 1)],
         29
     );
@@ -1828,8 +1825,9 @@ fn test_context_read_second_mwaxv2_valid() {
     // location in buffer: block: 40+0, rfinput: 1, sample: 16750, value: 1
     // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
     assert_eq!(
-        buffer[(2 * context.voltage_block_size_bytes * context.num_voltage_blocks_per_second)
-            as usize
+        buffer[2
+            * context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_second
             + get_index_for_location_in_test_voltage_file_mwaxv2(20, 1, 16750, 1)],
         185
     );

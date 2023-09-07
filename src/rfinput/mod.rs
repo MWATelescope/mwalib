@@ -82,6 +82,7 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
 
 /// Instrument polarisation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub enum Pol {
     X,
     Y,
@@ -155,10 +156,77 @@ struct RfInputMetafitsTableRow {
     rx: u32,
     /// Receiver slot number
     slot: u32,
+    /// Receiver type
+    rx_type: String,
 }
 
-// Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
+/// ReceiverType enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
+#[allow(clippy::upper_case_acronyms)]
+pub enum ReceiverType {
+    Unknown,
+    RRI,
+    NI,
+    Pseudo,
+}
+
+/// Implements fmt::Display for ReceiverType
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+impl fmt::Display for ReceiverType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ReceiverType::Unknown => "Unknown",
+                ReceiverType::RRI => "RRI",
+                ReceiverType::NI => "NI",
+                ReceiverType::Pseudo => "Pseudo",
+            }
+        )
+    }
+}
+
+/// Implements str::FromStr for ReceiverType enum
+///
+/// # Arguments
+///
+/// * `input` - A &str which we want to convert to an enum
+///
+///
+/// # Returns
+///
+/// * `Result<ReceiverType, Err>` - Result of this method
+///
+///
+impl std::str::FromStr for ReceiverType {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<ReceiverType, Self::Err> {
+        match input {
+            "RRI" => Ok(ReceiverType::RRI),
+            "NI" => Ok(ReceiverType::NI),
+            "PSEUDO" => Ok(ReceiverType::Pseudo),
+            _ => Ok(ReceiverType::Unknown),
+        }
+    }
+}
+
+/// Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
@@ -206,6 +274,8 @@ pub struct Rfinput {
     pub rec_number: u32,
     /// Receiver slot number
     pub rec_slot_number: u32,
+    /// Receiver type
+    pub rec_type: ReceiverType,
 }
 
 impl Rfinput {
@@ -287,6 +357,18 @@ impl Rfinput {
             .map(|&delay| if delay == 32 { 0.0 } else { 1.0 })
             .collect();
 
+        // Many old metafits will not have this column. So
+        // if it does not exist, don't panic, just return
+        // en empty string. The enum value will end up
+        // being set to ReceiverType::Unknown
+        let rx_type: String = read_cell_value(
+            metafits_fptr,
+            metafits_tile_table_hdu,
+            "Receiver_Types",
+            row,
+        )
+        .unwrap_or_default();
+
         Ok(RfInputMetafitsTableRow {
             input,
             antenna,
@@ -303,6 +385,7 @@ impl Rfinput {
             dipole_gains,
             rx,
             slot,
+            rx_type,
         })
     }
 
@@ -371,6 +454,7 @@ impl Rfinput {
                 dipole_delays: metafits_row.dipole_delays,
                 rec_number: metafits_row.rx,
                 rec_slot_number: metafits_row.slot,
+                rec_type: metafits_row.rx_type.parse::<ReceiverType>().unwrap(),
             })
         }
         Ok(rf_inputs)

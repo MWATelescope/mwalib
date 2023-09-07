@@ -6,6 +6,7 @@
 
 use thiserror::Error;
 
+/// CoarseChannelError subtypes
 #[derive(Error, Debug)]
 pub enum CoarseChannelError {
     #[error("No gpubox or voltage time_map supplied")]

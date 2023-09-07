@@ -4,6 +4,7 @@
 
 //! This module exists purely for other languages to interface with mwalib.
 
+use crate::rfinput::ReceiverType;
 use crate::*;
 use gpubox_files::GpuboxError;
 use libc::{c_char, c_double, c_float, c_uchar, c_uint, c_ulong, size_t};
@@ -1664,6 +1665,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 dipole_delays,
                 rec_number,
                 rec_slot_number,
+                rec_type,
             } = item;
             Rfinput {
                 input: *input,
@@ -1686,6 +1688,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 num_dipole_delays: dipole_delays.len(),
                 rec_number: *rec_number,
                 rec_slot_number: *rec_slot_number,
+                rec_type: *rec_type,
             }
         };
         rfinput_vec.push(out_item);
@@ -2471,11 +2474,11 @@ pub struct VoltageMetadata {
     /// Number of bytes in each sample (a sample is a complex, thus includes r and i)
     pub sample_size_bytes: u64,
     /// Number of voltage blocks per timestep
-    pub num_voltage_blocks_per_timestep: u64,
+    pub num_voltage_blocks_per_timestep: usize,
     /// Number of voltage blocks of samples in each second of data    
-    pub num_voltage_blocks_per_second: u64,
+    pub num_voltage_blocks_per_second: usize,
     /// Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
-    pub num_samples_per_voltage_block: u64,
+    pub num_samples_per_voltage_block: usize,
     /// The size of each voltage block    
     pub voltage_block_size_bytes: u64,
     /// Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
@@ -2879,9 +2882,11 @@ pub struct Rfinput {
     /// The values from the metafits are scaled by 64, so mwalib divides by 64.
     /// Digital gains are in mwalib metafits coarse channel order (ascending sky frequency order)
     pub digital_gains: *mut f64,
+    /// Number of elements in the digital_gains array
     pub num_digital_gains: usize,
     /// Dipole delays
     pub dipole_delays: *mut u32,
+    /// Number of elements in the dipole_delays array
     pub num_dipole_delays: usize,
     /// Dipole gains.
     ///
@@ -2890,11 +2895,14 @@ pub struct Rfinput {
     /// reflects that. All other dipoles are assumed to be "live". The values
     /// are made floats for easy use in beam code.
     pub dipole_gains: *mut f64,
+    /// Number of elements in the dipole_gains array
     pub num_dipole_gains: usize,
     /// Receiver number
     pub rec_number: u32,
     /// Receiver slot number
     pub rec_slot_number: u32,
+    /// Receiver type
+    pub rec_type: ReceiverType,
 }
 
 ///
@@ -2904,5 +2912,6 @@ pub struct Rfinput {
 pub struct TimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,
+    /// gps time (in milliseconds)
     pub gps_time_ms: u64,
 }

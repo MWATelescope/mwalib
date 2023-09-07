@@ -6,8 +6,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# NOTE: this example requires numpy, pymwalib and pyuvdata packages. These can be installed via pip and the supplied
-# requirements file.
+# NOTE: this example requires numpy, pyuvdata and python-casacore packages.
+# These can be installed via pip and the supplied requirements file.
 #
 # e.g. pip install -r requirements.txt
 #
@@ -48,7 +48,7 @@
 # * mwalib and pyuvdata differ from cotter: Cotter sets XY to 0+0j for all cases where ant1==ant2.
 #
 import argparse
-from pymwalib.correlator_context import CorrelatorContext
+from mwalib import CorrelatorContext
 from pyuvdata import UVData
 import casacore.tables
 
@@ -65,7 +65,7 @@ def get_baseline_from_antennas(antenna1, antenna2, num_antennas):
     return None
 
 def dump_mwalib(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, gpuboxfiles, metafits, out_filename):
-    print("pymwalib:")
+    print("mwalib:")
     print("======================================")
     with CorrelatorContext(metafits, gpuboxfiles) as cc:
         # Get data
@@ -86,26 +86,20 @@ def dump_mwalib(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, gp
             data_bl_index = baseline_index * (
                         cc.metafits_context.num_corr_fine_chans_per_coarse * cc.metafits_context.num_visibility_pols * 2)
 
-            for chan in range(fine_chan_index, fine_chan_index + fine_chan_count):
-                data_fine_index = data_bl_index + (chan * cc.metafits_context.num_visibility_pols * 2)
+            for chan, chan_data in enumerate(data[data_bl_index, :, :]):
                 print(f"chan {chan} "
-                      f"XX: {data[data_fine_index]:.2f} {data[data_fine_index + 1]:.2f},\t"
-                      f"XY: {data[data_fine_index + 2]:.2f} {data[data_fine_index + 3]:.2f},\t"
-                      f"YX: {data[data_fine_index + 4]:.2f} {data[data_fine_index + 5]:.2f},\t"
-                      f"YY: {data[data_fine_index + 6]:.2f} {data[data_fine_index + 7]:.2f}")
+                      f"XX: {chan_data[chan, 0]:.2f} {chan_data[chan, 1]:.2f},\t"
+                      f"XY: {chan_data[chan, 2]:.2f} {chan_data[chan, 3]:.2f},\t"
+                      f"YX: {chan_data[chan, 4]:.2f} {chan_data[chan, 5]:.2f},\t"
+                      f"YY: {chan_data[chan, 6]:.2f} {chan_data[chan, 7]:.2f}")
         else:
             with open(out_filename, "w") as out_file:
-                for baseline_index in range(0, int(128*129/2)):
-                    data_bl_index = baseline_index * (
-                        cc.metafits_context.num_corr_fine_chans_per_coarse * cc.num_visibility_pols * 2)
+                for chan_data in data.reshape((-1, 8)):
+                    out_file.write(f"{chan_data[0]},{chan_data[1]},"
+                                   f"{chan_data[2]},{chan_data[3]},"
+                                   f"{chan_data[4]},{chan_data[5]},"
+                                   f"{chan_data[6]},{chan_data[7]}\n")
 
-                    for chan in range(fine_chan_index, fine_chan_index + fine_chan_count):
-                        data_fine_index = data_bl_index + (chan * cc.num_visibility_pols * 2)
-
-                        out_file.write(f"{data[data_fine_index]},{data[data_fine_index + 1]},"
-                                       f"{data[data_fine_index + 2]},{data[data_fine_index + 3]},"
-                                       f"{data[data_fine_index + 4]},{data[data_fine_index + 5]},"
-                                       f"{data[data_fine_index + 6]},{data[data_fine_index + 7]}\n")
             print(f"Wrote {out_filename}")
 
 def dump_pyuvdata(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, gpuboxfiles, metafits, out_filename):

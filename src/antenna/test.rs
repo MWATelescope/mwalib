@@ -30,6 +30,7 @@ fn test_populate_antennas() {
             dipole_delays: vec![],
             rec_number: 1,
             rec_slot_number: 0,
+            rec_type: ReceiverType::RRI,
         },
         Rfinput {
             input: 1,
@@ -49,6 +50,7 @@ fn test_populate_antennas() {
             dipole_delays: vec![],
             rec_number: 1,
             rec_slot_number: 1,
+            rec_type: ReceiverType::RRI,
         },
         Rfinput {
             input: 2,
@@ -68,6 +70,7 @@ fn test_populate_antennas() {
             dipole_delays: vec![],
             rec_number: 2,
             rec_slot_number: 0,
+            rec_type: ReceiverType::RRI,
         },
         Rfinput {
             input: 3,
@@ -87,6 +90,7 @@ fn test_populate_antennas() {
             dipole_delays: vec![],
             rec_number: 2,
             rec_slot_number: 1,
+            rec_type: ReceiverType::RRI,
         },
         Rfinput {
             input: 4,
@@ -106,6 +110,7 @@ fn test_populate_antennas() {
             dipole_delays: vec![],
             rec_number: 3,
             rec_slot_number: 0,
+            rec_type: ReceiverType::RRI,
         },
         Rfinput {
             input: 5,
@@ -125,6 +130,7 @@ fn test_populate_antennas() {
             dipole_delays: vec![],
             rec_number: 3,
             rec_slot_number: 1,
+            rec_type: ReceiverType::RRI,
         },
         Rfinput {
             input: 6,
@@ -144,6 +150,7 @@ fn test_populate_antennas() {
             dipole_delays: vec![],
             rec_number: 4,
             rec_slot_number: 0,
+            rec_type: ReceiverType::RRI,
         },
         Rfinput {
             input: 7,
@@ -163,6 +170,7 @@ fn test_populate_antennas() {
             dipole_delays: vec![],
             rec_number: 4,
             rec_slot_number: 1,
+            rec_type: ReceiverType::RRI,
         },
     ];
 
@@ -226,6 +234,7 @@ fn test_antenna_debug() {
             dipole_delays: vec![],
             rec_number: 1,
             rec_slot_number: 0,
+            rec_type: ReceiverType::RRI,
         },
         Rfinput {
             input: 1,
@@ -245,6 +254,7 @@ fn test_antenna_debug() {
             dipole_delays: vec![],
             rec_number: 1,
             rec_slot_number: 1,
+            rec_type: ReceiverType::RRI,
         },
     ];
 

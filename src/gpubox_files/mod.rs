@@ -32,6 +32,8 @@ pub(crate) struct ObsTimesAndChans {
 
 /// This represents one group of gpubox files with the same "batch" identitifer.
 /// e.g. obsid_datetime_chan_batch
+#[derive(Clone)]
+#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub struct GpuBoxBatch {
     pub batch_number: usize,           // 00,01,02..n
     pub gpubox_files: Vec<GpuBoxFile>, // Vector storing the details of each gpubox file in this batch
@@ -57,6 +59,7 @@ impl fmt::Debug for GpuBoxBatch {
 }
 
 /// This represents one gpubox file
+#[derive(Clone)]
 pub struct GpuBoxFile {
     /// Filename of gpubox file
     pub filename: String,

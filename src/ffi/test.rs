@@ -1303,7 +1303,7 @@ fn test_mwalib_voltage_context_legacy_read_file_valid() {
     let coarse_chan_index = 14;
 
     // 2 pols x 128 fine chans x 1 tile * 10000 samples
-    let buffer_len = 2 * 128 * 1 * 10000;
+    let buffer_len = 2 * 128 * 10000;
 
     unsafe {
         let in_buffer: Vec<u8> = vec![0; buffer_len];
@@ -1938,6 +1938,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
             1.0,
             F64Margin::default()
         ));
+        assert_eq!(item[2].rec_type, ReceiverType::Unknown);
 
         //
         // Test metafits_coarse_channels
@@ -1961,10 +1962,10 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         assert_eq!(item[55].unix_time_ms, 1_417_468_206_000);
 
         // Test oversample flag
-        assert_eq!(metafits_metadata.oversampled, false);
+        assert!(!metafits_metadata.oversampled);
 
         // test deripple
-        assert_eq!(metafits_metadata.deripple_applied, false);
+        assert!(!metafits_metadata.deripple_applied);
         assert_eq!(
             CString::from_raw(metafits_metadata.deripple_param),
             CString::new("").unwrap()

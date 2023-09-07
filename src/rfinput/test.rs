@@ -116,6 +116,7 @@ fn test_read_metafits_values_from_row_0() {
     assert_eq!(row.flag, 1);
     assert_eq!(row.rx, 10);
     assert_eq!(row.slot, 4);
+    assert_eq!(row.rx_type, "");
 }
 
 #[test]
@@ -150,12 +151,6 @@ fn test_read_metafits_values_from_invalid_metafits() {
 
 #[test]
 fn test_populate_rf_inputs() {
-    /* populate_rf_inputs(
-        num_inputs: usize,
-        metafits_fptr: &mut fitsio::FitsFile,
-        metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
-        coax_v_factor: f64,
-    ) -> Result<Vec<Self>, RfinputError>*/
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
     let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
     let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
@@ -225,4 +220,35 @@ fn test_populate_rf_inputs() {
     );
     assert_eq!(rfinput[0].rec_number, 10);
     assert_eq!(rfinput[0].rec_slot_number, 4);
+    assert_eq!(rfinput[0].rec_type, ReceiverType::Unknown);
+}
+
+#[test]
+fn test_populate_rf_inputs_newer_metafits() {
+    let metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
+    let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+    let result =
+        Rfinput::populate_rf_inputs(256, &mut metafits_fptr, metafits_tile_table_hdu, 1.204, 24);
+
+    assert!(result.is_ok());
+
+    let rfinput = result.unwrap();
+    assert_eq!(rfinput.len(), 256);
+
+    assert_eq!(rfinput[0].rec_type, ReceiverType::RRI);
+}
+
+#[test]
+fn test_string_to_receiver_type() {
+    assert!(String::from("RRI").parse::<ReceiverType>().unwrap() == ReceiverType::RRI);
+    assert!(String::from("NI").parse::<ReceiverType>().unwrap() == ReceiverType::NI);
+    assert!(String::from("PSEUDO").parse::<ReceiverType>().unwrap() == ReceiverType::Pseudo);
+    assert!(
+        String::from("something else")
+            .parse::<ReceiverType>()
+            .unwrap()
+            == ReceiverType::Unknown
+    );
+    assert!(String::from("").parse::<ReceiverType>().unwrap() == ReceiverType::Unknown);
 }

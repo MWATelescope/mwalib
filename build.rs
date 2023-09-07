@@ -46,7 +46,6 @@ fn main() {
                     pragma_once: true,
                     ..Default::default()
                 })
-                .include_item("VisPol")
                 .with_crate(env::var("CARGO_MANIFEST_DIR").unwrap())
                 .with_language(cbindgen::Language::C)
                 .generate()

@@ -7,6 +7,7 @@
 use crate::MWAMode;
 use thiserror::Error;
 
+/// Metafits error subtypes - used by MetafitsContext
 #[derive(Error, Debug)]
 pub enum MetafitsError {
     #[error("Unable to determine MWA Version from MODE keyword {0} from metafits")]

@@ -7,6 +7,13 @@
 use crate::MWAVersion;
 use thiserror::Error;
 
+#[cfg(feature = "python")]
+use pyo3::create_exception;
+
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+
+/// VoltageFileError subtypes - mainly used by VoltageContext
 #[derive(Error, Debug)]
 pub enum VoltageFileError {
     #[error("Invalid timestep index provided. The timestep index must be between 0 and {0}")]
@@ -74,4 +81,230 @@ maybe you have a mix of different files?"#)]
         timestep_index: usize,
         coarse_chan_index: usize,
     },
+}
+
+//
+// Create Python Exceptions for rust errors
+//
+// Add exception for PyVoltageErrorInvalidTimeStepIndex
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorInvalidTimeStepIndex,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorInvalidCoarseChanIndex
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorInvalidCoarseChanIndex,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorNoVoltageFiles
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorNoVoltageFiles,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorInvalidBufferSize
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorInvalidBufferSize,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorInvalidGpsSecondStart
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorInvalidGpsSecondStart,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorInvalidVoltageFileSize
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorInvalidVoltageFileSize,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorInvalidGpsSecondCount
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorInvalidGpsSecondCount,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageError
+#[cfg(feature = "python")]
+create_exception!(mwalib, PyVoltageError, pyo3::exceptions::PyException);
+
+// Add exception for PyVoltageErrorMixture
+#[cfg(feature = "python")]
+create_exception!(mwalib, PyVoltageErrorMixture, pyo3::exceptions::PyException);
+
+// Add exception for PyVoltageErrorGpsTimeMissing
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorGpsTimeMissing,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorUnevenChannelsForGpsTime
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorUnevenChannelsForGpsTime,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorUnrecognised
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorUnrecognised,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorMissingObsid
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorMissingObsid,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorUnequalFileSizes
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorUnequalFileSizes,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorMetafitsObsidMismatch
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorMetafitsObsidMismatch,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorObsidMismatch
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorObsidMismatch,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorEmptyBTreeMap
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorEmptyBTreeMap,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorInvalidMwaVersion
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorInvalidMwaVersion,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorNoDataForTimeStepCoarseChannel
+#[cfg(feature = "python")]
+create_exception!(
+    mwalib,
+    PyVoltageErrorNoDataForTimeStepCoarseChannel,
+    pyo3::exceptions::PyException
+);
+
+// Convert a rust VoltageFileError to a python exception
+#[cfg(feature = "python")]
+impl std::convert::From<VoltageFileError> for PyErr {
+    fn from(err: VoltageFileError) -> PyErr {
+        match &err {
+            VoltageFileError::InvalidTimeStepIndex(_) => {
+                PyVoltageErrorInvalidTimeStepIndex::new_err(err.to_string())
+            }
+            VoltageFileError::InvalidCoarseChanIndex(_) => {
+                PyVoltageErrorInvalidCoarseChanIndex::new_err(err.to_string())
+            }
+
+            VoltageFileError::NoVoltageFiles => {
+                PyVoltageErrorNoVoltageFiles::new_err(err.to_string())
+            }
+
+            VoltageFileError::InvalidBufferSize(..) => {
+                PyVoltageErrorInvalidBufferSize::new_err(err.to_string())
+            }
+
+            VoltageFileError::InvalidGpsSecondStart(..) => {
+                PyVoltageErrorInvalidGpsSecondStart::new_err(err.to_string())
+            }
+
+            VoltageFileError::InvalidVoltageFileSize(..) => {
+                PyVoltageErrorInvalidVoltageFileSize::new_err(err.to_string())
+            }
+
+            VoltageFileError::InvalidGpsSecondCount(..) => {
+                PyVoltageErrorInvalidGpsSecondCount::new_err(err.to_string())
+            }
+
+            VoltageFileError::VoltageFileError(..) => PyVoltageError::new_err(err.to_string()),
+
+            VoltageFileError::Mixture => PyVoltageErrorMixture::new_err(err.to_string()),
+
+            VoltageFileError::GpsTimeMissing { .. } => {
+                PyVoltageErrorGpsTimeMissing::new_err(err.to_string())
+            }
+
+            VoltageFileError::UnevenChannelsForGpsTime { .. } => {
+                PyVoltageErrorUnevenChannelsForGpsTime::new_err(err.to_string())
+            }
+
+            VoltageFileError::Unrecognised(_) => {
+                PyVoltageErrorUnrecognised::new_err(err.to_string())
+            }
+
+            VoltageFileError::MissingObsid(_) => {
+                PyVoltageErrorMissingObsid::new_err(err.to_string())
+            }
+
+            VoltageFileError::UnequalFileSizes { .. } => {
+                PyVoltageErrorUnequalFileSizes::new_err(err.to_string())
+            }
+
+            VoltageFileError::MetafitsObsidMismatch { .. } => {
+                PyVoltageErrorMetafitsObsidMismatch::new_err(err.to_string())
+            }
+
+            VoltageFileError::ObsidMismatch { .. } => {
+                PyVoltageErrorObsidMismatch::new_err(err.to_string())
+            }
+
+            VoltageFileError::EmptyBTreeMap { .. } => {
+                PyVoltageErrorEmptyBTreeMap::new_err(err.to_string())
+            }
+
+            VoltageFileError::InvalidMwaVersion { .. } => {
+                PyVoltageErrorInvalidMwaVersion::new_err(err.to_string())
+            }
+
+            VoltageFileError::NoDataForTimeStepCoarseChannel { .. } => {
+                PyVoltageErrorNoDataForTimeStepCoarseChannel::new_err(err.to_string())
+            }
+        }
+    }
 }

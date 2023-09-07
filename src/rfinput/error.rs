@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
+/// EfinputError subtypes
 #[derive(Error, Debug)]
 pub enum RfinputError {
     /// Error when reading from an MWA metafits table cell.
