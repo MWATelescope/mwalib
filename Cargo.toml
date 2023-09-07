@@ -56,7 +56,7 @@ float-cmp = "0.9.*"
 tempdir = "0.3.*"
 
 [build-dependencies]
-built = "0.6.*"
+built = "0.5.*"
 cbindgen = { version = "0.24.*", default_features = false }
 
 [[example]]
