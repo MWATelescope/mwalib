@@ -218,7 +218,7 @@ impl std::str::FromStr for ReceiverType {
         match input {
             "RRI" => Ok(ReceiverType::RRI),
             "NI" => Ok(ReceiverType::NI),
-            "Pseudo" => Ok(ReceiverType::Pseudo),
+            "PSEUDO" => Ok(ReceiverType::Pseudo),
             _ => Ok(ReceiverType::Unknown),
         }
     }

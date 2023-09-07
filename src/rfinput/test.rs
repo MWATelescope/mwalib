@@ -238,3 +238,17 @@ fn test_populate_rf_inputs_newer_metafits() {
 
     assert_eq!(rfinput[0].rec_type, ReceiverType::RRI);
 }
+
+#[test]
+fn test_string_to_receiver_type() {
+    assert!(String::from("RRI").parse::<ReceiverType>().unwrap() == ReceiverType::RRI);
+    assert!(String::from("NI").parse::<ReceiverType>().unwrap() == ReceiverType::NI);
+    assert!(String::from("PSEUDO").parse::<ReceiverType>().unwrap() == ReceiverType::Pseudo);
+    assert!(
+        String::from("something else")
+            .parse::<ReceiverType>()
+            .unwrap()
+            == ReceiverType::Unknown
+    );
+    assert!(String::from("").parse::<ReceiverType>().unwrap() == ReceiverType::Unknown);
+}
