@@ -68,7 +68,7 @@ for level in "x86-64" "x86-64-v2" "x86-64-v3"; do
         mv target/wheels/*.whl target/release/libmwalib.{a,dylib} include/mwalib.h .
         tar -acvf mwalib-$(git describe --tags)-macosx-${level}.tar.gz \
                 LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
-                libmwalib.{a,so} mwalib.h
+                libmwalib.{a,dylib} mwalib.h
         tar -acvf mwalib-$(git describe --tags)-macosx-python-${level}.tar.gz \
             LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
             ./*.whl
