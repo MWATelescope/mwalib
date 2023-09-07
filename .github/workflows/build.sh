@@ -29,8 +29,8 @@ cd ..
 
 PATH=/root/.cargo/bin:$PATH
 
-rustup install 1.64 --no-self-update
-rustup default 1.64
+rustup install 1.63 --no-self-update
+rustup default 1.63
 
 # Setup maturin
 pip3 install maturin==1.2.3

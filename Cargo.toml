@@ -7,7 +7,7 @@ readme = "README.md"
 authors = ["Greg Sleap <greg.sleap@curtin.edu.au>",
            "Christopher H. Jordan <christopherjordan87@gmail.com>"]
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.63"
 description = "A library to simplify reading Murchison Widefield Array (MWA) raw visibilities, voltages and metadata."
 license = "MPL-2.0"
 keywords = ["radioastronomy", "mwa", "astronomy"]

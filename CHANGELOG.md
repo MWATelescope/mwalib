@@ -2,8 +2,9 @@
 
 Changes in each release are listed below.
 
-## 1.0.0 06-Sep-2023
+## 1.0.0 07-Sep-2023
 
+* Reverted MSRV to 1.63 for compatibility with manylinux standard.
 * Python bindings are now available (as well as the existing C bindings). This replaces the `pymwalib` python project. See the `README.md` for help using it.
 * Added `rec_type` to the `rf_input` struct so the client can determine the receiver type of the connected receiver.
 * Minor linting and documentation fixes.
