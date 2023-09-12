@@ -11,19 +11,13 @@
 # Once at the prompt, build with:
 #     maturin build --release --cargo-extra-args="--features python,cfitsio-static,examples" --strip --manylinux 2014
 #
-# Publish with:
+# Publish to the test pypi repository first, with (where PYPI_TOKEN is a token generated from https://test.pypi.org):
+#     maturin publish --cargo-extra-args="--features python,cfitsio-static,examples" --manylinux 2014 --username __token__ --password PYPI_TOKEN --repository-url https://test.pypi.org/legacy/
 #
+# Publish to the real pypi repository, with (where USERNAME and PASSWORD are valid):
+#     maturin publish --cargo-extra-args="--features python,cfitsio-static,examples" --manylinux 2014 --username USERNAME --password PASSWORD
 #
 FROM konstin2/maturin
-
-WORKDIR /
-ADD https://github.com/Kitware/CMake/releases/download/v3.19.1/cmake-3.19.1.tar.gz .
-RUN tar -xf cmake-3.19.1.tar.gz && \
-    cd cmake-3.19.1 && \
-    ./bootstrap -- -DCMAKE_USE_OPENSSL=OFF && \
-    make -j8 install && \
-    cd .. && \
-    rm -r cmake*
 
 WORKDIR /io
 
@@ -32,7 +26,5 @@ RUN rustup install 1.63 --no-self-update
 RUN rustup default 1.63
 
 RUN rm -rf /io/target
-
-RUN cargo update
 
 ENTRYPOINT ["/bin/bash"]

@@ -35,8 +35,7 @@ mwalib provides the following binaries and implementations with releases startin
 |mwalib-vX.X.X-macosx-x86-64.tar.gz | MacOSX "C"/"C++" compatible library - includes ".h" and "libmwalib.a" and "libmwalib.so" library files. |
 |mwalib-vX.X.X-macosx-python-x86-64.tar.gz | MacOSX compatible Python wheel. |
 
-NOTE: for both MacOSX and Linux, more optimised build are named with a v2 and v3 after the "x86-64". These suffixes denote that the compilation was optimised for the specified [CPU microarchitecture levels](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels), with "x86-64" being the most compatible with the very oldest CPUs. If you have a CPU which was manufactured after 2008 you are safe with x86-64-v2, and if it is newer than 2015 then you are safe using
-x86-64-v3.
+NOTE: for both Linux, more optimised builds are named with a v2 and v3 after the "x86-64". These suffixes denote that the compilation was optimised for the specified [CPU microarchitecture levels](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels), with "x86-64" being the most compatible with the very oldest CPUs. If you have a CPU which was manufactured after 2008 you are safe with x86-64-v2, and if it is newer than 2015 then you are safe using x86-64-v3.
 
 ----
 For installation instructions, concepts and usage info, please see the [`mwalib GitHub Wiki`](https://github.com/MWATelescope/mwalib/wiki).
