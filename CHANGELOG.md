@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.0.1 12-Sep-2023
+
+* Fixed various uncaught clippy lints.
+
 ## 1.0.0 07-Sep-2023
 
 * Reverted MSRV to 1.63 for compatibility with manylinux standard.

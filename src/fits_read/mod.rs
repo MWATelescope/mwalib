@@ -4,7 +4,7 @@
 
 //! Helper functions for reading FITS files.
 
-pub mod error;
+pub(crate) mod error;
 pub use error::FitsError;
 
 use fitsio::{hdu::*, FitsFile};

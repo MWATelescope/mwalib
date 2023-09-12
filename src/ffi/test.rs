@@ -262,7 +262,7 @@ fn test_set_error_message_buffer_len_too_small() {
 #[test]
 fn test_mwalib_free_rust_cstring() {
     let buffer = CString::new("HELLO WORLD").unwrap();
-    let buffer_ptr = buffer.into_raw() as *mut i8;
+    let buffer_ptr = buffer.into_raw();
 
     // into_raw will take garbage collection of the buffer away from rust, so
     // some ffi/C code can free it (like below)

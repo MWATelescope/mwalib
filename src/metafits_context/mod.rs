@@ -991,16 +991,14 @@ impl MetafitsContext {
             )?;
 
         // Populate coarse chans from the metafits info.
-        self.metafits_coarse_chans.extend(
-            CoarseChannel::populate_coarse_channels(
+        self.metafits_coarse_chans
+            .extend(CoarseChannel::populate_coarse_channels(
                 mwa_version,
                 &metafits_coarse_chan_vec,
                 metafits_coarse_chan_width_hz,
                 None,
                 None,
-            )?
-            .into_iter(),
-        );
+            )?);
 
         self.num_metafits_coarse_chans = self.metafits_coarse_chans.len();
 
@@ -1025,17 +1023,14 @@ impl MetafitsContext {
         mwa_version: MWAVersion,
     ) -> Result<(), MwalibError> {
         // Process the channels based on the gpubox files we have
-        self.metafits_timesteps.extend(
-            TimeStep::populate_timesteps(
-                self,
-                mwa_version,
-                self.sched_start_gps_time_ms,
-                self.sched_duration_ms,
-                self.sched_start_gps_time_ms,
-                self.sched_start_unix_time_ms,
-            )
-            .into_iter(),
-        );
+        self.metafits_timesteps.extend(TimeStep::populate_timesteps(
+            self,
+            mwa_version,
+            self.sched_start_gps_time_ms,
+            self.sched_duration_ms,
+            self.sched_start_gps_time_ms,
+            self.sched_start_unix_time_ms,
+        ));
 
         self.num_metafits_timesteps = self.metafits_timesteps.len();
 
