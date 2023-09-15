@@ -7,13 +7,13 @@ This directory is for tests relating to the python bindings.
 * Run `cargo test` first to get the test_files generated (and to ensure the Rust library is working)
 
 ```bash
-cargo test --features=cfitsio-static,exmaples --strip
+cargo test --features=cfitsio-static,exmaples
 ```
 
 * Build from the root `mwalib` directory using:
 
 ```bash
-maturin develop --features=python,cfitsio-static --strip
+maturin develop --features=python,cfitsio-static
 ```
 
 * Install prerequisites

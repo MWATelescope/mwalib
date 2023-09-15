@@ -16,11 +16,14 @@ use crate::metafits_context::*;
 use crate::timestep::*;
 use crate::*;
 
+#[cfg(feature = "python")]
+mod python;
+
 #[cfg(test)]
 mod test;
 
 ///
-/// `mwalib` correlator observation context. This represents the basic metadata for a correlator observation.
+/// This represents the basic metadata and methods for an MWA correlator observation.
 ///
 #[derive(Debug)]
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
@@ -134,7 +137,7 @@ impl CorrelatorContext {
     ///
     /// * Result containing a populated CorrelatorContext object if Ok.
     ///
-    ///
+    ///    
     pub fn new<P: AsRef<Path>, P2: AsRef<Path>>(
         metafits_filename: P,
         gpubox_filenames: &[P2],
@@ -418,10 +421,10 @@ impl CorrelatorContext {
     /// # Arguments
     ///
     /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
-    ///                      to the element within mwalibContext.timesteps.
+    ///                      to the element within CorrelatorContext.timesteps.
     ///
     /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within mwalibContext.coarse_chans.
+    ///                      to the element within CorrelatorContext.coarse_chans.
     ///
     ///
     /// # Returns
@@ -452,10 +455,10 @@ impl CorrelatorContext {
     /// # Arguments
     ///
     /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
-    ///                      to the element within mwalibContext.timesteps.
+    ///                      to the element within CorrelatorContext.timesteps.
     ///
     /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within mwalibContext.coarse_chans.
+    ///                      to the element within CorrelatorContext.coarse_chans.
     ///
     ///
     /// # Returns
@@ -486,10 +489,10 @@ impl CorrelatorContext {
     /// # Arguments
     ///
     /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
-    ///                      to the element within mwalibContext.timesteps.
+    ///                      to the element within CorrelatorContext.timesteps.
     ///
     /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within mwalibContext.coarse_chans.
+    ///                      to the element within CorrelatorContext.coarse_chans.
     ///
     ///
     /// # Returns
@@ -986,117 +989,4 @@ impl fmt::Display for CorrelatorContext {
             batches = self.gpubox_batches,
         )
     }
-}
-
-#[cfg(feature = "python")]
-use ndarray::Array2;
-#[cfg(feature = "python")]
-use ndarray::Array3;
-#[cfg(feature = "python")]
-use numpy::PyArray2;
-#[cfg(feature = "python")]
-use numpy::PyArray3;
-#[cfg(feature = "python")]
-use pyo3::prelude::*;
-
-#[cfg(feature = "python")]
-#[pymethods]
-impl CorrelatorContext {
-    #[new]
-    fn pyo3_new(metafits_filename: PyObject, gpubox_filenames: Vec<PyObject>) -> PyResult<Self> {
-        // Convert the gpubox filenames.
-        let gpubox_filenames: Vec<String> = gpubox_filenames
-            .into_iter()
-            .map(|g| g.to_string())
-            .collect();
-        let c = CorrelatorContext::new(metafits_filename.to_string(), &gpubox_filenames)?;
-        Ok(c)
-    }
-
-    #[pyo3(name = "get_fine_chan_freqs_hz_array")]
-    fn pyo3_get_fine_chan_freqs_hz_array(&self, corr_coarse_chan_indices: Vec<usize>) -> Vec<f64> {
-        self.get_fine_chan_freqs_hz_array(&corr_coarse_chan_indices)
-    }
-
-    #[pyo3(name = "read_by_baseline")]
-    fn pyo3_read_by_baseline<'py>(
-        &self,
-        py: Python<'py>,
-        corr_timestep_index: usize,
-        corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray3<f32>> {
-        // Use the existing Rust method.
-        let data = self.read_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
-        // Convert the vector to a 3D array (this is free).
-        let data = Array3::from_shape_vec(
-            (
-                self.metafits_context.num_baselines,
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-                8,
-            ),
-            data,
-        )
-        .expect("shape of data should match expected dimensions (num_baselines, num_corr_fine_chans_per_coarse, visibility_pols * 2)");
-        // Convert to a numpy array.
-        let data = PyArray3::from_owned_array(py, data);
-        Ok(data)
-    }
-
-    #[pyo3(name = "read_by_frequency")]
-    fn pyo3_read_by_frequency<'py>(
-        &self,
-        py: Python<'py>,
-        corr_timestep_index: usize,
-        corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray3<f32>> {
-        // Use the existing Rust method.
-        let data = self.read_by_frequency(corr_timestep_index, corr_coarse_chan_index)?;
-        // Convert the vector to a 3D array (this is free).
-        let data = Array3::from_shape_vec(
-            (
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-                self.metafits_context.num_baselines,
-                8,
-            ),
-            data,
-        )
-        .expect("shape of data should match expected dimensions (num_corr_fine_chans_per_coarse, num_baselines, visibility_pols * 2)");
-        // Convert to a numpy array.
-        let data = PyArray3::from_owned_array(py, data);
-        Ok(data)
-    }
-
-    #[pyo3(name = "read_weights_by_baseline")]
-    fn pyo3_read_weights_by_baseline<'py>(
-        &self,
-        py: Python<'py>,
-        corr_timestep_index: usize,
-        corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray2<f32>> {
-        // Use the existing Rust method.
-        let data = self.read_weights_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
-        // Convert the vector to a 3D array (this is free).
-        let data = Array2::from_shape_vec(
-            (
-                self.metafits_context.num_baselines,
-                self.metafits_context.num_visibility_pols,
-            ),
-            data,
-        )
-        .expect("shape of data should match expected dimensions (num_baselines, visibility_pols)");
-        // Convert to a numpy array.
-        let data = PyArray2::from_owned_array(py, data);
-        Ok(data)
-    }
-
-    // https://pyo3.rs/v0.17.3/class/object.html#string-representations
-    fn __repr__(&self) -> String {
-        format!("{}", self)
-    }
-
-    fn __enter__(slf: Py<Self>) -> Py<Self> {
-        slf
-    }
-
-    fn __exit__(&mut self, _exc_type: &PyAny, _exc_value: &PyAny, _traceback: &PyAny) {}
 }

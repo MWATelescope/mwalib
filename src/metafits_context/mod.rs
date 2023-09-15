@@ -23,6 +23,9 @@ pub mod error;
 #[cfg(test)]
 mod test;
 
+#[cfg(feature = "python")]
+mod python;
+
 /// Enum for all of the known variants of file format based on Correlator version
 ///
 #[repr(C)]
@@ -331,7 +334,8 @@ impl std::str::FromStr for MWAMode {
     }
 }
 
-/// `mwalib` metafits context. This represents the basic metadata for the observation.
+///
+/// Metafits context. This represents the basic metadata for an MWA observation.
 ///
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
@@ -502,8 +506,7 @@ impl MetafitsContext {
     /// # Returns
     ///
     /// * Result containing a populated MetafitsContext object if Ok.
-    ///
-    ///
+    ///    
     pub fn new<P: AsRef<Path>>(
         metafits: P,
         mwa_version: Option<MWAVersion>,
@@ -1278,31 +1281,4 @@ impl fmt::Display for MetafitsContext {
             meta = self.metafits_filename,
         )
     }
-}
-
-#[cfg(feature = "python")]
-use pyo3::prelude::*;
-
-#[cfg(feature = "python")]
-#[pymethods]
-impl MetafitsContext {
-    #[new]
-    fn pyo3_new(
-        metafits_filename: pyo3::PyObject,
-        mwa_version: Option<MWAVersion>,
-    ) -> pyo3::PyResult<Self> {
-        let m = Self::new(metafits_filename.to_string(), mwa_version)?;
-        Ok(m)
-    }
-
-    // https://pyo3.rs/v0.17.3/class/object.html#string-representations
-    fn __repr__(&self) -> String {
-        format!("{}", self)
-    }
-
-    fn __enter__(slf: Py<Self>) -> Py<Self> {
-        slf
-    }
-
-    fn __exit__(&mut self, _exc_type: &PyAny, _exc_value: &PyAny, _traceback: &PyAny) {}
 }

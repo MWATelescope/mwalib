@@ -7,7 +7,7 @@
 use crate::rfinput::ReceiverType;
 use crate::*;
 use gpubox_files::GpuboxError;
-use libc::{c_char, c_double, c_float, c_uchar, c_uint, c_ulong, size_t};
+use libc::{c_char, c_double, c_float, c_uint, c_ulong, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
@@ -1148,6 +1148,46 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
 /// This method takes as input a timestep_index and a coarse_chan_index to return one
 /// file-worth of voltage data.
 ///
+/// The output data are in the format:
+///
+/// MWA Recombined VCS:
+///
+/// NOTE: antennas are in tile_id order for recombined VCS...
+///
+/// sample[0]|finechan[0]|antenna[0]|X|sample
+/// sample[0]|finechan[0]|antenna[0]|Y|sample    
+/// ...
+/// sample[0]|finechan[0]|antenna[127]|X|sample
+/// sample[0]|finechan[0]|antenna[127]|Y|sample
+/// ...
+/// sample[0]|finechan[1]|antenna[0]|X|sample
+/// sample[0]|finechan[1]|antenna[0]|Y|sample
+/// ...
+/// sample[0]|finechan[127]|antenna[127]|X|sample
+/// sample[0]|finechan[127]|antenna[127]|Y|sample
+/// ...
+/// sample[1]|finechan[0]|antenna[0]|X|sample
+/// sample[1]|finechan[0]|antenna[0]|Y|sample        
+///
+/// MWAX:
+/// block[0]antenna[0]|pol[0]|sample[0]...sample[63999]
+/// block[0]antenna[0]|pol[1]|sample[0]...sample[63999]
+/// block[0]antenna[1]|pol[0]|sample[0]...sample[63999]
+/// block[0]antenna[1]|pol[1]|sample[0]...sample[63999]
+/// ...
+/// block[0]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]    
+/// block[1]antenna[0]|pol[0]|sample[0]...sample[63999]
+/// ...
+/// block[19]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]
+///
+/// File format information:
+/// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
+/// =====================================================================================================================================================
+/// Lgeacy  128     2       128     1           10000           327680000   1       0       0           327680000   327680000   1               327680000
+/// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
+/// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
+///
+///
 /// # Arguments
 ///
 /// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
@@ -1156,7 +1196,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
 ///
 /// * `voltage_coarse_chan_index` - index within the voltage coarse_chan array for the desired coarse channel.
 ///
-/// * `buffer_ptr` - pointer to caller-owned and allocated buffer of bytes to write data into. Buffer must be large enough
+/// * `buffer_ptr` - pointer to caller-owned and allocated buffer of signed bytes to write data into. Buffer must be large enough
 ///                  for all of the data. Calculate the buffer size in bytes using:
 ///                  vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_timestep
 ///
@@ -1175,13 +1215,12 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
 /// # Safety
 /// * `error_message` *must* point to an already allocated char* buffer for any error messages.
 /// * `voltage_context_ptr` must point to a populated object from the `mwalib_voltage_context_new` function.
-/// * Caller *must* call `mwalib_voltage_context_free_read_buffer` function to release the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_voltage_context_read_file(
     voltage_context_ptr: *mut VoltageContext,
     voltage_timestep_index: size_t,
     voltage_coarse_chan_index: size_t,
-    buffer_ptr: *mut c_uchar,
+    buffer_ptr: *mut c_char,
     buffer_len: size_t,
     error_message: *const c_char,
     error_message_length: size_t,
@@ -1204,7 +1243,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
         return MWALIB_FAILURE;
     }
 
-    let output_slice: &mut [u8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
+    let output_slice: &mut [i8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
 
     // Read data in.
     match voltage_context.read_file(
@@ -1242,6 +1281,45 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
 /// This method takes as input a gps_time (in seconds) and a coarse_chan_index to return one
 /// second-worth of voltage data.
 ///
+/// The output data are in the format:
+///
+/// MWA Recombined VCS:
+///
+/// NOTE: antennas are in tile_id order for recombined VCS...
+///
+/// sample[0]|finechan[0]|antenna[0]|X|sample
+/// sample[0]|finechan[0]|antenna[0]|Y|sample    
+/// ...
+/// sample[0]|finechan[0]|antenna[127]|X|sample
+/// sample[0]|finechan[0]|antenna[127]|Y|sample
+/// ...
+/// sample[0]|finechan[1]|antenna[0]|X|sample
+/// sample[0]|finechan[1]|antenna[0]|Y|sample
+/// ...
+/// sample[0]|finechan[127]|antenna[127]|X|sample
+/// sample[0]|finechan[127]|antenna[127]|Y|sample
+/// ...
+/// sample[1]|finechan[0]|antenna[0]|X|sample
+/// sample[1]|finechan[0]|antenna[0]|Y|sample        
+///
+/// MWAX:
+/// block[0]antenna[0]|pol[0]|sample[0]...sample[63999]
+/// block[0]antenna[0]|pol[1]|sample[0]...sample[63999]
+/// block[0]antenna[1]|pol[0]|sample[0]...sample[63999]
+/// block[0]antenna[1]|pol[1]|sample[0]...sample[63999]
+/// ...
+/// block[0]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]    
+/// block[1]antenna[0]|pol[0]|sample[0]...sample[63999]
+/// ...
+/// block[19]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]
+///
+/// File format information:
+/// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
+/// =====================================================================================================================================================
+/// Lgeacy  128     2       128     1           10000           327680000   1       0       0           327680000   327680000   1               327680000
+/// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
+/// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
+///
 /// # Arguments
 ///
 /// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
@@ -1252,7 +1330,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
 ///
 /// * `voltage_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel.
 ///
-/// * `buffer_ptr` - pointer to caller-owned and allocated buffer of bytes to write data into. Buffer must be large enough
+/// * `buffer_ptr` - pointer to caller-owned and allocated buffer of signed bytes to write data into. Buffer must be large enough
 ///                  for all of the data. Calculate the buffer size in bytes using:
 ///                  (vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_second) * gps_second_count
 ///
@@ -1271,14 +1349,13 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
 /// # Safety
 /// * `error_message` *must* point to an already allocated char* buffer for any error messages.
 /// * `voltage_context_ptr` must point to a populated object from the `mwalib_voltage_context_new` function.
-/// * Caller *must* call `mwalib_voltage_context_free_read_buffer` function to release the rust memory.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_voltage_context_read_second(
     voltage_context_ptr: *mut VoltageContext,
     gps_second_start: c_ulong,
     gps_second_count: size_t,
     voltage_coarse_chan_index: size_t,
-    buffer_ptr: *mut c_uchar,
+    buffer_ptr: *mut c_char,
     buffer_len: size_t,
     error_message: *const c_char,
     error_message_length: size_t,
@@ -1301,7 +1378,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
         return MWALIB_FAILURE;
     }
 
-    let output_slice: &mut [u8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
+    let output_slice: &mut [i8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
 
     // Read data in.
     match voltage_context.read_second(

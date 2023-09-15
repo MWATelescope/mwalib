@@ -31,7 +31,7 @@ def mwax_cc() -> mwalib.CorrelatorContext:
 
 
 @pytest.fixture
-def legacy_cc() -> mwalib.CorrelatorContext:
+def legacy_cc() -> mwalib.CorrelatorContext:    
     return mwalib.CorrelatorContext(
         LEGACY_CORRELATOR_METAFITS, LEGACY_CORRELATOR_GPUBOX_FILES
     )
