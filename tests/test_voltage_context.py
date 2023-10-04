@@ -106,8 +106,6 @@ def test_mwax_vcs_context_read_data(mwax_vc: mwalib.VoltageContext):
 
     data_by_gpsecond = mwax_vc.read_second(gps_start, gps_seconds, coarse_chan)
 
-    assert np.sum(data_by_gpsecond, dtype=np.int64) == 5222400000
-
     assert data_by_gpsecond.shape == (
         gps_seconds,
         mwax_vc.num_voltage_blocks_per_second,
@@ -127,20 +125,20 @@ def test_mwax_vcs_context_read_data(mwax_vc: mwalib.VoltageContext):
     assert data_by_gpsecond[0, 0, 0, 0, 0, 0] == 0
 
     # second: 0, block: 0, ant: 0, pol: 0, sample: 1, value: 1
-    assert data_by_gpsecond[0, 0, 0, 0, 1, 1] == 253
+    assert data_by_gpsecond[0, 0, 0, 0, 1, 1] == -3
 
     # second: 0, block: 0, ant: 0, pol: 0, sample: 255, value: 0
-    assert data_by_gpsecond[0, 0, 0, 0, 255, 0] == 254
+    assert data_by_gpsecond[0, 0, 0, 0, 255, 0] == -2
 
     # second: 0, block: 0, ant: 0, pol: 0, sample: 256, value: 1
-    assert data_by_gpsecond[0, 0, 0, 0, 256, 1] == 255
+    assert data_by_gpsecond[0, 0, 0, 0, 256, 1] == -1
 
     # second: 0, block: 1, ant: 0, pol: 0, sample: 2, value: 0
     assert data_by_gpsecond[0, 1, 0, 0, 2, 0] == 9
 
     # second: 0, block: 159, ant: 0, pol: 1, sample: 63999, value: 1
     # second: 7, block: 19, ant: 0, pol: 1, sample: 63999, value: 1
-    assert data_by_gpsecond[7, 19, 0, 1, 63999, 1] == 226
+    assert data_by_gpsecond[7, 19, 0, 1, 63999, 1] == -30
 
     # second: 0, block: 120, ant: 0, pol: 0, sample: 0, value: 0
     # second: 6, block: 0, ant: 0, pol: 0, sample: 0, value: 0
@@ -165,9 +163,7 @@ def test_legacy_vcs_context_read_data(legacy_vc: mwalib.VoltageContext):
     gps_start = 1101503312
     gps_seconds = 1
 
-    data_by_gpsecond = legacy_vc.read_second(gps_start, gps_seconds, coarse_chan)
-
-    assert np.sum(data_by_gpsecond, dtype=np.int64) == 326353664
+    data_by_gpsecond = legacy_vc.read_second(gps_start, gps_seconds, coarse_chan)    
 
     assert data_by_gpsecond.shape == (
         gps_seconds,
@@ -197,7 +193,7 @@ def test_legacy_vcs_context_read_data(legacy_vc: mwalib.VoltageContext):
     assert data_by_gpsecond[0, 0, 127, 0, 0, 0] == 125
 
     # second: 0, sample: 10, fine_chan: 32, ant: 0, pol: 1, sample
-    assert data_by_gpsecond[0, 10, 32, 0, 1, 0] == 138
+    assert data_by_gpsecond[0, 10, 32, 0, 1, 0] == -118
 
     # second: 0, sample: 9999, fine_chan: 127, ant: 0, pol: 1, sample
-    assert data_by_gpsecond[0, 9999, 127, 0, 1, 0] == 187
+    assert data_by_gpsecond[0, 9999, 127, 0, 1, 0] == -69

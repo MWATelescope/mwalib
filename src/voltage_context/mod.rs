@@ -12,15 +12,17 @@ use crate::voltage_files::*;
 use crate::*;
 use std::fmt;
 use std::fs::File;
-use std::io::BufReader;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
+
+#[cfg(feature = "python")]
+mod python;
 
 #[cfg(test)]
 pub(crate) mod test; // It's pub crate because I reuse some test code in the ffi tests.
 
 ///
-/// `mwalib` voltage captue system (VCS) observation context. This represents the basic metadata for a voltage capture observation.
+/// This represents the basic metadata and methods for an MWA voltage capture system (VCS) observation.
 ///
 #[derive(Debug)]
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
@@ -144,9 +146,9 @@ impl VoltageContext {
     ///
     /// # Arguments
     ///
-    /// * `metafits` - filename of metafits file as a path or string.
+    /// * `metafits_filename` - filename of metafits file as a path or string.
     ///
-    /// * `voltages` - slice of filenames of voltage files as paths or strings.
+    /// * `voltage_filenames` - slice of filenames of voltage files as paths or strings.
     ///
     ///
     /// # Returns
@@ -549,76 +551,44 @@ impl VoltageContext {
         Ok(gps_second_end)
     }
 
-    /// Read a single timestep / coarse channel worth of data
-    /// The output data are in the format:
-    /// MWA Recombined VCS:
-    ///
-    /// NOTE: antennas are in tile_id order for recombined VCS...
-    ///
-    /// sample[0]|finechan[0]|antenna[0]|X|real
-    /// sample[0]|finechan[0]|antenna[0]|Y|imag    
-    /// ...
-    /// sample[0]|finechan[0]|antenna[127]|X|real
-    /// sample[0]|finechan[0]|antenna[127]|Y|imag
-    /// ...
-    /// sample[0]|finechan[1]|antenna[0]|X|real
-    /// sample[0]|finechan[1]|antenna[0]|Y|imag
-    /// ...
-    /// sample[0]|finechan[127]|antenna[127]|X|real
-    /// sample[0]|finechan[127]|antenna[127]|Y|imag
-    /// ...
-    /// sample[1]|finechan[0]|antenna[0]|X|real
-    /// sample[1]|finechan[0]|antenna[0]|Y|imag        
-    ///
-    /// MWAX:
-    /// antenna[0]|pol[0]|sample[0]...sample[63999]
-    /// antenna[0]|pol[1]|sample[0]...sample[63999]
-    /// antenna[1]|pol[0]|sample[0]...sample[63999]
-    /// antenna[1]|pol[1]|sample[0]...sample[63999]
-    /// ...
-    ///
-    /// File format information:
-    /// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
-    /// =====================================================================================================================================================
-    /// Lgeacy  128     2       128     1           10000           327680000   1       0       0           327680000   327680000   1               327680000
-    /// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
-    /// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
+    /// Read a single or multiple seconds of data for a coarse channel
     ///
     /// # Arguments
     ///
-    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within VoltageContext.timesteps. For mwa legacy each index
-    ///                      represents 1 second increments, for mwax it is 8 second increments.
+    /// * `gps_second_start` - GPS second within the observation to start returning data.
     ///
-    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+    /// * `gps_second_count` - number of seconds of data to return.
+    ///
+    /// * `volt_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
     ///                      to the element within VoltageContext.coarse_chans.
     ///
-    /// * `buffer` - a mutable reference to an already exitsing, initialised slice `[u8]` which will be filled with the data from one data file/block.
+    /// * `buffer` - a mutable reference to an already exitsing, initialised slice `[i8]` which will be filled with data.
     ///
     /// # Returns
     ///
-    /// * A Result containing vector of bytes containing the data, if Ok.
+    /// * A Result of Ok or error.
     ///
     ///
     pub fn read_second(
         &self,
         gps_second_start: u64,
         gps_second_count: usize,
-        coarse_chan_index: usize,
-        buffer: &mut [u8],
+        volt_coarse_chan_index: usize,
+        buffer: &mut [i8],
     ) -> Result<(), VoltageFileError> {
         if self.voltage_batches.is_empty() {
             return Err(VoltageFileError::NoVoltageFiles);
         }
 
         // Validate the coarse chan
-        if coarse_chan_index > self.num_coarse_chans - 1 {
+        if volt_coarse_chan_index > self.num_coarse_chans - 1 {
             return Err(VoltageFileError::InvalidCoarseChanIndex(
                 self.num_coarse_chans - 1,
             ));
         }
+
         // Determine the channel identifier, which we will use later to find the correct data file
-        let channel_identifier = self.coarse_chans[coarse_chan_index].gpubox_number;
+        let channel_identifier = self.coarse_chans[volt_coarse_chan_index].gpubox_number;
 
         // Validate the gpstime
         let gps_second_end =
@@ -678,13 +648,13 @@ impl VoltageContext {
                 None => {
                     return Err(VoltageFileError::NoDataForTimeStepCoarseChannel {
                         timestep_index,
-                        coarse_chan_index,
+                        coarse_chan_index: volt_coarse_chan_index,
                     });
                 }
             };
 
             // Open the file
-            let file_handle = File::open(filename).expect("no file found");
+            let mut file_handle = File::open(filename).expect("no file found");
 
             // Obtain metadata
             let metadata = std::fs::metadata(filename).expect("unable to read metadata");
@@ -697,9 +667,6 @@ impl VoltageContext {
                     self.expected_voltage_data_file_size_bytes,
                 ));
             }
-
-            // Open a buffer reader
-            let mut reader = BufReader::with_capacity(chunk_size, file_handle);
 
             // Loop until all data is read into our buffer
             //
@@ -716,7 +683,7 @@ impl VoltageContext {
                 if current_gps_time >= gps_second_start && current_gps_time <= gps_second_end {
                     // Skip bytes in the file to this block
                     // We skip the header, delays and any intervening voltage blocks
-                    reader
+                    file_handle
                         .by_ref()
                         .seek(SeekFrom::Start(
                             self.data_file_header_size_bytes
@@ -725,8 +692,22 @@ impl VoltageContext {
                         ))
                         .expect("Unable to seek to next data block in voltage file");
 
-                    let chunk = &mut buffer[start_pos..end_pos];
-                    let bytes_read = reader.by_ref().read(chunk).expect("Error");
+                    // Our input buffer is &mut [i8] because we want signed data, yet
+                    // all the read functions seem to only read as [u8].
+                    // So convert the chunk to &mut [u8] then read into it.
+                    // This should just be a pointer cast and not cost anything.
+                    let chunk: &mut [u8] = unsafe {
+                        core::slice::from_raw_parts_mut(
+                            buffer[start_pos..end_pos].as_mut_ptr() as *mut u8,
+                            chunk_size,
+                        )
+                    };
+
+                    let bytes_read = file_handle
+                        .by_ref()
+                        .take(chunk_size as u64)
+                        .read(chunk)
+                        .expect("Unable to read data block in voltage file");
 
                     assert_eq!(bytes_read, chunk_size);
 
@@ -739,83 +720,49 @@ impl VoltageContext {
         Ok(())
     }
 
-    /// Read a single timestep / coarse channel worth of data
-    /// The output data are in the format:
-    /// MWA Recombined VCS:
-    ///
-    /// NOTE: antennas are in tile_id order for recombined VCS...
-    ///
-    /// sample[0]|finechan[0]|antenna[0]|X|real
-    /// sample[0]|finechan[0]|antenna[0]|Y|imag    
-    /// ...
-    /// sample[0]|finechan[0]|antenna[127]|X|real
-    /// sample[0]|finechan[0]|antenna[127]|Y|imag
-    /// ...
-    /// sample[0]|finechan[1]|antenna[0]|X|real
-    /// sample[0]|finechan[1]|antenna[0]|Y|imag
-    /// ...
-    /// sample[0]|finechan[127]|antenna[127]|X|real
-    /// sample[0]|finechan[127]|antenna[127]|Y|imag
-    /// ...
-    /// sample[1]|finechan[0]|antenna[0]|X|real
-    /// sample[1]|finechan[0]|antenna[0]|Y|imag        
-    ///
-    /// MWAX:
-    /// antenna[0]|pol[0]|sample[0]...sample[63999]
-    /// antenna[0]|pol[1]|sample[0]...sample[63999]
-    /// antenna[1]|pol[0]|sample[0]...sample[63999]
-    /// antenna[1]|pol[1]|sample[0]...sample[63999]
-    /// ...
-    ///
-    /// File format information:
-    /// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
-    /// =====================================================================================================================================================
-    /// Lgeacy  128     2       128     1           10000           327680000   1       0       0           327680000   327680000   1               327680000
-    /// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
-    /// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
+    /// Read a single or multiple seconds of data for a coarse channel
     ///
     /// # Arguments
     ///
-    /// * `timestep_index` - index within the timestep array for the desired timestep. This corresponds
+    /// * `volt_timestep_index` - index within the timestep array for the desired timestep. This corresponds
     ///                      to the element within VoltageContext.timesteps. For mwa legacy each index
     ///                      represents 1 second increments, for mwax it is 8 second increments.
     ///
-    /// * `coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+    /// * `volt_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
     ///                      to the element within VoltageContext.coarse_chans.
     ///
-    /// * `buffer` - a mutable reference to an already exitsing, initialised slice `[u8]` which will be filled with the data from one VCS data file.
+    /// * `buffer` - a mutable reference to an already exitsing, initialised slice `[i8]` which will be filled with the data from one VCS data file.
     ///
     ///
     /// # Returns
     ///
-    /// * A Result containing vector of bytes containing the data, if Ok.
-    ///
-    ///
+    /// * A Result of Ok or error.
+    ///    
     pub fn read_file(
         &self,
-        timestep_index: usize,
-        coarse_chan_index: usize,
-        buffer: &mut [u8],
+        volt_timestep_index: usize,
+        volt_coarse_chan_index: usize,
+        buffer: &mut [i8],
     ) -> Result<(), VoltageFileError> {
         if self.voltage_batches.is_empty() {
             return Err(VoltageFileError::NoVoltageFiles);
         }
 
         // Validate the timestep
-        if timestep_index > self.num_timesteps - 1 {
+        if volt_timestep_index > self.num_timesteps - 1 {
             return Err(VoltageFileError::InvalidTimeStepIndex(
                 self.num_timesteps - 1,
             ));
         }
 
         // Validate the coarse chan
-        if coarse_chan_index > self.num_coarse_chans - 1 {
+        if volt_coarse_chan_index > self.num_coarse_chans - 1 {
             return Err(VoltageFileError::InvalidCoarseChanIndex(
                 self.num_coarse_chans - 1,
             ));
         }
         // Determine the channel identifier, which we will use later to find the correct data file
-        let channel_identifier = self.coarse_chans[coarse_chan_index].gpubox_number;
+        let channel_identifier = self.coarse_chans[volt_coarse_chan_index].gpubox_number;
 
         // Work out how much to read at once
         let chunk_size: usize = self.voltage_block_size_bytes as usize; // This will be the size of a voltage block
@@ -824,7 +771,7 @@ impl VoltageContext {
         let batch = &self
             .voltage_batches
             .iter()
-            .find(|f| f.gps_time_seconds * 1000 == self.timesteps[timestep_index].gps_time_ms);
+            .find(|f| f.gps_time_seconds * 1000 == self.timesteps[volt_timestep_index].gps_time_ms);
 
         // find the filename if the timestep/coarse chan combo exists
         let filename_result = match batch {
@@ -840,14 +787,14 @@ impl VoltageContext {
             Some(f) => &f.filename,
             None => {
                 return Err(VoltageFileError::NoDataForTimeStepCoarseChannel {
-                    timestep_index,
-                    coarse_chan_index,
+                    timestep_index: volt_timestep_index,
+                    coarse_chan_index: volt_coarse_chan_index,
                 });
             }
         };
 
         // Open the file
-        let file_handle = File::open(filename).expect("no file found");
+        let mut file_handle = File::open(filename).expect("no file found");
 
         // Obtain metadata
         let metadata = std::fs::metadata(filename).expect("unable to read metadata");
@@ -879,11 +826,8 @@ impl VoltageContext {
             ));
         }
 
-        // Open a buffer reader
-        let mut reader = BufReader::with_capacity(chunk_size, file_handle);
-
         // Skip header
-        reader
+        file_handle
             .by_ref()
             .seek(SeekFrom::Start(
                 self.data_file_header_size_bytes + self.delay_block_size_bytes,
@@ -896,8 +840,27 @@ impl VoltageContext {
 
         // Loop until all data is read into our buffer
         for _ in 0..self.num_voltage_blocks_per_timestep {
-            let chunk = &mut buffer[start_pos..end_pos];
-            let bytes_read = reader.by_ref().read(chunk).expect("Error");
+            //let chunk = &mut buffer[start_pos..end_pos];
+            //let bytes_read = reader.by_ref().read(chunk).expect("Error");
+
+            // Our input buffer is &mut [i8] because we want signed data, yet
+            // all the read functions seem to only read as [u8].
+            // So convert the chunk to &mut [u8] then read into it.
+            // This should just be a pointer cast and not cost anything.
+            let chunk: &mut [u8] = unsafe {
+                core::slice::from_raw_parts_mut(
+                    buffer[start_pos..end_pos].as_mut_ptr() as *mut u8,
+                    chunk_size,
+                )
+            };
+
+            //let chunk = &buffer[start_pos..end_pos];
+            //let bytes_read = reader.by_ref().read(&mut chunk).expect("Error");
+            let bytes_read = file_handle
+                .by_ref()
+                .take(chunk_size as u64)
+                .read(chunk)
+                .expect("Unable to read data block in voltage file");
 
             assert_eq!(bytes_read, chunk_size);
 
@@ -1015,187 +978,4 @@ impl fmt::Display for VoltageContext {
             batches = self.voltage_batches,
         )
     }
-}
-
-#[cfg(feature = "python")]
-use ndarray::Array;
-#[cfg(feature = "python")]
-use ndarray::Dim;
-#[cfg(feature = "python")]
-use numpy::PyArray;
-#[cfg(feature = "python")]
-use pyo3::prelude::*;
-
-#[cfg(feature = "python")]
-#[pymethods]
-impl VoltageContext {
-    #[new]
-    fn pyo3_new(metafits_filename: PyObject, voltage_filenames: Vec<PyObject>) -> PyResult<Self> {
-        // Convert the gpubox filenames.
-        let voltage_filenames: Vec<String> = voltage_filenames
-            .into_iter()
-            .map(|g| g.to_string())
-            .collect();
-        let c: VoltageContext =
-            VoltageContext::new(metafits_filename.to_string(), &voltage_filenames)?;
-        Ok(c)
-    }
-
-    #[pyo3(name = "read_file")]
-    fn pyo3_read_file<'py>(
-        &self,
-        py: Python<'py>,
-        corr_timestep_index: usize,
-        corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray<u8, Dim<[usize; 6]>>> {
-        // Use the existing Rust method.
-        let mut data: Vec<u8> = vec![
-            0;
-            self.num_voltage_blocks_per_timestep
-                * self.metafits_context.num_rf_inputs
-                * self.num_fine_chans_per_coarse
-                * self.num_samples_per_voltage_block
-                * self.sample_size_bytes as usize
-        ];
-        self.read_file(corr_timestep_index, corr_coarse_chan_index, &mut data)?;
-
-        // Convert the vector to a 3D array (this is free).
-        // NOTE: The shape is different between LegacyVCS and MWAX VCS
-        // Legacy: [time sample][chan][ant][pol][complexity]
-        //         where complexity is a byte (4 bits for real, 4 bits for imaginary) in 2's compliment
-        //
-        // MWAX  : [voltage_block][antenna][pol][sample][r,i]
-        let data = match self.mwa_version {
-            MWAVersion::VCSLegacyRecombined => Array::from_shape_vec(
-                (
-                    1, // There is 1 second per timestep for Legacy VCS 
-                    self.num_samples_per_voltage_block,
-                    self.num_fine_chans_per_coarse,
-                    self.metafits_context.num_ants,
-                    self.metafits_context.num_ant_pols,
-                    self.sample_size_bytes as usize,
-                ),
-                data,
-            )
-            .expect("shape of data should match expected dimensions of Legacy VCS Recombined data (num_samples_per_voltage_block, num_fine_chans_per_coarse, num_ants, num_ant_pols, 1)"),
-            MWAVersion::VCSMWAXv2 => Array::from_shape_vec(
-                (
-                    8, // There are 8 seconds in a timestep for MWAX VCS
-                    self.num_voltage_blocks_per_second,
-                    self.metafits_context.num_ants,
-                    self.metafits_context.num_ant_pols,
-                    self.num_samples_per_voltage_block,
-                    self.sample_size_bytes as usize,
-                ),
-                data,
-            )
-            .expect("shape of data should match expected dimensions of MWAX VCS data (num_voltage_blocks_per_timestep, num_ants, num_ant_pols, num_samples_per_voltage_block, 2)"),
-            _ => {
-                return Err(voltage_files::error::PyVoltageErrorInvalidMwaVersion::new_err(
-                    "Invalid MwaVersion",
-                ));
-            }
-        };
-        // Convert to a numpy array.
-        let data = PyArray::from_owned_array(py, data);
-        Ok(data)
-    }
-
-    #[pyo3(name = "read_second")]
-    fn pyo3_read_second<'py>(
-        &self,
-        py: Python<'py>,
-        gps_second_start: u64,
-        gps_second_count: usize,
-        corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray<u8, Dim<[usize; 6]>>> {
-        // Use the existing Rust method.
-        let mut data: Vec<u8> = match self.mwa_version {
-            MWAVersion::VCSMWAXv2 => vec![
-                0;
-                self.num_voltage_blocks_per_second
-                    * self.metafits_context.num_rf_inputs
-                    * self.num_samples_per_voltage_block
-                    * self.metafits_context.num_volt_fine_chans_per_coarse
-                    * self.sample_size_bytes as usize
-                    * gps_second_count
-            ],
-            MWAVersion::VCSLegacyRecombined => {
-                vec![
-                    0;
-                    self.num_voltage_blocks_per_second
-                        * self.metafits_context.num_rf_inputs
-                        * self.num_samples_per_voltage_block
-                        * self.metafits_context.num_volt_fine_chans_per_coarse
-                        * self.sample_size_bytes as usize
-                        * gps_second_count
-                ]
-            }
-            _ => {
-                return Err(
-                    voltage_files::error::PyVoltageErrorInvalidMwaVersion::new_err(
-                        "Invalid MwaVersion",
-                    ),
-                );
-            }
-        };
-        self.read_second(
-            gps_second_start,
-            gps_second_count,
-            corr_coarse_chan_index,
-            &mut data,
-        )?;
-
-        // Convert the vector to a 3D array (this is free).
-        // NOTE: The shape is different between LegacyVCS and MWAX VCS
-        // Legacy: [time sample][chan][ant][pol][complexity]
-        //         where complexity is a byte (4 bits for real, 4 bits for imaginary) in 2's compliment
-        //
-        // MWAX  : [voltage_block][antenna][pol][sample][r,i]
-        let data = match self.mwa_version {
-            MWAVersion::VCSLegacyRecombined => Array::from_shape_vec(
-                (
-                    gps_second_count,
-                    self.num_samples_per_voltage_block,
-                    self.num_fine_chans_per_coarse,
-                    self.metafits_context.num_ants,
-                    self.metafits_context.num_ant_pols,
-                    self.sample_size_bytes as usize,
-                ),
-                data,
-            )
-            .expect("shape of data should match expected dimensions of Legacy VCS Recombined data (gps_second_count, num_samples_per_voltage_block, num_fine_chans_per_coarse, num_ants, num_ant_pols, 1)"),
-            MWAVersion::VCSMWAXv2 => Array::from_shape_vec(
-                (
-                    gps_second_count,
-                    self.num_voltage_blocks_per_second,
-                    self.metafits_context.num_ants,
-                    self.metafits_context.num_ant_pols,
-                    self.num_samples_per_voltage_block,
-                    self.sample_size_bytes as usize,
-                ),
-                data,
-            )
-            .expect("shape of data should match expected dimensions of MWAX VCS data (gps_second_count, num_voltage_blocks_per_timestep, num_ants, num_ant_pols, num_samples_per_voltage_block, 2)"),
-            _ => {
-                return Err(voltage_files::error::PyVoltageErrorInvalidMwaVersion::new_err(
-                    "Invalid MwaVersion",
-                ));
-            }
-        };
-        // Convert to a numpy array.
-        let data = PyArray::from_owned_array(py, data);
-        Ok(data)
-    }
-
-    // https://pyo3.rs/v0.17.3/class/object.html#string-representations
-    fn __repr__(&self) -> String {
-        format!("{}", self)
-    }
-
-    fn __enter__(slf: Py<Self>) -> Py<Self> {
-        slf
-    }
-
-    fn __exit__(&mut self, _exc_type: &PyAny, _exc_value: &PyAny, _traceback: &PyAny) {}
 }

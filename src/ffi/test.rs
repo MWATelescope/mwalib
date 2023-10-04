@@ -262,7 +262,7 @@ fn test_set_error_message_buffer_len_too_small() {
 #[test]
 fn test_mwalib_free_rust_cstring() {
     let buffer = CString::new("HELLO WORLD").unwrap();
-    let buffer_ptr = buffer.into_raw() as *mut i8;
+    let buffer_ptr = buffer.into_raw();
 
     // into_raw will take garbage collection of the buffer away from rust, so
     // some ffi/C code can free it (like below)
@@ -1306,8 +1306,8 @@ fn test_mwalib_voltage_context_legacy_read_file_valid() {
     let buffer_len = 2 * 128 * 10000;
 
     unsafe {
-        let in_buffer: Vec<u8> = vec![0; buffer_len];
-        let buffer_ptr: *mut u8 = ffi_array_to_boxed_slice(in_buffer);
+        let in_buffer: Vec<i8> = vec![0; buffer_len];
+        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
 
         let retval = mwalib_voltage_context_read_file(
             voltage_context_ptr,
@@ -1322,7 +1322,7 @@ fn test_mwalib_voltage_context_legacy_read_file_valid() {
         assert_eq!(retval, 0);
 
         // Reconstitute the buffer
-        let buffer: Vec<u8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
+        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
 
         // Check contents
         // Check for various values
@@ -1363,7 +1363,7 @@ fn test_mwalib_voltage_context_legacy_read_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_legacy(
                 10, 32, 1
             )],
-            138
+            -118
         );
 
         // sample: 9999, fine_chan: 127, rfinput: 1
@@ -1371,7 +1371,7 @@ fn test_mwalib_voltage_context_legacy_read_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_legacy(
                 9999, 127, 1
             )],
-            187
+            -69
         );
     }
 }
@@ -1393,8 +1393,8 @@ fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
     let buffer_len = 2 * 64000 * 160 * 2;
 
     unsafe {
-        let in_buffer: Vec<u8> = vec![0; buffer_len];
-        let buffer_ptr: *mut u8 = ffi_array_to_boxed_slice(in_buffer);
+        let in_buffer: Vec<i8> = vec![0; buffer_len];
+        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
 
         let retval = mwalib_voltage_context_read_file(
             voltage_context_ptr,
@@ -1409,7 +1409,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
         assert_eq!(retval, 0);
 
         // Reconstitute the buffer
-        let buffer: Vec<u8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
+        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
 
         // Check for various values
         // block: 0, rfinput: 0, sample: 0, value: 0
@@ -1425,7 +1425,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_mwaxv2(
                 0, 0, 1, 1
             )],
-            253
+            -3
         );
 
         // block: 0, rfinput: 0, sample: 255, value: 0
@@ -1433,7 +1433,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_mwaxv2(
                 0, 0, 255, 0
             )],
-            254
+            -2
         );
 
         // block: 0, rfinput: 0, sample: 256, value: 1
@@ -1441,7 +1441,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_mwaxv2(
                 0, 0, 256, 1
             )],
-            255
+            -1
         );
 
         // block: 1, rfinput: 0, sample: 2, value: 0
@@ -1457,7 +1457,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_mwaxv2(
                 159, 1, 63999, 1
             )],
-            226
+            -30
         );
 
         // block: 120, rfinput: 0, sample: 0, value: 0
@@ -1487,8 +1487,8 @@ fn test_mwalib_voltage_context_mwaxv2_read_os_file_valid() {
     let buffer_len = 2 * 81920 * 160 * 2;
 
     unsafe {
-        let in_buffer: Vec<u8> = vec![0; buffer_len];
-        let buffer_ptr: *mut u8 = ffi_array_to_boxed_slice(in_buffer);
+        let in_buffer: Vec<i8> = vec![0; buffer_len];
+        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
 
         let retval = mwalib_voltage_context_read_file(
             voltage_context_ptr,
@@ -1503,7 +1503,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_os_file_valid() {
         assert_eq!(retval, 0);
 
         // Reconstitute the buffer
-        let buffer: Vec<u8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
+        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
 
         // Check for various values
         // block: 0, rfinput: 0, sample: 0, value: 0
@@ -1519,7 +1519,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_os_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_mwaxv2_os(
                 0, 0, 1, 1
             )],
-            253
+            -3
         );
 
         // block: 0, rfinput: 0, sample: 255, value: 0
@@ -1527,7 +1527,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_os_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_mwaxv2_os(
                 0, 0, 255, 0
             )],
-            254
+            -2
         );
 
         // block: 0, rfinput: 0, sample: 256, value: 1
@@ -1535,7 +1535,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_os_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_mwaxv2_os(
                 0, 0, 256, 1
             )],
-            255
+            -1
         );
 
         // block: 1, rfinput: 0, sample: 2, value: 0
@@ -1551,7 +1551,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_os_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_mwaxv2_os(
                 159, 1, 63999, 1
             )],
-            226
+            -30
         );
 
         // block: 159, rfinput: 1, sample: 81919, value: 1
@@ -1559,7 +1559,7 @@ fn test_mwalib_voltage_context_mwaxv2_read_os_file_valid() {
             buffer[voltage_context::test::get_index_for_location_in_test_voltage_file_mwaxv2_os(
                 159, 1, 81919, 1
             )],
-            226
+            -30
         );
 
         // block: 120, rfinput: 0, sample: 0, value: 0

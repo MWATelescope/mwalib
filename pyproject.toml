@@ -1,6 +1,5 @@
 [project]
 name = "mwalib"
-version = "1.0.0"
 description = "A library to work with raw data and metadata from the Murchison Widefield Array (MWA)"
 readme = "README.md"
 requires-python = ">=3.7"
