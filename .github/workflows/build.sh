@@ -41,10 +41,10 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         export RUSTFLAGS="-C target-cpu=${level}"
     
         # Build python first
-        maturin build --release --features python,cfitsio-static --strip -i 3.7 3.8 3.9 3.10
+        MWALIB_LINK_STATIC_CFITSIO=1 maturin build --release --features python,cfitsio-static --strip -i 3.7 3.8 3.9 3.10
 
         # Build C objects
-        cargo build --release --features cfitsio-static,examples
+        MWALIB_LINK_STATIC_CFITSIO=1 cargo build --release --features cfitsio-static,examples
                 
         # Create new release asset tarballs
         mv target/wheels/*.whl target/release/libmwalib.{a,so} include/mwalib.h .
@@ -59,10 +59,10 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     brew install automake
 
     # Build python first
-    maturin build --release --features python,cfitsio-static --strip -i 3.7 3.8 3.9 3.10
+    MWALIB_LINK_STATIC_CFITSIO=1 maturin build --release --features python,cfitsio-static --strip -i 3.7 3.8 3.9 3.10
 
     # Build C objects
-    cargo build --release --features cfitsio-static,examples
+    MWALIB_LINK_STATIC_CFITSIO=1 cargo build --release --features cfitsio-static,examples
     
     # Create new release asset tarballs
     mv target/wheels/*.whl target/release/libmwalib.{a,dylib} include/mwalib.h .
