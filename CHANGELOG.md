@@ -2,10 +2,14 @@
 
 Changes in each release are listed below.
 
+## 1.1.1 5-Oct-2023
+
+* Fixed build issue which caused 'illegal instruction' errors whenever mwalib called CFITSIO functions.
+
 ## 1.1.0 13-Sep-2023
 
 * BREAKING CHANGE: `VoltageContext::read_second` and `read_file` now return signed bytes (`i8`) instead of unsigned (`u8`). This is a very breaking change for existing clients using these functions, but it is necessary to return the correct interpretation of the bytes to the client.
-* Python classes and methods now have docstrings. 
+* Python classes and methods now have docstrings.
 
 ## 1.0.1 12-Sep-2023
 
