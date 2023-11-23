@@ -306,13 +306,13 @@ fn test_determine_obs_times_test_many_timesteps_legacy() {
     for time in common_times.iter() {
         input
             .entry(*time)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry(121)
             .or_insert(format!("1065880128_{}_ch121.dat", time));
 
         input
             .entry(*time)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry(122)
             .or_insert(format!("1065880128_{}_ch122.dat", time));
     }
@@ -380,13 +380,13 @@ fn test_determine_obs_times_test_many_timesteps_mwax() {
     for time in common_times.iter() {
         input
             .entry(*time)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry(121)
             .or_insert(format!("1065880128_{}_121.sub", time));
 
         input
             .entry(*time)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry(122)
             .or_insert(format!("1065880128_{}_122.sub", time));
     }

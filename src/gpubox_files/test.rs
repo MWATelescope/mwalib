@@ -25,7 +25,7 @@ fn create_determine_common_obs_times_and_chans_test_data(
     for (chan_index, unix_time_ms) in coarse_chan101_unix_times.iter().enumerate() {
         gpubox_time_map
             .entry(*unix_time_ms)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry(101)
             .or_insert((0, chan_index + 1));
     }
@@ -33,7 +33,7 @@ fn create_determine_common_obs_times_and_chans_test_data(
     for (chan_index, unix_time_ms) in coarse_chan102_unix_times.iter().enumerate() {
         gpubox_time_map
             .entry(*unix_time_ms)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry(102)
             .or_insert((0, chan_index + 1));
     }
@@ -41,7 +41,7 @@ fn create_determine_common_obs_times_and_chans_test_data(
     for (chan_index, unix_time_ms) in coarse_chan103_unix_times.iter().enumerate() {
         gpubox_time_map
             .entry(*unix_time_ms)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry(103)
             .or_insert((0, chan_index + 1));
     }
@@ -49,7 +49,7 @@ fn create_determine_common_obs_times_and_chans_test_data(
     for (chan_index, unix_time_ms) in coarse_chan104_unix_times.iter().enumerate() {
         gpubox_time_map
             .entry(*unix_time_ms)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry(104)
             .or_insert((0, chan_index + 1));
     }
