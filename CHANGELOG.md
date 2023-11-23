@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.2.0 23-Nov-2023
+
+* Added support and release for Python 3.11
+
 ## 1.1.1 5-Oct-2023
 
 * Fixed build issue which caused 'illegal instruction' errors whenever mwalib called CFITSIO functions.

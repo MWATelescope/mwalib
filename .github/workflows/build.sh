@@ -41,7 +41,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         export RUSTFLAGS="-C target-cpu=${level}"
     
         # Build python first
-        MWALIB_LINK_STATIC_CFITSIO=1 maturin build --release --features python --strip -i 3.7 3.8 3.9 3.10
+        MWALIB_LINK_STATIC_CFITSIO=1 maturin build --release --features python --strip -i 3.7 3.8 3.9 3.10 3.11
 
         # Build C objects
         MWALIB_LINK_STATIC_CFITSIO=1 cargo build --release --features examples
@@ -59,7 +59,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     brew install automake
 
     # Build python first
-    MWALIB_LINK_STATIC_CFITSIO=1 maturin build --release --features python --strip -i 3.7 3.8 3.9 3.10
+    MWALIB_LINK_STATIC_CFITSIO=1 maturin build --release --features python --strip -i 3.7 3.8 3.9 3.10 3.11
 
     # Build C objects
     MWALIB_LINK_STATIC_CFITSIO=1 cargo build --release --features examples
