@@ -2,6 +2,11 @@
 
 Changes in each release are listed below.
 
+## 1.2.1 24-Nov-2023
+
+* Added pypi release for Python 3.11.
+* Removed release wheels and pypi deployment for Python 3.7.
+
 ## 1.2.0 24-Nov-2023
 
 * Added support and release for Python 3.11.

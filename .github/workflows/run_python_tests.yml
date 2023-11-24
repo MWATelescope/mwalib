@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [3.7, 3.8, 3.9, "3.10", "3.11"]
+        python-version: [3.8, 3.9, "3.10", "3.11"]
     steps:    
     - name: Checkout sources
       uses: actions/checkout@v3   
@@ -50,7 +50,7 @@ jobs:
           python3 -m venv env
           source env/bin/activate
 
-          pip3 install maturin==1.2.3
+          pip3 install maturin==1.3.2
           if [[ "$OSTYPE" == "darwin"* ]]; then
             brew install automake
           fi

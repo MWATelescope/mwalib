@@ -40,12 +40,14 @@ fn main() {
     match env::var("DOCS_RS").as_deref() {
         Ok("1") => (),
         _ => {
+            let config: cbindgen::Config = cbindgen::Config {
+                cpp_compat: true,
+                pragma_once: true,
+                ..Default::default()
+            };
+
             cbindgen::Builder::new()
-                .with_config(cbindgen::Config {
-                    cpp_compat: true,
-                    pragma_once: true,
-                    ..Default::default()
-                })
+                .with_config(config)
                 .with_crate(env::var("CARGO_MANIFEST_DIR").unwrap())
                 .with_language(cbindgen::Language::C)
                 .generate()

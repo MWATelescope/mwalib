@@ -32,7 +32,7 @@ rustup default 1.63
 pip3 install --upgrade pip
 
 # Setup maturin
-pip3 install maturin==1.2.3
+pip3 install maturin==1.3.2
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Build a release for each x86_64 microarchitecture level. v4 can't be
@@ -41,7 +41,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         export RUSTFLAGS="-C target-cpu=${level}"
     
         # Build python first
-        MWALIB_LINK_STATIC_CFITSIO=1 maturin build --release --features python --strip -i 3.7 3.8 3.9 3.10 3.11
+        MWALIB_LINK_STATIC_CFITSIO=1 maturin build --release --features python --strip -i 3.8 3.9 3.10 3.11
 
         # Build C objects
         MWALIB_LINK_STATIC_CFITSIO=1 cargo build --release --features examples
@@ -59,7 +59,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     brew install automake
 
     # Build python first
-    MWALIB_LINK_STATIC_CFITSIO=1 maturin build --release --features python --strip -i 3.7 3.8 3.9 3.10 3.11
+    MWALIB_LINK_STATIC_CFITSIO=1 maturin build --release --features python --strip -i 3.8 3.9 3.10 3.11
 
     # Build C objects
     MWALIB_LINK_STATIC_CFITSIO=1 cargo build --release --features examples
