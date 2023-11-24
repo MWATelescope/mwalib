@@ -248,3 +248,28 @@ pub fn convert_unixtime_to_gpstime(
         }
     }
 }
+
+/// Returns a bool based on whether this cable flavour has a whitening filter. (Used by rfinput::new())
+///
+/// Rules can be found in github issue #64
+///
+/// # Arguments
+///
+/// * `flavour` - refernce to a string which has the cable flavour (value of the "flavor" column from
+/// TILEDATA HDU of the metafits file).
+///
+/// # Returns
+///
+/// * True if this flavour has a whitening filter, False if not.
+///
+pub fn has_whitening_filter(flavour: &str) -> bool {
+    if flavour.len() >= 3 {
+        match flavour[0..3].to_uppercase().as_str() {
+            "RG6" => !matches!(flavour, "RG6_90"),
+            "LMR" => true,
+            _ => false,
+        }
+    } else {
+        false
+    }
+}

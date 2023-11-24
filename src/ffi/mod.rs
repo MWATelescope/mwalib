@@ -1743,6 +1743,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 rec_number,
                 rec_slot_number,
                 rec_type,
+                flavour,
+                has_whitening_filter,
             } = item;
             Rfinput {
                 input: *input,
@@ -1766,6 +1768,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 rec_number: *rec_number,
                 rec_slot_number: *rec_slot_number,
                 rec_type: *rec_type,
+                flavour: CString::new(String::from(flavour)).unwrap().into_raw(),
+                has_whitening_filter: *has_whitening_filter,
             }
         };
         rfinput_vec.push(out_item);
@@ -2064,6 +2068,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
             if !i.dipole_delays.is_null() {
                 drop(Box::from_raw(i.dipole_delays));
             }
+            drop(Box::from_raw(i.flavour));
         }
 
         // Free the memory for the slice
@@ -2980,6 +2985,10 @@ pub struct Rfinput {
     pub rec_slot_number: u32,
     /// Receiver type
     pub rec_type: ReceiverType,
+    /// Flavour
+    pub flavour: *mut c_char,
+    /// Has whitening filter depends on flavour
+    pub has_whitening_filter: bool,
 }
 
 ///

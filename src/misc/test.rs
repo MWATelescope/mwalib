@@ -111,6 +111,8 @@ fn test_get_baseline_from_antenna_names1() {
         rec_number: 1,
         rec_slot_number: 0,
         rec_type: ReceiverType::Unknown,
+        flavour: String::from("dummy1"),
+        has_whitening_filter: false,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -132,6 +134,8 @@ fn test_get_baseline_from_antenna_names1() {
         rec_number: 1,
         rec_slot_number: 1,
         rec_type: ReceiverType::Unknown,
+        flavour: String::from("dummy1"),
+        has_whitening_filter: false,
     };
 
     ants.push(Antenna {
@@ -284,6 +288,8 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         rec_number: 1,
         rec_slot_number: 0,
         rec_type: ReceiverType::Unknown,
+        flavour: String::from("dummy1"),
+        has_whitening_filter: false,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -305,6 +311,8 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         rec_number: 1,
         rec_slot_number: 1,
         rec_type: ReceiverType::Unknown,
+        flavour: String::from("dummy1"),
+        has_whitening_filter: false,
     };
 
     ants.push(Antenna {
@@ -362,6 +370,8 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         rec_number: 1,
         rec_slot_number: 0,
         rec_type: ReceiverType::Unknown,
+        flavour: String::from("dummy1"),
+        has_whitening_filter: false,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -383,6 +393,8 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         rec_number: 1,
         rec_slot_number: 1,
         rec_type: ReceiverType::Unknown,
+        flavour: String::from("dummy1"),
+        has_whitening_filter: false,
     };
 
     ants.push(Antenna {
@@ -445,4 +457,31 @@ fn test_dms_to_degrees_large() {
         "{}",
         test
     );
+}
+
+#[test]
+fn test_has_whitening_filter() {
+    // From giuthub issue #64:
+    // Every cable flavour starting with 'RG6', except for 'RG6_90' and
+    // 'everything starting with LMR' [has a whitening filter].
+
+    // Test empty
+    assert!(!has_whitening_filter(""));
+
+    // Test some string
+    assert!(!has_whitening_filter("SomeOtherString"));
+
+    // Test RG6_123
+    assert!(has_whitening_filter("RG6_123"));
+    // Test RG6 by itself
+    assert!(has_whitening_filter("RG6"));
+    // Test RG6_123 (lowecase)
+    assert!(has_whitening_filter("rg6_123"));
+
+    // Test RG6_90 returns FALSE!
+    assert!(!has_whitening_filter("RG6_90"));
+    // Test LMR_123
+    assert!(has_whitening_filter("LMR_123"));
+    // Test LMR by itself
+    assert!(has_whitening_filter("LMR"));
 }

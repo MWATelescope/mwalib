@@ -31,6 +31,8 @@ fn test_populate_antennas() {
             rec_number: 1,
             rec_slot_number: 0,
             rec_type: ReceiverType::RRI,
+            flavour: String::from("dummy1"),
+            has_whitening_filter: false,
         },
         Rfinput {
             input: 1,
@@ -51,6 +53,8 @@ fn test_populate_antennas() {
             rec_number: 1,
             rec_slot_number: 1,
             rec_type: ReceiverType::RRI,
+            flavour: String::from("dummy1"),
+            has_whitening_filter: false,
         },
         Rfinput {
             input: 2,
@@ -71,6 +75,8 @@ fn test_populate_antennas() {
             rec_number: 2,
             rec_slot_number: 0,
             rec_type: ReceiverType::RRI,
+            flavour: String::from("dummy1"),
+            has_whitening_filter: false,
         },
         Rfinput {
             input: 3,
@@ -91,6 +97,8 @@ fn test_populate_antennas() {
             rec_number: 2,
             rec_slot_number: 1,
             rec_type: ReceiverType::RRI,
+            flavour: String::from("dummy1"),
+            has_whitening_filter: false,
         },
         Rfinput {
             input: 4,
@@ -111,6 +119,8 @@ fn test_populate_antennas() {
             rec_number: 3,
             rec_slot_number: 0,
             rec_type: ReceiverType::RRI,
+            flavour: String::from("dummy1"),
+            has_whitening_filter: false,
         },
         Rfinput {
             input: 5,
@@ -131,6 +141,8 @@ fn test_populate_antennas() {
             rec_number: 3,
             rec_slot_number: 1,
             rec_type: ReceiverType::RRI,
+            flavour: String::from("dummy1"),
+            has_whitening_filter: false,
         },
         Rfinput {
             input: 6,
@@ -151,6 +163,8 @@ fn test_populate_antennas() {
             rec_number: 4,
             rec_slot_number: 0,
             rec_type: ReceiverType::RRI,
+            flavour: String::from("dummy1"),
+            has_whitening_filter: false,
         },
         Rfinput {
             input: 7,
@@ -171,6 +185,8 @@ fn test_populate_antennas() {
             rec_number: 4,
             rec_slot_number: 1,
             rec_type: ReceiverType::RRI,
+            flavour: String::from("dummy1"),
+            has_whitening_filter: false,
         },
     ];
 
@@ -235,6 +251,8 @@ fn test_antenna_debug() {
             rec_number: 1,
             rec_slot_number: 0,
             rec_type: ReceiverType::RRI,
+            flavour: String::from("dummy1"),
+            has_whitening_filter: false,
         },
         Rfinput {
             input: 1,
@@ -255,6 +273,8 @@ fn test_antenna_debug() {
             rec_number: 1,
             rec_slot_number: 1,
             rec_type: ReceiverType::RRI,
+            flavour: String::from("dummy1"),
+            has_whitening_filter: false,
         },
     ];
 

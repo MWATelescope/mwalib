@@ -2,9 +2,13 @@
 
 Changes in each release are listed below.
 
-## 1.2.0 23-Nov-2023
+## 1.2.0 24-Nov-2023
 
-* Added support and release for Python 3.11
+* Added support and release for Python 3.11.
+* Exposed the `flavour` column from the metafits TILEDATA table in `rfinput`.
+* Added `has_whitening_filter` boolean value to `rf_input` which is calculated by mwalib based on `flavour`.
+* Fixed a few new clippy lints.
+* Added more columns to the example `mwalib-print-tile-info.py`.
 
 ## 1.1.1 5-Oct-2023
 

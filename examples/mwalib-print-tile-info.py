@@ -20,8 +20,13 @@ if __name__ == "__main__":
     metafits_filename = args.metafits
 
     with mwalib.MetafitsContext(metafits_filename) as context:
-        print("ant\tpol\tname\trec\tslot\telec len (m)\tflagged?")
-        for r in context.rf_inputs:
+        print(
+            "input\tant\tpol\tname\trec\tslot\telec len"
+            " (m)\tflagged?\tflavour\twhitening_filter"
+        )
+        for i, r in enumerate(context.rf_inputs):
             print(
-                f"{r.ant}\t{r.pol}\t{r.tile_name}\t{r.rec_number}\t{r.rec_slot_number}\t{r.electrical_length_m}\t{1 if r.flagged else 0}"
+                f"{i}\t{r.ant}\t{r.pol}\t{r.tile_name}\t{r.rec_number}\t{r.rec_slot_number}\t"
+                f"{r.electrical_length_m}\t{1 if r.flagged else 0}\t"
+                f"{r.flavour}\t{r.has_whitening_filter}"
             )
