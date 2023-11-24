@@ -252,3 +252,35 @@ fn test_string_to_receiver_type() {
     );
     assert!(String::from("").parse::<ReceiverType>().unwrap() == ReceiverType::Unknown);
 }
+
+#[test]
+fn test_flavor_and_whitening_filter() {
+    let metafits_filename = "test_files/1384808344/1384808344_metafits.fits";
+    let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+    let result =
+        Rfinput::populate_rf_inputs(290, &mut metafits_fptr, metafits_tile_table_hdu, 1.204, 24);
+
+    assert!(result.is_ok());
+    let mut rfinput = result.unwrap();
+
+    // need to remember to apply correct sort
+    rfinput.sort_by_key(|k| k.subfile_order);
+
+    assert_eq!(rfinput.len(), 290);
+
+    assert_eq!(rfinput[0].rec_type, ReceiverType::RRI);
+    assert_eq!(rfinput[0].tile_name, "Tile011");
+    assert_eq!(rfinput[0].flavour, "RG6_90");
+    assert!(!rfinput[0].has_whitening_filter);
+
+    assert_eq!(rfinput[4].rec_type, ReceiverType::RRI);
+    assert_eq!(rfinput[4].tile_name, "Tile013");
+    assert_eq!(rfinput[4].flavour, "RG6_150");
+    assert!(rfinput[4].has_whitening_filter);
+
+    assert_eq!(rfinput[289].rec_type, ReceiverType::NI);
+    assert_eq!(rfinput[289].tile_name, "LBG8");
+    assert_eq!(rfinput[289].flavour, "RFOF-NI");
+    assert!(!rfinput[289].has_whitening_filter);
+}

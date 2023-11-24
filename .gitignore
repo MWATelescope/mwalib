@@ -20,3 +20,6 @@ ccov.zip
 .coverage
 .python-version
 __pycache__
+/tmp
+/examples/*.o
+/examples/*.dbg

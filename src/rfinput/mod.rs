@@ -5,6 +5,7 @@
 //! Structs and helper methods for rf_input metadata
 
 pub mod error;
+use crate::misc::has_whitening_filter;
 use error::RfinputError;
 use log::trace;
 use std::fmt;
@@ -158,6 +159,8 @@ struct RfInputMetafitsTableRow {
     slot: u32,
     /// Receiver type
     rx_type: String,
+    /// (cable) flavour
+    flavour: String,
 }
 
 /// ReceiverType enum.
@@ -276,6 +279,10 @@ pub struct Rfinput {
     pub rec_slot_number: u32,
     /// Receiver type
     pub rec_type: ReceiverType,
+    /// Flavour
+    pub flavour: String,
+    /// Has whitening filter (depends on flavour)
+    pub has_whitening_filter: bool,
 }
 
 impl Rfinput {
@@ -369,6 +376,13 @@ impl Rfinput {
         )
         .unwrap_or_default();
 
+        // Many old metafits will not have this column. So
+        // if it does not exist, don't panic, just return
+        // en empty string.
+        let flavour: String =
+            read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flavors", row)
+                .unwrap_or_default();
+
         Ok(RfInputMetafitsTableRow {
             input,
             antenna,
@@ -386,6 +400,7 @@ impl Rfinput {
             rx,
             slot,
             rx_type,
+            flavour,
         })
     }
 
@@ -436,6 +451,8 @@ impl Rfinput {
             let vcs_order = get_vcs_order(metafits_row.input);
             let subfile_order = get_mwax_order(metafits_row.antenna, metafits_row.pol);
 
+            let has_whitening_filter: bool = has_whitening_filter(&metafits_row.flavour);
+
             rf_inputs.push(Self {
                 input: metafits_row.input,
                 ant: metafits_row.antenna,
@@ -455,6 +472,8 @@ impl Rfinput {
                 rec_number: metafits_row.rx,
                 rec_slot_number: metafits_row.slot,
                 rec_type: metafits_row.rx_type.parse::<ReceiverType>().unwrap(),
+                flavour: metafits_row.flavour,
+                has_whitening_filter,
             })
         }
         Ok(rf_inputs)
