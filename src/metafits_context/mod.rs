@@ -716,7 +716,7 @@ impl MetafitsContext {
         let metafits_timesteps: Vec<TimeStep> = Vec::new();
 
         let scheduled_end_utc =
-            scheduled_start_utc + Duration::milliseconds(scheduled_duration_ms as i64);
+            scheduled_start_utc + Duration::try_milliseconds(scheduled_duration_ms as i64).expect("scheduled_duration_ms is out of range");
 
         // To increment the mjd we need to fractional proportion of the day that the duration represents
         let scheduled_end_mjd =
