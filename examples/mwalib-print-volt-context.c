@@ -12,8 +12,8 @@ void do_sum(VoltageContext *context, long bytes_per_timestep, size_t num_timeste
     // Allocate buffer for any error messages
     char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
 
-    char *data_buffer = calloc(bytes_per_timestep * num_provided_timesteps * num_provided_coarse_chans, sizeof(char));
-    char *buffer_ptr = data_buffer; // Keep data_buffer pointing to the start of the buffer so we can free it later
+    signed char *data_buffer = calloc(bytes_per_timestep * num_provided_timesteps * num_provided_coarse_chans, sizeof(signed char));
+    signed char *buffer_ptr = data_buffer; // Keep data_buffer pointing to the start of the buffer so we can free it later
     double sum = 0;
 
     for (int timestep_index = 0; timestep_index < num_timesteps; timestep_index++)

@@ -320,7 +320,7 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
 
     let mut file_count: Option<u8> = None;
     let mut prev_batch_num: u64 = 0;
-    for (_, (batch_num, num_files)) in batches_and_files.iter().enumerate() {
+    for (batch_num, num_files) in batches_and_files.iter() {
         // Check that the previous batch + voltage_file_interval_seconds == the current batch number
         // This is our contiguity check
         if prev_batch_num != 0 && prev_batch_num + voltage_file_interval_seconds != *batch_num {
