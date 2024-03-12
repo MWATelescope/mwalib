@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.2.3 12-Mar-2024
+
+* Removed error-inducing, unneeded `python_version` requirement from the `[build-system]` `requires` setting.
+
 ## 1.2.2 12-Mar-2024
 
 * Explictly typed the buffer_ptr to be `signed char*` instead of the ambiguous `char*` in FFI VoltageContext read methods to fix portability issue with Arm64 platform. Fixes #67.

@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "1.2.2"
+version = "1.2.3"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"

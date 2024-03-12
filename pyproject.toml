@@ -33,7 +33,7 @@ dependencies = ["numpy"]
 "Source" = "https://github.com/MWATelescope/mwalib"
 
 [build-system]
-requires = ["setuptools", "wheel", "python_version>=3.7"]
+requires = ["setuptools", "wheel"]
 build-backend = "maturin"
 
 [tool.maturin]
