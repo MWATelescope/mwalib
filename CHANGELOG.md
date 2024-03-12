@@ -2,6 +2,11 @@
 
 Changes in each release are listed below.
 
+## 1.2.2 12-Mar-2024
+
+* Explictly typed the buffer_ptr to be `signed char*` instead of the ambiguous `char*` in FFI VoltageContext read methods to fix portability issue with Arm64 platform. Fixes #67.
+* Updated deprecated call when using `Duration:milliseconds`. 
+
 ## 1.2.1 24-Nov-2023
 
 * Added pypi release and release wheels and support for Python 3.12.

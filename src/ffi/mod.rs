@@ -7,7 +7,7 @@
 use crate::rfinput::ReceiverType;
 use crate::*;
 use gpubox_files::GpuboxError;
-use libc::{c_char, c_double, c_float, c_uint, c_ulong, size_t};
+use libc::{c_schar, c_char, c_double, c_float, c_uint, c_ulong, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
@@ -1220,7 +1220,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
     voltage_context_ptr: *mut VoltageContext,
     voltage_timestep_index: size_t,
     voltage_coarse_chan_index: size_t,
-    buffer_ptr: *mut c_char,
+    buffer_ptr: *mut c_schar,
     buffer_len: size_t,
     error_message: *const c_char,
     error_message_length: size_t,
@@ -1355,7 +1355,7 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
     gps_second_start: c_ulong,
     gps_second_count: size_t,
     voltage_coarse_chan_index: size_t,
-    buffer_ptr: *mut c_char,
+    buffer_ptr: *mut c_schar,
     buffer_len: size_t,
     error_message: *const c_char,
     error_message_length: size_t,
