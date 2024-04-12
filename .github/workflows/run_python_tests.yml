@@ -19,16 +19,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, macOS-14]
         python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
     steps:    
     - name: Checkout sources
-      uses: actions/checkout@v3   
+      uses: actions/checkout@v4
 
-    - name: Install cfitsio
-      run: ./.github/workflows/make_cfitsio.sh
-      shell: bash
-
+    - name: (macos) install automake and autoconf
+      if: ${{ startsWith(matrix.os, 'macOS') }}
+      run: |
+        brew install automake autoconf
+    
     - name: Install stable toolchain
       uses: actions-rs/toolchain@v1
       with:
@@ -36,6 +37,25 @@ jobs:
           toolchain: stable
           override: true
     
+    - name: install cfitsio
+      env:
+        # TODO: CFITSIO_VERSION: 4.4.0
+        CFITSIO_VERSION: 3.49
+      run: |
+        cd /tmp
+        curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-${CFITSIO_VERSION}.tar.gz" -o cfitsio.tar.gz
+        tar -xf cfitsio.tar.gz
+        rm cfitsio.tar.gz
+        cd cfitsio-${CFITSIO_VERSION}
+        ./configure --prefix=/usr/local --enable-reentrant --disable-curl
+        sudo make shared
+        sudo make install
+        cd ..
+
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+          sudo ldconfig
+        fi
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
@@ -44,18 +64,15 @@ jobs:
     - name: Run rust tests to generate test data
       run: cargo test --features=cfitsio-static
 
-    - name: Run pytests
+    - name: Setup python environment and run pytests
       run: |
-          pip3 install --upgrade pip
-          python3 -m venv env
-          source env/bin/activate
+        pip3 install --upgrade pip
+        python3 -m venv env
+        source env/bin/activate
+        pip3 install --upgrade pip        
+        pip3 install maturin==1.3.2        
 
-          pip3 install maturin==1.3.2
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            brew install automake
-          fi
+        maturin develop --features=python,cfitsio-static --strip
 
-          maturin develop --features=python,cfitsio-static --strip
-
-          pip install pytest          
-          pytest
+        pip3 install pytest          
+        pytest

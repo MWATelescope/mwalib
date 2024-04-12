@@ -5,7 +5,7 @@ Changes in each release are listed below.
 ## 1.3.0 12-Apr-2024
 
 * Added 'EDA2' and 'SHAO' as new valid `ReceiverType`s to `Rfinput` struct.
-* Release now include MacOS Arm architecture binaries.
+* Release and tests now include MacOS 14 Arm64 architecture binaries.
 
 ## 1.2.3 12-Mar-2024
 

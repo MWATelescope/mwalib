@@ -19,14 +19,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]                
+        os: [ubuntu-latest, macos-latest, macOS-14]                
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Install cfitsio
-      run: ./.github/workflows/make_cfitsio.sh
-      shell: bash
+    - name: (macos) install automake and autoconf
+      if: ${{ startsWith(matrix.os, 'macOS') }}
+      run: |
+        brew install automake autoconf    
           
     - name: Install stable toolchain
       uses: actions-rs/toolchain@v1
@@ -34,13 +35,31 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+    
+    - name: install cfitsio
+      env:
+        # TODO: CFITSIO_VERSION: 4.4.0
+        CFITSIO_VERSION: 3.49
+      run: |
+        cd /tmp
+        curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-${CFITSIO_VERSION}.tar.gz" -o cfitsio.tar.gz
+        tar -xf cfitsio.tar.gz
+        rm cfitsio.tar.gz
+        cd cfitsio-${CFITSIO_VERSION}
+        ./configure --prefix=/usr/local --enable-reentrant --disable-curl
+        sudo make shared
+        sudo make install
+        cd ..
 
-    - name: Run tests
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+          sudo ldconfig
+        fi
+
+    - name: Run tests on latest stable rust
       run: cargo test --release --features cfitsio-static,examples
 
     - name: Minimum-specified Rust version works
       run: |
-          MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
-          ~/.cargo/bin/rustup install $MIN_RUST --profile minimal
-          cargo +${MIN_RUST} test
-          cargo +${MIN_RUST} test --features cfitsio-static,examples
+        MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
+        ~/.cargo/bin/rustup install $MIN_RUST --profile minimal          
+        cargo +${MIN_RUST} test --features cfitsio-static,examples
