@@ -34,9 +34,22 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
 
-    - name: Install cfitsio
-      run: ./.github/workflows/make_cfitsio.sh
-      shell: bash
+    - name: install cfitsio
+      env:
+        # TODO: CFITSIO_VERSION: 4.4.0
+        CFITSIO_VERSION: 3.49
+      run: |
+        cd /tmp
+        curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-${CFITSIO_VERSION}.tar.gz" -o cfitsio.tar.gz
+        tar -xf cfitsio.tar.gz
+        rm cfitsio.tar.gz
+        cd cfitsio-${CFITSIO_VERSION}
+        ./configure --prefix=/usr/local --enable-reentrant --disable-curl
+        sudo make shared
+        sudo make install
+        cd ..
+        
+        sudo ldconfig        
     
     - name: Install stable toolchain
       uses: actions-rs/toolchain@v1
@@ -49,10 +62,10 @@ jobs:
     - name: Install cargo-llvm-cov
       run: cargo install cargo-llvm-cov
     
-    - name: Set up Python 3.11
+    - name: Set up Python 3.12
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11"
+        python-version: "3.12"
 
     - name: Generate test lcov coverage into coverage/ dir
       run: |

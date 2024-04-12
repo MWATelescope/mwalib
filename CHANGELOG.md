@@ -2,6 +2,11 @@
 
 Changes in each release are listed below.
 
+## 1.3.0 12-Apr-2024
+
+* Added 'EDA2' and 'SHAO' as new valid `ReceiverType`s to `Rfinput` struct.
+* Release and tests now include MacOS 14 Arm64 architecture binaries.
+
 ## 1.2.3 12-Mar-2024
 
 * Removed error-inducing, unneeded `python_version` requirement from the `[build-system]` `requires` setting.
@@ -9,7 +14,7 @@ Changes in each release are listed below.
 ## 1.2.2 12-Mar-2024
 
 * Explictly typed the buffer_ptr to be `signed char*` instead of the ambiguous `char*` in FFI VoltageContext read methods to fix portability issue with Arm64 platform. Fixes #67.
-* Updated deprecated call when using `Duration:milliseconds`. 
+* Updated deprecated call when using `Duration:milliseconds`.
 
 ## 1.2.1 24-Nov-2023
 

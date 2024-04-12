@@ -244,6 +244,12 @@ fn test_string_to_receiver_type() {
     assert!(String::from("RRI").parse::<ReceiverType>().unwrap() == ReceiverType::RRI);
     assert!(String::from("NI").parse::<ReceiverType>().unwrap() == ReceiverType::NI);
     assert!(String::from("PSEUDO").parse::<ReceiverType>().unwrap() == ReceiverType::Pseudo);
+    assert!(String::from("SHAO").parse::<ReceiverType>().unwrap() == ReceiverType::SHAO);
+    assert!(String::from("EDA2").parse::<ReceiverType>().unwrap() == ReceiverType::EDA2);
+
+    // what happens for lowercase?
+    assert!(String::from("rri").parse::<ReceiverType>().unwrap() == ReceiverType::RRI);
+
     assert!(
         String::from("something else")
             .parse::<ReceiverType>()
