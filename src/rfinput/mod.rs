@@ -173,6 +173,8 @@ pub enum ReceiverType {
     RRI,
     NI,
     Pseudo,
+    SHAO,
+    EDA2
 }
 
 /// Implements fmt::Display for ReceiverType
@@ -197,12 +199,15 @@ impl fmt::Display for ReceiverType {
                 ReceiverType::RRI => "RRI",
                 ReceiverType::NI => "NI",
                 ReceiverType::Pseudo => "Pseudo",
+                ReceiverType::SHAO => "SHAO",
+                ReceiverType::EDA2 => "EDA2",
             }
         )
     }
 }
 
-/// Implements str::FromStr for ReceiverType enum
+/// Implements str::FromStr for ReceiverType enum.
+/// Non uppercase values are coverted to uppercase for comparision.
 ///
 /// # Arguments
 ///
@@ -217,11 +222,13 @@ impl fmt::Display for ReceiverType {
 impl std::str::FromStr for ReceiverType {
     type Err = ();
 
-    fn from_str(input: &str) -> Result<ReceiverType, Self::Err> {
-        match input {
+    fn from_str(input: &str) -> Result<ReceiverType, Self::Err> {        
+        match input.to_uppercase().as_str() {
             "RRI" => Ok(ReceiverType::RRI),
             "NI" => Ok(ReceiverType::NI),
             "PSEUDO" => Ok(ReceiverType::Pseudo),
+            "SHAO" => Ok(ReceiverType::SHAO),
+            "EDA2" => Ok(ReceiverType::EDA2),
             _ => Ok(ReceiverType::Unknown),
         }
     }
