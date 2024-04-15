@@ -35,12 +35,10 @@ jobs:
       run: |
         brew install automake autoconf
     
-    - name: Install stable toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-          profile: minimal
-          toolchain: stable
-          override: true
+    - name: Install stable minimal toolchain
+      uses: dtolnay/rust-toolchain@v1
+      with:          
+          toolchain: stable          
     
     - name: install cfitsio
       env:

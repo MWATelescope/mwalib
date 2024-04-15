@@ -29,21 +29,21 @@ jobs:
       if: ${{ startsWith(matrix.os, 'macOS') }}
       run: |
         brew install automake autoconf
-
-    - name: Install stable toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+    
+    - name: Install stable, minimal toolchain
+      uses: dtolnay/rust-toolchain@v1
+      with:          
+        toolchain: stable  
 
     - name: Add Python 3.8
+      if: ${{ matrix.os != 'macOS-14' }}
       uses: actions/setup-python@v5
       continue-on-error: true
       with:
         python-version: "3.8"
 
     - name: Add Python 3.9
+      if: ${{ matrix.os != 'macOS-14' }}
       uses: actions/setup-python@v5
       continue-on-error: true
       with:
@@ -99,7 +99,13 @@ jobs:
         # determine which target cpus for rustc to build for from machine type
         export ARCH="$(uname -m)"
         case $ARCH in
-          x86_64) export TARGETS="x86-64 x86-64-v2 x86-64-v3" ;;
+          x86_64) 
+            if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+              export TARGETS="x86-64 x86-64-v2 x86-64-v3"
+            else 
+              export TARGETS="x86-64"
+            fi
+            ;;
           arm64) export TARGETS="apple-m1" ;;
           *) echo "unknown arch (uname -m) $ARCH"; exit 1 ;;
         esac
@@ -146,17 +152,17 @@ jobs:
     needs: [build-release]
     steps:
       - name: Download Linux artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ubuntu-latest.tar.gz
 
       - name: Download MacOS arm64 artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: macOS-14.tar.gz
 
       - name: Download MacOS x86_64 artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: macOS-latest.tar.gz
 

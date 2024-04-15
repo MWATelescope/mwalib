@@ -50,18 +50,13 @@ jobs:
         cd ..
         
         sudo ldconfig        
-    
-    - name: Install stable toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
+        
+    - name: Install stable minimal toolchain
+      uses: dtolnay/rust-toolchain@v1
+      with:          
         toolchain: stable
-        override: true
-        components: llvm-tools
-
-    - name: Install cargo-llvm-cov
-      run: cargo install cargo-llvm-cov
-    
+        components: llvm-tools,cargo-llvm-cov    
+        
     - name: Set up Python 3.12
       uses: actions/setup-python@v4
       with:
