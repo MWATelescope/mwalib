@@ -178,7 +178,7 @@ jobs:
         run: |
           mkdir for_pypi
           tar xvf *-darwin-apple-m1-python.tar.gz -C for_pypi/
-          tar xvf *-darwin-apple-x86-64-python.tar.gz -C for_pypi/
+          tar xvf *-darwin-x86-64-python.tar.gz -C for_pypi/
           tar xvf *-linux-x86-64-python.tar.gz -C for_pypi/
             
       - name: Publish package to PyPI
