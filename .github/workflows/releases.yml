@@ -148,7 +148,7 @@ jobs:
 
   create-release:
     name: Create a new github and pypi release
-    runs-on: ubuntu_latest
+    runs-on: ubuntu-latest
     needs: [build-release]
     steps:
       - name: Download artifact
