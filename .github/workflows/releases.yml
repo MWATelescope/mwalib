@@ -147,11 +147,11 @@ jobs:
         if-no-files-found: error
 
   create-release:
-    name: Create a new release
-    runs-on: ubuntu-latest
+    name: Create a new github and pypi release
+    runs-on: ubuntu_latest
     needs: [build-release]
     steps:
-      - name: Download Linux artifact
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: ubuntu-latest.tar.gz
@@ -173,3 +173,15 @@ jobs:
           prerelease: false
           files: |
             *.tar.gz
+      
+      - name: Place all python wheels into dir for publish to pypi
+        run: |
+          mkdir for_pypi
+          tar xvf *-darwin-apple-m1-python.tar.gz -C for_pypi/
+          tar xvf *-darwin-apple-x86-64-python.tar.gz -C for_pypi/
+          tar xvf *-linux-x86-64-python.tar.gz -C for_pypi/
+            
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: for_pypi/

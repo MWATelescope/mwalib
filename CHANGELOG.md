@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.3.1 17-Apr-2024
+
+* Point release to test publish to pypi in CI
+
 ## 1.3.0 12-Apr-2024
 
 * Added 'EDA2' and 'SHAO' as new valid `ReceiverType`s to `Rfinput` struct.
