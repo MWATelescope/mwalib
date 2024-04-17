@@ -85,7 +85,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # fast sum using all cores
-    num_cores = len(os.cpu_count())
+    num_cores = os.cpu_count()
     print(
         f"Using {num_cores} cores to fast sum all hdus by baseline, then by"
         " frequency..."
