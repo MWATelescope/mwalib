@@ -184,7 +184,7 @@ jobs:
         - name: Publish to crates.io
           run: cargo publish --no-verify --token ${CRATES_TOKEN}
           env:
-              CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+            CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
 
   create-github-and-pypi-release:
     name: Create a new github and pypi release
