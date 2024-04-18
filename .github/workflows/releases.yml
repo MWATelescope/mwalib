@@ -181,13 +181,11 @@ jobs:
         - name: Run tests on latest stable rust
           run: cargo build --release --features cfitsio-static,examples
 
-        - name: Publish to crates.io
-          env:
-            CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}  
-          run: |
-              cargo publish --no-verify --token "$CRATES_TOKEN"
+        - uses: katyo/publish-crates@v2
+          with:
+              registry-token: ${{ secrets.CRATES_TOKEN }}
+              args: --no-verify
           
-
   create-github-and-pypi-release:
     name: Create a new github and pypi release
     runs-on: ubuntu-latest
