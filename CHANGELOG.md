@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.3.2 18-Apr-2024
+
+* Point release to test publish to pypi, github and crates.io in CI
+
 ## 1.3.1 17-Apr-2024
 
 * Point release to test publish to pypi in CI

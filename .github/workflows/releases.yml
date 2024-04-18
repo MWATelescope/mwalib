@@ -219,9 +219,9 @@ jobs:
       - name: Place all python wheels into dir for publish to pypi
         run: |
           mkdir for_pypi
-          tar xvf *-darwin-apple-m1-python.tar.gz -C for_pypi/
-          tar xvf *-darwin-x86-64-python.tar.gz -C for_pypi/
-          tar xvf *-linux-x86-64-python.tar.gz -C for_pypi/
+          tar xvf *-darwin-apple-m1-python.tar.gz -C for_pypi/ --wildcards "*.whl"
+          tar xvf *-darwin-x86-64-python.tar.gz -C for_pypi/ --wildcards "*.whl"
+          tar xvf *-linux-x86-64-python.tar.gz -C for_pypi/ --wildcards "*.whl"
       
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
