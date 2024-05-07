@@ -68,6 +68,10 @@ name = "mwalib-print-corr-context"
 required-features = ["examples"]
 
 [[example]]
+name = "mwalib-print-tile-info"
+required-features = ["examples"]
+
+[[example]]
 name = "mwalib-print-volt-context"
 required-features = ["examples"]
 
