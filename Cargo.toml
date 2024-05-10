@@ -47,7 +47,7 @@ ndarray = { version = "~0.15", optional = true }
 
 # "examples" feature.
 anyhow = { version = "~1.0", optional = true }
-clap = { version = "~4.5", features = ["derive"], optional = true }
+clap = { version = "3.0.0", features = ["derive"], optional = true }
 env_logger = { version = "~0.10", optional = true }
 
 [dev-dependencies]
