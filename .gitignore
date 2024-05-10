@@ -17,6 +17,7 @@ ccov.zip
 /test_files/1101503312_mwax_vcs/*.sub
 /test_files/1101503312_vcs/*.dat
 /test_files/1370755832_mwax_vcs_os/*.sub
+/test_files/1380365160/*.sub
 .coverage
 .python-version
 __pycache__

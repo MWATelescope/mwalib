@@ -350,7 +350,7 @@ fn test_mwalib_metafits_context_new_invalid() {
         if retval != 0 {
             let c_str: &CStr = CStr::from_ptr(error_message_ptr);
             let str_slice: &str = c_str.to_str().unwrap();
-            ret_error_message = str_slice.to_owned();
+            str_slice.clone_into(&mut ret_error_message);
         }
 
         // Check error message
@@ -559,7 +559,7 @@ fn test_mwalib_correlator_context_new_invalid() {
         if retval != 0 {
             let c_str: &CStr = CStr::from_ptr(error_message_ptr);
             let str_slice: &str = c_str.to_str().unwrap();
-            ret_error_message = str_slice.to_owned();
+            str_slice.clone_into(&mut ret_error_message);
         }
 
         // Check error message
@@ -1188,7 +1188,7 @@ fn test_mwalib_voltage_context_new_valid_mwaxv2() {
         if retval != 0 {
             let c_str: &CStr = CStr::from_ptr(error_message_ptr);
             let str_slice: &str = c_str.to_str().unwrap();
-            ret_error_message = str_slice.to_owned();
+            str_slice.clone_into(&mut ret_error_message);
         }
         assert_eq!(
             retval, 0,
@@ -1249,7 +1249,7 @@ fn test_mwalib_voltage_context_new_invalid() {
         if retval != 0 {
             let c_str: &CStr = CStr::from_ptr(error_message_ptr);
             let str_slice: &str = c_str.to_str().unwrap();
-            ret_error_message = str_slice.to_owned();
+            str_slice.clone_into(&mut ret_error_message);
         }
 
         // Check error message
@@ -1805,7 +1805,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_get_and_free() {
         if retval != 0 {
             let c_str: &CStr = CStr::from_ptr(error_message_ptr);
             let str_slice: &str = c_str.to_str().unwrap();
-            ret_error_message = str_slice.to_owned();
+            str_slice.clone_into(&mut ret_error_message);
         }
         assert_eq!(
             retval, 0,
@@ -1858,7 +1858,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         if retval != 0 {
             let c_str: &CStr = CStr::from_ptr(error_message_ptr);
             let str_slice: &str = c_str.to_str().unwrap();
-            ret_error_message = str_slice.to_owned();
+            str_slice.clone_into(&mut ret_error_message);
         }
         assert_eq!(
             retval, 0,
@@ -2006,7 +2006,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_legacy_vcs_valid() {
         if retval != 0 {
             let c_str: &CStr = CStr::from_ptr(error_message_ptr);
             let str_slice: &str = c_str.to_str().unwrap();
-            ret_error_message = str_slice.to_owned();
+            str_slice.clone_into(&mut ret_error_message);
         }
         assert_eq!(
             retval, 0,

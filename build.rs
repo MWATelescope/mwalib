@@ -40,11 +40,10 @@ fn main() {
     match env::var("DOCS_RS").as_deref() {
         Ok("1") => (),
         _ => {
-            let config: cbindgen::Config = cbindgen::Config {
-                cpp_compat: true,
-                pragma_once: true,
-                ..Default::default()
-            };
+            let mut config: cbindgen::Config = cbindgen::Config::default();
+            
+            config.cpp_compat = true;
+            config.pragma_once = true;            
 
             cbindgen::Builder::new()
                 .with_config(config)

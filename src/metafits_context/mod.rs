@@ -755,7 +755,7 @@ impl MetafitsContext {
         let hour_angle_string = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "HA")?;
         let grid_name: String =
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNAME")?
-                .unwrap_or(String::from("NOGRID"));
+                .unwrap_or_else(|| String::from("NOGRID"));
         let grid_number =
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GRIDNUM")?.unwrap_or(0);
         let creator = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "CREATOR")?;
