@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, macOS-14]
+        os: [ubuntu-latest, macOS-13, macOS-14]
 
     steps:
     - name: Checkout sources
@@ -29,11 +29,11 @@ jobs:
       if: ${{ startsWith(matrix.os, 'macOS') }}
       run: |
         brew install automake autoconf
-    
+
     - name: Install stable, minimal toolchain
       uses: dtolnay/rust-toolchain@v1
-      with:          
-        toolchain: stable  
+      with:
+        toolchain: stable
 
     - name: Add Python 3.8
       if: ${{ matrix.os != 'macOS-14' }}
@@ -99,10 +99,10 @@ jobs:
         # determine which target cpus for rustc to build for from machine type
         export ARCH="$(uname -m)"
         case $ARCH in
-          x86_64) 
+          x86_64)
             if [[ "$OSTYPE" == "linux-gnu"* ]]; then
               export TARGETS="x86-64 x86-64-v2 x86-64-v3"
-            else 
+            else
               export TARGETS="x86-64"
             fi
             ;;
@@ -157,9 +157,9 @@ jobs:
 
         - name: Install stable, minimal toolchain
           uses: dtolnay/rust-toolchain@v1
-          with:          
+          with:
             toolchain: stable
-        
+
         - name: install cfitsio
           env:
             # TODO: CFITSIO_VERSION: 4.4.0
@@ -174,11 +174,11 @@ jobs:
             sudo make shared
             sudo make install
             cd ..
-    
+
             if [[ "$OSTYPE" == "linux-gnu"* ]]; then
               sudo ldconfig
             fi
-      
+
         - name: Run tests on latest stable rust
           run: cargo build --release --features cfitsio-static,examples
 
@@ -186,7 +186,7 @@ jobs:
           with:
               registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
               args: --no-verify
-          
+
   create-github-and-pypi-release:
     name: Create a new github and pypi release
     runs-on: ubuntu-latest
@@ -215,16 +215,16 @@ jobs:
           prerelease: false
           files: |
             *.tar.gz
-      
+
       - name: Place all python wheels into dir for publish to pypi
         run: |
           mkdir for_pypi
           tar xvf *-darwin-apple-m1-python.tar.gz -C for_pypi/ --wildcards "*.whl"
           tar xvf *-darwin-x86-64-python.tar.gz -C for_pypi/ --wildcards "*.whl"
           tar xvf *-linux-x86-64-python.tar.gz -C for_pypi/ --wildcards "*.whl"
-      
+
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: for_pypi/
-          password: ${{ secrets.PYPI_API_TOKEN }}        
+          password: ${{ secrets.PYPI_API_TOKEN }}
