@@ -145,11 +145,46 @@ jobs:
         name: ${{ matrix.os }}.tar.gz
         path: "*.tar.gz"
         if-no-files-found: error
+  
+  create-github-and-pypi-release:
+    name: Create a new github and pypi release
+    runs-on: ubuntu-latest
+    needs: [build-release]
+    environment: CI
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true     
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          gh release create "$tag" \
+              --repo="$GITHUB_REPOSITORY" \
+              --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
+              --generate-notes *.tar.gz
+
+      - name: Place all python wheels into dir for publish to pypi
+        run: |
+          mkdir for_pypi
+          tar xvf *-darwin-apple-m1-python.tar.gz -C for_pypi/ --wildcards "*.whl"
+          tar xvf *-darwin-x86-64-python.tar.gz -C for_pypi/ --wildcards "*.whl"
+          tar xvf *-linux-x86-64-python.tar.gz -C for_pypi/ --wildcards "*.whl"
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: for_pypi/
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
   create-rust-release:
     name: Publish to crates.io
     runs-on: ubuntu-latest
-    needs: [build-release]
+    needs: [create-github-and-pypi-release]
     environment: CI
     steps:
         - name: Checkout sources
@@ -186,45 +221,3 @@ jobs:
           with:
               registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
               args: --no-verify
-
-  create-github-and-pypi-release:
-    name: Create a new github and pypi release
-    runs-on: ubuntu-latest
-    needs: [create-rust-release]
-    environment: CI
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ubuntu-latest.tar.gz
-
-      - name: Download MacOS arm64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: macOS-14.tar.gz
-
-      - name: Download MacOS x86_64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: macOS-latest.tar.gz
-
-      - name: Provide new release asset
-        uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          files: |
-            *.tar.gz
-
-      - name: Place all python wheels into dir for publish to pypi
-        run: |
-          mkdir for_pypi
-          tar xvf *-darwin-apple-m1-python.tar.gz -C for_pypi/ --wildcards "*.whl"
-          tar xvf *-darwin-x86-64-python.tar.gz -C for_pypi/ --wildcards "*.whl"
-          tar xvf *-linux-x86-64-python.tar.gz -C for_pypi/ --wildcards "*.whl"
-
-      - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: for_pypi/
-          password: ${{ secrets.PYPI_API_TOKEN }}
