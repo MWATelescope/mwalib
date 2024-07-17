@@ -174,7 +174,7 @@ pub enum ReceiverType {
     NI,
     Pseudo,
     SHAO,
-    EDA2
+    EDA2,
 }
 
 /// Implements fmt::Display for ReceiverType
@@ -222,7 +222,7 @@ impl fmt::Display for ReceiverType {
 impl std::str::FromStr for ReceiverType {
     type Err = ();
 
-    fn from_str(input: &str) -> Result<ReceiverType, Self::Err> {        
+    fn from_str(input: &str) -> Result<ReceiverType, Self::Err> {
         match input.to_uppercase().as_str() {
             "RRI" => Ok(ReceiverType::RRI),
             "NI" => Ok(ReceiverType::NI),

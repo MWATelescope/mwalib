@@ -7,7 +7,7 @@
 use crate::rfinput::ReceiverType;
 use crate::*;
 use gpubox_files::GpuboxError;
-use libc::{c_schar, c_char, c_double, c_float, c_uint, c_ulong, size_t};
+use libc::{c_char, c_double, c_float, c_schar, c_uint, c_ulong, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
