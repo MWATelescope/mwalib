@@ -56,16 +56,16 @@ fn test_get_electrical_length() {
 }
 
 #[test]
-fn test_read_cell_array() {
+fn test_read_cell_array_u32() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
     let mut fptr = fits_open!(&metafits_filename).unwrap();
     let hdu = fits_open_hdu!(&mut fptr, 1).unwrap();
 
-    let delays = read_cell_array(&mut fptr, &hdu, "Delays", 0, 16);
+    let delays = read_cell_array_u32(&mut fptr, &hdu, "Delays", 0, 16);
     assert!(delays.is_ok());
     assert_eq!(&delays.unwrap(), &[0; 16]);
 
-    let digital_gains = read_cell_array(&mut fptr, &hdu, "Gains", 0, 24);
+    let digital_gains = read_cell_array_u32(&mut fptr, &hdu, "Gains", 0, 24);
     assert!(digital_gains.is_ok());
     assert_eq!(
         digital_gains.unwrap(),
@@ -75,12 +75,33 @@ fn test_read_cell_array() {
         ]
     );
 
-    let asdf = read_cell_array(&mut fptr, &hdu, "NotReal", 0, 24);
+    let asdf = read_cell_array_u32(&mut fptr, &hdu, "NotReal", 0, 24);
     assert!(asdf.is_err());
 }
 
 #[test]
-fn test_read_metafits_values_from_row_0() {
+fn test_read_cell_array_f32() {
+    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
+    let mut fptr = fits_open!(&metafits_filename).unwrap();
+    let hdu = fits_open_hdu!(&mut fptr, 2).unwrap();
+
+    let gains = read_cell_array_f32(&mut fptr, &hdu, "Calib_Gains", 0, 24);
+    assert!(gains.is_ok());
+    assert_eq!(
+        gains.unwrap(),
+        &[
+            0.9759591, 0.9845909, 0.9918698, 1.0030527, 1.0122633, 1.011114, 1.0253462, 1.0438296,
+            1.0606546, 1.0932951, 1.1034626, 1.1153094, 1.1335917, 1.1480684, 1.1665345, 1.1722057,
+            1.2186697, 1.2541704, 1.2993327, 1.35544, 1.410614, 1.488467, 1.544273, 1.6084857,
+        ]
+    );
+
+    let asdf = read_cell_array_f32(&mut fptr, &hdu, "NotReal", 0, 24);
+    assert!(asdf.is_err());
+}
+
+#[test]
+fn test_read_metafits_tiledata_values_from_row_0() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
     let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
 
@@ -88,7 +109,8 @@ fn test_read_metafits_values_from_row_0() {
 
     // Get values from row 1
     let row: RfInputMetafitsTableRow =
-        Rfinput::read_metafits_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0, 24).unwrap();
+        Rfinput::read_metafits_tiledata_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0, 24)
+            .unwrap();
     assert_eq!(row.input, 0);
     assert_eq!(row.antenna, 75);
     assert_eq!(row.tile_id, 104);
@@ -120,7 +142,7 @@ fn test_read_metafits_values_from_row_0() {
 }
 
 #[test]
-fn test_read_metafits_values_from_invalid_metafits() {
+fn test_read_metafits_tiledata_values_from_invalid_metafits() {
     let metafits_filename = "read_metafits_values_from_invalid_metafits.metafits";
 
     with_new_temp_fits_file(metafits_filename, |metafits_fptr| {
@@ -143,7 +165,79 @@ fn test_read_metafits_values_from_invalid_metafits() {
 
         // Get values from row 1
         let metafits_result =
-            Rfinput::read_metafits_values(metafits_fptr, &metafits_tile_table_hdu, 0, 24);
+            Rfinput::read_metafits_tiledata_values(metafits_fptr, &metafits_tile_table_hdu, 0, 24);
+
+        assert!(metafits_result.is_err());
+    });
+}
+
+#[test]
+fn test_read_metafits_calibdata_values_from_row_0() {
+    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
+    let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
+
+    let metafits_calib_table_hdu = fits_open_hdu!(&mut metafits_fptr, 2).unwrap();
+
+    // Get values from row 1
+    let row: Option<RfInputMetafitsCalibDataTableRow> = Rfinput::read_metafits_calibdata_values(
+        &mut metafits_fptr,
+        &Some(metafits_calib_table_hdu),
+        0,
+        24,
+    )
+    .unwrap();
+    assert!(row.is_some());
+
+    let row = row.unwrap();
+
+    assert_eq!(row.antenna, 75);
+    assert_eq!(row.tile, 104);
+    assert_eq!(row.tilename, "Tile104");
+    assert_eq!(row.pol, Pol::Y);
+    assert!(float_cmp::approx_eq!(
+        f32,
+        row.calib_delay,
+        -135.49985,
+        float_cmp::F32Margin::default()
+    ));
+    assert!(row.calib_gains.len() == 24);
+    assert!(row.calib_gains[0] == 0.9759591);
+    assert!(row.calib_gains[23] == 1.6084857);
+}
+
+#[test]
+fn test_read_metafits_calibdata_values_from_invalid_metafits() {
+    let metafits_filename = "read_metafits_values_from_invalid_metafits.metafits";
+
+    with_new_temp_fits_file(metafits_filename, |metafits_fptr| {
+        // Create a tiledata hdu
+        let first_description = ColumnDescription::new("A")
+            .with_type(ColumnDataType::Int)
+            .create()
+            .unwrap();
+        let second_description = ColumnDescription::new("B")
+            .with_type(ColumnDataType::Long)
+            .create()
+            .unwrap();
+        let descriptions = [first_description, second_description];
+
+        metafits_fptr
+            .create_table("TILEDATA".to_string(), &descriptions)
+            .unwrap();
+
+        metafits_fptr
+            .create_table("CALIBDATA".to_string(), &descriptions)
+            .unwrap();
+
+        let metafits_calib_table_hdu = fits_open_hdu!(metafits_fptr, 2).unwrap();
+
+        // Get values from row 1
+        let metafits_result = Rfinput::read_metafits_calibdata_values(
+            metafits_fptr,
+            &Some(metafits_calib_table_hdu),
+            0,
+            24,
+        );
 
         assert!(metafits_result.is_err());
     });
@@ -289,4 +383,34 @@ fn test_flavor_and_whitening_filter() {
     assert_eq!(rfinput[289].tile_name, "LBG8");
     assert_eq!(rfinput[289].flavour, "RFOF-NI");
     assert!(!rfinput[289].has_whitening_filter);
+}
+
+#[test]
+fn test_populate_rf_inputs_calib_metafits() {
+    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
+    let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+    let result =
+        Rfinput::populate_rf_inputs(256, &mut metafits_fptr, metafits_tile_table_hdu, 1.204, 24);
+
+    assert!(result.is_ok());
+
+    let rfinput = result.unwrap();
+    assert_eq!(rfinput.len(), 256);
+
+    assert_eq!(rfinput[0].calib_delay, Some(-135.49985));
+}
+
+#[test]
+fn test_populate_rf_inputs_calib_metafits_context() {
+    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
+
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrLegacy));
+
+    let context = context.unwrap();
+
+    assert_eq!(context.rf_inputs.len(), 256);
+    assert_eq!(context.rf_inputs[151].tile_name, "Tile104");
+    assert_eq!(context.rf_inputs[151].calib_delay, Some(-135.49985));
+    assert_eq!(context.antennas.len(), 128);
 }

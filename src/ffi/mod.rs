@@ -1600,6 +1600,20 @@ pub struct MetafitsMetadata {
     /// What was the configured deripple_param?
     /// If deripple_applied is False then this deripple param was not applied
     pub deripple_param: *mut c_char,
+    /// Best calibration fit ID
+    pub best_cal_fit_id: u32,
+    /// Best calibration observation ID
+    pub best_cal_obs_id: u32,
+    /// Best calibration fit code version
+    pub best_cal_code_ver: *mut c_char,
+    /// Best calibration fit timestamp
+    pub best_cal_fit_timestamp: *mut c_char,
+    /// Best calibration fit creator
+    pub best_cal_creator: *mut c_char,
+    /// Best calibration fit iterations
+    pub best_cal_fit_iters: u16,
+    /// Best calibration fit iteration limit
+    pub best_cal_fit_iter_limit: u16,
 }
 
 /// This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext, CorrelatorContext or VoltageContext
@@ -1745,7 +1759,20 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 rec_type,
                 flavour,
                 has_whitening_filter,
+                calib_delay,
+                calib_gains,
             } = item;
+
+            let calib_delay = if calib_delay.is_some() {
+                calib_delay.unwrap()
+            } else {
+                0.0
+            };
+
+            let calib_gains_vec: Vec<f32> = calib_gains.clone().unwrap_or_else(Vec::new);
+
+            let num_calib_gains = calib_gains_vec.len();
+
             Rfinput {
                 input: *input,
                 ant: *ant,
@@ -1770,6 +1797,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 rec_type: *rec_type,
                 flavour: CString::new(String::from(flavour)).unwrap().into_raw(),
                 has_whitening_filter: *has_whitening_filter,
+                calib_delay,
+                calib_gains: ffi_array_to_boxed_slice(calib_gains_vec),
+                num_calib_gains,
             }
         };
         rfinput_vec.push(out_item);
@@ -1901,6 +1931,13 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             oversampled,
             deripple_applied,
             deripple_param,
+            best_cal_fit_id,
+            best_cal_obs_id,
+            best_cal_code_ver,
+            best_cal_fit_timestamp,
+            best_cal_creator,
+            best_cal_fit_iters,
+            best_cal_fit_iter_limit,
         } = metafits_context;
         MetafitsMetadata {
             mwa_version: mwa_version.unwrap(),
@@ -1988,6 +2025,27 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             deripple_param: CString::new(String::from(deripple_param))
                 .unwrap()
                 .into_raw(),
+            best_cal_fit_id: best_cal_fit_id.unwrap_or_else(|| 0),
+            best_cal_obs_id: best_cal_obs_id.unwrap_or_else(|| 0),
+            best_cal_code_ver: CString::new(
+                best_cal_code_ver.clone().unwrap_or_else(|| "".to_string()),
+            )
+            .unwrap()
+            .into_raw(),
+            best_cal_fit_timestamp: CString::new(
+                best_cal_fit_timestamp
+                    .clone()
+                    .unwrap_or_else(|| "".to_string()),
+            )
+            .unwrap()
+            .into_raw(),
+            best_cal_creator: CString::new(
+                best_cal_creator.clone().unwrap_or_else(|| "".to_string()),
+            )
+            .unwrap()
+            .into_raw(),
+            best_cal_fit_iters: best_cal_fit_iters.unwrap_or_else(|| 0),
+            best_cal_fit_iter_limit: best_cal_fit_iter_limit.unwrap_or_else(|| 0),
         }
     };
 
@@ -2989,6 +3047,12 @@ pub struct Rfinput {
     pub flavour: *mut c_char,
     /// Has whitening filter depends on flavour
     pub has_whitening_filter: bool,
+    /// Calibration delay in meters (if provided)
+    pub calib_delay: f32,
+    /// Calibration gains (vector- 1 per coarse channel) if provided
+    pub calib_gains: *mut f32,
+    /// Number of elements in the calibration gains vector
+    pub num_calib_gains: usize,
 }
 
 ///
