@@ -1697,7 +1697,33 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
 
     // Populate antennas
     let mut antenna_vec: Vec<Antenna> = Vec::new();
+
     for item in metafits_context.antennas.iter() {
+        println!(
+            "Antenna {} tile {} rfinputx {} {} {} {:?} rfinputy {} {} {} {:?}",
+            item.ant,
+            item.tile_name,
+            item.rfinput_x.input,
+            item.rfinput_x.tile_name,
+            item.rfinput_x.calib_delay.unwrap(),
+            item.rfinput_x.calib_gains.clone().unwrap(),
+            item.rfinput_y.input,
+            item.rfinput_y.tile_name,
+            item.rfinput_y.calib_delay.unwrap(),
+            item.rfinput_y.calib_gains.clone().unwrap(),
+        );
+
+        println!(
+            "Checking for existence of rfinput x {}",
+            item.rfinput_x.input
+        );
+        println!("{:?}", metafits_context.rf_inputs[8]);
+        println!(
+            "Checking for existence of rfinput y {}",
+            item.rfinput_y.input
+        );
+        println!("{:?}", metafits_context.rf_inputs[9]);
+
         let out_item = {
             let antenna::Antenna {
                 ant,

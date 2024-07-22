@@ -19,20 +19,22 @@ use voltage_context::test::get_test_voltage_context;
 /// # Arguments
 ///
 /// * `mwa_version` - Enum telling mwalib the mwa_version it should be using to interpret the metafits file.
-///
+/// * `metafits_filename` - Filename of metafits to use.
 ///
 /// # Returns
 ///
 /// * a raw pointer to an instantiated MetafitsContext for the test metafits and gpubox file
 ///
 #[cfg(test)]
-fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut MetafitsContext {
+fn get_test_ffi_metafits_context_ext(
+    mwa_version: MWAVersion,
+    metafits_filename: String,
+) -> *mut MetafitsContext {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
-    let metafits_file =
-        CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+    let metafits_file = CString::new(metafits_filename).unwrap();
     let metafits_file_ptr = metafits_file.as_ptr();
 
     unsafe {
@@ -47,7 +49,7 @@ fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut MetafitsContex
         );
 
         // Check return value of mwalib_metafits_context_new
-        assert_eq!(retval, 0, "mwalib_metafits_context_new failure");
+        assert_eq!(retval, 0, "mwalib_metafits_context_new_ext failure");
 
         // Check we got valid MetafitsContext pointer
         let context_ptr = metafits_context_ptr.as_mut();
@@ -55,6 +57,26 @@ fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut MetafitsContex
 
         context_ptr.unwrap()
     }
+}
+
+/// Create and return a metafits context based on a test metafits file. Used in many tests in the module.
+///
+///
+/// # Arguments
+///
+/// * `mwa_version` - Enum telling mwalib the mwa_version it should be using to interpret the metafits file.
+///
+///
+/// # Returns
+///
+/// * a raw pointer to an instantiated MetafitsContext for the test metafits and gpubox file
+///
+#[cfg(test)]
+fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut MetafitsContext {
+    get_test_ffi_metafits_context_ext(
+        mwa_version,
+        String::from("test_files/1101503312_1_timestep/1101503312.metafits"),
+    )
 }
 
 /// Create and return a correlator context ptr based on a test metafits and gpubox file. Used in many tests in the module.
@@ -2376,28 +2398,16 @@ fn test_mwalib_voltage_metadata_get_null_context() {
 
 #[test]
 fn test_calibration_hdu_in_metafits() {
+    // This tests for a valid metafits context and metadata returned
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let metafits_file =
-        CString::new("test_files/metafits_cal_sol/1111842752_metafits.fits").unwrap();
-    let metafits_file_ptr = metafits_file.as_ptr();
-
+    // Create a MetafitsContext
+    let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context_ext(
+        MWAVersion::CorrLegacy,
+        String::from("test_files/metafits_cal_sol/1111842752_metafits.fits"),
+    );
     unsafe {
-        // Create a MetafitsContext
-        let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
-        let retval = mwalib_metafits_context_new(
-            metafits_file_ptr,
-            MWAVersion::CorrLegacy,
-            &mut metafits_context_ptr,
-            error_message_ptr,
-            error_len,
-        );
-
-        // Check return value of mwalib_metafits_context_new
-        assert_eq!(retval, 0, "mwalib_metafits_context_new failure");
-
         // Check we got valid MetafitsContext pointer
         let context_ptr = metafits_context_ptr.as_mut();
         assert!(context_ptr.is_some());
