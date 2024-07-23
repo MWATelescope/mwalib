@@ -273,3 +273,77 @@ pub fn has_whitening_filter(flavour: &str) -> bool {
         false
     }
 }
+
+/// Returns True if the f32's are equal even if one or both are NaNs.
+/// Code is from https://stackoverflow.com/questions/40767815/how-do-i-check-whether-a-vector-is-equal-to-another-vector-that-contains-nan-and
+///
+/// # Arguments
+///
+/// * `a` - first f32 to compare
+///
+/// * `b` - second f32 to compare
+///
+/// # Returns
+///
+/// * Equality of `a and `b`
+///
+pub fn eq_with_nan_eq(a: f32, b: f32) -> bool {
+    (a.is_nan() && b.is_nan()) || (a == b)
+}
+
+/// Returns True if the Vec<f32>'s are equal even if one or both contain NaNs.
+/// Code is from https://stackoverflow.com/questions/40767815/how-do-i-check-whether-a-vector-is-equal-to-another-vector-that-contains-nan-and
+///
+/// # Arguments
+///
+/// * `va` - first Vec<f32> to compare
+///
+/// * `vb` - second Vec<f32> to compare
+///
+/// # Returns
+///
+/// * Equality of `a and `b`
+///
+pub fn vec_compare(va: &[f32], vb: &[f32]) -> bool {
+    (va.len() == vb.len()) &&  // zip stops at the shortest
+     va.iter()
+       .zip(vb)
+       .all(|(a,b)| eq_with_nan_eq(*a,*b))
+}
+
+/// Returns True if the f32's are equal even if one or both are NaNs.
+/// Code is from https://stackoverflow.com/questions/40767815/how-do-i-check-whether-a-vector-is-equal-to-another-vector-that-contains-nan-and
+///
+/// # Arguments
+///
+/// * `a` - first f64 to compare
+///
+/// * `b` - second f64 to compare
+///
+/// # Returns
+///
+/// * Equality of `a and `b`
+///
+pub fn eq_with_nan_eq_f64(a: f64, b: f64) -> bool {
+    (a.is_nan() && b.is_nan()) || (a == b)
+}
+
+/// Returns True if the Vec<f64>'s are equal even if one or both contain NaNs.
+/// Code is from https://stackoverflow.com/questions/40767815/how-do-i-check-whether-a-vector-is-equal-to-another-vector-that-contains-nan-and
+///
+/// # Arguments
+///
+/// * `va` - first Vec<f64> to compare
+///
+/// * `vb` - second Vec<f64> to compare
+///
+/// # Returns
+///
+/// * Equality of `a and `b`
+///
+pub fn vec_compare_f64(va: &[f64], vb: &[f64]) -> bool {
+    (va.len() == vb.len()) &&  // zip stops at the shortest
+     va.iter()
+       .zip(vb)
+       .all(|(a,b)| eq_with_nan_eq_f64(*a,*b))
+}

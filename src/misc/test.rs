@@ -4,6 +4,8 @@
 
 //! Unit tests for misc utility functions
 
+use core::f32;
+
 #[cfg(test)]
 use super::*;
 use crate::antenna::*;
@@ -496,4 +498,134 @@ fn test_has_whitening_filter() {
     assert!(has_whitening_filter("LMR_123"));
     // Test LMR by itself
     assert!(has_whitening_filter("LMR"));
+}
+
+#[test]
+fn test_f32_nan_eq_no_nans_eq() {
+    let x: f32 = 9.2;
+    let y: f32 = 9.2;
+
+    assert!(eq_with_nan_eq(x, y));
+}
+
+#[test]
+fn test_f32_nan_eq_no_nans_neq() {
+    let x: f32 = 9.2;
+    let y: f32 = 9.3;
+
+    assert!(!eq_with_nan_eq(x, y));
+}
+
+#[test]
+fn test_f32_nan_eq_one_nan() {
+    let x: f32 = 9.2;
+    let y: f32 = f32::NAN;
+
+    assert!(!eq_with_nan_eq(x, y));
+}
+
+#[test]
+fn test_f32_nan_eq_two_nans() {
+    let x: f32 = f32::NAN;
+    let y: f32 = f32::NAN;
+
+    assert!(eq_with_nan_eq(x, y));
+}
+
+#[test]
+fn test_vecf32_nan_eq_no_nans_eq() {
+    let x: Vec<f32> = vec![9.2; 10];
+    let y: Vec<f32> = vec![9.2; 10];
+
+    assert!(vec_compare(&x, &y));
+}
+
+#[test]
+fn test_vecf32_nan_eq_no_nans_neq1() {
+    let x: Vec<f32> = vec![9.2; 9];
+    let y: Vec<f32> = vec![9.2; 10];
+
+    assert!(!vec_compare(&x, &y));
+}
+
+#[test]
+fn test_vecf32_nan_eq_no_nans_neq2() {
+    let x: Vec<f32> = vec![9.3; 10];
+    let y: Vec<f32> = vec![9.2; 10];
+
+    assert!(!vec_compare(&x, &y));
+}
+
+#[test]
+fn test_vecf32_nan_eq_no_nans_neq3() {
+    let mut x: Vec<f32> = vec![9.2; 10];
+    x[3] = 5.0;
+    let y: Vec<f32> = vec![9.2; 10];
+
+    assert!(!vec_compare(&x, &y));
+}
+
+#[test]
+fn test_f64_nan_eq_no_nans_eq() {
+    let x: f64 = 9.2;
+    let y: f64 = 9.2;
+
+    assert!(eq_with_nan_eq_f64(x, y));
+}
+
+#[test]
+fn test_f64_nan_eq_no_nans_neq() {
+    let x: f64 = 9.2;
+    let y: f64 = 9.3;
+
+    assert!(!eq_with_nan_eq_f64(x, y));
+}
+
+#[test]
+fn test_f64_nan_eq_one_nan() {
+    let x: f64 = 9.2;
+    let y: f64 = f64::NAN;
+
+    assert!(!eq_with_nan_eq_f64(x, y));
+}
+
+#[test]
+fn test_f64_nan_eq_two_nans() {
+    let x: f64 = f64::NAN;
+    let y: f64 = f64::NAN;
+
+    assert!(eq_with_nan_eq_f64(x, y));
+}
+
+#[test]
+fn test_vecf64_nan_eq_no_nans_eq() {
+    let x: Vec<f64> = vec![9.2; 10];
+    let y: Vec<f64> = vec![9.2; 10];
+
+    assert!(vec_compare_f64(&x, &y));
+}
+
+#[test]
+fn test_vecf64_nan_eq_no_nans_neq1() {
+    let x: Vec<f64> = vec![9.2; 9];
+    let y: Vec<f64> = vec![9.2; 10];
+
+    assert!(!vec_compare_f64(&x, &y));
+}
+
+#[test]
+fn test_vecf64_nan_eq_no_nans_neq2() {
+    let x: Vec<f64> = vec![9.3; 10];
+    let y: Vec<f64> = vec![9.2; 10];
+
+    assert!(!vec_compare_f64(&x, &y));
+}
+
+#[test]
+fn test_vecf64_nan_eq_no_nans_neq3() {
+    let mut x: Vec<f64> = vec![9.2; 10];
+    x[3] = 5.0;
+    let y: Vec<f64> = vec![9.2; 10];
+
+    assert!(!vec_compare_f64(&x, &y));
 }

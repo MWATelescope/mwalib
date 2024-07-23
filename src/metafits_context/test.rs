@@ -719,6 +719,16 @@ fn test_calibration_hdu_in_metafits() {
     assert_eq!(context.best_cal_fit_iters, Some(3));
     assert_eq!(context.best_cal_fit_iter_limit, Some(20));
 
+    assert_eq!(context.rf_inputs[2].calib_delay, Some(0.4399995));
+    assert_eq!(
+        context.rf_inputs[2].calib_gains.clone().unwrap()[0],
+        0.70867455
+    );
+    assert_eq!(
+        context.rf_inputs[2].calib_gains.clone().unwrap()[23],
+        1.1947584
+    );
+
     assert_eq!(context.num_rf_inputs, context.rf_inputs.len());
     assert_eq!(context.num_ants, context.antennas.len());
     assert_eq!(context.num_ants * 2, context.num_rf_inputs);

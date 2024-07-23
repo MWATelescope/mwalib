@@ -686,6 +686,7 @@ impl MetafitsContext {
             MWALIB_MWA_COAX_V_FACTOR,
             metafits_coarse_chan_vec.len(),
         )?;
+        assert_eq!(num_rf_inputs, rf_inputs.len());
 
         // Sort the rf_inputs back into the correct output order
         rf_inputs.sort_by_key(|k| k.subfile_order);
@@ -905,35 +906,49 @@ impl MetafitsContext {
             (metafits_coarse_chan_width_hz / volt_fine_chan_width_hz) as usize;
 
         // Handle all of the calibration metadata
-        let mut best_cal_fit_id: Option<u32> = None;
-        let mut best_cal_obs_id: Option<u32> = None;
-        let mut best_cal_code_ver: Option<String> = None;
-        let mut best_cal_fit_timestamp: Option<String> = None;
-        let mut best_cal_creator: Option<String> = None;
-        let mut best_cal_fit_iters: Option<u16> = None;
-        let mut best_cal_fit_iter_limit: Option<u16> = None;
+        let best_cal_fit_id: Option<u32>;
+        let best_cal_obs_id: Option<u32>;
+        let best_cal_code_ver: Option<String>;
+        let best_cal_fit_timestamp: Option<String>;
+        let best_cal_creator: Option<String>;
+        let best_cal_fit_iters: Option<u16>;
+        let best_cal_fit_iter_limit: Option<u16>;
 
-        if let Ok(metafits_cal_hdu) = metafits_cal_hdu_result {
-            best_cal_fit_id =
-                get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALFITID")?;
-            best_cal_obs_id =
-                get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALOBSID")?;
-            best_cal_code_ver =
-                get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALCDVER")?;
-            best_cal_fit_timestamp =
-                get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALDTIME")?;
-            best_cal_creator =
-                get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALCRTR")?;
-            best_cal_fit_iters =
-                get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITERS")?;
+        match metafits_cal_hdu_result {
+            Ok(metafits_cal_hdu) => {
+                best_cal_fit_id =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALFITID")?;
+                best_cal_obs_id =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALOBSID")?;
+                best_cal_code_ver =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALCDVER")?;
+                best_cal_fit_timestamp =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALDTIME")?;
+                best_cal_creator =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALCRTR")?;
+                best_cal_fit_iters =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITERS")?;
 
-            // Currently this is an f32, but will be changed soon to u16
-            let f32_val: Option<f32> =
-                get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITLIM")?;
-            if f32_val.is_some() {
-                best_cal_fit_iter_limit = f32_val.unwrap().to_u16();
+                // Currently this is an f32, but will be changed soon to u16
+                let f32_val: Option<f32> =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITLIM")?;
+                if f32_val.is_some() {
+                    best_cal_fit_iter_limit = f32_val.unwrap().to_u16();
+                } else {
+                    best_cal_fit_iter_limit = None;
+                }
             }
-        }
+            Err(_) => {
+                // This will occur if the HDU does not exist (old / or metafits without this)
+                best_cal_fit_id = None;
+                best_cal_obs_id = None;
+                best_cal_code_ver = None;
+                best_cal_fit_timestamp = None;
+                best_cal_creator = None;
+                best_cal_fit_iters = None;
+                best_cal_fit_iter_limit = None;
+            }
+        };
 
         Ok(MetafitsContext {
             mwa_version: None,

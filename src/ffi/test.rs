@@ -1936,8 +1936,8 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         let rfinput_digital_gains =
             ffi_boxed_slice_to_array(item[2].digital_gains, item[2].num_digital_gains);
         assert_eq!(item[2].num_digital_gains, rfinput_digital_gains.len());
-        assert_eq!(item[2].calib_delay, 0.0);
-        assert_eq!(item[2].num_calib_gains, 0);
+        assert!(item[2].calib_delay.is_nan());
+        assert_eq!(item[2].num_calib_gains, 24);
 
         assert!(approx_eq!(
             f64,
@@ -2407,11 +2407,19 @@ fn test_calibration_hdu_in_metafits() {
         MWAVersion::CorrLegacy,
         String::from("test_files/metafits_cal_sol/1111842752_metafits.fits"),
     );
-    unsafe {
-        // Check we got valid MetafitsContext pointer
-        let context_ptr = metafits_context_ptr.as_mut();
-        assert!(context_ptr.is_some());
 
+    // Check we got valid MetafitsContext pointer
+    let context_ptr = unsafe { metafits_context_ptr.as_mut() };
+    assert!(context_ptr.is_some());
+
+    let context = context_ptr.unwrap();
+    assert_eq!(context.num_rf_inputs, 256);
+    assert_eq!(context.num_ants, 128);
+
+    assert_eq!(context.rf_inputs.len(), 256);
+    assert_eq!(context.antennas.len(), 128);
+
+    unsafe {
         // Populate a mwalibMetafitsMetadata struct
         let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
         let retval = mwalib_metafits_metadata_get(
@@ -2431,6 +2439,7 @@ fn test_calibration_hdu_in_metafits() {
             let str_slice: &str = c_str.to_str().unwrap();
             str_slice.clone_into(&mut ret_error_message);
         }
+
         assert_eq!(
             retval, 0,
             "mwalib_metafits_metadata_get failure {}",
@@ -2467,24 +2476,11 @@ fn test_calibration_hdu_not_in_metafits() {
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
-    let metafits_file =
-        CString::new("test_files/metafits_cal_sol/1111842752_metafits.fits").unwrap();
-    let metafits_file_ptr = metafits_file.as_ptr();
+    // Create a MetafitsContext
+    let metafits_context_ptr: *mut MetafitsContext =
+        get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
 
     unsafe {
-        // Create a MetafitsContext
-        let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
-        let retval = mwalib_metafits_context_new(
-            metafits_file_ptr,
-            MWAVersion::CorrLegacy,
-            &mut metafits_context_ptr,
-            error_message_ptr,
-            error_len,
-        );
-
-        // Check return value of mwalib_metafits_context_new
-        assert_eq!(retval, 0, "mwalib_metafits_context_new failure");
-
         // Check we got valid MetafitsContext pointer
         let context_ptr = metafits_context_ptr.as_mut();
         assert!(context_ptr.is_some());
@@ -2518,7 +2514,7 @@ fn test_calibration_hdu_not_in_metafits() {
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
-        assert_eq!(metafits_metadata.obs_id, 1_111_842_752);
+        assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
         assert_eq!(metafits_metadata.best_cal_fit_id, 0);
         assert_eq!(metafits_metadata.best_cal_obs_id, 0);
         assert_eq!(
