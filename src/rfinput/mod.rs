@@ -5,7 +5,7 @@
 //! Structs and helper methods for rf_input metadata
 
 pub mod error;
-use crate::misc::{has_whitening_filter, vec_compare, vec_compare_f64};
+use crate::misc::{has_whitening_filter, vec_compare_f32, vec_compare_f64};
 use crate::{_open_hdu, fits_open_hdu};
 use core::f32;
 use error::RfinputError;
@@ -163,6 +163,8 @@ struct RfInputMetafitsTableRow {
     rx_type: String,
     /// (cable) flavour
     flavour: String,
+    /// whitening filter
+    whitening_filter: i32,
 }
 
 /// ReceiverType enum.
@@ -304,8 +306,14 @@ pub struct Rfinput {
     /// Has whitening filter (depends on flavour)
     pub has_whitening_filter: bool,
     /// Calibration delay in meters (if provided)
+    /// If calibration solution information is not present in the metafits it will be `None`.
+    /// When calibration solution information is present, some values of `calib_delay` may be NaN.
+    /// Make sure you understand [how NaNs work in Rust](https://doc.rust-lang.org/std/primitive.f32.html) if you will be using this field!
     pub calib_delay: Option<f32>,
-    /// Calibration gains (vector- 1 per coarse channel) if provided
+    /// Calibration gains (vector- 1 per coarse channel) if provided.  Channels are in `MetafitsContext.course_chans` order.
+    /// If calibration solution information is not present in the metafits it will be `None`.
+    /// When calibration solution information is present, some values of `calib_delay` may be NaN.
+    /// Make sure you understand [how NaNs work in Rust](https://doc.rust-lang.org/std/primitive.f32.html) if you will be using this field!
     pub calib_gains: Option<Vec<f32>>,
 }
 
@@ -333,7 +341,7 @@ impl PartialEq for Rfinput {
 
         // however calib_delay could be Some(NaN) and calib_gains could be Some(Vec<32>) which may have NaNs
         let calib_gains_eq: bool = if self.calib_gains.is_some() && other.calib_gains.is_some() {
-            vec_compare(
+            vec_compare_f32(
                 &self.calib_gains.clone().unwrap(),
                 &other.calib_gains.clone().unwrap(),
             )
@@ -448,6 +456,15 @@ impl Rfinput {
             read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flavors", row)
                 .unwrap_or_default();
 
+        // If not present (pre-Jul 2024 metafits), return -1
+        let whitening_filter: i32 = read_cell_value(
+            metafits_fptr,
+            metafits_tile_table_hdu,
+            "Whitening_Filter",
+            row,
+        )
+        .unwrap_or(-1);
+
         Ok(RfInputMetafitsTableRow {
             input,
             antenna,
@@ -466,6 +483,7 @@ impl Rfinput {
             slot,
             rx_type,
             flavour,
+            whitening_filter,
         })
     }
 
@@ -594,7 +612,8 @@ impl Rfinput {
             let vcs_order = get_vcs_order(metafits_row.input);
             let subfile_order = get_mwax_order(metafits_row.antenna, metafits_row.pol);
 
-            let has_whitening_filter: bool = has_whitening_filter(&metafits_row.flavour);
+            let has_whitening_filter: bool =
+                has_whitening_filter(&metafits_row.flavour, metafits_row.whitening_filter);
 
             // Get data from calibration hdu if it exists
             let calibdata_row = Self::read_metafits_calibdata_values(

@@ -1228,7 +1228,7 @@ impl fmt::Display for MetafitsContext {
     Deripple applied:         {dr} ({dr_param}),
 
     Num fine channels:        {nfc},
-    Fine Channels (kHz):      {fc:?},
+    Fine Channels (MHz):      {fc},
 
     R.A. (tile_pointing):     {rtpc} degrees,
     Dec. (tile_pointing):     {dtpc} degrees,
@@ -1292,10 +1292,14 @@ impl fmt::Display for MetafitsContext {
                 false => String::from("N/A"),
             },
             nfc = self.metafits_fine_chan_freqs_hz.len(),
-            fc = self
-                .metafits_fine_chan_freqs_hz
-                .iter()
-                .map(|f| format!("{:.3} ", f / 1000.)),
+            fc = misc::pretty_print_vec_to_string(
+                &self
+                    .metafits_fine_chan_freqs_hz
+                    .iter()
+                    .map(|f| (f / 1000000.) as f32)
+                    .collect::<Vec<f32>>(),
+                16
+            ),
             rtpc = self.ra_tile_pointing_degrees,
             dtpc = self.dec_tile_pointing_degrees,
             rppc = Some(self.ra_phase_center_degrees),

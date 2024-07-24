@@ -3045,7 +3045,7 @@ pub struct Rfinput {
     pub has_whitening_filter: bool,
     /// Calibration delay in meters (if provided)
     pub calib_delay: f32,
-    /// Calibration gains (vector- 1 per coarse channel) if provided
+    /// Calibration gains (vector- 1 per coarse channel) if provided. Channels are in `MetafitsContext.course_chans` order.
     pub calib_gains: *mut f32,
     /// Number of elements in the calibration gains vector
     pub num_calib_gains: usize,
