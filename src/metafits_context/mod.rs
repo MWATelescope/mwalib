@@ -871,11 +871,12 @@ impl MetafitsContext {
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?.unwrap_or(0.0);
 
         // Deripple
-        // It is stored as a bool DR_FLAG.
-        let deripple_applied: bool = matches!(
-            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DR_FLAG")?.unwrap_or(0),
-            1
-        );
+        // It is stored as a bool DR_FLAG in older metafits or DERIPPLE in newer ones.
+        let dr_flag =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DR_FLAG")?.unwrap_or(0);
+        let deripple =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DERIPPLE")?.unwrap_or(0);
+        let deripple_applied: bool = dr_flag == 1 || deripple == 1;
 
         // deripple_param is the type of deripple applied
         let deripple_param: String =

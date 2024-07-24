@@ -19,6 +19,7 @@ Changes in each release are listed below.
     * `best_cal_fit_iters` - Best calibration fit iterations. If not present in the metafits it will be `None`; via C, the value will be 0.
     * `best_cal_fit_iter_limit` - Best calibration fit iteration limit. If not present in the metafits it will be `None`; via C, the value will be 0.
 * When populating `RfInput::has_whitening_filter`, mwalib will use the Whitening_Filter key/value if present in the metafits, instead of deducing it from `cable_flavour`. If whitening_filter is not present, the existing deduction logic will be used.
+* `MetafitsContext::deripple_applied`- modified mwalib to use DERIPPLE metafits key (it still supports DR_FLAG just in case it is an old metafits)
 * When using the `Display` trait of `MetafitsContext` or the C function `mwalib_metafits_context_display`, limit the printing of fine channels - for better readability.
 * Added simple Rust example "mwalib-print-context" which does what it says on the tin.
 
