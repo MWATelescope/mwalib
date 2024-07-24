@@ -19,20 +19,22 @@ use voltage_context::test::get_test_voltage_context;
 /// # Arguments
 ///
 /// * `mwa_version` - Enum telling mwalib the mwa_version it should be using to interpret the metafits file.
-///
+/// * `metafits_filename` - Filename of metafits to use.
 ///
 /// # Returns
 ///
 /// * a raw pointer to an instantiated MetafitsContext for the test metafits and gpubox file
 ///
 #[cfg(test)]
-fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut MetafitsContext {
+fn get_test_ffi_metafits_context_ext(
+    mwa_version: MWAVersion,
+    metafits_filename: String,
+) -> *mut MetafitsContext {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *const c_char;
 
-    let metafits_file =
-        CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+    let metafits_file = CString::new(metafits_filename).unwrap();
     let metafits_file_ptr = metafits_file.as_ptr();
 
     unsafe {
@@ -47,7 +49,7 @@ fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut MetafitsContex
         );
 
         // Check return value of mwalib_metafits_context_new
-        assert_eq!(retval, 0, "mwalib_metafits_context_new failure");
+        assert_eq!(retval, 0, "mwalib_metafits_context_new_ext failure");
 
         // Check we got valid MetafitsContext pointer
         let context_ptr = metafits_context_ptr.as_mut();
@@ -55,6 +57,26 @@ fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut MetafitsContex
 
         context_ptr.unwrap()
     }
+}
+
+/// Create and return a metafits context based on a test metafits file. Used in many tests in the module.
+///
+///
+/// # Arguments
+///
+/// * `mwa_version` - Enum telling mwalib the mwa_version it should be using to interpret the metafits file.
+///
+///
+/// # Returns
+///
+/// * a raw pointer to an instantiated MetafitsContext for the test metafits and gpubox file
+///
+#[cfg(test)]
+fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut MetafitsContext {
+    get_test_ffi_metafits_context_ext(
+        mwa_version,
+        String::from("test_files/1101503312_1_timestep/1101503312.metafits"),
+    )
 }
 
 /// Create and return a correlator context ptr based on a test metafits and gpubox file. Used in many tests in the module.
@@ -1914,6 +1936,8 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         let rfinput_digital_gains =
             ffi_boxed_slice_to_array(item[2].digital_gains, item[2].num_digital_gains);
         assert_eq!(item[2].num_digital_gains, rfinput_digital_gains.len());
+        assert!(item[2].calib_delay.is_nan());
+        assert_eq!(item[2].num_calib_gains, 24);
 
         assert!(approx_eq!(
             f64,
@@ -2369,5 +2393,143 @@ fn test_mwalib_voltage_metadata_get_null_context() {
 
         // We should get a non-zero return code
         assert_ne!(ret_val, 0);
+    }
+}
+
+#[test]
+fn test_calibration_hdu_in_metafits() {
+    // This tests for a valid metafits context and metadata returned
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    // Create a MetafitsContext
+    let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context_ext(
+        MWAVersion::CorrLegacy,
+        String::from("test_files/metafits_cal_sol/1111842752_metafits.fits"),
+    );
+
+    // Check we got valid MetafitsContext pointer
+    let context_ptr = unsafe { metafits_context_ptr.as_mut() };
+    assert!(context_ptr.is_some());
+
+    let context = context_ptr.unwrap();
+    assert_eq!(context.num_rf_inputs, 256);
+    assert_eq!(context.num_ants, 128);
+
+    assert_eq!(context.rf_inputs.len(), 256);
+    assert_eq!(context.antennas.len(), 128);
+
+    unsafe {
+        // Populate a mwalibMetafitsMetadata struct
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
+        let retval = mwalib_metafits_metadata_get(
+            metafits_context_ptr,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut metafits_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // Check return value
+        let mut ret_error_message: String = String::new();
+
+        if retval != 0 {
+            let c_str: &CStr = CStr::from_ptr(error_message_ptr);
+            let str_slice: &str = c_str.to_str().unwrap();
+            str_slice.clone_into(&mut ret_error_message);
+        }
+
+        assert_eq!(
+            retval, 0,
+            "mwalib_metafits_metadata_get failure {}",
+            ret_error_message
+        );
+
+        // Get the mwalibMetadata struct from the pointer
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
+
+        // We should get a valid obsid and no error message
+        assert_eq!(metafits_metadata.obs_id, 1_111_842_752);
+        assert_eq!(metafits_metadata.best_cal_fit_id, 1720774022);
+        assert_eq!(metafits_metadata.best_cal_obs_id, 1111842752);
+        assert_eq!(
+            CString::from_raw(metafits_metadata.best_cal_code_ver),
+            CString::new("0.17.22").unwrap()
+        );
+        assert_eq!(
+            CString::from_raw(metafits_metadata.best_cal_fit_timestamp),
+            CString::new("2024-07-12T08:47:02.308203+00:00").unwrap()
+        );
+        assert_eq!(
+            CString::from_raw(metafits_metadata.best_cal_creator),
+            CString::new("calvin").unwrap()
+        );
+        assert_eq!(metafits_metadata.best_cal_fit_iters, 3);
+        assert_eq!(metafits_metadata.best_cal_fit_iter_limit, 20);
+    }
+}
+
+#[test]
+fn test_calibration_hdu_not_in_metafits() {
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    // Create a MetafitsContext
+    let metafits_context_ptr: *mut MetafitsContext =
+        get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
+
+    unsafe {
+        // Check we got valid MetafitsContext pointer
+        let context_ptr = metafits_context_ptr.as_mut();
+        assert!(context_ptr.is_some());
+
+        // Populate a mwalibMetafitsMetadata struct
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
+        let retval = mwalib_metafits_metadata_get(
+            metafits_context_ptr,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut metafits_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // Check return value
+        let mut ret_error_message: String = String::new();
+
+        if retval != 0 {
+            let c_str: &CStr = CStr::from_ptr(error_message_ptr);
+            let str_slice: &str = c_str.to_str().unwrap();
+            str_slice.clone_into(&mut ret_error_message);
+        }
+        assert_eq!(
+            retval, 0,
+            "mwalib_metafits_metadata_get failure {}",
+            ret_error_message
+        );
+
+        // Get the mwalibMetadata struct from the pointer
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
+
+        // We should get a valid obsid and no error message
+        assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
+        assert_eq!(metafits_metadata.best_cal_fit_id, 0);
+        assert_eq!(metafits_metadata.best_cal_obs_id, 0);
+        assert_eq!(
+            CString::from_raw(metafits_metadata.best_cal_code_ver),
+            CString::new("").unwrap()
+        );
+        assert_eq!(
+            CString::from_raw(metafits_metadata.best_cal_fit_timestamp),
+            CString::new("").unwrap()
+        );
+        assert_eq!(
+            CString::from_raw(metafits_metadata.best_cal_creator),
+            CString::new("").unwrap()
+        );
+        assert_eq!(metafits_metadata.best_cal_fit_iters, 0);
+        assert_eq!(metafits_metadata.best_cal_fit_iter_limit, 0);
     }
 }

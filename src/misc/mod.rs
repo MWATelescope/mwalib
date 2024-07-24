@@ -5,7 +5,7 @@
 //! General helper/utility methods
 
 use crate::antenna;
-use std::{mem, slice};
+use std::{fmt::Debug, fmt::Display, mem, slice};
 
 #[cfg(test)]
 pub(crate) mod test;
@@ -251,7 +251,9 @@ pub fn convert_unixtime_to_gpstime(
 
 /// Returns a bool based on whether this cable flavour has a whitening filter. (Used by rfinput::new())
 ///
-/// Rules can be found in github issue #64
+/// If Whitening_Filter col is present in TILEDATA hdu, then it will be used in the first instance.
+/// A whitening_filter value of -1 indicates its absense and it will use the cable flavour rules instead.
+/// Rules for determining via cable_flavour can be found in github issue #64.
 ///
 /// # Arguments
 ///
@@ -262,14 +264,157 @@ pub fn convert_unixtime_to_gpstime(
 ///
 /// * True if this flavour has a whitening filter, False if not.
 ///
-pub fn has_whitening_filter(flavour: &str) -> bool {
-    if flavour.len() >= 3 {
-        match flavour[0..3].to_uppercase().as_str() {
-            "RG6" => !matches!(flavour, "RG6_90"),
-            "LMR" => true,
-            _ => false,
+pub fn has_whitening_filter(flavour: &str, whitening_filter: i32) -> bool {
+    if whitening_filter == -1 {
+        // no whitening filter col in this metafits. Use the flavour logic
+        if flavour.len() >= 3 {
+            match flavour[0..3].to_uppercase().as_str() {
+                "RG6" => !matches!(flavour, "RG6_90"),
+                "LMR" => true,
+                _ => false,
+            }
+        } else {
+            false
         }
     } else {
-        false
+        // whitening filter is present
+        // any non-zero means it HAS a whitening filter
+        whitening_filter != 0
     }
+}
+
+/// Returns True if the f32's are equal even if one or both are NaNs.
+/// Code is from https://stackoverflow.com/questions/40767815/how-do-i-check-whether-a-vector-is-equal-to-another-vector-that-contains-nan-and
+///
+/// # Arguments
+///
+/// * `a` - first f32 to compare
+///
+/// * `b` - second f32 to compare
+///
+/// # Returns
+///
+/// * Equality of `a and `b`
+///
+pub fn eq_with_nan_eq_f32(a: f32, b: f32) -> bool {
+    (a.is_nan() && b.is_nan()) || (a == b)
+}
+
+/// Returns True if the Vec<f32>'s are equal even if one or both contain NaNs.
+/// Code is from https://stackoverflow.com/questions/40767815/how-do-i-check-whether-a-vector-is-equal-to-another-vector-that-contains-nan-and
+///
+/// # Arguments
+///
+/// * `va` - first Vec<f32> to compare
+///
+/// * `vb` - second Vec<f32> to compare
+///
+/// # Returns
+///
+/// * Equality of `a and `b`
+///
+pub fn vec_compare_f32(va: &[f32], vb: &[f32]) -> bool {
+    (va.len() == vb.len()) &&  // zip stops at the shortest
+     va.iter()
+       .zip(vb)
+       .all(|(a,b)| eq_with_nan_eq_f32(*a,*b))
+}
+
+/// Returns True if the f64's are equal even if one or both are NaNs.
+/// Code is from https://stackoverflow.com/questions/40767815/how-do-i-check-whether-a-vector-is-equal-to-another-vector-that-contains-nan-and
+///
+/// # Arguments
+///
+/// * `a` - first f64 to compare
+///
+/// * `b` - second f64 to compare
+///
+/// # Returns
+///
+/// * Equality of `a and `b`
+///
+pub fn eq_with_nan_eq_f64(a: f64, b: f64) -> bool {
+    (a.is_nan() && b.is_nan()) || (a == b)
+}
+
+/// Returns True if the Vec<f64>'s are equal even if one or both contain NaNs.
+/// Code is from https://stackoverflow.com/questions/40767815/how-do-i-check-whether-a-vector-is-equal-to-another-vector-that-contains-nan-and
+///
+/// # Arguments
+///
+/// * `va` - first Vec<f64> to compare
+///
+/// * `vb` - second Vec<f64> to compare
+///
+/// # Returns
+///
+/// * Equality of `a and `b`
+///
+pub fn vec_compare_f64(va: &[f64], vb: &[f64]) -> bool {
+    (va.len() == vb.len()) &&  // zip stops at the shortest
+     va.iter()
+       .zip(vb)
+       .all(|(a,b)| eq_with_nan_eq_f64(*a,*b))
+}
+
+/// Returns a formatted string to 'pretty print' a vector
+/// Example 1:
+/// show_first_elements = 2
+///
+/// vec = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+///
+/// result = "[0, 1...]"
+///
+/// Example 2:
+/// show_first_elements = 12
+/// vec = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+///
+/// result = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"
+///
+/// # Arguments
+///
+/// * `vec` - slice of type T to get a formatted string for. Must support the Display trait
+///
+/// * `show_first_elements` - how many elements from the start of the slice should we display?
+///
+/// # Returns
+///
+/// * a string which puts an elipses "..." after the specified number of elements are included in the string
+///   - basically a "pretty" format of a slice
+///
+pub fn pretty_print_vec_to_string<T>(vec: &[T], show_first_elements: usize) -> String
+where
+    T: Display + Debug,
+{
+    let vec_len = vec.len();
+
+    // Check for silliness
+    if vec_len == 0 || show_first_elements == 0 {
+        return String::from("[]");
+    }
+
+    let pos: usize = if vec_len < show_first_elements {
+        vec_len
+    } else {
+        show_first_elements
+    };
+
+    let suffix: String = if vec_len <= show_first_elements {
+        String::from("")
+    } else {
+        String::from("...")
+    };
+
+    let mut ret_string = vec[0..pos]
+        .iter()
+        .fold(String::new(), |acc, num| {
+            acc + format!("{}", &num).as_str() + ", "
+        })
+        .to_string();
+
+    // Remove the last ", " and format properly
+    ret_string.remove(ret_string.len() - 1);
+    ret_string.remove(ret_string.len() - 1);
+
+    format!("[{}{}]", ret_string, suffix)
 }

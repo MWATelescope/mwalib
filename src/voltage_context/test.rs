@@ -398,24 +398,26 @@ pub(crate) fn get_test_voltage_context(
 #[test]
 fn test_2_digit_channel_in_subfiles() {
     let metafits_filename = "test_files/1380365160/1380365160_metafits.fits";
-    generate_test_voltage_file_mwax("test_files/1380365160/1380365160_1380365160_65.sub", 0).unwrap();    
+    generate_test_voltage_file_mwax("test_files/1380365160/1380365160_1380365160_65.sub", 0)
+        .unwrap();
     let filename = "test_files/1380365160/1380365160_1380365160_65.sub";
     let voltage_files = vec![filename];
-        
+
     let context = VoltageContext::new(metafits_filename, &voltage_files).unwrap();
-    assert!(context.num_provided_coarse_chans==1);
+    assert!(context.num_provided_coarse_chans == 1);
     assert!(context.provided_coarse_chan_indices[0] == 3);
     assert!(context.coarse_chans[3].rec_chan_number == 65);
 }
 
 #[test]
-fn test_2_digit_channel_with_leading_zero_in_subfiles() {    
+fn test_2_digit_channel_with_leading_zero_in_subfiles() {
     let metafits_filename = "test_files/1380365160/1380365160_metafits.fits";
-    generate_test_voltage_file_mwax("test_files/1380365160/1380365160_1380365160_065.sub", 0).unwrap();
+    generate_test_voltage_file_mwax("test_files/1380365160/1380365160_1380365160_065.sub", 0)
+        .unwrap();
     let filename = "test_files/1380365160/1380365160_1380365160_065.sub";
     let voltage_files = vec![filename];
     let context = VoltageContext::new(metafits_filename, &voltage_files).unwrap();
-    assert!(context.num_provided_coarse_chans==1);
+    assert!(context.num_provided_coarse_chans == 1);
     assert!(context.provided_coarse_chan_indices[0] == 3);
     assert!(context.coarse_chans[3].rec_chan_number == 65);
 }

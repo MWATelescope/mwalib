@@ -9,6 +9,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Duration, FixedOffset};
 use num_derive::FromPrimitive;
+use num_traits::ToPrimitive;
 
 use crate::antenna::*;
 use crate::baseline::*;
@@ -492,6 +493,20 @@ pub struct MetafitsContext {
     /// What was the configured deripple_param?
     /// If deripple_applied is False then this deripple param was not applied
     pub deripple_param: String,
+    /// Best calibration fit ID
+    pub best_cal_fit_id: Option<u32>,
+    /// Best calibration observation ID
+    pub best_cal_obs_id: Option<u32>,
+    /// Best calibration fit code version
+    pub best_cal_code_ver: Option<String>,
+    /// Best calibration fit timestamp
+    pub best_cal_fit_timestamp: Option<String>,
+    /// Best calibration fit creator
+    pub best_cal_creator: Option<String>,
+    /// Best calibration fit iterations
+    pub best_cal_fit_iters: Option<u16>,
+    /// Best calibration fit iteration limit
+    pub best_cal_fit_iter_limit: Option<u16>,
 }
 
 impl MetafitsContext {
@@ -610,6 +625,9 @@ impl MetafitsContext {
         let mut metafits_fptr = fits_open!(&metafits)?;
         let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
         let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1)?;
+        // The calibration HDU is not always present, so we will check the result when we need to use it.
+        // is_ok() means it exists, is_err() = True means it does not.
+        let metafits_cal_hdu_result = fits_open_hdu!(&mut metafits_fptr, 2);
 
         // Populate obsid from the metafits
         let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
@@ -668,6 +686,7 @@ impl MetafitsContext {
             MWALIB_MWA_COAX_V_FACTOR,
             metafits_coarse_chan_vec.len(),
         )?;
+        assert_eq!(num_rf_inputs, rf_inputs.len());
 
         // Sort the rf_inputs back into the correct output order
         rf_inputs.sort_by_key(|k| k.subfile_order);
@@ -715,8 +734,9 @@ impl MetafitsContext {
         let num_metafits_timesteps: usize = 0;
         let metafits_timesteps: Vec<TimeStep> = Vec::new();
 
-        let scheduled_end_utc =
-            scheduled_start_utc + Duration::try_milliseconds(scheduled_duration_ms as i64).expect("scheduled_duration_ms is out of range");
+        let scheduled_end_utc = scheduled_start_utc
+            + Duration::try_milliseconds(scheduled_duration_ms as i64)
+                .expect("scheduled_duration_ms is out of range");
 
         // To increment the mjd we need to fractional proportion of the day that the duration represents
         let scheduled_end_mjd =
@@ -851,11 +871,12 @@ impl MetafitsContext {
             get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "ATTEN_DB")?.unwrap_or(0.0);
 
         // Deripple
-        // It is stored as a bool DR_FLAG.
-        let deripple_applied: bool = matches!(
-            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DR_FLAG")?.unwrap_or(0),
-            1
-        );
+        // It is stored as a bool DR_FLAG in older metafits or DERIPPLE in newer ones.
+        let dr_flag =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DR_FLAG")?.unwrap_or(0);
+        let deripple =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DERIPPLE")?.unwrap_or(0);
+        let deripple_applied: bool = dr_flag == 1 || deripple == 1;
 
         // deripple_param is the type of deripple applied
         let deripple_param: String =
@@ -884,6 +905,51 @@ impl MetafitsContext {
         // Determine the number of fine channels per coarse channel.
         let num_volt_fine_chans_per_coarse =
             (metafits_coarse_chan_width_hz / volt_fine_chan_width_hz) as usize;
+
+        // Handle all of the calibration metadata
+        let best_cal_fit_id: Option<u32>;
+        let best_cal_obs_id: Option<u32>;
+        let best_cal_code_ver: Option<String>;
+        let best_cal_fit_timestamp: Option<String>;
+        let best_cal_creator: Option<String>;
+        let best_cal_fit_iters: Option<u16>;
+        let best_cal_fit_iter_limit: Option<u16>;
+
+        match metafits_cal_hdu_result {
+            Ok(metafits_cal_hdu) => {
+                best_cal_fit_id =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALFITID")?;
+                best_cal_obs_id =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALOBSID")?;
+                best_cal_code_ver =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALCDVER")?;
+                best_cal_fit_timestamp =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALDTIME")?;
+                best_cal_creator =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALCRTR")?;
+                best_cal_fit_iters =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITERS")?;
+
+                // Currently this is an f32, but will be changed soon to u16
+                let f32_val: Option<f32> =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITLIM")?;
+                if f32_val.is_some() {
+                    best_cal_fit_iter_limit = f32_val.unwrap().to_u16();
+                } else {
+                    best_cal_fit_iter_limit = None;
+                }
+            }
+            Err(_) => {
+                // This will occur if the HDU does not exist (old / or metafits without this)
+                best_cal_fit_id = None;
+                best_cal_obs_id = None;
+                best_cal_code_ver = None;
+                best_cal_fit_timestamp = None;
+                best_cal_creator = None;
+                best_cal_fit_iters = None;
+                best_cal_fit_iter_limit = None;
+            }
+        };
 
         Ok(MetafitsContext {
             mwa_version: None,
@@ -961,6 +1027,13 @@ impl MetafitsContext {
             oversampled,
             deripple_applied,
             deripple_param,
+            best_cal_fit_id,
+            best_cal_obs_id,
+            best_cal_code_ver,
+            best_cal_fit_timestamp,
+            best_cal_creator,
+            best_cal_fit_iters,
+            best_cal_fit_iter_limit,
         })
     }
 
@@ -1156,7 +1229,7 @@ impl fmt::Display for MetafitsContext {
     Deripple applied:         {dr} ({dr_param}),
 
     Num fine channels:        {nfc},
-    Fine Channels (kHz):      {fc:?},
+    Fine Channels (MHz):      {fc},
 
     R.A. (tile_pointing):     {rtpc} degrees,
     Dec. (tile_pointing):     {dtpc} degrees,
@@ -1220,10 +1293,14 @@ impl fmt::Display for MetafitsContext {
                 false => String::from("N/A"),
             },
             nfc = self.metafits_fine_chan_freqs_hz.len(),
-            fc = self
-                .metafits_fine_chan_freqs_hz
-                .iter()
-                .map(|f| format!("{:.3} ", f / 1000.)),
+            fc = misc::pretty_print_vec_to_string(
+                &self
+                    .metafits_fine_chan_freqs_hz
+                    .iter()
+                    .map(|f| (f / 1000000.) as f32)
+                    .collect::<Vec<f32>>(),
+                16
+            ),
             rtpc = self.ra_tile_pointing_degrees,
             dtpc = self.dec_tile_pointing_degrees,
             rppc = Some(self.ra_phase_center_degrees),

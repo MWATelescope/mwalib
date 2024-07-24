@@ -696,3 +696,60 @@ fn test_oversampling_on_in_metafits() {
 
     assert!(context.oversampled);
 }
+
+#[test]
+fn test_calibration_hdu_in_metafits() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(metafits_filename, None);
+    assert!(result.is_ok(), "{}", result.unwrap_err());
+
+    let context = result.unwrap();
+
+    assert_eq!(context.best_cal_fit_id, Some(1720774022));
+    assert_eq!(context.best_cal_obs_id, Some(1111842752));
+    assert_eq!(context.best_cal_code_ver, Some(String::from("0.17.22")));
+    assert_eq!(
+        context.best_cal_fit_timestamp,
+        Some(String::from("2024-07-12T08:47:02.308203+00:00"))
+    );
+    assert_eq!(context.best_cal_creator, Some(String::from("calvin")));
+    assert_eq!(context.best_cal_fit_iters, Some(3));
+    assert_eq!(context.best_cal_fit_iter_limit, Some(20));
+
+    assert_eq!(context.rf_inputs[2].calib_delay, Some(0.4399995));
+    assert_eq!(
+        context.rf_inputs[2].calib_gains.clone().unwrap()[0],
+        0.70867455
+    );
+    assert_eq!(
+        context.rf_inputs[2].calib_gains.clone().unwrap()[23],
+        1.1947584
+    );
+
+    assert_eq!(context.num_rf_inputs, context.rf_inputs.len());
+    assert_eq!(context.num_ants, context.antennas.len());
+    assert_eq!(context.num_ants * 2, context.num_rf_inputs);
+}
+
+#[test]
+fn test_calibration_hdu_not_in_metafits() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/metafits_tests/1370752512_metafits_deripple_os.fits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(metafits_filename, None);
+    assert!(result.is_ok(), "{}", result.unwrap_err());
+
+    let context = result.unwrap();
+
+    assert_eq!(context.best_cal_fit_id, None);
+    assert_eq!(context.best_cal_obs_id, None);
+    assert_eq!(context.best_cal_code_ver, None);
+    assert_eq!(context.best_cal_fit_timestamp, None);
+    assert_eq!(context.best_cal_creator, None);
+    assert_eq!(context.best_cal_fit_iters, None);
+    assert_eq!(context.best_cal_fit_iter_limit, None);
+}

@@ -5,7 +5,9 @@
 //! Structs and helper methods for rf_input metadata
 
 pub mod error;
-use crate::misc::has_whitening_filter;
+use crate::misc::{has_whitening_filter, vec_compare_f32, vec_compare_f64};
+use crate::{_open_hdu, fits_open_hdu};
+use core::f32;
 use error::RfinputError;
 use log::trace;
 use std::fmt;
@@ -161,6 +163,8 @@ struct RfInputMetafitsTableRow {
     rx_type: String,
     /// (cable) flavour
     flavour: String,
+    /// whitening filter
+    whitening_filter: i32,
 }
 
 /// ReceiverType enum.
@@ -174,7 +178,7 @@ pub enum ReceiverType {
     NI,
     Pseudo,
     SHAO,
-    EDA2
+    EDA2,
 }
 
 /// Implements fmt::Display for ReceiverType
@@ -222,7 +226,7 @@ impl fmt::Display for ReceiverType {
 impl std::str::FromStr for ReceiverType {
     type Err = ();
 
-    fn from_str(input: &str) -> Result<ReceiverType, Self::Err> {        
+    fn from_str(input: &str) -> Result<ReceiverType, Self::Err> {
         match input.to_uppercase().as_str() {
             "RRI" => Ok(ReceiverType::RRI),
             "NI" => Ok(ReceiverType::NI),
@@ -234,8 +238,19 @@ impl std::str::FromStr for ReceiverType {
     }
 }
 
+/// Structure to hold one row of the metafits calibdata table
+struct RfInputMetafitsCalibDataTableRow {
+    /// This is the ordinal index of the rf_input in the metafits file
+    antenna: u32,
+    tile: u32,
+    tilename: String,
+    pol: Pol,
+    calib_delay: f32,
+    calib_gains: Vec<f32>,
+}
+
 /// Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
@@ -290,10 +305,61 @@ pub struct Rfinput {
     pub flavour: String,
     /// Has whitening filter (depends on flavour)
     pub has_whitening_filter: bool,
+    /// Calibration delay in meters (if provided)
+    /// If calibration solution information is not present in the metafits it will be `None`.
+    /// When calibration solution information is present, some values of `calib_delay` may be NaN.
+    /// Make sure you understand [how NaNs work in Rust](https://doc.rust-lang.org/std/primitive.f32.html) if you will be using this field!
+    pub calib_delay: Option<f32>,
+    /// Calibration gains (vector- 1 per coarse channel) if provided.  Channels are in `MetafitsContext.course_chans` order.
+    /// If calibration solution information is not present in the metafits it will be `None`.
+    /// When calibration solution information is present, some values of `calib_delay` may be NaN.
+    /// Make sure you understand [how NaNs work in Rust](https://doc.rust-lang.org/std/primitive.f32.html) if you will be using this field!
+    pub calib_gains: Option<Vec<f32>>,
+}
+
+impl PartialEq for Rfinput {
+    fn eq(&self, other: &Self) -> bool {
+        // Compare all fields as normal
+        let initial_eq = self.input == other.input
+            && self.ant == other.ant
+            && self.tile_id == other.tile_id
+            && self.tile_name == other.tile_name
+            && self.pol == other.pol
+            && self.electrical_length_m == other.electrical_length_m
+            && self.north_m == other.north_m
+            && self.east_m == other.east_m
+            && self.height_m == other.height_m
+            && self.vcs_order == other.vcs_order
+            && self.subfile_order == other.subfile_order
+            && self.flagged == other.flagged
+            && self.rec_number == other.rec_number
+            && self.rec_slot_number == other.rec_slot_number
+            && self.rec_type == other.rec_type
+            && self.dipole_delays == other.dipole_delays
+            && self.flavour == other.flavour
+            && self.has_whitening_filter == other.has_whitening_filter;
+
+        // however calib_delay could be Some(NaN) and calib_gains could be Some(Vec<32>) which may have NaNs
+        let calib_gains_eq: bool = if self.calib_gains.is_some() && other.calib_gains.is_some() {
+            vec_compare_f32(
+                &self.calib_gains.clone().unwrap(),
+                &other.calib_gains.clone().unwrap(),
+            )
+        } else {
+            self.calib_gains.is_none() && other.calib_gains.is_none()
+        };
+
+        // same for digital_gains, dipole_gains
+        let digital_gains_eq = vec_compare_f64(&self.digital_gains, &other.digital_gains);
+        let dipole_gains_eq = vec_compare_f64(&self.dipole_gains, &other.dipole_gains);
+
+        // Return
+        initial_eq && calib_gains_eq && digital_gains_eq && dipole_gains_eq
+    }
 }
 
 impl Rfinput {
-    /// This method just reads a row from the metafits tiledata table to create a new, populated mwalibCoarseChannel struct
+    /// This method just reads a row from the metafits tiledata table and returns the values in a struct
     ///
     /// # Arguments
     ///
@@ -310,7 +376,7 @@ impl Rfinput {
     ///
     /// * An Result containing a populated vector of RFInputMetafitsTableRow structss or an Error
     ///
-    fn read_metafits_values(
+    fn read_metafits_tiledata_values(
         metafits_fptr: &mut fitsio::FitsFile,
         metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
         row: usize,
@@ -345,7 +411,7 @@ impl Rfinput {
 
         // Digital gains values in metafits need to be divided by 64
         // Digital gains are in mwalib metafits coarse channel order (ascending sky frequency order)
-        let digital_gains = read_cell_array(
+        let digital_gains = read_cell_array_u32(
             metafits_fptr,
             metafits_tile_table_hdu,
             "Gains",
@@ -356,7 +422,7 @@ impl Rfinput {
         .map(|gains| *gains as f64 / 64.0)
         .collect();
 
-        let dipole_delays = read_cell_array(
+        let dipole_delays = read_cell_array_u32(
             metafits_fptr,
             metafits_tile_table_hdu,
             "Delays",
@@ -390,6 +456,15 @@ impl Rfinput {
             read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flavors", row)
                 .unwrap_or_default();
 
+        // If not present (pre-Jul 2024 metafits), return -1
+        let whitening_filter: i32 = read_cell_value(
+            metafits_fptr,
+            metafits_tile_table_hdu,
+            "Whitening_Filter",
+            row,
+        )
+        .unwrap_or(-1);
+
         Ok(RfInputMetafitsTableRow {
             input,
             antenna,
@@ -408,7 +483,76 @@ impl Rfinput {
             slot,
             rx_type,
             flavour,
+            whitening_filter,
         })
+    }
+
+    /// This method just reads a row from the metafits calibdata table and returns the values in a struct
+    ///
+    /// # Arguments
+    ///
+    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
+    ///
+    /// * `metafits_calibdata_table_hdu` - reference to the HDU containing the CALIBDATA table.
+    ///
+    /// * `row` - row index to read from the CALIBDATA table in the metafits.
+    ///
+    /// * `num_coarse_chans` - the number of coarse channels in this observation.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * An Result containing a populated vector of RFInputMetafitsTableRow structss or an Error
+    ///
+    fn read_metafits_calibdata_values(
+        metafits_fptr: &mut fitsio::FitsFile,
+        metafits_calibdata_table_hdu: &Option<fitsio::hdu::FitsHdu>,
+        row: usize,
+        num_coarse_chans: usize,
+    ) -> Result<Option<RfInputMetafitsCalibDataTableRow>, RfinputError> {
+        if let Some(metafits_cal_hdu) = metafits_calibdata_table_hdu {
+            let antenna = read_cell_value(metafits_fptr, metafits_cal_hdu, "Antenna", row)?;
+            let tile_id = read_cell_value(metafits_fptr, metafits_cal_hdu, "Tile", row)?;
+            let tile_name = read_cell_value(metafits_fptr, metafits_cal_hdu, "TileName", row)?;
+            let pol = {
+                let p: String = read_cell_value(metafits_fptr, metafits_cal_hdu, "Pol", row)?;
+                match p.as_str() {
+                    "X" => Pol::X,
+                    "Y" => Pol::Y,
+                    _ => {
+                        return Err(RfinputError::UnrecognisedPol {
+                            fits_filename: metafits_fptr.filename.clone(),
+                            hdu_num: metafits_cal_hdu.number + 1,
+                            row_num: row,
+                            got: p,
+                        })
+                    }
+                }
+            };
+
+            let calib_delay_m: f32 =
+                read_cell_value(metafits_fptr, metafits_cal_hdu, "Calib_Delay", row)?;
+
+            // calib gains are in mwalib metafits coarse channel order (ascending sky frequency order)
+            let calib_gains: Vec<f32> = read_cell_array_f32(
+                metafits_fptr,
+                metafits_cal_hdu,
+                "Calib_Gains",
+                row as i64,
+                num_coarse_chans,
+            )?;
+
+            Ok(Some(RfInputMetafitsCalibDataTableRow {
+                antenna,
+                tile: tile_id,
+                tilename: tile_name,
+                pol,
+                calib_delay: calib_delay_m,
+                calib_gains,
+            }))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Given the number of (rf)inputs, a metafits fits pointer, ptr to hdu for the tiledata table and coax_v_factor,
@@ -438,9 +582,19 @@ impl Rfinput {
         num_coarse_chans: usize,
     ) -> Result<Vec<Self>, RfinputError> {
         let mut rf_inputs: Vec<Self> = Vec::with_capacity(num_inputs);
+
+        // The calibration HDU is not always present, so we will check the result when we need to use it.
+        // is_ok() means it exists, is_err() = True means it does not.
+        let metafits_cal_hdu_result = fits_open_hdu!(metafits_fptr, 2);
+
+        let metafits_cal_hdu_option = match metafits_cal_hdu_result {
+            Ok(m) => Some(m),
+            Err(_) => None,
+        };
+
         for input in 0..num_inputs {
             // Note fits row numbers start at 1
-            let metafits_row = Self::read_metafits_values(
+            let metafits_row = Self::read_metafits_tiledata_values(
                 metafits_fptr,
                 &metafits_tile_table_hdu,
                 input,
@@ -458,7 +612,38 @@ impl Rfinput {
             let vcs_order = get_vcs_order(metafits_row.input);
             let subfile_order = get_mwax_order(metafits_row.antenna, metafits_row.pol);
 
-            let has_whitening_filter: bool = has_whitening_filter(&metafits_row.flavour);
+            let has_whitening_filter: bool =
+                has_whitening_filter(&metafits_row.flavour, metafits_row.whitening_filter);
+
+            // Get data from calibration hdu if it exists
+            let calibdata_row = Self::read_metafits_calibdata_values(
+                metafits_fptr,
+                &metafits_cal_hdu_option,
+                input,
+                num_coarse_chans,
+            )?;
+
+            let mut calib_delay: Option<f32> = None;
+            let mut calib_gains: Option<Vec<f32>> = None;
+
+            if calibdata_row.is_some() {
+                let calibdata_row = calibdata_row.unwrap();
+
+                // Check to ensure we have the same order of rf_inputs between this rf_input and the calibration hdu
+                assert_eq!(calibdata_row.antenna, metafits_row.antenna);
+                assert_eq!(calibdata_row.tile, metafits_row.tile_id);
+                assert_eq!(calibdata_row.tilename, metafits_row.tile_name);
+                assert_eq!(calibdata_row.pol, metafits_row.pol);
+
+                // Grab the delays and gains
+                // calib_delay can be NaN, swapping it out for None here
+                // prevents very weird rust error behaviour
+                calib_delay = match calibdata_row.calib_delay.is_nan() {
+                    true => None,
+                    false => Some(calibdata_row.calib_delay),
+                };
+                calib_gains = Some(calibdata_row.calib_gains);
+            }
 
             rf_inputs.push(Self {
                 input: metafits_row.input,
@@ -481,6 +666,8 @@ impl Rfinput {
                 rec_type: metafits_row.rx_type.parse::<ReceiverType>().unwrap(),
                 flavour: metafits_row.flavour,
                 has_whitening_filter,
+                calib_delay,
+                calib_gains,
             })
         }
         Ok(rf_inputs)
@@ -516,7 +703,7 @@ fn read_cell_value<T: fitsio::tables::ReadsCol>(
 /// Pull out the array-in-a-cell values. This function assumes that the output
 /// datatype is i16, and that the fits datatype is TINT, so it is not to be used
 /// generally!
-fn read_cell_array(
+fn read_cell_array_u32(
     metafits_fptr: &mut fitsio::FitsFile,
     metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
     col_name: &str,
@@ -572,7 +759,7 @@ fn read_cell_array(
                 let v = std::slice::from_raw_parts(array_ptr, n_elem);
 
                 trace!(
-                    "read_cell_array() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    "read_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
                     metafits_fptr.filename.display(),
                     metafits_tile_table_hdu.number,
                     col_name,
@@ -581,12 +768,114 @@ fn read_cell_array(
 
                 Ok(v.iter().map(|v| *v as _).collect())
             }
-            _ => Err(RfinputError::CellArray {
+            _ => {
+                println!(
+                    "ERROR {} read_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    status,
+                    metafits_fptr.filename.display(),
+                    metafits_tile_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                Err(RfinputError::CellArray {
+                    fits_filename: metafits_fptr.filename.clone(),
+                    hdu_num: metafits_tile_table_hdu.number + 1,
+                    row_num: row,
+                    col_name: col_name.to_string(),
+                })
+            }
+        }
+    }
+}
+
+/// Pull out the array-in-a-cell values. This function assumes that the output
+/// datatype is f32, and that the fits datatype is E (f32), so it is not to be used
+/// generally!
+fn read_cell_array_f32(
+    metafits_fptr: &mut fitsio::FitsFile,
+    metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: i64,
+    n_elem: usize,
+) -> Result<Vec<f32>, RfinputError> {
+    unsafe {
+        // With the column name, get the column number.
+        let mut status = 0;
+        let mut col_num = -1;
+        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
+        fitsio_sys::ffgcno(
+            metafits_fptr.as_raw(),
+            0,
+            keyword,
+            &mut col_num,
+            &mut status,
+        );
+        // Check the status.
+        if status != 0 {
+            return Err(RfinputError::CellArray {
                 fits_filename: metafits_fptr.filename.clone(),
                 hdu_num: metafits_tile_table_hdu.number + 1,
                 row_num: row,
                 col_name: col_name.to_string(),
-            }),
+            });
+        }
+        drop(std::ffi::CString::from_raw(keyword));
+
+        // Now get the specified row from that column.
+        let mut array: Vec<f32> = vec![0.0; n_elem];
+        array.shrink_to_fit();
+
+        let array_ptr = array.as_mut_ptr();
+
+        // FITSIO can return NaNs (amongst other things)
+        //let mut null_replace_value: f32 = f32::MAX;
+        //let nullval_ptr: *mut c_void = &mut null_replace_value as *mut f32 as *mut c_void;
+
+        fitsio_sys::ffgcv(
+            metafits_fptr.as_raw(),
+            42,
+            col_num,
+            row + 1,
+            1,
+            n_elem as i64,
+            std::ptr::null_mut(),
+            array_ptr as *mut core::ffi::c_void,
+            &mut 0,
+            &mut status,
+        );
+
+        // Check the status.
+        match status {
+            0 => {
+                trace!(
+                    "read_cell_array_f32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    metafits_fptr.filename.display(),
+                    metafits_tile_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                // Re-assemble the raw array into a Rust Vector.
+                Ok(std::slice::from_raw_parts(array_ptr, n_elem).to_vec())
+            }
+            _ => {
+                println!(
+                    "ERROR {} read_cell_array_f32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    status,
+                    metafits_fptr.filename.display(),
+                    metafits_tile_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                Err(RfinputError::CellArray {
+                    fits_filename: metafits_fptr.filename.clone(),
+                    hdu_num: metafits_tile_table_hdu.number + 1,
+                    row_num: row,
+                    col_name: col_name.to_string(),
+                })
+            }
         }
     }
 }

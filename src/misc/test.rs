@@ -4,6 +4,8 @@
 
 //! Unit tests for misc utility functions
 
+use core::f32;
+
 #[cfg(test)]
 use super::*;
 use crate::antenna::*;
@@ -113,6 +115,8 @@ fn test_get_baseline_from_antenna_names1() {
         rec_type: ReceiverType::Unknown,
         flavour: String::from("dummy1"),
         has_whitening_filter: false,
+        calib_delay: None,
+        calib_gains: None,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -136,6 +140,8 @@ fn test_get_baseline_from_antenna_names1() {
         rec_type: ReceiverType::Unknown,
         flavour: String::from("dummy1"),
         has_whitening_filter: false,
+        calib_delay: None,
+        calib_gains: None,
     };
 
     ants.push(Antenna {
@@ -290,6 +296,8 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         rec_type: ReceiverType::Unknown,
         flavour: String::from("dummy1"),
         has_whitening_filter: false,
+        calib_delay: None,
+        calib_gains: None,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -313,6 +321,8 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         rec_type: ReceiverType::Unknown,
         flavour: String::from("dummy1"),
         has_whitening_filter: false,
+        calib_delay: None,
+        calib_gains: None,
     };
 
     ants.push(Antenna {
@@ -372,6 +382,8 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         rec_type: ReceiverType::Unknown,
         flavour: String::from("dummy1"),
         has_whitening_filter: false,
+        calib_delay: None,
+        calib_gains: None,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -395,6 +407,8 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         rec_type: ReceiverType::Unknown,
         flavour: String::from("dummy1"),
         has_whitening_filter: false,
+        calib_delay: None,
+        calib_gains: None,
     };
 
     ants.push(Antenna {
@@ -465,23 +479,198 @@ fn test_has_whitening_filter() {
     // Every cable flavour starting with 'RG6', except for 'RG6_90' and
     // 'everything starting with LMR' [has a whitening filter].
 
-    // Test empty
-    assert!(!has_whitening_filter(""));
+    // Test empty/not present for both
+    assert!(!has_whitening_filter("", -1));
 
-    // Test some string
-    assert!(!has_whitening_filter("SomeOtherString"));
+    // Test some string, and no whitening_filter column
+    assert!(!has_whitening_filter("SomeOtherString", -1));
 
-    // Test RG6_123
-    assert!(has_whitening_filter("RG6_123"));
-    // Test RG6 by itself
-    assert!(has_whitening_filter("RG6"));
-    // Test RG6_123 (lowecase)
-    assert!(has_whitening_filter("rg6_123"));
+    // Test RG6_123 and no whitening_filter column
+    assert!(has_whitening_filter("RG6_123", -1));
+    // Test RG6 by itself and no whitening_filter column
+    assert!(has_whitening_filter("RG6", -1));
+    // Test RG6_123 (lowecase) and no whitening_filter column
+    assert!(has_whitening_filter("rg6_123", -1));
 
-    // Test RG6_90 returns FALSE!
-    assert!(!has_whitening_filter("RG6_90"));
-    // Test LMR_123
-    assert!(has_whitening_filter("LMR_123"));
-    // Test LMR by itself
-    assert!(has_whitening_filter("LMR"));
+    // Test RG6_90 returns FALSE! and no whitening_filter column
+    assert!(!has_whitening_filter("RG6_90", -1));
+    // Test LMR_123 and no whitening_filter column
+    assert!(has_whitening_filter("LMR_123", -1));
+    // Test LMR by itself and no whitening_filter column
+    assert!(has_whitening_filter("LMR", -1));
+
+    // Test RG6_90 returns FALSE! and whitening_filter column of 1
+    // True because whitening_filter of 1
+    assert!(has_whitening_filter("RG6_90", 1));
+
+    // Test LMR_123 and whitening_filter column of 0
+    // False because whitening_filter of 0 even though LMR_123 does has WF
+    assert!(!has_whitening_filter("LMR_123", 0));
+
+    // Test LMR by itself and whitening_filter column of 0
+    // false because whitening_filter of 0
+    assert!(!has_whitening_filter("LMR", 0));
+}
+
+#[test]
+fn test_f32_nan_eq_no_nans_eq() {
+    let x: f32 = 9.2;
+    let y: f32 = 9.2;
+
+    assert!(eq_with_nan_eq_f32(x, y));
+}
+
+#[test]
+fn test_f32_nan_eq_no_nans_neq() {
+    let x: f32 = 9.2;
+    let y: f32 = 9.3;
+
+    assert!(!eq_with_nan_eq_f32(x, y));
+}
+
+#[test]
+fn test_f32_nan_eq_one_nan() {
+    let x: f32 = 9.2;
+    let y: f32 = f32::NAN;
+
+    assert!(!eq_with_nan_eq_f32(x, y));
+}
+
+#[test]
+fn test_f32_nan_eq_two_nans() {
+    let x: f32 = f32::NAN;
+    let y: f32 = f32::NAN;
+
+    assert!(eq_with_nan_eq_f32(x, y));
+}
+
+#[test]
+fn test_vecf32_nan_eq_no_nans_eq() {
+    let x: Vec<f32> = vec![9.2; 10];
+    let y: Vec<f32> = vec![9.2; 10];
+
+    assert!(vec_compare_f32(&x, &y));
+}
+
+#[test]
+fn test_vecf32_nan_eq_no_nans_neq1() {
+    let x: Vec<f32> = vec![9.2; 9];
+    let y: Vec<f32> = vec![9.2; 10];
+
+    assert!(!vec_compare_f32(&x, &y));
+}
+
+#[test]
+fn test_vecf32_nan_eq_no_nans_neq2() {
+    let x: Vec<f32> = vec![9.3; 10];
+    let y: Vec<f32> = vec![9.2; 10];
+
+    assert!(!vec_compare_f32(&x, &y));
+}
+
+#[test]
+fn test_vecf32_nan_eq_no_nans_neq3() {
+    let mut x: Vec<f32> = vec![9.2; 10];
+    x[3] = 5.0;
+    let y: Vec<f32> = vec![9.2; 10];
+
+    assert!(!vec_compare_f32(&x, &y));
+}
+
+#[test]
+fn test_f64_nan_eq_no_nans_eq() {
+    let x: f64 = 9.2;
+    let y: f64 = 9.2;
+
+    assert!(eq_with_nan_eq_f64(x, y));
+}
+
+#[test]
+fn test_f64_nan_eq_no_nans_neq() {
+    let x: f64 = 9.2;
+    let y: f64 = 9.3;
+
+    assert!(!eq_with_nan_eq_f64(x, y));
+}
+
+#[test]
+fn test_f64_nan_eq_one_nan() {
+    let x: f64 = 9.2;
+    let y: f64 = f64::NAN;
+
+    assert!(!eq_with_nan_eq_f64(x, y));
+}
+
+#[test]
+fn test_f64_nan_eq_two_nans() {
+    let x: f64 = f64::NAN;
+    let y: f64 = f64::NAN;
+
+    assert!(eq_with_nan_eq_f64(x, y));
+}
+
+#[test]
+fn test_vecf64_nan_eq_no_nans_eq() {
+    let x: Vec<f64> = vec![9.2; 10];
+    let y: Vec<f64> = vec![9.2; 10];
+
+    assert!(vec_compare_f64(&x, &y));
+}
+
+#[test]
+fn test_vecf64_nan_eq_no_nans_neq1() {
+    let x: Vec<f64> = vec![9.2; 9];
+    let y: Vec<f64> = vec![9.2; 10];
+
+    assert!(!vec_compare_f64(&x, &y));
+}
+
+#[test]
+fn test_vecf64_nan_eq_no_nans_neq2() {
+    let x: Vec<f64> = vec![9.3; 10];
+    let y: Vec<f64> = vec![9.2; 10];
+
+    assert!(!vec_compare_f64(&x, &y));
+}
+
+#[test]
+fn test_vecf64_nan_eq_no_nans_neq3() {
+    let mut x: Vec<f64> = vec![9.2; 10];
+    x[3] = 5.0;
+    let y: Vec<f64> = vec![9.2; 10];
+
+    assert!(!vec_compare_f64(&x, &y));
+}
+
+#[test]
+fn test_pretty_print_vec_to_string() {
+    let test_vec1 = vec![1.1; 10];
+
+    let s = pretty_print_vec_to_string(&test_vec1, 12);
+    assert_eq!(
+        s,
+        String::from("[1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1]")
+    );
+
+    let s = pretty_print_vec_to_string(&test_vec1, 10);
+    assert_eq!(
+        s,
+        String::from("[1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1]")
+    );
+
+    let s = pretty_print_vec_to_string(&test_vec1, 9);
+    assert_eq!(
+        s,
+        String::from("[1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1...]")
+    );
+
+    let s = pretty_print_vec_to_string(&[1.1; 2], 1);
+    assert_eq!(s, String::from("[1.1...]"));
+
+    let s = pretty_print_vec_to_string(&[1.1; 1], 1);
+    assert_eq!(s, String::from("[1.1]"));
+
+    let empty_vec: Vec<f32> = Vec::new();
+    let s = pretty_print_vec_to_string(&empty_vec, 1);
+    assert_eq!(s, String::from("[]"));
 }
