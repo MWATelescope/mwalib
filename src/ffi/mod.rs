@@ -314,9 +314,9 @@ pub unsafe extern "C" fn mwalib_metafits_context_new2(
 /// * `out_filename_ptr` *must* point to an already allocated char* buffer for the output filename to be written to.
 /// * `error_message` *must* point to an already allocated char* buffer for any error messages.
 /// * `metafits_context_ptr` must contain an MetafitsContext object already populated via `mwalib_metafits_context_new`
-/// It is up to the caller to:
-/// - Free `out_filename_ptr` once finished with the buffer.
-/// - Free `error_message` once finished with the buffer.
+///   It is up to the caller to:
+///   - Free `out_filename_ptr` once finished with the buffer.
+///   - Free `error_message` once finished with the buffer.
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_metafits_get_expected_volt_filename(
     metafits_context_ptr: *const MetafitsContext,
@@ -1614,6 +1614,10 @@ pub struct MetafitsMetadata {
     pub best_cal_fit_iters: u16,
     /// Best calibration fit iteration limit
     pub best_cal_fit_iter_limit: u16,
+    /// Signal Chain corrections array
+    pub signal_chain_corrections: *mut SignalChainCorrection,
+    /// Number of signal chain corrections in the array
+    pub num_signal_chain_corrections: usize,
 }
 
 /// This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext, CorrelatorContext or VoltageContext
@@ -1761,6 +1765,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 has_whitening_filter,
                 calib_delay,
                 calib_gains,
+                signal_chain_corrections_index,
             } = item;
 
             let calib_delay = calib_delay.unwrap_or(f32::NAN);
@@ -1796,6 +1801,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 calib_delay,
                 calib_gains: ffi_array_to_boxed_slice(calib_gains_vec),
                 num_calib_gains,
+                signal_chain_corrections_index: signal_chain_corrections_index
+                    .unwrap_or(MAX_RECEIVER_CHANNELS),
             }
         };
         rfinput_vec.push(out_item);
@@ -1844,6 +1851,30 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             }
         };
         timestep_vec.push(out_item);
+    }
+
+    // Populate signal chain corrections
+    let mut signal_chain_corrections_vec: Vec<ffi::SignalChainCorrection> = Vec::new();
+
+    match &metafits_context.signal_chain_corrections {
+        Some(v) => {
+            for item in v.iter() {
+                let out_item = {
+                    let metafits_context::SignalChainCorrection {
+                        receiver_type,
+                        whitening_filter,
+                        corrections,
+                    } = item;
+                    ffi::SignalChainCorrection {
+                        receiver_type: *receiver_type,
+                        whitening_filter: *whitening_filter,
+                        corrections: ffi_array_to_boxed_slice(corrections.clone()),
+                    }
+                };
+                signal_chain_corrections_vec.push(out_item);
+            }
+        }
+        None => {}
     }
 
     // Populate the outgoing structure with data from the metafits context
@@ -1934,6 +1965,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             best_cal_creator,
             best_cal_fit_iters,
             best_cal_fit_iter_limit,
+            signal_chain_corrections: _, // This is populated seperately
+            num_signal_chain_corrections,
         } = metafits_context;
         MetafitsMetadata {
             mwa_version: mwa_version.unwrap(),
@@ -2042,6 +2075,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             .into_raw(),
             best_cal_fit_iters: best_cal_fit_iters.unwrap_or_else(|| 0),
             best_cal_fit_iter_limit: best_cal_fit_iter_limit.unwrap_or_else(|| 0),
+            signal_chain_corrections: ffi_array_to_boxed_slice(signal_chain_corrections_vec),
+            num_signal_chain_corrections: *num_signal_chain_corrections,
         }
     };
 
@@ -2158,6 +2193,26 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     {
         drop(Box::from_raw(
             (*metafits_metadata_ptr).metafits_fine_chan_freqs_hz,
+        ));
+    }
+
+    // signal chain corrections
+    if !(*metafits_metadata_ptr).signal_chain_corrections.is_null() {
+        // Extract a slice from the pointer
+        let slice: &mut [SignalChainCorrection] = slice::from_raw_parts_mut(
+            (*metafits_metadata_ptr).signal_chain_corrections,
+            (*metafits_metadata_ptr).num_signal_chain_corrections,
+        );
+
+        // Now for each item we need to free anything on the heap
+        for i in slice.iter_mut() {
+            if !i.corrections.is_null() {
+                drop(Box::from_raw(i.corrections));
+            }
+        }
+
+        drop(Box::from_raw(
+            (*metafits_metadata_ptr).signal_chain_corrections,
         ));
     }
 
@@ -3049,6 +3104,28 @@ pub struct Rfinput {
     pub calib_gains: *mut f32,
     /// Number of elements in the calibration gains vector
     pub num_calib_gains: usize,
+    /// Signal chain correction index
+    /// This is the index into the MetafitsContext.signal_chain_corrections vector, or MAX_RECEIVER_CHANNELS if not applicable/not found for the
+    /// receiver type and whitening filter combination
+    pub signal_chain_corrections_index: usize,
+}
+
+///
+/// C Representation of a `SignalChainCorrection` struct
+///
+///
+/// Signal chain correction table
+///
+#[repr(C)]
+pub struct SignalChainCorrection {
+    /// Receiver Type
+    pub receiver_type: ReceiverType,
+
+    /// Whitening Filter
+    pub whitening_filter: bool,
+
+    /// Corrections
+    pub corrections: *mut f32,
 }
 
 ///

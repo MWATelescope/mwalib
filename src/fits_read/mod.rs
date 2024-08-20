@@ -34,7 +34,7 @@ macro_rules! fits_open {
     };
 }
 
-/// Open a fits file's HDU.
+/// Open a fits file's HDU by index.
 ///
 /// # Examples
 ///
@@ -53,6 +53,28 @@ macro_rules! fits_open {
 macro_rules! fits_open_hdu {
     ($fptr:expr, $hdu_num:expr) => {
         _open_hdu($fptr, $hdu_num, file!(), line!())
+    };
+}
+
+/// Open a fits file's HDU by name.
+///
+/// # Examples
+///
+/// ```
+/// # use mwalib::*;
+/// # fn main() -> Result<(), FitsError> {
+/// // Open a fits file
+/// let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
+/// let mut fptr = fits_open!(&metafits)?;
+/// // Open the HDU called "TILEDATA".
+/// let hdu = fits_open_hdu_by_name!(&mut fptr, "TILEDATA")?;
+/// #     Ok(())
+/// # }
+/// ```
+#[macro_export]
+macro_rules! fits_open_hdu_by_name {
+    ($fptr:expr, $hdu_name:expr) => {
+        _open_hdu_by_name($fptr, $hdu_name, file!(), line!())
     };
 }
 
@@ -181,16 +203,14 @@ macro_rules! get_hdu_image_size {
 ///
 /// * `fits_fptr` - A reference to the `FITSFile` object.
 ///
-/// * `hdu` - A reference to the HDU you want to find `keyword` in the header
-/// of.
+/// * `hdu` - A reference to the HDU you want to find `keyword` in the header of.
 ///
 /// * `keyword` - String containing the keyword to read.
 ///
 ///
 /// # Returns
 ///
-/// * A Result containing an Option containing the value read or None if the key
-/// did not exist, or an error.
+/// * A Result containing an Option containing the value read or None if the key did not exist, or an error.
 ///
 #[macro_export]
 macro_rules! get_optional_fits_key_long_string {
@@ -207,8 +227,7 @@ macro_rules! get_optional_fits_key_long_string {
 ///
 /// * `fits_fptr` - A reference to the `FITSFile` object.
 ///
-/// * `hdu` - A reference to the HDU you want to find `keyword` in the header
-/// of.
+/// * `hdu` - A reference to the HDU you want to find `keyword` in the header of.
 ///
 /// * `keyword` - String containing the keyword to read.
 ///
@@ -230,8 +249,7 @@ macro_rules! get_required_fits_key_long_string {
 ///
 /// * `fits_fptr` - A reference to the `FITSFile` object.
 ///
-/// * `hdu` - A reference to the HDU you want to find `keyword` in the header
-/// of.
+/// * `hdu` - A reference to the HDU you want to find `keyword` in the header of.
 ///
 ///
 /// # Returns
@@ -251,8 +269,7 @@ macro_rules! get_fits_image {
 ///
 /// * `fits_fptr` - A reference to the `FITSFile` object.
 ///
-/// * `hdu` - A reference to the HDU you want to find `keyword` in the header
-/// of.
+/// * `hdu` - A reference to the HDU you want to find `keyword` in the header of.
 ///
 /// * `buffer` - Buffer of floats (as a slice) to fill with data from the HDU.
 ///
@@ -294,7 +311,7 @@ pub fn _open_fits<T: AsRef<std::path::Path>>(
     }
 }
 
-/// Open a fits file's HDU.
+/// Open a fits file's HDU by index.
 ///
 /// To only be used internally; use the `fits_open_hdu!` macro instead.
 #[doc(hidden)]
@@ -317,6 +334,35 @@ pub fn _open_hdu(
             fits_error: e,
             fits_filename: fits_fptr.filename.clone(),
             hdu_num: hdu_num + 1,
+            source_file,
+            source_line,
+        }),
+    }
+}
+
+/// Open a fits file's HDU by name.
+///
+/// To only be used internally; use the `fits_open_hdu_by_name!` macro instead.
+#[doc(hidden)]
+pub fn _open_hdu_by_name(
+    fits_fptr: &mut FitsFile,
+    hdu_name: &'static str,
+    source_file: &'static str,
+    source_line: u32,
+) -> Result<FitsHdu, FitsError> {
+    match fits_fptr.hdu(hdu_name) {
+        Ok(f) => {
+            trace!(
+                "_open_hdu_by_name() filename: '{}' hdu: {}",
+                fits_fptr.filename.display(),
+                hdu_name
+            );
+            Ok(f)
+        }
+        Err(e) => Err(FitsError::Fitsio {
+            fits_error: e,
+            fits_filename: fits_fptr.filename.clone(),
+            hdu_num: 9999,
             source_file,
             source_line,
         }),
@@ -655,4 +701,208 @@ pub fn _get_fits_float_img_into_buf(
     );
 
     Ok(())
+}
+
+pub fn read_cell_value<T: fitsio::tables::ReadsCol>(
+    metafits_fptr: &mut fitsio::FitsFile,
+    metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: usize,
+) -> Result<T, FitsError> {
+    match metafits_tile_table_hdu.read_cell_value(metafits_fptr, col_name, row) {
+        Ok(c) => {
+            trace!(
+                "read_cell_value() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                metafits_fptr.filename.display(),
+                metafits_tile_table_hdu.number,
+                col_name,
+                row
+            );
+            Ok(c)
+        }
+        Err(_) => Err(FitsError::ReadCell {
+            fits_filename: metafits_fptr.filename.clone(),
+            hdu_num: metafits_tile_table_hdu.number + 1,
+            row_num: row,
+            col_name: col_name.to_string(),
+        }),
+    }
+}
+
+/// Pull out the array-in-a-cell values. T
+pub fn read_cell_array_u32(
+    metafits_fptr: &mut fitsio::FitsFile,
+    metafits_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: i64,
+    n_elem: usize,
+) -> Result<Vec<u32>, FitsError> {
+    unsafe {
+        // With the column name, get the column number.
+        let mut status = 0;
+        let mut col_num = -1;
+        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
+        fitsio_sys::ffgcno(
+            metafits_fptr.as_raw(),
+            0,
+            keyword,
+            &mut col_num,
+            &mut status,
+        );
+        // Check the status.
+        if status != 0 {
+            return Err(FitsError::CellArray {
+                fits_filename: metafits_fptr.filename.clone(),
+                hdu_num: metafits_table_hdu.number,
+                row_num: row,
+                col_name: col_name.to_string(),
+            });
+        }
+        drop(std::ffi::CString::from_raw(keyword));
+
+        // Now get the specified row from that column.
+        // cfitsio is stupid. The data we want fits in i16, but we're forced to
+        // unpack it into i32. Demote the data at the end.
+        let mut array: Vec<u32> = vec![0; n_elem];
+        array.shrink_to_fit();
+        let array_ptr = array.as_mut_ptr();
+        fitsio_sys::ffgcv(
+            metafits_fptr.as_raw(),
+            31,
+            col_num,
+            row + 1,
+            1,
+            n_elem as i64,
+            std::ptr::null_mut(),
+            array_ptr as *mut core::ffi::c_void,
+            &mut 0,
+            &mut status,
+        );
+
+        // Check the status.
+        match status {
+            0 => {
+                // Re-assemble the raw array into a Rust Vector.
+                let v = std::slice::from_raw_parts(array_ptr, n_elem);
+
+                trace!(
+                    "read_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    metafits_fptr.filename.display(),
+                    metafits_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                Ok(v.iter().map(|v| *v as _).collect())
+            }
+            _ => {
+                println!(
+                    "ERROR {} read_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    status,
+                    metafits_fptr.filename.display(),
+                    metafits_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                Err(FitsError::CellArray {
+                    fits_filename: metafits_fptr.filename.clone(),
+                    hdu_num: metafits_table_hdu.number + 1,
+                    row_num: row,
+                    col_name: col_name.to_string(),
+                })
+            }
+        }
+    }
+}
+
+/// Pull out the array-in-a-cell values. This function assumes that the output
+/// datatype is f32, and that the fits datatype is E (f32), so it is not to be used
+/// generally!
+pub fn read_cell_array_f32(
+    metafits_fptr: &mut fitsio::FitsFile,
+    metafits_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: i64,
+    n_elem: usize,
+) -> Result<Vec<f32>, FitsError> {
+    unsafe {
+        // With the column name, get the column number.
+        let mut status = 0;
+        let mut col_num = -1;
+        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
+        fitsio_sys::ffgcno(
+            metafits_fptr.as_raw(),
+            0,
+            keyword,
+            &mut col_num,
+            &mut status,
+        );
+        // Check the status.
+        if status != 0 {
+            return Err(FitsError::CellArray {
+                fits_filename: metafits_fptr.filename.clone(),
+                hdu_num: metafits_table_hdu.number,
+                row_num: row,
+                col_name: col_name.to_string(),
+            });
+        }
+        drop(std::ffi::CString::from_raw(keyword));
+
+        // Now get the specified row from that column.
+        let mut array: Vec<f32> = vec![0.0; n_elem];
+        array.shrink_to_fit();
+
+        let array_ptr = array.as_mut_ptr();
+
+        // FITSIO can return NaNs (amongst other things)
+        //let mut null_replace_value: f32 = f32::MAX;
+        //let nullval_ptr: *mut c_void = &mut null_replace_value as *mut f32 as *mut c_void;
+
+        fitsio_sys::ffgcv(
+            metafits_fptr.as_raw(),
+            42,
+            col_num,
+            row + 1,
+            1,
+            n_elem as i64,
+            std::ptr::null_mut(),
+            array_ptr as *mut core::ffi::c_void,
+            &mut 0,
+            &mut status,
+        );
+
+        // Check the status.
+        match status {
+            0 => {
+                trace!(
+                    "read_cell_array_f32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    metafits_fptr.filename.display(),
+                    metafits_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                // Re-assemble the raw array into a Rust Vector.
+                Ok(std::slice::from_raw_parts(array_ptr, n_elem).to_vec())
+            }
+            _ => {
+                println!(
+                    "ERROR {} read_cell_array_f32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    status,
+                    metafits_fptr.filename.display(),
+                    metafits_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                Err(FitsError::CellArray {
+                    fits_filename: metafits_fptr.filename.clone(),
+                    hdu_num: metafits_table_hdu.number + 1,
+                    row_num: row,
+                    col_name: col_name.to_string(),
+                })
+            }
+        }
+    }
 }

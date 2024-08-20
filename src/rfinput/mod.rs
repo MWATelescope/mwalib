@@ -5,11 +5,11 @@
 //! Structs and helper methods for rf_input metadata
 
 pub mod error;
+use crate::metafits_context::SignalChainCorrection;
 use crate::misc::{has_whitening_filter, vec_compare_f32, vec_compare_f64};
-use crate::{_open_hdu, fits_open_hdu};
+use crate::{fits_open_hdu_by_name, fits_read::*};
 use core::f32;
 use error::RfinputError;
-use log::trace;
 use std::fmt;
 
 #[cfg(test)]
@@ -315,6 +315,10 @@ pub struct Rfinput {
     /// When calibration solution information is present, some values of `calib_delay` may be NaN.
     /// Make sure you understand [how NaNs work in Rust](https://doc.rust-lang.org/std/primitive.f32.html) if you will be using this field!
     pub calib_gains: Option<Vec<f32>>,
+    /// Signal chain correction index
+    /// This is the index into the MetafitsContext.signal_chain_corrections vector, or None if not applicable/not found for the
+    /// receiver type and whitening filter combination
+    pub signal_chain_corrections_index: Option<usize>,
 }
 
 impl PartialEq for Rfinput {
@@ -337,7 +341,8 @@ impl PartialEq for Rfinput {
             && self.rec_type == other.rec_type
             && self.dipole_delays == other.dipole_delays
             && self.flavour == other.flavour
-            && self.has_whitening_filter == other.has_whitening_filter;
+            && self.has_whitening_filter == other.has_whitening_filter
+            && self.signal_chain_corrections_index == other.signal_chain_corrections_index;
 
         // however calib_delay could be Some(NaN) and calib_gains could be Some(Vec<32>) which may have NaNs
         let calib_gains_eq: bool = if self.calib_gains.is_some() && other.calib_gains.is_some() {
@@ -580,12 +585,13 @@ impl Rfinput {
         metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
         coax_v_factor: f64,
         num_coarse_chans: usize,
+        signal_chain_corrections: &Option<Vec<SignalChainCorrection>>,
     ) -> Result<Vec<Self>, RfinputError> {
         let mut rf_inputs: Vec<Self> = Vec::with_capacity(num_inputs);
 
         // The calibration HDU is not always present, so we will check the result when we need to use it.
         // is_ok() means it exists, is_err() = True means it does not.
-        let metafits_cal_hdu_result = fits_open_hdu!(metafits_fptr, 2);
+        let metafits_cal_hdu_result = fits_open_hdu_by_name!(metafits_fptr, "CALIBDATA");
 
         let metafits_cal_hdu_option = match metafits_cal_hdu_result {
             Ok(m) => Some(m),
@@ -614,6 +620,8 @@ impl Rfinput {
 
             let has_whitening_filter: bool =
                 has_whitening_filter(&metafits_row.flavour, metafits_row.whitening_filter);
+
+            let rec_type = metafits_row.rx_type.parse::<ReceiverType>().unwrap();
 
             // Get data from calibration hdu if it exists
             let calibdata_row = Self::read_metafits_calibdata_values(
@@ -645,6 +653,14 @@ impl Rfinput {
                 calib_gains = Some(calibdata_row.calib_gains);
             }
 
+            // Determine the index (if present) of the signal chain correction
+            let signal_chain_corrections_index: Option<usize> = match signal_chain_corrections {
+                Some(s) => s.iter().position(|sc| {
+                    sc.receiver_type == rec_type && sc.whitening_filter == has_whitening_filter
+                }),
+                None => None,
+            };
+
             rf_inputs.push(Self {
                 input: metafits_row.input,
                 ant: metafits_row.antenna,
@@ -663,220 +679,15 @@ impl Rfinput {
                 dipole_delays: metafits_row.dipole_delays,
                 rec_number: metafits_row.rx,
                 rec_slot_number: metafits_row.slot,
-                rec_type: metafits_row.rx_type.parse::<ReceiverType>().unwrap(),
+                rec_type,
                 flavour: metafits_row.flavour,
                 has_whitening_filter,
                 calib_delay,
                 calib_gains,
+                signal_chain_corrections_index,
             })
         }
         Ok(rf_inputs)
-    }
-}
-
-fn read_cell_value<T: fitsio::tables::ReadsCol>(
-    metafits_fptr: &mut fitsio::FitsFile,
-    metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
-    col_name: &str,
-    row: usize,
-) -> Result<T, RfinputError> {
-    match metafits_tile_table_hdu.read_cell_value(metafits_fptr, col_name, row) {
-        Ok(c) => {
-            trace!(
-                "read_cell_value() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                metafits_fptr.filename.display(),
-                metafits_tile_table_hdu.number,
-                col_name,
-                row
-            );
-            Ok(c)
-        }
-        Err(_) => Err(RfinputError::ReadCell {
-            fits_filename: metafits_fptr.filename.clone(),
-            hdu_num: metafits_tile_table_hdu.number + 1,
-            row_num: row,
-            col_name: col_name.to_string(),
-        }),
-    }
-}
-
-/// Pull out the array-in-a-cell values. This function assumes that the output
-/// datatype is i16, and that the fits datatype is TINT, so it is not to be used
-/// generally!
-fn read_cell_array_u32(
-    metafits_fptr: &mut fitsio::FitsFile,
-    metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
-    col_name: &str,
-    row: i64,
-    n_elem: usize,
-) -> Result<Vec<u32>, RfinputError> {
-    unsafe {
-        // With the column name, get the column number.
-        let mut status = 0;
-        let mut col_num = -1;
-        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
-        fitsio_sys::ffgcno(
-            metafits_fptr.as_raw(),
-            0,
-            keyword,
-            &mut col_num,
-            &mut status,
-        );
-        // Check the status.
-        if status != 0 {
-            return Err(RfinputError::CellArray {
-                fits_filename: metafits_fptr.filename.clone(),
-                hdu_num: metafits_tile_table_hdu.number + 1,
-                row_num: row,
-                col_name: col_name.to_string(),
-            });
-        }
-        drop(std::ffi::CString::from_raw(keyword));
-
-        // Now get the specified row from that column.
-        // cfitsio is stupid. The data we want fits in i16, but we're forced to
-        // unpack it into i32. Demote the data at the end.
-        let mut array: Vec<u32> = vec![0; n_elem];
-        array.shrink_to_fit();
-        let array_ptr = array.as_mut_ptr();
-        fitsio_sys::ffgcv(
-            metafits_fptr.as_raw(),
-            31,
-            col_num,
-            row + 1,
-            1,
-            n_elem as i64,
-            std::ptr::null_mut(),
-            array_ptr as *mut core::ffi::c_void,
-            &mut 0,
-            &mut status,
-        );
-
-        // Check the status.
-        match status {
-            0 => {
-                // Re-assemble the raw array into a Rust Vector.
-                let v = std::slice::from_raw_parts(array_ptr, n_elem);
-
-                trace!(
-                    "read_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                    metafits_fptr.filename.display(),
-                    metafits_tile_table_hdu.number,
-                    col_name,
-                    row
-                );
-
-                Ok(v.iter().map(|v| *v as _).collect())
-            }
-            _ => {
-                println!(
-                    "ERROR {} read_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                    status,
-                    metafits_fptr.filename.display(),
-                    metafits_tile_table_hdu.number,
-                    col_name,
-                    row
-                );
-
-                Err(RfinputError::CellArray {
-                    fits_filename: metafits_fptr.filename.clone(),
-                    hdu_num: metafits_tile_table_hdu.number + 1,
-                    row_num: row,
-                    col_name: col_name.to_string(),
-                })
-            }
-        }
-    }
-}
-
-/// Pull out the array-in-a-cell values. This function assumes that the output
-/// datatype is f32, and that the fits datatype is E (f32), so it is not to be used
-/// generally!
-fn read_cell_array_f32(
-    metafits_fptr: &mut fitsio::FitsFile,
-    metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
-    col_name: &str,
-    row: i64,
-    n_elem: usize,
-) -> Result<Vec<f32>, RfinputError> {
-    unsafe {
-        // With the column name, get the column number.
-        let mut status = 0;
-        let mut col_num = -1;
-        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
-        fitsio_sys::ffgcno(
-            metafits_fptr.as_raw(),
-            0,
-            keyword,
-            &mut col_num,
-            &mut status,
-        );
-        // Check the status.
-        if status != 0 {
-            return Err(RfinputError::CellArray {
-                fits_filename: metafits_fptr.filename.clone(),
-                hdu_num: metafits_tile_table_hdu.number + 1,
-                row_num: row,
-                col_name: col_name.to_string(),
-            });
-        }
-        drop(std::ffi::CString::from_raw(keyword));
-
-        // Now get the specified row from that column.
-        let mut array: Vec<f32> = vec![0.0; n_elem];
-        array.shrink_to_fit();
-
-        let array_ptr = array.as_mut_ptr();
-
-        // FITSIO can return NaNs (amongst other things)
-        //let mut null_replace_value: f32 = f32::MAX;
-        //let nullval_ptr: *mut c_void = &mut null_replace_value as *mut f32 as *mut c_void;
-
-        fitsio_sys::ffgcv(
-            metafits_fptr.as_raw(),
-            42,
-            col_num,
-            row + 1,
-            1,
-            n_elem as i64,
-            std::ptr::null_mut(),
-            array_ptr as *mut core::ffi::c_void,
-            &mut 0,
-            &mut status,
-        );
-
-        // Check the status.
-        match status {
-            0 => {
-                trace!(
-                    "read_cell_array_f32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                    metafits_fptr.filename.display(),
-                    metafits_tile_table_hdu.number,
-                    col_name,
-                    row
-                );
-
-                // Re-assemble the raw array into a Rust Vector.
-                Ok(std::slice::from_raw_parts(array_ptr, n_elem).to_vec())
-            }
-            _ => {
-                println!(
-                    "ERROR {} read_cell_array_f32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                    status,
-                    metafits_fptr.filename.display(),
-                    metafits_tile_table_hdu.number,
-                    col_name,
-                    row
-                );
-
-                Err(RfinputError::CellArray {
-                    fits_filename: metafits_fptr.filename.clone(),
-                    hdu_num: metafits_tile_table_hdu.number + 1,
-                    row_num: row,
-                    col_name: col_name.to_string(),
-                })
-            }
-        }
     }
 }
 

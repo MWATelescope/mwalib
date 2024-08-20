@@ -215,6 +215,17 @@ int main(int argc, char *argv[])
             printf("Scheduled start time UTC: %s\n", utc_start_string);
         }
 
+        // Print any signal chain corrections
+        printf("Num signal chain corrections: %ld\n", metafits_metadata->num_signal_chain_corrections);
+
+        for (int s=0; s<metafits_metadata->num_signal_chain_corrections; s++) {
+            printf("...[%d] Receiver Type: %d Whitening filter: %d Correction[0]: %f, Correction[255]: %f\n", s, 
+            metafits_metadata->signal_chain_corrections[s].receiver_type, 
+            metafits_metadata->signal_chain_corrections[s].whitening_filter,
+            metafits_metadata->signal_chain_corrections[s].corrections[0],
+            metafits_metadata->signal_chain_corrections[s].corrections[255]);
+        }
+
         // Clean up metadata
         mwalib_metafits_metadata_free(metafits_metadata);
     }

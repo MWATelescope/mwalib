@@ -35,6 +35,7 @@ fn test_populate_antennas() {
             has_whitening_filter: false,
             calib_delay: None,
             calib_gains: None,
+            signal_chain_corrections_index: None,
         },
         Rfinput {
             input: 1,
@@ -59,6 +60,7 @@ fn test_populate_antennas() {
             has_whitening_filter: false,
             calib_delay: None,
             calib_gains: None,
+            signal_chain_corrections_index: None,
         },
         Rfinput {
             input: 2,
@@ -83,6 +85,7 @@ fn test_populate_antennas() {
             has_whitening_filter: false,
             calib_delay: None,
             calib_gains: None,
+            signal_chain_corrections_index: None,
         },
         Rfinput {
             input: 3,
@@ -107,6 +110,7 @@ fn test_populate_antennas() {
             has_whitening_filter: false,
             calib_delay: None,
             calib_gains: None,
+            signal_chain_corrections_index: None,
         },
         Rfinput {
             input: 4,
@@ -131,6 +135,7 @@ fn test_populate_antennas() {
             has_whitening_filter: false,
             calib_delay: None,
             calib_gains: None,
+            signal_chain_corrections_index: None,
         },
         Rfinput {
             input: 5,
@@ -155,6 +160,7 @@ fn test_populate_antennas() {
             has_whitening_filter: false,
             calib_delay: None,
             calib_gains: None,
+            signal_chain_corrections_index: None,
         },
         Rfinput {
             input: 6,
@@ -179,6 +185,7 @@ fn test_populate_antennas() {
             has_whitening_filter: false,
             calib_delay: None,
             calib_gains: None,
+            signal_chain_corrections_index: None,
         },
         Rfinput {
             input: 7,
@@ -203,6 +210,7 @@ fn test_populate_antennas() {
             has_whitening_filter: false,
             calib_delay: None,
             calib_gains: None,
+            signal_chain_corrections_index: None,
         },
     ];
 
@@ -271,6 +279,7 @@ fn test_antenna_debug() {
             has_whitening_filter: false,
             calib_delay: None,
             calib_gains: None,
+            signal_chain_corrections_index: None,
         },
         Rfinput {
             input: 1,
@@ -295,6 +304,7 @@ fn test_antenna_debug() {
             has_whitening_filter: false,
             calib_delay: None,
             calib_gains: None,
+            signal_chain_corrections_index: None,
         },
     ];
 

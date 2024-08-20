@@ -61,8 +61,7 @@ fn test_read_cell_value_valid() {
     let mut fptr = fits_open!(&metafits_filename).unwrap();
     let hdu = fits_open_hdu!(&mut fptr, 2).unwrap();
 
-    let result_value: Result<f32, RfinputError> =
-        read_cell_value(&mut fptr, &hdu, "Calib_Delay", 0);
+    let result_value: Result<f32, FitsError> = read_cell_value(&mut fptr, &hdu, "Calib_Delay", 0);
     assert!(result_value.is_ok());
 
     let value = result_value.unwrap();
@@ -81,8 +80,7 @@ fn test_read_cell_value_nan() {
     let mut fptr = fits_open!(&metafits_filename).unwrap();
     let hdu = fits_open_hdu!(&mut fptr, 2).unwrap();
 
-    let result_value: Result<f32, RfinputError> =
-        read_cell_value(&mut fptr, &hdu, "Calib_Delay", 2);
+    let result_value: Result<f32, FitsError> = read_cell_value(&mut fptr, &hdu, "Calib_Delay", 2);
     assert!(result_value.is_ok());
 
     let value = result_value.unwrap();
@@ -319,8 +317,14 @@ fn test_populate_rf_inputs() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
     let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
     let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
-    let result =
-        Rfinput::populate_rf_inputs(256, &mut metafits_fptr, metafits_tile_table_hdu, 1.204, 24);
+    let result = Rfinput::populate_rf_inputs(
+        256,
+        &mut metafits_fptr,
+        metafits_tile_table_hdu,
+        1.204,
+        24,
+        &None,
+    );
 
     assert!(result.is_ok());
 
@@ -393,8 +397,14 @@ fn test_populate_rf_inputs_newer_metafits() {
     let metafits_filename = "test_files/1244973688_1_timestep/1244973688.metafits";
     let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
     let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
-    let result =
-        Rfinput::populate_rf_inputs(256, &mut metafits_fptr, metafits_tile_table_hdu, 1.204, 24);
+    let result = Rfinput::populate_rf_inputs(
+        256,
+        &mut metafits_fptr,
+        metafits_tile_table_hdu,
+        1.204,
+        24,
+        &None,
+    );
 
     assert!(result.is_ok());
 
@@ -429,8 +439,14 @@ fn test_flavor_and_whitening_filter() {
     let metafits_filename = "test_files/1384808344/1384808344_metafits.fits";
     let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
     let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
-    let result =
-        Rfinput::populate_rf_inputs(290, &mut metafits_fptr, metafits_tile_table_hdu, 1.204, 24);
+    let result = Rfinput::populate_rf_inputs(
+        290,
+        &mut metafits_fptr,
+        metafits_tile_table_hdu,
+        1.204,
+        24,
+        &None,
+    );
 
     assert!(result.is_ok());
     let mut rfinput = result.unwrap();
@@ -461,8 +477,14 @@ fn test_populate_rf_inputs_calib_metafits() {
     let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
     let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
     let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
-    let result =
-        Rfinput::populate_rf_inputs(256, &mut metafits_fptr, metafits_tile_table_hdu, 1.204, 24);
+    let result = Rfinput::populate_rf_inputs(
+        256,
+        &mut metafits_fptr,
+        metafits_tile_table_hdu,
+        1.204,
+        24,
+        &None,
+    );
 
     assert!(result.is_ok());
 
@@ -484,4 +506,76 @@ fn test_populate_rf_inputs_calib_metafits_context() {
     assert_eq!(context.rf_inputs[151].tile_name, "Tile104");
     assert_eq!(context.rf_inputs[151].calib_delay, Some(-135.49985));
     assert_eq!(context.antennas.len(), 128);
+}
+
+#[test]
+fn test_populate_rf_inputs_sig_chain_in_metafits() {
+    let metafits_filename = "test_files/metafits_signal_chain_corr/1096952256_metafits.fits";
+    let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+
+    let all_ones: Vec<f32> = vec![1.0; MAX_RECEIVER_CHANNELS];
+    let all_twos: Vec<f32> = vec![2.0; MAX_RECEIVER_CHANNELS];
+
+    let sig_chain_corrs: Vec<SignalChainCorrection> = vec![
+        SignalChainCorrection {
+            receiver_type: ReceiverType::RRI,
+            whitening_filter: false,
+            corrections: all_ones,
+        },
+        SignalChainCorrection {
+            receiver_type: ReceiverType::RRI,
+            whitening_filter: true,
+            corrections: all_twos,
+        },
+    ];
+
+    let result = Rfinput::populate_rf_inputs(
+        256,
+        &mut metafits_fptr,
+        metafits_tile_table_hdu,
+        1.204,
+        24,
+        &Some(sig_chain_corrs),
+    );
+
+    assert!(result.is_ok());
+
+    let mut rfinput = result.unwrap();
+    assert_eq!(rfinput.len(), 256);
+    rfinput.sort_by_key(|k| k.subfile_order);
+
+    // Check the signal chain correct index is correct!
+    assert_eq!(rfinput[0].tile_id, 11);
+    assert_eq!(rfinput[0].signal_chain_corrections_index, Some(0)); // RRI, no whitening filter
+
+    assert_eq!(rfinput[5].tile_id, 13);
+    assert_eq!(rfinput[5].signal_chain_corrections_index, Some(1)); // RRI, whitening filter
+}
+
+#[test]
+fn test_populate_rf_inputs_sig_chain_not_in_metafits() {
+    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
+    let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+
+    let result = Rfinput::populate_rf_inputs(
+        256,
+        &mut metafits_fptr,
+        metafits_tile_table_hdu,
+        1.204,
+        24,
+        &None,
+    );
+
+    assert!(result.is_ok());
+
+    let mut rfinput = result.unwrap();
+    assert_eq!(rfinput.len(), 256);
+    rfinput.sort_by_key(|k| k.subfile_order);
+
+    // Check the signal chain correct index is correct - no info in this metafits so it will be None!
+    assert_eq!(rfinput[0].signal_chain_corrections_index, None); // RRI, no whitening filter
+
+    assert_eq!(rfinput[5].signal_chain_corrections_index, None); // RRI, whitening filter
 }

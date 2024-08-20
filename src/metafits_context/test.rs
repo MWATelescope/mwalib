@@ -753,3 +753,49 @@ fn test_calibration_hdu_not_in_metafits() {
     assert_eq!(context.best_cal_fit_iters, None);
     assert_eq!(context.best_cal_fit_iter_limit, None);
 }
+
+#[test]
+fn test_signal_chain_corrections_hdu_not_in_metafits() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/metafits_tests/1370752512_metafits_deripple_os.fits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(metafits_filename, None);
+    assert!(result.is_ok(), "{}", result.unwrap_err());
+
+    let context = result.unwrap();
+
+    assert_eq!(context.signal_chain_corrections, None);
+}
+
+#[test]
+fn test_signal_chain_corrections_hdu_in_metafits() {
+    // Open the test metafits file
+    let metafits_filename = "test_files/metafits_signal_chain_corr/1096952256_metafits.fits";
+
+    // Open a context and load in a test metafits
+    let result = MetafitsContext::new(metafits_filename, None);
+
+    assert!(result.is_ok(), "{}", result.unwrap_err());
+
+    let context = result.unwrap();
+
+    let sig_chain_corr = context.signal_chain_corrections.unwrap();
+
+    assert_eq!(sig_chain_corr.len(), 8);
+    assert_eq!(sig_chain_corr.len(), context.num_signal_chain_corrections);
+
+    // First row is:
+    // RRI                0  -0.3937409 .. -1.0912598
+    assert_eq!(sig_chain_corr[0].receiver_type, ReceiverType::RRI);
+    assert!(!sig_chain_corr[0].whitening_filter);
+    assert_eq!(sig_chain_corr[0].corrections[0], -0.3937409);
+    assert_eq!(sig_chain_corr[0].corrections[255], -1.0912598);
+
+    // 4th row is:
+    // NI                 1   0.0 .. 0.0
+    assert_eq!(sig_chain_corr[3].receiver_type, ReceiverType::NI);
+    assert!(sig_chain_corr[3].whitening_filter);
+    assert_eq!(sig_chain_corr[3].corrections[0], 0.0);
+    assert_eq!(sig_chain_corr[3].corrections[255], 0.0);
+}

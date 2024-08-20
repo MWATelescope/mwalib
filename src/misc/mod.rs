@@ -258,7 +258,7 @@ pub fn convert_unixtime_to_gpstime(
 /// # Arguments
 ///
 /// * `flavour` - refernce to a string which has the cable flavour (value of the "flavor" column from
-/// TILEDATA HDU of the metafits file).
+///   TILEDATA HDU of the metafits file).
 ///
 /// # Returns
 ///

@@ -161,11 +161,11 @@ impl TimeStep {
     /// This code tries to populate timesteps which:
     /// * Covers all data provided
     /// * Does it's best to go from the metafits scheduled start to scheduled end
-    /// NOTE: this is involved, because in legacy obs, the metafits correlator timesteps can be offset by fractions of an integration from the data timesteps. E.g.
-    ///  metafits timesteps = [0, 2, 4, 6, ..., 30]
-    ///  provided timesteps = [3, 5, 7, 9, ..., 29, 31]
+    ///   NOTE: this is involved, because in legacy obs, the metafits correlator timesteps can be offset by fractions of an integration from the data timesteps. E.g.
+    ///   metafits timesteps = [0, 2, 4, 6, ..., 30]
+    ///   provided timesteps = [3, 5, 7, 9, ..., 29, 31]
     ///
-    /// In this example the superset of timesteps will be:
+    ///  In this example the superset of timesteps will be:
     ///  timesteps [1, 3, 5, 7, 9, ..., 29, 31]
     ///
     /// # Arguments
