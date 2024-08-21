@@ -786,11 +786,11 @@ fn test_signal_chain_corrections_hdu_in_metafits() {
     assert_eq!(sig_chain_corr.len(), context.num_signal_chain_corrections);
 
     // First row is:
-    // RRI                0  -0.3937409 .. -1.0912598
+    // RRI                0  0.16073910960211837 .. 0.7598147243238643
     assert_eq!(sig_chain_corr[0].receiver_type, ReceiverType::RRI);
     assert!(!sig_chain_corr[0].whitening_filter);
-    assert_eq!(sig_chain_corr[0].corrections[0], -0.3937409);
-    assert_eq!(sig_chain_corr[0].corrections[255], -1.0912598);
+    assert_eq!(sig_chain_corr[0].corrections[0], 0.16073910960211837);
+    assert_eq!(sig_chain_corr[0].corrections[255], 0.7598147243238643);
 
     // 4th row is:
     // NI                 1   0.0 .. 0.0

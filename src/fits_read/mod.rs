@@ -906,3 +906,94 @@ pub fn read_cell_array_f32(
         }
     }
 }
+
+/// Pull out the array-in-a-cell values. This function assumes that the output
+/// datatype is f64, and that the fits datatype is D (f64), so it is not to be used
+/// generally!
+pub fn read_cell_array_f64(
+    metafits_fptr: &mut fitsio::FitsFile,
+    metafits_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: i64,
+    n_elem: usize,
+) -> Result<Vec<f64>, FitsError> {
+    unsafe {
+        // With the column name, get the column number.
+        let mut status = 0;
+        let mut col_num = -1;
+        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
+        fitsio_sys::ffgcno(
+            metafits_fptr.as_raw(),
+            0,
+            keyword,
+            &mut col_num,
+            &mut status,
+        );
+        // Check the status.
+        if status != 0 {
+            return Err(FitsError::CellArray {
+                fits_filename: metafits_fptr.filename.clone(),
+                hdu_num: metafits_table_hdu.number,
+                row_num: row,
+                col_name: col_name.to_string(),
+            });
+        }
+        drop(std::ffi::CString::from_raw(keyword));
+
+        // Now get the specified row from that column.
+        let mut array: Vec<f64> = vec![0.0; n_elem];
+        array.shrink_to_fit();
+
+        let array_ptr = array.as_mut_ptr();
+
+        // FITSIO can return NaNs (amongst other things)
+        //let mut null_replace_value: f32 = f32::MAX;
+        //let nullval_ptr: *mut c_void = &mut null_replace_value as *mut f32 as *mut c_void;
+
+        fitsio_sys::ffgcv(
+            metafits_fptr.as_raw(),
+            82,
+            col_num,
+            row + 1,
+            1,
+            n_elem as i64,
+            std::ptr::null_mut(),
+            array_ptr as *mut core::ffi::c_void,
+            &mut 0,
+            &mut status,
+        );
+
+        // Check the status.
+        match status {
+            0 => {
+                trace!(
+                    "read_cell_array_f64() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    metafits_fptr.filename.display(),
+                    metafits_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                // Re-assemble the raw array into a Rust Vector.
+                Ok(std::slice::from_raw_parts(array_ptr, n_elem).to_vec())
+            }
+            _ => {
+                println!(
+                    "ERROR {} read_cell_array_f64() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    status,
+                    metafits_fptr.filename.display(),
+                    metafits_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                Err(FitsError::CellArray {
+                    fits_filename: metafits_fptr.filename.clone(),
+                    hdu_num: metafits_table_hdu.number + 1,
+                    row_num: row,
+                    col_name: col_name.to_string(),
+                })
+            }
+        }
+    }
+}

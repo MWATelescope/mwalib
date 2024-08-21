@@ -2612,13 +2612,13 @@ fn test_signal_chain_hdu_in_metafits() {
         );
 
         // First row is:
-        // RRI                0  -0.3937409 .. -1.0912598
+        // RRI                0  0.16073910960211837 .. 0.7598147243238643
         assert_eq!(sig_chain_corr[0].receiver_type, ReceiverType::RRI);
         assert!(!sig_chain_corr[0].whitening_filter);
         let sig_chain_corr_0_corrections =
             ffi_boxed_slice_to_array(sig_chain_corr[0].corrections, MAX_RECEIVER_CHANNELS);
-        assert_eq!(sig_chain_corr_0_corrections[0], -0.3937409);
-        assert_eq!(sig_chain_corr_0_corrections[255], -1.0912598);
+        assert_eq!(sig_chain_corr_0_corrections[0], 0.16073910960211837);
+        assert_eq!(sig_chain_corr_0_corrections[255], 0.7598147243238643);
 
         // 4th row is:
         // NI                 1   0.0 .. 0.0

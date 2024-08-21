@@ -157,13 +157,11 @@ def test_mwax_metafits_context_signal_chain_corrections(
     )
     assert math.isclose(
         mwax_sc_mc.signal_chain_corrections[mwax_sc_mc.rf_inputs[0].signal_chain_corrections_index].corrections[0],
-        -0.3937409,
-        rel_tol=0.0000001,
+        0.16073910960211837,
     )
     assert math.isclose(
         mwax_sc_mc.signal_chain_corrections[mwax_sc_mc.rf_inputs[0].signal_chain_corrections_index].corrections[255],
-        -1.0912598,
-        rel_tol=0.0000001,
+        0.7598147243238643,
     )
 
 

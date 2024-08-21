@@ -7,7 +7,7 @@ Changes in each release are listed below.
 * Fixed potential bug with various flavours of metafits files because mwalib was making assumptions about the HDU index/position of each HDU. mwalib now uses HDU names to correctly identify the presence of, and read from, metafits files.
 * Moved FITS table reading functions from rf_input to fits_read module. This changes some error types from `RfInputError` to `FitsError`.
 * Added best calibration info to the output when you display a `MetafitsContext` or via the C function `mwalib_metafits_context_display`.
-* Added signal chain correction table data to the `MetafitsContext`.
+* Added [signal chain correction](https://mwatelescope.atlassian.net/wiki/spaces/MP/pages/347996167/MWAX+Signal+Chain+Corrections) table data to the `MetafitsContext`.
 * The `RFInput` struct will expose a `signal_chain_corrections_index` which will be the index into the `signal_chain_corrections` vector or None.
   * via FFI, a None for `RfInput.signal_chain_corrections_index` is translated as the constant `MAX_RECEIVER_CHANNELS`.
 

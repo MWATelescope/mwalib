@@ -56,120 +56,6 @@ fn test_get_electrical_length() {
 }
 
 #[test]
-fn test_read_cell_value_valid() {
-    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
-    let mut fptr = fits_open!(&metafits_filename).unwrap();
-    let hdu = fits_open_hdu!(&mut fptr, 2).unwrap();
-
-    let result_value: Result<f32, FitsError> = read_cell_value(&mut fptr, &hdu, "Calib_Delay", 0);
-    assert!(result_value.is_ok());
-
-    let value = result_value.unwrap();
-
-    assert!(float_cmp::approx_eq!(
-        f32,
-        value,
-        -135.49985,
-        float_cmp::F32Margin::default()
-    ));
-}
-
-#[test]
-fn test_read_cell_value_nan() {
-    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
-    let mut fptr = fits_open!(&metafits_filename).unwrap();
-    let hdu = fits_open_hdu!(&mut fptr, 2).unwrap();
-
-    let result_value: Result<f32, FitsError> = read_cell_value(&mut fptr, &hdu, "Calib_Delay", 2);
-    assert!(result_value.is_ok());
-
-    let value = result_value.unwrap();
-
-    assert!(float_cmp::approx_eq!(
-        f32,
-        value,
-        f32::NAN,
-        float_cmp::F32Margin::default()
-    ));
-
-    // Reassign to another float
-    let new_float = value;
-
-    assert!(float_cmp::approx_eq!(
-        f32,
-        new_float,
-        f32::NAN,
-        float_cmp::F32Margin::default()
-    ));
-}
-
-#[test]
-fn test_read_cell_array_u32() {
-    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
-    let mut fptr = fits_open!(&metafits_filename).unwrap();
-    let hdu = fits_open_hdu!(&mut fptr, 1).unwrap();
-
-    let delays = read_cell_array_u32(&mut fptr, &hdu, "Delays", 0, 16);
-    assert!(delays.is_ok());
-    assert_eq!(&delays.unwrap(), &[0; 16]);
-
-    let digital_gains = read_cell_array_u32(&mut fptr, &hdu, "Gains", 0, 24);
-    assert!(digital_gains.is_ok());
-    assert_eq!(
-        digital_gains.unwrap(),
-        &[
-            74, 73, 73, 72, 71, 70, 68, 67, 66, 65, 65, 65, 66, 66, 65, 65, 64, 64, 64, 65, 65, 66,
-            67, 68,
-        ]
-    );
-
-    let asdf = read_cell_array_u32(&mut fptr, &hdu, "NotReal", 0, 24);
-    assert!(asdf.is_err());
-
-    let asdf = read_cell_array_u32(&mut fptr, &hdu, "Delays", 999, 16);
-    assert!(asdf.is_err());
-}
-
-#[test]
-fn test_read_cell_array_f32() {
-    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
-    let mut fptr = fits_open!(&metafits_filename).unwrap();
-    let hdu = fits_open_hdu!(&mut fptr, 2).unwrap();
-
-    let gains = read_cell_array_f32(&mut fptr, &hdu, "Calib_Gains", 0, 24);
-    assert!(gains.is_ok());
-    assert_eq!(
-        gains.unwrap(),
-        &[
-            0.9759591, 0.9845909, 0.9918698, 1.0030527, 1.0122633, 1.011114, 1.0253462, 1.0438296,
-            1.0606546, 1.0932951, 1.1034626, 1.1153094, 1.1335917, 1.1480684, 1.1665345, 1.1722057,
-            1.2186697, 1.2541704, 1.2993327, 1.35544, 1.410614, 1.488467, 1.544273, 1.6084857,
-        ]
-    );
-
-    let gains_nans = read_cell_array_f32(&mut fptr, &hdu, "Calib_Gains", 2, 24);
-    assert!(gains_nans.is_ok());
-    let gains_nans = gains_nans.unwrap();
-    assert!(gains_nans[0].is_nan());
-    assert!(gains_nans[23].is_nan());
-
-    println!("zzz1");
-    test_func(gains_nans);
-
-    fn test_func(nan_float_vec: Vec<f32>) {
-        println!("zzz2");
-        assert!(nan_float_vec[0].is_nan());
-        assert!(nan_float_vec[23].is_nan());
-        println!("zzz3");
-    }
-
-    println!("zzz4");
-
-    let asdf = read_cell_array_f32(&mut fptr, &hdu, "NotReal", 0, 24);
-    assert!(asdf.is_err());
-}
-
-#[test]
 fn test_read_metafits_tiledata_values_from_row_0() {
     let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
     let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
@@ -514,8 +400,8 @@ fn test_populate_rf_inputs_sig_chain_in_metafits() {
     let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
     let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
 
-    let all_ones: Vec<f32> = vec![1.0; MAX_RECEIVER_CHANNELS];
-    let all_twos: Vec<f32> = vec![2.0; MAX_RECEIVER_CHANNELS];
+    let all_ones: Vec<f64> = vec![1.0; MAX_RECEIVER_CHANNELS];
+    let all_twos: Vec<f64> = vec![2.0; MAX_RECEIVER_CHANNELS];
 
     let sig_chain_corrs: Vec<SignalChainCorrection> = vec![
         SignalChainCorrection {

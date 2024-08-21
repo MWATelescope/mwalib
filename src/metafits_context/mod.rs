@@ -351,7 +351,7 @@ pub struct SignalChainCorrection {
     pub whitening_filter: bool,
 
     /// Corrections
-    pub corrections: Vec<f32>,
+    pub corrections: Vec<f64>,
 }
 
 /// Implements fmt::Display for SignalChainCorrection
@@ -1160,7 +1160,7 @@ impl MetafitsContext {
                     .unwrap_or(-1)
                     == 1;
 
-            let corrections: Vec<f32> = read_cell_array_f32(
+            let corrections: Vec<f64> = read_cell_array_f64(
                 metafits_fptr,
                 sig_chain_hdu,
                 "Corrections",

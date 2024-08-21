@@ -3125,7 +3125,7 @@ pub struct SignalChainCorrection {
     pub whitening_filter: bool,
 
     /// Corrections
-    pub corrections: *mut f32,
+    pub corrections: *mut f64,
 }
 
 ///
