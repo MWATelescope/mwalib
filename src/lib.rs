@@ -44,6 +44,8 @@ pub const MWALIB_MWA_COAX_V_FACTOR: f64 = 1.204;
 pub(crate) const MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS: u64 = 1;
 /// the number of seconds per subfile in MWAX v2 VCS
 pub(crate) const MWA_VCS_MWAXV2_SUBFILE_SECONDS: u64 = 8;
+/// Total number of MWA Receiver coarse channels
+pub(crate) const MAX_RECEIVER_CHANNELS: usize = 256;
 
 // Include the generated built.rs code into our library
 pub mod built_info {

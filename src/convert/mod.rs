@@ -65,8 +65,7 @@ impl LegacyConversionBaseline {
     ///
     /// # Returns
     ///
-    /// * Returns a Result containing a populated
-    ///LegacyConversionBaseline if Ok.
+    /// * Returns a Result containing a populated LegacyConversionBaseline if Ok.
     ///
     fn new(baseline: usize, ant1: usize, ant2: usize, xx: i32, xy: i32, yx: i32, yy: i32) -> Self {
         Self {
@@ -153,8 +152,8 @@ impl fmt::Debug for LegacyConversionBaseline {
 /// # Returns
 ///
 /// * A Vector with one element per rf_input vs rf_input (256x256). Positive numbers represent the index of the
-/// input HDU to get data from, negative numbers mean to take the complex conjugate of the data at the index of
-/// the input HDU.
+///   input HDU to get data from, negative numbers mean to take the complex conjugate of the data at the index of
+///   the input HDU.
 ///
 fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
     let mut row1st: usize;
@@ -223,9 +222,8 @@ fn generate_full_matrix(mwax_order: Vec<usize>) -> Vec<i32> {
 ///
 /// # Returns
 ///
-/// * A Vector of `
-///LegacyConversionBaseline`s which tell us, for a specific output baseline, where in the input HDU
-/// to get data from (and whether it needs to be conjugated).
+/// * A Vector of `///LegacyConversionBaseline`s which tell us, for a specific output baseline, where in the input HDU
+///   to get data from (and whether it needs to be conjugated).
 ///
 pub(crate) fn generate_conversion_array(rf_inputs: &[Rfinput]) -> Vec<LegacyConversionBaseline> {
     // Ensure we have a 256 element array of rf_inputs

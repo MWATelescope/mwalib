@@ -8,12 +8,14 @@ use std::fmt;
 use std::path::Path;
 
 use chrono::{DateTime, Duration, FixedOffset};
+use fitsio::hdu::HduInfo;
 use num_derive::FromPrimitive;
 use num_traits::ToPrimitive;
 
 use crate::antenna::*;
 use crate::baseline::*;
 use crate::coarse_channel::*;
+use crate::fits_read::*;
 use crate::rfinput::*;
 use crate::voltage_files::*;
 use crate::*;
@@ -336,6 +338,55 @@ impl std::str::FromStr for MWAMode {
 }
 
 ///
+/// Signal chain correction table
+///
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
+pub struct SignalChainCorrection {
+    /// Receiver Type
+    pub receiver_type: ReceiverType,
+
+    /// Whitening Filter
+    pub whitening_filter: bool,
+
+    /// Corrections
+    pub corrections: Vec<f64>,
+}
+
+/// Implements fmt::Display for SignalChainCorrection
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+impl fmt::Display for SignalChainCorrection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let corr: String = if !self.corrections.is_empty() {
+            format!(
+                "[{}..{}]",
+                self.corrections[0],
+                self.corrections[MAX_RECEIVER_CHANNELS - 1]
+            )
+        } else {
+            "[]".to_string()
+        };
+
+        write!(
+            f,
+            "Receiver Type: {} Whitening filter: {} Corrections: {}",
+            self.receiver_type, self.whitening_filter, corr
+        )
+    }
+}
+
+///
 /// Metafits context. This represents the basic metadata for an MWA observation.
 ///
 #[derive(Clone, Debug)]
@@ -507,6 +558,10 @@ pub struct MetafitsContext {
     pub best_cal_fit_iters: Option<u16>,
     /// Best calibration fit iteration limit
     pub best_cal_fit_iter_limit: Option<u16>,
+    /// Signal Chain corrections
+    pub signal_chain_corrections: Option<Vec<SignalChainCorrection>>,
+    /// Number of Signal Chain corrections
+    pub num_signal_chain_corrections: usize,
 }
 
 impl MetafitsContext {
@@ -624,10 +679,37 @@ impl MetafitsContext {
 
         let mut metafits_fptr = fits_open!(&metafits)?;
         let metafits_hdu = fits_open_hdu!(&mut metafits_fptr, 0)?;
-        let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1)?;
+        let metafits_tile_table_hdu = fits_open_hdu_by_name!(&mut metafits_fptr, "TILEDATA")?;
+
         // The calibration HDU is not always present, so we will check the result when we need to use it.
         // is_ok() means it exists, is_err() = True means it does not.
-        let metafits_cal_hdu_result = fits_open_hdu!(&mut metafits_fptr, 2);
+        let metafits_cal_hdu_result = fits_open_hdu_by_name!(&mut metafits_fptr, "CALIBDATA");
+
+        // The signal chain HDU is not always present, so we will check the result when we need to use it.
+        // is_ok() means it exists, is_err() = True means it does not.
+        let metafits_signalchain_hdu_result =
+            fits_open_hdu_by_name!(&mut metafits_fptr, "SIGCHAINDATA");
+
+        // Signal chain corrections
+        let signal_chain_corrections: Option<Vec<SignalChainCorrection>>;
+        let num_signal_chain_corrections: usize;
+
+        match metafits_signalchain_hdu_result {
+            Ok(metafits_signalchain_hdu) => {
+                let sig_chain_corrs = Self::populate_signal_chain_corrections(
+                    &mut metafits_fptr,
+                    &metafits_signalchain_hdu,
+                )?;
+
+                num_signal_chain_corrections = sig_chain_corrs.len();
+                signal_chain_corrections = Some(sig_chain_corrs);
+            }
+            Err(_) => {
+                // This will occur if the HDU does not exist (old / or metafits without this)
+                num_signal_chain_corrections = 0;
+                signal_chain_corrections = None;
+            }
+        }
 
         // Populate obsid from the metafits
         let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
@@ -685,6 +767,7 @@ impl MetafitsContext {
             metafits_tile_table_hdu,
             MWALIB_MWA_COAX_V_FACTOR,
             metafits_coarse_chan_vec.len(),
+            &signal_chain_corrections,
         )?;
         assert_eq!(num_rf_inputs, rf_inputs.len());
 
@@ -1034,7 +1117,65 @@ impl MetafitsContext {
             best_cal_creator,
             best_cal_fit_iters,
             best_cal_fit_iter_limit,
+            signal_chain_corrections,
+            num_signal_chain_corrections,
         })
+    }
+
+    /// Read the signal chain FitsHdu and return a populated vector of `SignalChainCorrection`s
+    ///
+    /// # Arguments
+    ///
+    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
+    ///
+    /// * `sig_chain_hdu` - The FitsHdu containing valid signal chain corrections data.
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a vector of signal chain corrections read from the sig_chain_hdu HDU.
+    ///
+    fn populate_signal_chain_corrections(
+        metafits_fptr: &mut fitsio::FitsFile,
+        sig_chain_hdu: &fitsio::hdu::FitsHdu,
+    ) -> Result<Vec<SignalChainCorrection>, FitsError> {
+        // Find out how many rows there are in the table
+        let rows = match &sig_chain_hdu.info {
+            HduInfo::TableInfo {
+                column_descriptions: _,
+                num_rows,
+            } => *num_rows,
+            _ => 0,
+        };
+
+        let mut sig_chain_vec: Vec<SignalChainCorrection> = Vec::new();
+
+        for row in 0..rows {
+            let rx_type_str: String =
+                read_cell_value(metafits_fptr, sig_chain_hdu, "Receiver_type", row)
+                    .unwrap_or_default();
+            let receiver_type: ReceiverType = rx_type_str.parse::<ReceiverType>().unwrap();
+
+            let whitening_filter: bool =
+                read_cell_value(metafits_fptr, sig_chain_hdu, "Whitening_Filter", row)
+                    .unwrap_or(-1)
+                    == 1;
+
+            let corrections: Vec<f64> = read_cell_array_f64(
+                metafits_fptr,
+                sig_chain_hdu,
+                "Corrections",
+                row as i64,
+                MAX_RECEIVER_CHANNELS,
+            )?;
+
+            sig_chain_vec.push(SignalChainCorrection {
+                receiver_type,
+                whitening_filter,
+                corrections,
+            });
+        }
+
+        Ok(sig_chain_vec)
     }
 
     /// Given a hint at the expected `MWAVersion`, populate the coarse_channel vector with the expected
@@ -1262,6 +1403,15 @@ impl fmt::Display for MetafitsContext {
 
     metafits FREQCENT key:    {freqcent} MHz,
 
+    best calibrator info (if present)
+    ..fit_id:                 {bcal_fit_id},
+    ..obs_id:                 {bcal_obs_id},
+    ..code_ver:               {bcal_code_ver},
+    ..fit_timestamp:          {bcal_fit_timestamp},
+    ..creator:                {bcal_creator},
+
+    num signal chain corrs:   {n_scc},
+
     metafits filename:        {meta},
 )"#,
             obsid = self.obs_id,
@@ -1355,6 +1505,27 @@ impl fmt::Display for MetafitsContext {
             nfcpc = self.num_corr_fine_chans_per_coarse,
             int_time = self.corr_int_time_ms as f64 / 1e3,
             crsf = self.corr_raw_scale_factor,
+            n_scc = self.num_signal_chain_corrections,
+            bcal_fit_id = match self.best_cal_fit_id {
+                Some(b) => b.to_string(),
+                None => String::from("None"),
+            },
+            bcal_obs_id = match self.best_cal_obs_id {
+                Some(b) => b.to_string(),
+                None => String::from("None"),
+            },
+            bcal_code_ver = match &self.best_cal_code_ver {
+                Some(b) => b.to_string(),
+                None => String::from("None"),
+            },
+            bcal_fit_timestamp = match &self.best_cal_fit_timestamp {
+                Some(b) => b.to_string(),
+                None => String::from("None"),
+            },
+            bcal_creator = match &self.best_cal_creator {
+                Some(b) => b.to_string(),
+                None => String::from("None"),
+            },
             meta = self.metafits_filename,
         )
     }

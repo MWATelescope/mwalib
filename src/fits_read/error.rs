@@ -68,4 +68,22 @@ pub enum FitsError {
         source_file: &'static str,
         source_line: u32,
     },
+
+    /// Error when reading from an MWA metafits table cell.
+    #[error("{fits_filename} HDU {hdu_num}: Failed to read table row {row_num} for {col_name} from metafits")]
+    ReadCell {
+        fits_filename: PathBuf,
+        hdu_num: usize,
+        row_num: usize,
+        col_name: String,
+    },
+
+    /// Error when attempting to read a cell array.
+    #[error("{fits_filename} HDU {hdu_num}: Failed to read cell array from column {col_name}, row {row_num} from metafits")]
+    CellArray {
+        fits_filename: PathBuf,
+        hdu_num: usize,
+        row_num: i64,
+        col_name: String,
+    },
 }

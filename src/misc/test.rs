@@ -117,6 +117,7 @@ fn test_get_baseline_from_antenna_names1() {
         has_whitening_filter: false,
         calib_delay: None,
         calib_gains: None,
+        signal_chain_corrections_index: None,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -142,6 +143,7 @@ fn test_get_baseline_from_antenna_names1() {
         has_whitening_filter: false,
         calib_delay: None,
         calib_gains: None,
+        signal_chain_corrections_index: None,
     };
 
     ants.push(Antenna {
@@ -298,6 +300,7 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         has_whitening_filter: false,
         calib_delay: None,
         calib_gains: None,
+        signal_chain_corrections_index: None,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -323,6 +326,7 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         has_whitening_filter: false,
         calib_delay: None,
         calib_gains: None,
+        signal_chain_corrections_index: None,
     };
 
     ants.push(Antenna {
@@ -384,6 +388,7 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         has_whitening_filter: false,
         calib_delay: None,
         calib_gains: None,
+        signal_chain_corrections_index: None,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -409,6 +414,7 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         has_whitening_filter: false,
         calib_delay: None,
         calib_gains: None,
+        signal_chain_corrections_index: None,
     };
 
     ants.push(Antenna {
