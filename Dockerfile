@@ -1,4 +1,4 @@
-FROM ursamajorlab/jammy-python:3.11 as base
+FROM ubuntu:20.04 as base
 
 # suppress perl locale errors
 ENV LC_ALL=C
@@ -10,6 +10,13 @@ RUN apt-get update \
     autoconf \
     build-essential \
     pkg-config \
+    libpython3-dev \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-wheel \
+    python3-importlib-metadata \
+    curl \
     && \
     apt-get clean all && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
@@ -43,6 +50,9 @@ RUN mkdir -m755 $RUSTUP_HOME $CARGO_HOME && ( \
 # # Get cargo make, llvm-cov (for CI)
 # RUN cargo install --force cargo-make cargo-llvm-cov && \
 #     rm -rf ${CARGO_HOME}/registry
+
+# use python3 as the default python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
 # install python deps for mwalib python
 RUN python -m pip install --force-reinstall --no-cache-dir \
