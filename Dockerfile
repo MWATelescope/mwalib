@@ -22,6 +22,87 @@ RUN apt-get update \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     apt-get -y autoremove
 
+FROM base AS building
+# issues compiling lazy_static on arm64 around mwalib0.15, we're rolling our own Python.
+# from this https://github.com/arnaudblois/python-ubuntu-image/blob/main/src/Dockerfile
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends && apt-get install -y \
+    build-essential \
+    libbz2-dev \
+    libgdbm-dev \
+    liblzma-dev \
+    libncurses5-dev \
+    tzdata \
+    zlib1g-dev \
+    wget \
+    ca-certificates
+
+ARG QUICK_BUILD="false"
+ARG PY_VERSION="3.11.0"
+# BASE_PYTHON_VERSION: we strip the alpha, beta, rc, etc. For instance 3.11.0rc1 -> 3.11.0
+# export BASE_PYTHON_VERSION=`echo ${PY_VERSION} | sed -r "s/([0-9]+\.[0-9]+\.[0-9]+)([a-zA-Z]+[0-9]+)?/\1/"` && \
+ARG BASE_PYTHON_VERSION="3.11.0"
+
+RUN echo "Downloading sources"
+
+
+RUN set +x && \
+    wget -c https://www.python.org/ftp/python/${BASE_PYTHON_VERSION}/Python-${PY_VERSION}.tgz --verbose && \
+    ls -al && \
+    pwd && \
+    tar -xzf Python-${PY_VERSION}.tgz; \
+    ls -al && \
+    if [ "${QUICK_BUILD}" = true ] ; then OPTIMIZATION="" ; else OPTIMIZATION="--enable-optimizations --with-lto"; fi && \
+    ls -al && \
+    cd Python-${PY_VERSION} && \
+    ./configure \
+    --with-openssl=/usr/local/ssl \
+    --enable-loadable-sqlite-extensions \
+    --enable-shared \
+    --with-openssl-rpath=auto \
+    ${OPTIMIZATION}
+
+RUN echo "Building Python ${PY_VERSION}"
+WORKDIR /Python-${PY_VERSION}
+# Make sure the env variable are correctly set for Python to be able
+# to link and compile against openSSL.
+ENV LDFLAGS "-L/usr/local/ssl/lib64/ -Wl,-rpath=/usr/local/ssl/lib64:/usr/local/lib"
+ENV LD_LIBRARY_PATH "/usr/local/ssl/lib/:/usr/local/ssl/lib64/"
+ENV CPPFLAGS "-I/usr/local/ssl/include -I/usr/local/ssl/include/openssl"
+
+
+RUN if [ "${QUICK_BUILD}" = true ] ; then OPTIMIZATION="" ; else OPTIMIZATION="--enable-optimizations --with-lto"; fi && \
+    ./configure \
+    --with-openssl=/usr/local/ssl \
+    --enable-loadable-sqlite-extensions \
+    --enable-shared \
+    --with-openssl-rpath=auto \
+    ${OPTIMIZATION}
+RUN make --quiet
+RUN make --quiet altinstall
+# We make sure to remove all the fluff
+# recipe taken from the official image https://github.com/docker-library/python/
+RUN find /usr/local -depth \
+    \( \
+    \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
+    -o \
+    \( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
+    \) -exec rm -rf '{}' +;
+
+# back to base
+FROM base
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    bzip2 \
+    ca-certificates \
+    curl \
+    libgdbm6 \
+    liblzma5 \
+    libncurses6 \
+    zlib1g
+
+COPY --from=building /usr/local/ /usr/local/
+
 # install cfitsio
 ARG CFITSIO_VERSION=3.49
 RUN cd / && \
@@ -73,5 +154,5 @@ RUN maturin build --release --features=python,${MWALIB_FEATURES} && \
 ENV PATH=${PATH}:/mwalib/target/release/examples/
 
 # allow for tests during build
-ARG TEST_SHIM
+ARG TEST_SHIM="{ ldd --version; python --version; python -c 'print(__import__("sys").implementation)' } > /pyimpl.txt"
 RUN ${TEST_SHIM}
