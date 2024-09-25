@@ -1,4 +1,4 @@
-FROM python:3.11-bullseye as base
+FROM ursamajorlab/jammy-python:3.11 as base
 
 # suppress perl locale errors
 ENV LC_ALL=C
