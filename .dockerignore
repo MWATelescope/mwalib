@@ -1,0 +1,16 @@
+.git
+.github
+.vscode
+coverage
+doc
+img
+scripts
+target
+*.ms
+*.uvfits
+*.tar
+*.metafits
+*.fits
+*.sif
+*.whl
+Cargo.lock
