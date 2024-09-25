@@ -22,22 +22,28 @@ RUN apt-get update \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     apt-get -y autoremove
 
-FROM base AS building
 # issues compiling lazy_static on arm64 around mwalib0.15, we're rolling our own Python.
 # from this https://github.com/arnaudblois/python-ubuntu-image/blob/main/src/Dockerfile
+RUN apt-get update && apt-get dist-upgrade -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
+FROM base AS building
 RUN apt-get update \
     && apt-get install -y --no-install-recommends && apt-get install -y \
     build-essential \
     libbz2-dev \
+    libffi-dev \
     libgdbm-dev \
     liblzma-dev \
     libncurses5-dev \
+    libnss3-dev \
+    libsqlite3-dev \
     tzdata \
     zlib1g-dev \
     wget \
-    ca-certificates
+    zlib1g-dev
 
-ARG QUICK_BUILD="false"
+ARG OPENSSL_VERSION="3.3.1"
+ARG QUICK_BUILD="true"
 ARG PY_VERSION="3.11.0"
 # BASE_PYTHON_VERSION: we strip the alpha, beta, rc, etc. For instance 3.11.0rc1 -> 3.11.0
 # export BASE_PYTHON_VERSION=`echo ${PY_VERSION} | sed -r "s/([0-9]+\.[0-9]+\.[0-9]+)([a-zA-Z]+[0-9]+)?/\1/"` && \
@@ -45,12 +51,13 @@ ARG BASE_PYTHON_VERSION="3.11.0"
 
 RUN echo "Downloading sources"
 
-
 RUN set +x && \
-    wget -c https://www.python.org/ftp/python/${BASE_PYTHON_VERSION}/Python-${PY_VERSION}.tgz --verbose && \
+    wget -cq https://www.python.org/ftp/python/${BASE_PYTHON_VERSION}/Python-${PY_VERSION}.tgz && \
+    wget -cq https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz && \
     ls -al && \
     pwd && \
     tar -xzf Python-${PY_VERSION}.tgz; \
+    tar -xzf openssl-${OPENSSL_VERSION}.tar.gz && \
     ls -al && \
     if [ "${QUICK_BUILD}" = true ] ; then OPTIMIZATION="" ; else OPTIMIZATION="--enable-optimizations --with-lto"; fi && \
     ls -al && \
@@ -61,6 +68,16 @@ RUN set +x && \
     --enable-shared \
     --with-openssl-rpath=auto \
     ${OPTIMIZATION}
+
+RUN echo "Building OpenSSL ${OPENSSL_VERSION}"
+WORKDIR /openssl-${OPENSSL_VERSION}
+# Make sure to use RPATH as specified at
+# https://wiki.openssl.org/index.php/Compilation_and_Installation#Using_RPATHs
+RUN ls -al && \
+    ./config -Wl,-rpath=/usr/local/ssl/lib64:/usr/local/lib -Wl,--enable-new-dtags --prefix=/usr/local/ssl --openssldir=/usr/local/ssl
+RUN make --quiet
+RUN if [ ! "${QUICK_BUILD}" = true ] ; then make test; fi
+RUN make --quiet install
 
 RUN echo "Building Python ${PY_VERSION}"
 WORKDIR /Python-${PY_VERSION}
@@ -89,21 +106,52 @@ RUN find /usr/local -depth \
     \( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
     \) -exec rm -rf '{}' +;
 
-# back to base
+# We also remove the headers and doc for openSSL as they are no longer needed.
+# RUN rm -rf /usr/local/ssl/share /usr/local/ssl/include
+
 FROM base
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     bzip2 \
     ca-certificates \
     curl \
+    libffi-dev \
     libgdbm6 \
     liblzma5 \
     libncurses6 \
-    zlib1g
+    libnss3 \
+    sqlite3 \
+    wget \
+    zlib1g \
+    && apt-get autoclean \
+    && apt-get clean \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=building /usr/local/ /usr/local/
+ARG PY_VERSION
+ENV PY_VERSION ${PY_VERSION}
+ENV LD_LIBRARY_PATH "/usr/local/ssl/lib/:/usr/local/ssl/lib64/"
+# TODO: RUN echo update-alternatives --install /usr/bin/python python /usr/local/bin/python${PY_VERSION%.*} 1 && exit 1
+RUN update-alternatives --install /usr/bin/python python /usr/local/bin/python3.11 1
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.11 1
+RUN echo "Python ${PY_VERSION} has been successfully installed and is accessible at /usr/bin/python"
+# OpenSSL looks into $OPENSSLDIR/certs as CA trust store. By default this is
+# empty, and installing ca-certificates with apt-get populates it in the system
+# openssl at /usr/lib/ssl/certs/. Our compiled openssl looks into
+# /usr/local/ssl/certs, we create a symlink between the two to let Python access
+# the OS trust store.
+RUN rm -rf /usr/local/ssl/certs && ln -s /usr/lib/ssl/certs/ /usr/local/ssl/certs
 
-# install cfitsio
+CMD [ "/bin/bash" ]
+
+# # # install python deps for mwalib python
+RUN python -m pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --force-reinstall --no-cache-dir \
+    maturin[patchelf]==1.7.2 \
+    pip==24.2 \
+    numpy==1.24.4
+
+# # install cfitsio
 ARG CFITSIO_VERSION=3.49
 RUN cd / && \
     curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-${CFITSIO_VERSION}.tar.gz" -o cfitsio.tar.gz && \
@@ -117,7 +165,7 @@ RUN cd / && \
     cd / && \
     rm -rf /cfitsio-${CFITSIO_VERSION}
 
-# Get Rust
+# # Get Rust
 ARG RUST_VERSION=stable
 ENV RUSTUP_HOME=/opt/rust CARGO_HOME=/opt/cargo
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
@@ -132,15 +180,6 @@ RUN mkdir -m755 $RUSTUP_HOME $CARGO_HOME && ( \
 # RUN cargo install --force cargo-make cargo-llvm-cov && \
 #     rm -rf ${CARGO_HOME}/registry
 
-# use python3 as the default python
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-
-# install python deps for mwalib python
-RUN python -m pip install --force-reinstall --no-cache-dir \
-    maturin[patchelf]==1.7.2 \
-    pip==24.2 \
-    numpy==1.24.4
-
 # mount cwd to /mwalib in Docker
 ADD . /mwalib
 WORKDIR /mwalib
@@ -153,6 +192,6 @@ RUN maturin build --release --features=python,${MWALIB_FEATURES} && \
     rm -rf ${CARGO_HOME}/registry
 ENV PATH=${PATH}:/mwalib/target/release/examples/
 
-# # allow for tests during build
-# ARG TEST_SHIM="python -c $'print(__import__("sys").implementation, __import__("mwalib").__version__,file="/pyimpl.txt")'"
-# RUN ${TEST_SHIM}
+# allow for tests in CI
+ARG TEST_SHIM="python examples/python_packaging.py | tee pyimpl.txt"
+RUN ${TEST_SHIM}
