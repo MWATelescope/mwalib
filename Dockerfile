@@ -40,9 +40,9 @@ RUN mkdir -m755 $RUSTUP_HOME $CARGO_HOME && ( \
     --default-toolchain=${RUST_VERSION} \
     )
 
-# Get cargo make, llvm-cov (for CI)
-RUN cargo install --force cargo-make cargo-llvm-cov && \
-    rm -rf ${CARGO_HOME}/registry
+# # Get cargo make, llvm-cov (for CI)
+# RUN cargo install --force cargo-make cargo-llvm-cov && \
+#     rm -rf ${CARGO_HOME}/registry
 
 # install python deps for mwalib python
 RUN python -m pip install --force-reinstall --no-cache-dir \
