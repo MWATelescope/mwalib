@@ -1,7 +1,7 @@
-FROM python:3.11-bookworm as base
+FROM python:3.11-bullseye as base
 
 # suppress perl locale errors
-ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
+ENV LC_ALL=C
 # suppress apt-get prompts
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
