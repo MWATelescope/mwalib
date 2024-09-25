@@ -4,15 +4,17 @@ version = "1.7.1"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
-authors = ["Greg Sleap <greg.sleap@curtin.edu.au>",
-           "Christopher H. Jordan <christopherjordan87@gmail.com>"]
+authors = [
+    "Greg Sleap <greg.sleap@curtin.edu.au>",
+    "Christopher H. Jordan <christopherjordan87@gmail.com>",
+]
 edition = "2021"
 rust-version = "1.65"
 description = "A library to simplify reading Murchison Widefield Array (MWA) raw visibilities, voltages and metadata."
 license = "MPL-2.0"
 keywords = ["radioastronomy", "mwa", "astronomy"]
-categories = ["science","parsing"]
-exclude = ["test_files/*", "tools/*",".github/*"]
+categories = ["science", "parsing"]
+exclude = ["test_files/*", "tools/*", ".github/*"]
 
 [[bin]]
 name = "stub_gen"
@@ -31,7 +33,15 @@ cfitsio-static = ["fitsio-sys/fitsio-src"]
 # Enable optional features needed by examples.
 examples = ["anyhow", "clap", "env_logger"]
 # Enable python
-python = ["anyhow", "env_logger", "ndarray", "numpy", "pyo3", "pyo3-stub-gen", "pyo3-stub-gen-derive"]
+python = [
+    "anyhow",
+    "env_logger",
+    "ndarray",
+    "numpy",
+    "pyo3",
+    "pyo3-stub-gen",
+    "pyo3-stub-gen-derive",
+]
 
 [dependencies]
 chrono = "0.4.38"
@@ -53,7 +63,11 @@ env_logger = { version = "~0.10", optional = true }
 # "python" feature
 ndarray = { version = "~0.16", optional = true }
 numpy = { version = "~0.22", optional = true }
-pyo3 = { version = "~0.22", features = ["chrono", "extension-module", "macros"], optional = true }
+pyo3 = { version = "~0.22", features = [
+    "chrono",
+    "extension-module",
+    "macros",
+], optional = true }
 pyo3-stub-gen = { version = "~0.6", optional = true }
 pyo3-stub-gen-derive = { version = "~0.6", optional = true }
 
