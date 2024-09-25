@@ -153,6 +153,6 @@ RUN maturin build --release --features=python,${MWALIB_FEATURES} && \
     rm -rf ${CARGO_HOME}/registry
 ENV PATH=${PATH}:/mwalib/target/release/examples/
 
-# allow for tests during build
-ARG TEST_SHIM="{ ldd --version; python --version; python -c 'print(__import__("sys").implementation)' } > /pyimpl.txt"
-RUN ${TEST_SHIM}
+# # allow for tests during build
+# ARG TEST_SHIM="python -c $'print(__import__("sys").implementation, __import__("mwalib").__version__,file="/pyimpl.txt")'"
+# RUN ${TEST_SHIM}
