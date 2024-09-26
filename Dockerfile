@@ -45,7 +45,7 @@ RUN cd / && \
     rm -rf /cfitsio-${CFITSIO_VERSION}
 
 # # Get Rust
-ARG RUST_VERSION=stable
+ARG RUST_VERSION=1.80
 ENV RUSTUP_HOME=/opt/rust CARGO_HOME=/opt/cargo
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
 RUN mkdir -m755 $RUSTUP_HOME $CARGO_HOME && ( \
@@ -65,12 +65,19 @@ WORKDIR /mwalib
 
 # build python module and examples
 ARG MWALIB_FEATURES=cfitsio-static
-RUN maturin build --release --features=python,${MWALIB_FEATURES} && \
+RUN maturin build --verbose --features=python,${MWALIB_FEATURES} && \
     python -m pip install $(ls -1 target/wheels/*.whl | tail -n 1) && \
-    cargo build --release --examples --features=examples && \
+    cargo build --verbose --examples --features=examples && \
     rm -rf ${CARGO_HOME}/registry
-ENV PATH=${PATH}:/mwalib/target/release/examples/
+ENV PATH=${PATH}:/mwalib/target/debug/examples/
+
+RUN <<EOF
+#!/usr/bin/env python
+import sys
+from sys import implementation, stdout
+print( f"{implementation=}", file=stdout)
+EOF
 
 # allow for tests in CI
-ARG TEST_SHIM="python examples/python_packaging.py | tee pyimpl.txt"
+ARG TEST_SHIM="cargo test"
 RUN ${TEST_SHIM}
