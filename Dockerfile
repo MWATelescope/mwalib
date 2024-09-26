@@ -64,8 +64,7 @@ ADD . /mwalib
 WORKDIR /mwalib
 
 # build python module and examples
-ARG MWALIB_FEATURES=cfitsio-static
-RUN maturin build --verbose --features=python,${MWALIB_FEATURES} && \
+RUN maturin build --verbose --features=python && \
     python -m pip install $(ls -1 target/wheels/*.whl | tail -n 1) && \
     cargo build --verbose --examples --features=examples && \
     rm -rf ${CARGO_HOME}/registry
