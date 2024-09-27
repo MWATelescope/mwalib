@@ -64,9 +64,9 @@ ADD . /mwalib
 WORKDIR /mwalib
 
 # build python module and examples
-RUN maturin build --verbose --features=python && \
+RUN cargo build -j1 --verbose --examples --features=examples && \
+    maturin build -j1 --verbose --features=python && \
     python -m pip install $(ls -1 target/wheels/*.whl | tail -n 1) && \
-    cargo build --verbose --examples --features=examples && \
     rm -rf ${CARGO_HOME}/registry
 ENV PATH=${PATH}:/mwalib/target/debug/examples/
 
