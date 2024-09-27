@@ -4,15 +4,18 @@ version = "1.5.0"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
-authors = ["Greg Sleap <greg.sleap@curtin.edu.au>",
-           "Christopher H. Jordan <christopherjordan87@gmail.com>"]
+authors = [
+    "Greg Sleap <greg.sleap@curtin.edu.au>",
+    "Christopher H. Jordan <christopherjordan87@gmail.com>",
+    "Dev Null <dev.null@curtin.edu.au>",
+]
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.70"
 description = "A library to simplify reading Murchison Widefield Array (MWA) raw visibilities, voltages and metadata."
 license = "MPL-2.0"
 keywords = ["radioastronomy", "mwa", "astronomy"]
-categories = ["science","parsing"]
-exclude = ["test_files/*", "tools/*",".github/*"]
+categories = ["science", "parsing"]
+exclude = ["test_files/*", "tools/*", ".github/*"]
 
 # Make a rust library, as well as static and C-compatible dynamic libraries
 # available as "libmwalib.a" and "libmwalib.so".
@@ -31,7 +34,6 @@ python = ["pyo3", "numpy", "ndarray"]
 chrono = "0.4.38"
 fitsio = "~0.20"
 fitsio-sys = "~0.4"
-lazy_static = "~1.5"
 libc = "~0.2"
 log = "~0.4"
 num-derive = "~0.4"
@@ -41,7 +43,10 @@ regex = "~1.9"
 thiserror = "~1.0"
 
 # "python" feature.
-pyo3 = { version = "~0.20", features = ["chrono", "extension-module"], optional = true }
+pyo3 = { version = "~0.20", features = [
+    "chrono",
+    "extension-module",
+], optional = true }
 numpy = { version = "~0.20", optional = true }
 ndarray = { version = "~0.15", optional = true }
 
