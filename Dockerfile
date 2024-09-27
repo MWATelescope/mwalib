@@ -1,5 +1,4 @@
-# FROM ubuntu:20.04 as base
-FROM python:3.11-bookworm as base
+FROM python:3.11-slim-bookworm as base
 
 # suppress perl locale errors
 ENV LC_ALL=C
@@ -23,7 +22,7 @@ RUN apt-get update \
     # python3-wheel \
 
 # use python3 as the default python
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+# RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
 # # # install python deps for mwalib python
 RUN python -m pip install --force-reinstall --no-cache-dir \
