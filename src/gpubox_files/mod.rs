@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::path::Path;
+use std::sync::OnceLock;
 
 use fitsio::hdu::FitsHdu;
 use rayon::prelude::*;
@@ -118,21 +119,36 @@ impl<'a> std::cmp::PartialEq for TempGpuBoxFile<'a> {
     }
 }
 
-lazy_static::lazy_static! {
-    // MWAX: 1234567890_1234567890123_ch123_123.fits
-    //          obsid   datetime      chan  batch
-    static ref RE_MWAX: Regex =
-        Regex::new(r"\d{10}_\d{8}(.)?\d{6}_ch(?P<channel>\d{3})_(?P<batch>\d{3}).fits").unwrap();
-    // Legacy MWA: 1234567890_1234567890123_gpubox12_12.fits
-    //                 obsid     datetime       chan batch
-    static ref RE_LEGACY_BATCH: Regex =
-        Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2})_(?P<batch>\d{2}).fits").unwrap();
-    // Old Legacy MWA: 1234567890_1234567890123_gpubox12.fits
-    //                    obsid      datetime        chan
-    static ref RE_OLD_LEGACY_FORMAT: Regex =
-        Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2}).fits").unwrap();
-    static ref RE_BAND: Regex = Regex::new(r"\d{10}_\d{14}_(ch|gpubox)(?P<band>\d+)").unwrap();
+// MWAX: 1234567890_1234567890123_ch123_123.fits
+//          obsid   datetime      chan  batch
+fn re_mwax() -> &'static Regex {
+    static RE_MWAX: OnceLock<Regex> = OnceLock::new();
+    RE_MWAX.get_or_init(|| {
+        Regex::new(r"\d{10}_\d{8}(.)?\d{6}_ch(?P<channel>\d{3})_(?P<batch>\d{3}).fits").unwrap()
+    })
 }
+
+// Legacy MWA: 1234567890_1234567890123_gpubox12_12.fits
+//                 obsid     datetime       chan batch
+fn re_legacy_batch() -> &'static Regex {
+    static RE_LEGACY_BATCH: OnceLock<Regex> = OnceLock::new();
+    RE_LEGACY_BATCH.get_or_init(|| {
+        Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2})_(?P<batch>\d{2}).fits").unwrap()
+    })
+}
+
+// Old Legacy MWA: 1234567890_1234567890123_gpubox12.fits
+//                    obsid      datetime        chan
+fn re_old_legacy_format() -> &'static Regex {
+    static RE_OLD_LEGACY_FORMAT: OnceLock<Regex> = OnceLock::new();
+    RE_OLD_LEGACY_FORMAT
+        .get_or_init(|| Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2}).fits").unwrap())
+}
+
+// fn re_band() -> &'static Regex {
+//     static RE_BAND: OnceLock<Regex> = OnceLock::new();
+//     RE_BAND.get_or_init(|| Regex::new(r"\d{10}_\d{14}_(ch|gpubox)(?P<band>\d+)").unwrap())
+// }
 
 /// A type alias for a horrible type:
 /// `BTreeMap<u64, BTreeMap<usize, (usize, usize)>>`
@@ -347,7 +363,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
             .as_ref()
             .to_str()
             .expect("gpubox filename is not UTF-8 compliant");
-        match RE_MWAX.captures(g) {
+        match re_mwax().captures(g) {
             Some(caps) => {
                 // Check if we've already matched any files as being the old
                 // format. If so, then we've got a mix, and we should exit
@@ -368,7 +384,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
             }
 
             // Try to match the legacy format.
-            None => match RE_LEGACY_BATCH.captures(g) {
+            None => match re_legacy_batch().captures(g) {
                 Some(caps) => {
                     match format {
                         None => format = Some(MWAVersion::CorrLegacy),
@@ -384,7 +400,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
                 }
 
                 // Try to match the old legacy format.
-                None => match RE_OLD_LEGACY_FORMAT.captures(g) {
+                None => match re_old_legacy_format().captures(g) {
                     Some(caps) => {
                         match format {
                             None => format = Some(MWAVersion::CorrOldLegacy),
