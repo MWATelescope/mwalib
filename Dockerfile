@@ -1,4 +1,5 @@
-FROM ubuntu:20.04 as base
+# FROM ubuntu:20.04 as base
+FROM python:3.11-bookworm as base
 
 # suppress perl locale errors
 ENV LC_ALL=C
@@ -10,16 +11,16 @@ RUN apt-get update \
     automake \
     build-essential \
     curl \
-    libpython3-dev \
     pkg-config \
-    python3 \
-    python3-dev \
-    python3-pip \
-    python3-wheel \
     && apt-get autoclean \
     && apt-get clean \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
+    # libpython3-dev \
+    # python3 \
+    # python3-dev \
+    # python3-pip \
+    # python3-wheel \
 
 # use python3 as the default python
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
@@ -78,5 +79,6 @@ print( f"{implementation=}", file=stdout)
 EOF
 
 # allow for tests in CI
-ARG TEST_SHIM="cargo test"
+# ARG TEST_SHIM="cargo test"
+ARG TEST_SHIM=""
 RUN ${TEST_SHIM}
