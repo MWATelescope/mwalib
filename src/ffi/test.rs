@@ -295,7 +295,7 @@ fn test_mwalib_free_rust_cstring() {
 
 #[test]
 fn test_mwalib_free_rust_cstring_null_ptr() {
-    let buffer_ptr: *mut i8 = std::ptr::null_mut();
+    let buffer_ptr: *mut c_char = std::ptr::null_mut();
     unsafe {
         assert_eq!(mwalib_free_rust_cstring(buffer_ptr), 0);
     }
