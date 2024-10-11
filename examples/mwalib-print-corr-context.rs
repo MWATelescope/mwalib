@@ -20,11 +20,11 @@ use mwalib::*;
 #[clap(name = "mwalib-print-corr-context", author)]
 struct Opt {
     /// The path to an observation's metafits file.
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     metafits: std::path::PathBuf,
 
     /// Paths to the observation's gpubox files.
-    #[clap(name = "GPUBOX FILE", parse(from_os_str))]
+    #[clap(name = "GPUBOX FILE")]
     files: Vec<std::path::PathBuf>,
 }
 

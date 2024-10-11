@@ -12,20 +12,18 @@ use clap::Parser;
 
 use mwalib::*;
 
-#[cfg(not(tarpaulin_include))]
 #[derive(Parser, Debug)]
 #[clap(name = "mwalib-sum-first-fine-channel-gpubox-hdus", author)]
 struct Opt {
     /// Path to the metafits file.
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     metafits: std::path::PathBuf,
 
     /// Paths to the gpubox files.
-    #[clap(name = "GPUBOX FILE", parse(from_os_str))]
+    #[clap(name = "GPUBOX FILE")]
     files: Vec<std::path::PathBuf>,
 }
 
-#[cfg(not(tarpaulin_include))]
 #[allow(clippy::needless_range_loop)] // Ignoring this, as it is a false positive
 fn main() -> Result<(), anyhow::Error> {
     let opts = Opt::parse();
