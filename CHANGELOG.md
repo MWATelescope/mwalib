@@ -2,6 +2,12 @@
 
 Changes in each release are listed below.
 
+## 1.6.0 11-Oct-2024
+
+* Upgraded dependencies: clap to 0.4, pyo3 to 0.21
+* Updated CI to use maturin actions for python wheel building
+* Fixed test that was failing under Arm64
+
 ## 1.5.0 20-Aug-2024
 
 * Fixed potential bug with various flavours of metafits files because mwalib was making assumptions about the HDU index/position of each HDU. mwalib now uses HDU names to correctly identify the presence of, and read from, metafits files.

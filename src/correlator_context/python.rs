@@ -92,7 +92,7 @@ impl CorrelatorContext {
         py: Python<'py>,
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray3<f32>> {
+    ) -> PyResult<Bound<'py, PyArray3<f32>>> {
         // Use the existing Rust method.
         let data = self.read_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
         // Convert the vector to a 3D array (this is free).
@@ -106,7 +106,7 @@ impl CorrelatorContext {
         )
         .expect("shape of data should match expected dimensions (num_baselines, num_corr_fine_chans_per_coarse, visibility_pols * 2)");
         // Convert to a numpy array.
-        let data = PyArray3::from_owned_array(py, data);
+        let data = PyArray3::from_owned_array_bound(py, data);
         Ok(data)
     }
 
@@ -136,7 +136,7 @@ impl CorrelatorContext {
         py: Python<'py>,
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray3<f32>> {
+    ) -> PyResult<Bound<'py, PyArray3<f32>>> {
         // Use the existing Rust method.
         let data = self.read_by_frequency(corr_timestep_index, corr_coarse_chan_index)?;
         // Convert the vector to a 3D array (this is free).
@@ -150,7 +150,7 @@ impl CorrelatorContext {
         )
         .expect("shape of data should match expected dimensions (num_corr_fine_chans_per_coarse, num_baselines, visibility_pols * 2)");
         // Convert to a numpy array.
-        let data = PyArray3::from_owned_array(py, data);
+        let data = PyArray3::from_owned_array_bound(py, data);
         Ok(data)
     }
 
@@ -180,7 +180,7 @@ impl CorrelatorContext {
         py: Python<'py>,
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray2<f32>> {
+    ) -> PyResult<Bound<'py, PyArray2<f32>>> {
         // Use the existing Rust method.
         let data = self.read_weights_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
         // Convert the vector to a 3D array (this is free).
@@ -193,7 +193,7 @@ impl CorrelatorContext {
         )
         .expect("shape of data should match expected dimensions (num_baselines, visibility_pols)");
         // Convert to a numpy array.
-        let data = PyArray2::from_owned_array(py, data);
+        let data = PyArray2::from_owned_array_bound(py, data);
         Ok(data)
     }
 

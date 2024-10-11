@@ -39,14 +39,16 @@ jobs:
           - runner: ubuntu-latest
             target: aarch64
           - runner: ubuntu-latest
-            target: armv7          
+            target: armv7
           - runner: ubuntu-latest
             target: ppc64le
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+    steps:            
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: install cfitsio
         env:
           # TODO: CFITSIO_VERSION: 4.4.0
@@ -61,19 +63,24 @@ jobs:
           sudo make shared
           sudo make install
           cd ..          
-          sudo ldconfig          
+          sudo ldconfig
+
       - name: Build linux wheels
         uses: PyO3/maturin-action@v1
+        env: 
+          MWALIB_LINK_STATIC_CFITSIO: 1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --features python,cfitsio-static --out dist --find-interpreter
+          args: --release --features python,cfitsio-static --out dist -i 3.8 3.9 3.10 3.11 3.12
           sccache: 'true'
           manylinux: auto
+
       - name: Upload linux wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.platform.target }}
           path: dist
+
       - name: Build linux C and Rust libraries      
         run: |
           export TAG="$(git describe --tags)"
@@ -129,11 +136,12 @@ jobs:
           - runner: macos-14
             target: aarch64
     steps:
-      - uses: actions/checkout@v4      
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
 
+      - name: Checkout repository
+        uses: actions/checkout@v4      
+      
       - name: Install automake and autoconf        
         run: |
           brew install automake autoconf
@@ -155,9 +163,11 @@ jobs:
 
       - name: Build macos wheels
         uses: PyO3/maturin-action@v1
+        env: 
+          MWALIB_LINK_STATIC_CFITSIO: 1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --features python,cfitsio-static --out dist --find-interpreter
+          args: --release --features python,cfitsio-static --out dist -i 3.8 3.9 3.10 3.11 3.12
           sccache: 'true'
 
       - name: Upload macos wheels
@@ -180,7 +190,8 @@ jobs:
               else
                 export TARGETS="x86-64"
               fi
-              ;;            
+              ;;
+            arm64) export TARGETS="arm64";;
             *) echo "unknown arch (uname -m) $ARCH"; exit 1 ;;
           esac
 

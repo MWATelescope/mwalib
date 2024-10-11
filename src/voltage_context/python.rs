@@ -95,7 +95,7 @@ impl VoltageContext {
         py: Python<'py>,
         volt_timestep_index: usize,
         volt_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray<i8, Dim<[usize; 6]>>> {
+    ) -> PyResult<Bound<'py, PyArray<i8, Dim<[usize; 6]>>>> {
         // Use the existing Rust method.
         let mut data: Vec<i8> = vec![
             0;
@@ -140,7 +140,7 @@ impl VoltageContext {
             }
         };
         // Convert to a numpy array.
-        let data = PyArray::from_owned_array(py, data);
+        let data = PyArray::from_owned_array_bound(py, data);
         Ok(data)
     }
 
@@ -174,7 +174,7 @@ impl VoltageContext {
         gps_second_start: u64,
         gps_second_count: usize,
         volt_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray<i8, Dim<[usize; 6]>>> {
+    ) -> PyResult<Bound<'py, PyArray<i8, Dim<[usize; 6]>>>> {
         // Use the existing Rust method.
         let mut data: Vec<i8> = match self.mwa_version {
             MWAVersion::VCSMWAXv2 => vec![
@@ -245,7 +245,7 @@ impl VoltageContext {
             }
         };
         // Convert to a numpy array.
-        let data = PyArray::from_owned_array(py, data);
+        let data = PyArray::from_owned_array_bound(py, data);
         Ok(data)
     }
 
