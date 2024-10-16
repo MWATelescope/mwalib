@@ -118,17 +118,7 @@ jobs:
             target: x86_64
           - runner: macos-14
             target: aarch64
-    steps:
-      - name: Install docker
-        run: |
-          sudo apt update -y
-          sudo apt install -y docker
-        env:
-          DEBIAN_FRONTEND: noninteractive
-      
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
-
+    steps:      
       - name: Checkout repository
         uses: actions/checkout@v4      
       

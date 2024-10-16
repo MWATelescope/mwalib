@@ -55,7 +55,5 @@ jobs:
           pip3 install --upgrade pip
           pip3 install maturin pytest
 
-          maturin develop --all-features --strip    
-
-    - name: Run Python tests
-      run: pytest    
+          maturin develop --all-features --strip
+          pytest 
