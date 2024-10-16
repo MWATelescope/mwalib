@@ -44,18 +44,18 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Setup python environment and build mwalib Python module
+      run: |
+          pip3 install --upgrade pip
+          python3 -m venv env
+          source env/bin/activate
+          pip3 install --upgrade pip
+          pip3 install maturin pytest
+
+          maturin develop --all-features --strip
+
     - name: Run rust tests to generate test data
       run: cargo test --all-features
 
-    - name: Setup python environment and run pytests
-      run: |
-        pip3 install --upgrade pip
-        python3 -m venv env
-        source env/bin/activate
-        pip3 install --upgrade pip        
-        pip3 install maturin
-
-        maturin develop --all-features --strip
-
-        pip3 install pytest          
-        pytest
+    - name: Run Python tests
+      run: pytest    
