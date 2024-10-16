@@ -2,13 +2,14 @@
 
 Changes in each release are listed below.
 
-## 1.6.0 16-Oct-2024
+## 1.6.0 17-Oct-2024
 
 * Updated ndarray to 0.16
 * Upgraded dependencies: clap to 0.4, pyo3 to 0.21
 * Updated CI to use maturin actions for python wheel building
 * Fixed test that was failing under Arm64
 * Removed Python 3.8 support as it is now end of life
+* Added tests for Python 3.13
 
 ## 1.5.0 20-Aug-2024
 

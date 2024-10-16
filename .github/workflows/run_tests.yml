@@ -12,7 +12,6 @@ env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0  
-  MWALIB_LINK_STATIC_CFITSIO: 1
 
 jobs:
   test:
@@ -20,7 +19,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, macOS-14]                
+        # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
+        os: [ubuntu-latest, macos-14, macos-14-large] # macos-14 is Arm64, macos-14-large is x86_64
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
