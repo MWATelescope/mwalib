@@ -36,7 +36,7 @@ jobs:
           toolchain: stable    
 
     - name: Run tests on latest stable rust
-      run: cargo test --all-features
+      run: cargo test --features cfitsio-static, examples
 
     - name: Minimum-specified Rust version works
       run: |

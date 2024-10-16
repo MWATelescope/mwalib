@@ -21,10 +21,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, macOS-14]
-        python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
-        exclude:
-          - os: macOS-14
-            python-version: 3.8
+        python-version: [3.9, "3.10", "3.11", "3.12"]
+        exclude:          
           - os: macOS-14
             python-version: 3.9
     steps:    

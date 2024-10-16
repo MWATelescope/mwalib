@@ -8,6 +8,7 @@ Changes in each release are listed below.
 * Upgraded dependencies: clap to 0.4, pyo3 to 0.21
 * Updated CI to use maturin actions for python wheel building
 * Fixed test that was failing under Arm64
+* Removed Python 3.8 support as it is now end of life
 
 ## 1.5.0 20-Aug-2024
 

@@ -54,7 +54,7 @@ jobs:
         uses: PyO3/maturin-action@v1        
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --all-features --out dist -i 3.8 3.9 3.10 3.11 3.12
+          args: --release --all-features --out dist -i 3.9 3.10 3.11 3.12
           sccache: 'true'
           manylinux: auto
 
@@ -142,7 +142,7 @@ jobs:
           MWALIB_LINK_STATIC_CFITSIO: 1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --all-features --out dist -i 3.8 3.9 3.10 3.11 3.12
+          args: --release --all-features --out dist -i 3.9 3.10 3.11 3.12
           sccache: 'true'
 
       - name: Upload macos wheels
