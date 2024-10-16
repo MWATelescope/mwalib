@@ -47,7 +47,7 @@ jobs:
     - name: Setup python environment and build mwalib Python module
       run: |
           echo "Run rust tests to generate test data"
-          cargo test --features cfitsio-static, examples
+          cargo test --features cfitsio-static,examples
           
           echo "Install Python deps"
           pip3 install --upgrade pip
