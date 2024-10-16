@@ -24,7 +24,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_INCREMENTAL: 0
+  CARGO_INCREMENTAL: 0  
+  MWALIB_LINK_STATIC_CFITSIO: 1
 
 jobs:
   build_linux:
@@ -34,8 +35,6 @@ jobs:
         platform:
           - runner: ubuntu-latest
             target: x86_64
-          - runner: ubuntu-latest
-            target: x86
           - runner: ubuntu-latest
             target: aarch64
           - runner: ubuntu-latest
@@ -66,12 +65,10 @@ jobs:
           sudo ldconfig
 
       - name: Build linux wheels
-        uses: PyO3/maturin-action@v1
-        env: 
-          MWALIB_LINK_STATIC_CFITSIO: 1
+        uses: PyO3/maturin-action@v1        
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --features python,cfitsio-static --out dist -i 3.8 3.9 3.10 3.11 3.12
+          args: --release --all-features --out dist -i 3.8 3.9 3.10 3.11 3.12
           sccache: 'true'
           manylinux: auto
 
@@ -167,7 +164,7 @@ jobs:
           MWALIB_LINK_STATIC_CFITSIO: 1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --features python,cfitsio-static --out dist -i 3.8 3.9 3.10 3.11 3.12
+          args: --release --all-features --out dist -i 3.8 3.9 3.10 3.11 3.12
           sccache: 'true'
 
       - name: Upload macos wheels
@@ -299,7 +296,7 @@ jobs:
             fi
 
         - name: Run tests on latest stable rust
-          run: cargo build --release --features cfitsio-static,examples
+          run: cargo build --release --all-features
 
         - uses: katyo/publish-crates@v2
           with:

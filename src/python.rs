@@ -23,7 +23,7 @@ impl std::convert::From<crate::MwalibError> for PyErr {
 }
 
 #[cfg_attr(feature = "python", pymodule)]
-fn mwalib(py: Python, m: &PyModule) -> PyResult<()> {
+fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<MetafitsContext>()?;
     m.add_class::<CorrelatorContext>()?;
     m.add_class::<VoltageContext>()?;

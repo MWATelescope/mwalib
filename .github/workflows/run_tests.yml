@@ -11,7 +11,8 @@ on:
 env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
-  CARGO_INCREMENTAL: 0
+  CARGO_INCREMENTAL: 0  
+  MWALIB_LINK_STATIC_CFITSIO: 1
 
 jobs:
   test:
@@ -54,10 +55,10 @@ jobs:
         fi
 
     - name: Run tests on latest stable rust
-      run: cargo test --release --features cfitsio-static,examples
+      run: cargo test --all-features
 
     - name: Minimum-specified Rust version works
       run: |
         MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
         ~/.cargo/bin/rustup install $MIN_RUST --profile minimal          
-        cargo +${MIN_RUST} test --features cfitsio-static,examples
+        cargo +${MIN_RUST} test --all-features

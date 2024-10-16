@@ -11,7 +11,8 @@ on:
 env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
-  CARGO_INCREMENTAL: 0
+  CARGO_INCREMENTAL: 0  
+  MWALIB_LINK_STATIC_CFITSIO: 1
 
 jobs:
   test:
@@ -65,7 +66,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Run rust tests to generate test data
-      run: cargo test --features=cfitsio-static
+      run: cargo test --all-features
 
     - name: Setup python environment and run pytests
       run: |
@@ -75,7 +76,7 @@ jobs:
         pip3 install --upgrade pip        
         pip3 install maturin
 
-        maturin develop --features=python,cfitsio-static --strip
+        maturin develop --all-features --strip
 
         pip3 install pytest          
         pytest

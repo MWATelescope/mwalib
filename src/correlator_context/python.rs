@@ -34,7 +34,7 @@ impl CorrelatorContext {
     /// * A populated CorrelatorContext object if Ok.
     ///
     #[new]
-    #[pyo3(text_signature = "(metafits_filename, gpubox_filenames)")]
+    #[pyo3(signature = (metafits_filename, gpubox_filenames))]
     fn pyo3_new(metafits_filename: PyObject, gpubox_filenames: Vec<PyObject>) -> PyResult<Self> {
         // Convert the gpubox filenames.
         let gpubox_filenames: Vec<String> = gpubox_filenames
@@ -61,7 +61,7 @@ impl CorrelatorContext {
     ///
     #[pyo3(
         name = "get_fine_chan_freqs_hz_array",
-        text_signature = "(py, corr_coarse_chan_indices)"
+        signature = (corr_coarse_chan_indices)
     )]
     fn pyo3_get_fine_chan_freqs_hz_array(&self, corr_coarse_chan_indices: Vec<usize>) -> Vec<f64> {
         self.get_fine_chan_freqs_hz_array(&corr_coarse_chan_indices)
@@ -85,7 +85,7 @@ impl CorrelatorContext {
     ///
     #[pyo3(
         name = "read_by_baseline",
-        text_signature = "(py, corr_timestep_index, corr_coarse_chan_index)"
+        signature = (corr_timestep_index, corr_coarse_chan_index)
     )]
     fn pyo3_read_by_baseline<'py>(
         &self,
@@ -129,7 +129,7 @@ impl CorrelatorContext {
     ///
     #[pyo3(
         name = "read_by_frequency",
-        text_signature = "(py, corr_timestep_index, corr_coarse_chan_index)"
+        signature = (corr_timestep_index, corr_coarse_chan_index)
     )]
     fn pyo3_read_by_frequency<'py>(
         &self,
@@ -173,7 +173,7 @@ impl CorrelatorContext {
     ///
     #[pyo3(
         name = "read_weights_by_baseline",
-        text_signature = "(py, corr_timestep_index, corr_coarse_chan_index)"
+        signature = (corr_timestep_index, corr_coarse_chan_index)
     )]
     fn pyo3_read_weights_by_baseline<'py>(
         &self,
@@ -206,5 +206,11 @@ impl CorrelatorContext {
         slf
     }
 
-    fn __exit__(&mut self, _exc_type: &PyAny, _exc_value: &PyAny, _traceback: &PyAny) {}
+    fn __exit__(
+        &mut self,
+        _exc_type: &Bound<PyAny>,
+        _exc_value: &Bound<PyAny>,
+        _traceback: &Bound<PyAny>,
+    ) {
+    }
 }
