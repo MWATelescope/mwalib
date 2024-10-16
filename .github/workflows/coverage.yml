@@ -44,10 +44,10 @@ jobs:
     - name: Install cargo-llvm-cov
       run: cargo install cargo-llvm-cov
     
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v4
+    - name: Set up latest Python3 stable version
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: "3.x"
 
     - name: Generate test lcov coverage into coverage/ dir      
       run: |

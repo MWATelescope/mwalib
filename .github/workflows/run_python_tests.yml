@@ -40,9 +40,12 @@ jobs:
           toolchain: stable    
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+
+    - name: Run rust tests to generate test data
+      run: cargo test --features cfitsio-static, examples
 
     - name: Setup python environment and build mwalib Python module
       run: |
@@ -52,10 +55,7 @@ jobs:
           pip3 install --upgrade pip
           pip3 install maturin pytest
 
-          maturin develop --all-features --strip
-
-    - name: Run rust tests to generate test data
-      run: cargo test --all-features
+          maturin develop --all-features --strip    
 
     - name: Run Python tests
       run: pytest    

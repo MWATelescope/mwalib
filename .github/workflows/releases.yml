@@ -255,7 +255,7 @@ jobs:
             toolchain: stable
 
         - name: Run tests on latest stable rust
-          run: cargo build --release --all-features
+          run: cargo build --release --features cfitsio-static, examples
 
         - uses: katyo/publish-crates@v2
           with:
