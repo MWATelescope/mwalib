@@ -43,17 +43,19 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: Run rust tests to generate test data
-      run: cargo test --features cfitsio-static, examples
-
+    
     - name: Setup python environment and build mwalib Python module
       run: |
+          echo "Run rust tests to generate test data"
+          cargo test --features cfitsio-static, examples
+          
+          echo "Install Python deps"
           pip3 install --upgrade pip
           python3 -m venv env
           source env/bin/activate
           pip3 install --upgrade pip
           pip3 install maturin pytest
 
+          echo "Build mwalib python module and test"
           maturin develop --all-features --strip
           pytest 

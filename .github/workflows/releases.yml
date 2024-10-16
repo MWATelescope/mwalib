@@ -35,18 +35,13 @@ jobs:
         platform:
           - runner: ubuntu-latest
             target: x86_64
-          - runner: ubuntu-latest
-            target: aarch64
-          - runner: ubuntu-latest
-            target: armv7
-          - runner: ubuntu-latest
-            target: ppc64le
-    steps:            
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
-        with:
-          platforms: all
-
+#          - runner: ubuntu-latest
+#            target: aarch64
+#          - runner: ubuntu-latest
+#            target: armv7
+#          - runner: ubuntu-latest
+#            target: ppc64le
+    steps:                  
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -105,7 +100,7 @@ jobs:
       - name: Upload linux tarball
         uses: actions/upload-artifact@v4
         with:
-          name: linux-${{ matrix.target }}.tar.gz
+          name: linux-${{ matrix.platform.target }}.tar.gz
           path: "*.tar.gz"
           if-no-files-found: error
 
@@ -117,7 +112,7 @@ jobs:
           - runner: macos-12
             target: x86_64
           - runner: macos-14
-            target: aarch64
+            target: arm64
     steps:      
       - name: Checkout repository
         uses: actions/checkout@v4      
@@ -127,9 +122,7 @@ jobs:
           brew install automake autoconf
 
       - name: Build macos wheels
-        uses: PyO3/maturin-action@v1
-        env: 
-          MWALIB_LINK_STATIC_CFITSIO: 1
+        uses: PyO3/maturin-action@v1        
         with:
           target: ${{ matrix.platform.target }}
           args: --release --all-features --out dist -i 3.9 3.10 3.11 3.12
@@ -184,7 +177,7 @@ jobs:
       - name: Upload macos tarball
         uses: actions/upload-artifact@v4
         with:
-          name: macos-${{ matrix.target }}.tar.gz
+          name: macos-${{ matrix.platform.target }}.tar.gz
           path: "*.tar.gz"
           if-no-files-found: error
 
