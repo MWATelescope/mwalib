@@ -90,8 +90,11 @@ jobs:
             MWALIB_LINK_STATIC_CFITSIO=1 cargo build --release --features cfitsio-static,examples
 
             # Create new release asset tarballs
-            eval mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
-            eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}.tar.gz \
+            # Get some debug
+            ls -la include/mwalib.h
+            eval ls -la target/release/libmwalib.${LIB_GLOB}
+            eval sudo mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
+            eval sudo tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}.tar.gz \
                 LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
                 libmwalib.${LIB_GLOB} mwalib.h          
           done
