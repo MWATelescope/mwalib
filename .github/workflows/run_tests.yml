@@ -33,26 +33,7 @@ jobs:
     - name: Install stable minimal toolchain
       uses: dtolnay/rust-toolchain@v1
       with:          
-          toolchain: stable
-    
-    - name: install cfitsio
-      env:
-        # TODO: CFITSIO_VERSION: 4.4.0
-        CFITSIO_VERSION: 3.49
-      run: |
-        cd /tmp
-        curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-${CFITSIO_VERSION}.tar.gz" -o cfitsio.tar.gz
-        tar -xf cfitsio.tar.gz
-        rm cfitsio.tar.gz
-        cd cfitsio-${CFITSIO_VERSION}
-        ./configure --prefix=/usr/local --enable-reentrant --disable-curl
-        sudo make shared
-        sudo make install
-        cd ..
-
-        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-          sudo ldconfig
-        fi
+          toolchain: stable    
 
     - name: Run tests on latest stable rust
       run: cargo test --all-features

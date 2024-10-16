@@ -44,25 +44,11 @@ jobs:
     steps:            
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v1
+        with:
+          platforms: all
 
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: install cfitsio
-        env:
-          # TODO: CFITSIO_VERSION: 4.4.0
-          CFITSIO_VERSION: 3.49
-        run: |
-          cd /tmp
-          curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-${CFITSIO_VERSION}.tar.gz" -o cfitsio.tar.gz
-          tar -xf cfitsio.tar.gz
-          rm cfitsio.tar.gz
-          cd cfitsio-${CFITSIO_VERSION}
-          ./configure --prefix=/usr/local --enable-reentrant --disable-curl
-          sudo make shared
-          sudo make install
-          cd ..          
-          sudo ldconfig
 
       - name: Build linux wheels
         uses: PyO3/maturin-action@v1        
@@ -133,6 +119,13 @@ jobs:
           - runner: macos-14
             target: aarch64
     steps:
+      - name: Install docker
+        run: |
+          sudo apt update -y
+          sudo apt install -y docker
+        env:
+          DEBIAN_FRONTEND: noninteractive
+      
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v1
 
@@ -142,21 +135,6 @@ jobs:
       - name: Install automake and autoconf        
         run: |
           brew install automake autoconf
-
-      - name: install cfitsio
-        env:
-          # TODO: CFITSIO_VERSION: 4.4.0
-          CFITSIO_VERSION: 3.49
-        run: |
-          cd /tmp
-          curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-${CFITSIO_VERSION}.tar.gz" -o cfitsio.tar.gz
-          tar -xf cfitsio.tar.gz
-          rm cfitsio.tar.gz
-          cd cfitsio-${CFITSIO_VERSION}
-          ./configure --prefix=/usr/local --enable-reentrant --disable-curl
-          sudo make shared
-          sudo make install
-          cd ..
 
       - name: Build macos wheels
         uses: PyO3/maturin-action@v1
@@ -275,25 +253,6 @@ jobs:
           uses: dtolnay/rust-toolchain@v1
           with:
             toolchain: stable
-
-        - name: install cfitsio
-          env:
-            # TODO: CFITSIO_VERSION: 4.4.0
-            CFITSIO_VERSION: 3.49
-          run: |
-            cd /tmp
-            curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-${CFITSIO_VERSION}.tar.gz" -o cfitsio.tar.gz
-            tar -xf cfitsio.tar.gz
-            rm cfitsio.tar.gz
-            cd cfitsio-${CFITSIO_VERSION}
-            ./configure --prefix=/usr/local --enable-reentrant --disable-curl
-            sudo make shared
-            sudo make install
-            cd ..
-
-            if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-              sudo ldconfig
-            fi
 
         - name: Run tests on latest stable rust
           run: cargo build --release --all-features
