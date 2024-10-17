@@ -19,7 +19,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: read  
+  
 
 env:
   CARGO_TERM_COLOR: always
