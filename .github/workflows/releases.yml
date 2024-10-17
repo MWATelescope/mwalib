@@ -116,9 +116,7 @@ jobs:
           - runner: macos-13
             target: x86_64
           - runner: macos-14
-            target: aarch64
-          - runner: macos-15
-            target: aarch64
+            target: aarch64          
     steps:      
       - name: Checkout repository
         uses: actions/checkout@v4      
@@ -224,8 +222,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: wheels-*
-          merge-multiple: true
+          pattern: wheels-*   
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
@@ -256,8 +253,11 @@ jobs:
           with:
             toolchain: stable
 
-        - name: Run tests on latest stable rust
+        - name: Build on latest stable rust
           run: cargo build --release --features cfitsio-static,examples
+
+        - name: Run tests on latest stable rust
+          run: cargo test --release --features cfitsio-static,examples
 
         - uses: katyo/publish-crates@v2
           with:

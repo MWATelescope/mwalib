@@ -2,11 +2,7 @@
 
 Changes in each release are listed below.
 
-## 1.6.1 17-Oct-2024
-
-* Correcting release issues with github and pypi for Python wheels
-
-## 1.6.0 17-Oct-2024
+## 1.6.0 18-Oct-2024
 
 * Updated ndarray to 0.16
 * Upgraded dependencies: clap to 0.4, pyo3 to 0.21
