@@ -59,9 +59,9 @@ jobs:
 
       - name: Build linux C and Rust libraries      
         run: |
-          # Fix permissions- output files from maturn=action end up owned by runner:docker
+          # Fix permissions- output files from maturn-action end up owned by root
           # so lets change them back to root:root
-          sudo chown -R root:root .
+          sudo chown -R runner:docker .
          
           export TAG="$(git describe --tags)"
           echo "TAG=$TAG"
@@ -192,7 +192,7 @@ jobs:
       - name: Upload macos tarball
         uses: actions/upload-artifact@v4
         with:
-          name: macos-${{ matrix.platform.target }}.tar.gz
+          name: macos-${{ matrix.platform.runner }}-${{ matrix.platform.target }}.tar.gz
           path: "*.tar.gz"
           if-no-files-found: error
 
