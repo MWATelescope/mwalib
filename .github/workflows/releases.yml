@@ -59,6 +59,10 @@ jobs:
 
       - name: Build linux C and Rust libraries      
         run: |
+          # Fix permissions- output files from maturn=action end up owned by runner:docker
+          # so lets change them back to root:root
+          sudo chown -R root:root .
+         
           export TAG="$(git describe --tags)"
           echo "TAG=$TAG"
 
@@ -113,9 +117,11 @@ jobs:
     strategy:
       matrix:
         platform: # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
-          - runner: macos-14-large
+          - runner: macos-13
             target: x86_64
           - runner: macos-14
+            target: aarch64
+          - runner: macos-15
             target: aarch64
     steps:      
       - name: Checkout repository
@@ -138,7 +144,7 @@ jobs:
           path: dist
 
       - name: Build C and Rust libraries
-        run: |
+        run: |                  
           export TAG="$(git describe --tags)"
           echo "TAG=$TAG"
 
