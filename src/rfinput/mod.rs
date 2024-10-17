@@ -85,7 +85,7 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
 
 /// Instrument polarisation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "python", pyo3::pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
 pub enum Pol {
     X,
     Y,
@@ -170,7 +170,7 @@ struct RfInputMetafitsTableRow {
 /// ReceiverType enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
-#[cfg_attr(feature = "python", pyo3::pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
 #[allow(clippy::upper_case_acronyms)]
 pub enum ReceiverType {
     Unknown,

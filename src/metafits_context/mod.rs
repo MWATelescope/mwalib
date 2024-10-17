@@ -33,7 +33,7 @@ mod python;
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[cfg_attr(feature = "python", pyo3::pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
 pub enum MWAVersion {
     /// MWA correlator (v1.0), having data files without any batch numbers.
     CorrOldLegacy = 1,
@@ -116,7 +116,7 @@ impl fmt::Display for VisPol {
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
-#[cfg_attr(feature = "python", pyo3::pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
 pub enum GeometricDelaysApplied {
     No = 0,
     Zenith = 1,
@@ -181,7 +181,7 @@ impl std::str::FromStr for GeometricDelaysApplied {
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
-#[cfg_attr(feature = "python", pyo3::pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
 pub enum CableDelaysApplied {
     NoCableDelaysApplied = 0,
     CableAndRecClock = 1,
@@ -234,7 +234,7 @@ impl std::str::FromStr for CableDelaysApplied {
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
-#[cfg_attr(feature = "python", pyo3::pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
 pub enum MWAMode {
     No_Capture = 0,
     Burst_Vsib = 1,

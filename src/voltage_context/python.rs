@@ -31,9 +31,9 @@ impl VoltageContext {
     /// * A populated VoltageContext object if Ok.
     ///    
     #[new]
-    #[pyo3(text_signature = "(metafits_filename, voltage_filenames)")]
+    #[pyo3(signature = (metafits_filename, voltage_filenames))]
     fn pyo3_new(metafits_filename: PyObject, voltage_filenames: Vec<PyObject>) -> PyResult<Self> {
-        // Convert the gpubox filenames.
+        // Convert the voltage filenames.
         let voltage_filenames: Vec<String> = voltage_filenames
             .into_iter()
             .map(|g| g.to_string())
@@ -59,7 +59,7 @@ impl VoltageContext {
     ///
     #[pyo3(
         name = "get_fine_chan_freqs_hz_array",
-        text_signature = "(py, volt_coarse_chan_indices)"
+        signature = (volt_coarse_chan_indices)
     )]
     fn pyo3_get_fine_chan_freqs_hz_array(&self, volt_coarse_chan_indices: Vec<usize>) -> Vec<f64> {
         self.get_fine_chan_freqs_hz_array(&volt_coarse_chan_indices)
@@ -88,14 +88,14 @@ impl VoltageContext {
     ///
     #[pyo3(
         name = "read_file",
-        text_signature = "(py, volt_timestep_index, volt_coarse_chan_index)"
+        signature = (volt_timestep_index, volt_coarse_chan_index)
     )]
     fn pyo3_read_file<'py>(
         &self,
         py: Python<'py>,
         volt_timestep_index: usize,
         volt_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray<i8, Dim<[usize; 6]>>> {
+    ) -> PyResult<Bound<'py, PyArray<i8, Dim<[usize; 6]>>>> {
         // Use the existing Rust method.
         let mut data: Vec<i8> = vec![
             0;
@@ -140,7 +140,7 @@ impl VoltageContext {
             }
         };
         // Convert to a numpy array.
-        let data = PyArray::from_owned_array(py, data);
+        let data = PyArray::from_owned_array_bound(py, data);
         Ok(data)
     }
 
@@ -166,7 +166,7 @@ impl VoltageContext {
     /// MWAX  : [second][voltage_block][antenna][pol][sample][r,i]
     #[pyo3(
         name = "read_second",
-        text_signature = "(py, gps_second_start, gps_second_count, volt_coarse_chan_index)"
+        signature = (gps_second_start, gps_second_count, volt_coarse_chan_index)
     )]
     fn pyo3_read_second<'py>(
         &self,
@@ -174,7 +174,7 @@ impl VoltageContext {
         gps_second_start: u64,
         gps_second_count: usize,
         volt_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray<i8, Dim<[usize; 6]>>> {
+    ) -> PyResult<Bound<'py, PyArray<i8, Dim<[usize; 6]>>>> {
         // Use the existing Rust method.
         let mut data: Vec<i8> = match self.mwa_version {
             MWAVersion::VCSMWAXv2 => vec![
@@ -245,7 +245,7 @@ impl VoltageContext {
             }
         };
         // Convert to a numpy array.
-        let data = PyArray::from_owned_array(py, data);
+        let data = PyArray::from_owned_array_bound(py, data);
         Ok(data)
     }
 
@@ -258,5 +258,11 @@ impl VoltageContext {
         slf
     }
 
-    fn __exit__(&mut self, _exc_type: &PyAny, _exc_value: &PyAny, _traceback: &PyAny) {}
+    fn __exit__(
+        &mut self,
+        _exc_type: &Bound<PyAny>,
+        _exc_value: &Bound<PyAny>,
+        _traceback: &Bound<PyAny>,
+    ) {
+    }
 }

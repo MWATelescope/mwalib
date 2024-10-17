@@ -41,9 +41,9 @@ fn main() {
         Ok("1") => (),
         _ => {
             let mut config: cbindgen::Config = cbindgen::Config::default();
-            
+
             config.cpp_compat = true;
-            config.pragma_once = true;            
+            config.pragma_once = true;
 
             cbindgen::Builder::new()
                 .with_config(config)

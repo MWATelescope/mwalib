@@ -32,15 +32,15 @@ struct Opt {
     coarse_chan: usize,
 
     /// Path to the metafits file.
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     metafits: std::path::PathBuf,
 
     /// Paths to the gpubox files.
-    #[clap(name = "GPUBOX FILE", parse(from_os_str))]
+    #[clap(name = "GPUBOX FILE")]
     files: Vec<std::path::PathBuf>,
 
     // Dump filename
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     dump_filename: std::path::PathBuf,
 }
 

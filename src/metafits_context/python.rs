@@ -24,7 +24,7 @@ impl MetafitsContext {
     /// * A populated MetafitsContext object if Ok.
     ///
     #[new]
-    #[pyo3(text_signature = "(metafits_filename, mwa_version)")]
+    #[pyo3(signature = (metafits_filename, mwa_version=None))]
     fn pyo3_new(
         metafits_filename: pyo3::PyObject,
         mwa_version: Option<MWAVersion>,
@@ -42,5 +42,11 @@ impl MetafitsContext {
         slf
     }
 
-    fn __exit__(&mut self, _exc_type: &PyAny, _exc_value: &PyAny, _traceback: &PyAny) {}
+    fn __exit__(
+        &mut self,
+        _exc_type: &Bound<PyAny>,
+        _exc_value: &Bound<PyAny>,
+        _traceback: &Bound<PyAny>,
+    ) {
+    }
 }

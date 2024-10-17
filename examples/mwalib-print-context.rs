@@ -20,7 +20,7 @@ use mwalib::*;
 #[clap(name = "mwalib-print-context", author)]
 struct Opt {
     /// The path to an observation's metafits file.
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     metafits: std::path::PathBuf,
 }
 

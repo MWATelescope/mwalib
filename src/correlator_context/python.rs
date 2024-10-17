@@ -34,7 +34,7 @@ impl CorrelatorContext {
     /// * A populated CorrelatorContext object if Ok.
     ///
     #[new]
-    #[pyo3(text_signature = "(metafits_filename, gpubox_filenames)")]
+    #[pyo3(signature = (metafits_filename, gpubox_filenames))]
     fn pyo3_new(metafits_filename: PyObject, gpubox_filenames: Vec<PyObject>) -> PyResult<Self> {
         // Convert the gpubox filenames.
         let gpubox_filenames: Vec<String> = gpubox_filenames
@@ -61,7 +61,7 @@ impl CorrelatorContext {
     ///
     #[pyo3(
         name = "get_fine_chan_freqs_hz_array",
-        text_signature = "(py, corr_coarse_chan_indices)"
+        signature = (corr_coarse_chan_indices)
     )]
     fn pyo3_get_fine_chan_freqs_hz_array(&self, corr_coarse_chan_indices: Vec<usize>) -> Vec<f64> {
         self.get_fine_chan_freqs_hz_array(&corr_coarse_chan_indices)
@@ -85,14 +85,14 @@ impl CorrelatorContext {
     ///
     #[pyo3(
         name = "read_by_baseline",
-        text_signature = "(py, corr_timestep_index, corr_coarse_chan_index)"
+        signature = (corr_timestep_index, corr_coarse_chan_index)
     )]
     fn pyo3_read_by_baseline<'py>(
         &self,
         py: Python<'py>,
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray3<f32>> {
+    ) -> PyResult<Bound<'py, PyArray3<f32>>> {
         // Use the existing Rust method.
         let data = self.read_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
         // Convert the vector to a 3D array (this is free).
@@ -106,7 +106,7 @@ impl CorrelatorContext {
         )
         .expect("shape of data should match expected dimensions (num_baselines, num_corr_fine_chans_per_coarse, visibility_pols * 2)");
         // Convert to a numpy array.
-        let data = PyArray3::from_owned_array(py, data);
+        let data = PyArray3::from_owned_array_bound(py, data);
         Ok(data)
     }
 
@@ -129,14 +129,14 @@ impl CorrelatorContext {
     ///
     #[pyo3(
         name = "read_by_frequency",
-        text_signature = "(py, corr_timestep_index, corr_coarse_chan_index)"
+        signature = (corr_timestep_index, corr_coarse_chan_index)
     )]
     fn pyo3_read_by_frequency<'py>(
         &self,
         py: Python<'py>,
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray3<f32>> {
+    ) -> PyResult<Bound<'py, PyArray3<f32>>> {
         // Use the existing Rust method.
         let data = self.read_by_frequency(corr_timestep_index, corr_coarse_chan_index)?;
         // Convert the vector to a 3D array (this is free).
@@ -150,7 +150,7 @@ impl CorrelatorContext {
         )
         .expect("shape of data should match expected dimensions (num_corr_fine_chans_per_coarse, num_baselines, visibility_pols * 2)");
         // Convert to a numpy array.
-        let data = PyArray3::from_owned_array(py, data);
+        let data = PyArray3::from_owned_array_bound(py, data);
         Ok(data)
     }
 
@@ -173,14 +173,14 @@ impl CorrelatorContext {
     ///
     #[pyo3(
         name = "read_weights_by_baseline",
-        text_signature = "(py, corr_timestep_index, corr_coarse_chan_index)"
+        signature = (corr_timestep_index, corr_coarse_chan_index)
     )]
     fn pyo3_read_weights_by_baseline<'py>(
         &self,
         py: Python<'py>,
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
-    ) -> PyResult<&'py PyArray2<f32>> {
+    ) -> PyResult<Bound<'py, PyArray2<f32>>> {
         // Use the existing Rust method.
         let data = self.read_weights_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
         // Convert the vector to a 3D array (this is free).
@@ -193,7 +193,7 @@ impl CorrelatorContext {
         )
         .expect("shape of data should match expected dimensions (num_baselines, visibility_pols)");
         // Convert to a numpy array.
-        let data = PyArray2::from_owned_array(py, data);
+        let data = PyArray2::from_owned_array_bound(py, data);
         Ok(data)
     }
 
@@ -206,5 +206,11 @@ impl CorrelatorContext {
         slf
     }
 
-    fn __exit__(&mut self, _exc_type: &PyAny, _exc_value: &PyAny, _traceback: &PyAny) {}
+    fn __exit__(
+        &mut self,
+        _exc_type: &Bound<PyAny>,
+        _exc_value: &Bound<PyAny>,
+        _traceback: &Bound<PyAny>,
+    ) {
+    }
 }

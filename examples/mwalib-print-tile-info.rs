@@ -20,9 +20,8 @@ use mwalib::*;
 #[clap(name = "mwalib-print-obs-context", author)]
 struct Opt {
     /// The path to an observation's metafits file.
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     metafits: std::path::PathBuf,
-
     // /// Paths to the observation's gpubox files.
     // #[clap(name = "GPUBOX FILE", parse(from_os_str))]
     // files: Vec<std::path::PathBuf>,
@@ -37,8 +36,15 @@ fn main() -> Result<(), anyhow::Error> {
     for (i, input) in context.rf_inputs.iter().enumerate() {
         println!(
             "{i:3}\t{:3}\t{:4}\t{:7}\t{:3}\t{:2}\t{:4}\t{:+7.1}\t{:7}\t{:10}\t{:9}\t",
-            input.ant, input.tile_id, input.tile_name, input.pol.to_string(), input.rec_number,
-            input.rec_slot_number, input.electrical_length_m, input.rec_type.to_string(), input.flavour.to_string(),
+            input.ant,
+            input.tile_id,
+            input.tile_name,
+            input.pol.to_string(),
+            input.rec_number,
+            input.rec_slot_number,
+            input.electrical_length_m,
+            input.rec_type.to_string(),
+            input.flavour.to_string(),
             input.has_whitening_filter
         );
     }

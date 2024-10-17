@@ -12,6 +12,7 @@ env:
   RUST_BACKTRACE: 1  
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
+  MWALIB_LINK_STATIC_CFITSIO: 1
 
 jobs:
   generate_coverage:
@@ -34,23 +35,6 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
 
-    - name: install cfitsio
-      env:
-        # TODO: CFITSIO_VERSION: 4.4.0
-        CFITSIO_VERSION: 3.49
-      run: |
-        cd /tmp
-        curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-${CFITSIO_VERSION}.tar.gz" -o cfitsio.tar.gz
-        tar -xf cfitsio.tar.gz
-        rm cfitsio.tar.gz
-        cd cfitsio-${CFITSIO_VERSION}
-        ./configure --prefix=/usr/local --enable-reentrant --disable-curl
-        sudo make shared
-        sudo make install
-        cd ..
-        
-        sudo ldconfig        
-        
     - name: Install stable minimal toolchain
       uses: dtolnay/rust-toolchain@v1
       with:          
@@ -60,12 +44,12 @@ jobs:
     - name: Install cargo-llvm-cov
       run: cargo install cargo-llvm-cov
     
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v4
+    - name: Set up latest Python3 stable version
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: "3.x"
 
-    - name: Generate test lcov coverage into coverage/ dir
+    - name: Generate test lcov coverage into coverage/ dir      
       run: |
         pip3 install --upgrade pip
         python3 -m venv env
@@ -77,16 +61,16 @@ jobs:
         cargo llvm-cov clean --workspace      
 
         # Run rust tests to generate test data
-        cargo test --features=cfitsio-static
+        cargo test --all-features
 
         # build python
-        maturin develop --features=python,cfitsio-static
+        maturin develop --all-features
 
         # Coverage for python tests
         pytest tests --cov=mwalib --cov-report xml:coverage/coverage.xml tests
 
         # Coverage for rust tests
-        cargo llvm-cov --features cfitsio-static,examples --lcov --output-path coverage/coverage.lcov
+        cargo llvm-cov --all-features --lcov --output-path coverage/coverage.lcov
 
         # this uses the result of the previous run to generate a text summary
         cargo llvm-cov report

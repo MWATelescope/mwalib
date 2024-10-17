@@ -2,6 +2,17 @@
 
 Changes in each release are listed below.
 
+## 1.6.0 17-Oct-2024
+
+* Updated ndarray to 0.16
+* Upgraded dependencies: clap to 0.4, pyo3 to 0.21
+* Updated CI to use maturin actions for python wheel building
+* Fixed test that was failing under Arm64
+* Removed Python 3.8 support as it is now end of life
+* Added tests for Python 3.13
+* Removed tests for macos-12 as it will be unsupported by github actions by end of 2024
+* Added tests for macos-15
+
 ## 1.5.0 20-Aug-2024
 
 * Fixed potential bug with various flavours of metafits files because mwalib was making assumptions about the HDU index/position of each HDU. mwalib now uses HDU names to correctly identify the presence of, and read from, metafits files.
