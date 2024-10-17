@@ -36,11 +36,11 @@ RUSTUP_TOOLCHAIN=${MIN_RUST} cargo update --verbose
 
 # Build and run rust tests
 echo "Building and running tests..."
-RUSTUP_TOOLCHAIN=${MIN_RUST} MWALIB_LINK_STATIC_CFITSIO=1 cargo test --release --all-features
+RUSTUP_TOOLCHAIN=${MIN_RUST} cargo test --release --all-features
 
 # Install mwalib python wheel
 echo "Installing mwalib python wheel..."
-RUSTUP_TOOLCHAIN=${MIN_RUST} MWALIB_LINK_STATIC_CFITSIO=1 maturin develop --all-features --release --strip
+RUSTUP_TOOLCHAIN=${MIN_RUST} maturin develop --all-features --release --strip
 
 # Run python tests
 echo "Running python tests..."
