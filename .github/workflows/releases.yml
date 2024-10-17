@@ -98,7 +98,10 @@ jobs:
             eval mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
             eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}.tar.gz \
                 LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
-                libmwalib.${LIB_GLOB} mwalib.h          
+                libmwalib.${LIB_GLOB} mwalib.h
+            eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}-python.tar.gz \
+              LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
+              ./dist/*.whl          
           done
 
       - name: Upload linux tarball
@@ -174,7 +177,10 @@ jobs:
           eval mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
           eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}.tar.gz \
               LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
-              libmwalib.${LIB_GLOB} mwalib.h          
+              libmwalib.${LIB_GLOB} mwalib.h
+          eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}-python.tar.gz \
+              LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
+              ./dist/*.whl
 
       - name: Upload macos tarball
         uses: actions/upload-artifact@v4
@@ -204,12 +210,13 @@ jobs:
           gh release create "$tag" \
               --repo="$GITHUB_REPOSITORY" \
               --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
-              --generate-notes *.tar.gz *.whl
+              --generate-notes *.tar.gz
 
   pypi_release:
     name: Publish to pypi
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    environment: CI
     needs: [create-github-release]
     permissions:
       # Use to sign the release artifacts
