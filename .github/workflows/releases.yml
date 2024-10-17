@@ -86,8 +86,8 @@ jobs:
             *) echo "unknown kernel (uname -s) $KERNEL"; exit 1 ;;
           esac        
 
-          for TARGET in $TARGETS; do
-            echo "building target $TARGET"
+          for TARGET in $TARGETS; do            
+            echo "building kernel-target $KERNEL-$TARGET"
             export RUSTFLAGS="-C target-cpu=$TARGET"          
             
             # Build C objects
@@ -140,7 +140,7 @@ jobs:
       - name: Upload macos wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-macos-${{ matrix.platform.target }}
+          name: wheels-${{ matrix.platform.runner }}-${{ matrix.platform.target }}
           path: dist
 
       - name: Build C and Rust libraries
@@ -151,14 +151,9 @@ jobs:
           # determine which target cpus for rustc to build for from machine type
           export ARCH="$(uname -m)"
           case $ARCH in
-            x86_64)
-              if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-                export TARGETS="x86-64 x86-64-v2 x86-64-v3"
-              else
-                export TARGETS="x86-64"
-              fi
-              ;;
-            arm64) export TARGETS="arm64";;
+            x86_64)              
+              export TARGET="x86-64";;
+            arm64) export TARGET="arm64";;
             *) echo "unknown arch (uname -m) $ARCH"; exit 1 ;;
           esac
 
@@ -168,31 +163,29 @@ jobs:
             darwin*) export LIB_GLOB="{a,dylib}" ;;
             linux*) export LIB_GLOB="{a,so}" ;;
             *) echo "unknown kernel (uname -s) $KERNEL"; exit 1 ;;
-          esac        
+          esac
+                              
+          echo "building kernel-target $KERNEL-$TARGET"
+          export RUSTFLAGS="-C target-cpu=$TARGET"          
+          
+          # Build C objects
+          cargo build --release --features examples,cfitsio-static
 
-          for TARGET in $TARGETS; do
-            echo "building target $TARGET"
-            export RUSTFLAGS="-C target-cpu=$TARGET"          
-            
-            # Build C objects
-            cargo build --release --features examples,cfitsio-static
+          # Get some debug            
+          ls -la target/release
+          ls -la include
+          ls -la .
 
-            # Get some debug            
-            ls -la target/release
-            ls -la include
-            ls -la .
-
-            # Create new release asset tarballs
-            eval mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
-            eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}.tar.gz \
-                LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
-                libmwalib.${LIB_GLOB} mwalib.h          
-          done
+          # Create new release asset tarballs
+          eval mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
+          eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}.tar.gz \
+              LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
+              libmwalib.${LIB_GLOB} mwalib.h          
 
       - name: Upload macos tarball
         uses: actions/upload-artifact@v4
         with:
-          name: macos-${{ matrix.platform.runner }}-${{ matrix.platform.target }}.tar.gz
+          name: ${{ matrix.platform.runner }}-${{ matrix.platform.target }}.tar.gz
           path: "*.tar.gz"
           if-no-files-found: error
 
