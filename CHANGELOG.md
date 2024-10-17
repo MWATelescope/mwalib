@@ -10,6 +10,8 @@ Changes in each release are listed below.
 * Fixed test that was failing under Arm64
 * Removed Python 3.8 support as it is now end of life
 * Added tests for Python 3.13
+* Removed tests for macos-12 as it will be unsupported by github actions by end of 2024
+* Added tests for macos-15
 
 ## 1.5.0 20-Aug-2024
 
