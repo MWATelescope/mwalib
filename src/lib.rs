@@ -17,6 +17,7 @@ mod fits_read;
 mod gpubox_files;
 mod metafits_context;
 mod misc;
+mod mwa_fits_file;
 mod rfinput;
 mod timestep;
 mod voltage_context;

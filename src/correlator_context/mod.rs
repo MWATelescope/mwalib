@@ -782,7 +782,7 @@ impl CorrelatorContext {
     ///
     /// * `visibility_pols` - the number of pols produced by the correlator (always 4 for MWA)
     ///
-    /// * `gpubox_fptr` - FITSFile pointer to an MWA GPUbox file
+    /// * `gpubox_fptr` - MWAFITSFile pointer to an MWA GPUbox file
     ///
     /// # Returns
     ///
@@ -794,7 +794,7 @@ impl CorrelatorContext {
         metafits_fine_chans_per_coarse: usize,
         metafits_baselines: usize,
         visibility_pols: usize,
-        gpubox_fptr: &mut fitsio::FitsFile,
+        gpubox_fptr: &mut MWAFitsFile,
     ) -> Result<(), GpuboxError> {
         // Get NAXIS1 and NAXIS2 from a gpubox file first image HDU
         let hdu = fits_open_hdu!(gpubox_fptr, 1)?;

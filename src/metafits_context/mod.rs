@@ -1126,7 +1126,7 @@ impl MetafitsContext {
     ///
     /// # Arguments
     ///
-    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
+    /// * `metafits_fptr` - reference to the MWAFitsFile representing the metafits file.
     ///
     /// * `sig_chain_hdu` - The FitsHdu containing valid signal chain corrections data.
     ///
@@ -1135,7 +1135,7 @@ impl MetafitsContext {
     /// * Result containing a vector of signal chain corrections read from the sig_chain_hdu HDU.
     ///
     fn populate_signal_chain_corrections(
-        metafits_fptr: &mut fitsio::FitsFile,
+        metafits_fptr: &mut MWAFitsFile,
         sig_chain_hdu: &fitsio::hdu::FitsHdu,
     ) -> Result<Vec<SignalChainCorrection>, FitsError> {
         // Find out how many rows there are in the table

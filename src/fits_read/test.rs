@@ -26,7 +26,8 @@ fn test_get_hdu_image_size_image() {
         };
 
         // Create a new image HDU
-        fptr.create_image("EXTNAME".to_string(), &image_description)
+        fptr.fits_file
+            .create_image("EXTNAME".to_string(), &image_description)
             .unwrap();
         let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
 
@@ -56,7 +57,8 @@ fn test_get_hdu_image_size_non_image() {
             .unwrap();
         let descriptions = [first_description, second_description];
 
-        fptr.create_table("EXTNAME".to_string(), &descriptions)
+        fptr.fits_file
+            .create_table("EXTNAME".to_string(), &descriptions)
             .unwrap();
         let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
 
@@ -78,12 +80,15 @@ fn test_get_fits_image_valid_f32() {
         };
 
         // Create a new image HDU
-        fptr.create_image("EXTNAME".to_string(), &image_description)
+        fptr.fits_file
+            .create_image("EXTNAME".to_string(), &image_description)
             .unwrap();
         let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
 
         // Write some data
-        assert!(hdu.write_image(fptr, &[1.0, 2.0, 3.0]).is_ok());
+        assert!(hdu
+            .write_image(&mut fptr.fits_file, &[1.0, 2.0, 3.0])
+            .is_ok());
 
         // Run our test, check dimensions
         let size_vec = get_hdu_image_size!(fptr, &hdu).unwrap();
@@ -112,12 +117,13 @@ fn test_get_fits_image_valid_i32() {
         };
 
         // Create a new image HDU
-        fptr.create_image("EXTNAME".to_string(), &image_description)
+        fptr.fits_file
+            .create_image("EXTNAME".to_string(), &image_description)
             .unwrap();
         let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
 
         // Write some data
-        assert!(hdu.write_image(fptr, &[-1, 0, 1]).is_ok());
+        assert!(hdu.write_image(&mut fptr.fits_file, &[-1, 0, 1]).is_ok());
 
         // Run our test, check dimensions
         let size_vec = get_hdu_image_size!(fptr, &hdu).unwrap();
@@ -146,12 +152,15 @@ fn test_get_fits_image_invalid() {
         };
 
         // Create a new image HDU
-        fptr.create_image("EXTNAME".to_string(), &image_description)
+        fptr.fits_file
+            .create_image("EXTNAME".to_string(), &image_description)
             .unwrap();
         let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
 
         // Write some data
-        assert!(hdu.write_image(fptr, &[-12345678, 0, 12345678]).is_ok());
+        assert!(hdu
+            .write_image(&mut fptr.fits_file, &[-12345678, 0, 12345678])
+            .is_ok());
 
         // Run our test, check dimensions
         let size_vec = get_hdu_image_size!(fptr, &hdu).unwrap();
@@ -194,7 +203,8 @@ fn test_get_fits_image_not_image() {
             .unwrap();
         let descriptions = [first_description, second_description];
 
-        fptr.create_table("EXTNAME".to_string(), &descriptions)
+        fptr.fits_file
+            .create_table("EXTNAME".to_string(), &descriptions)
             .unwrap();
 
         let hdu = fits_open_hdu!(fptr, 1).expect("Couldn't open HDU 1");
@@ -225,22 +235,22 @@ fn test_get_required_fits_key() {
         assert!(doesnt_exist.is_err());
 
         // Key types must be i64 to get any sort of sanity.
-        hdu.write_key(fptr, "foo", 10i64)
+        hdu.write_key(&mut fptr.fits_file, "foo", 10i64)
             .expect("Couldn't write key 'foo'");
-        hdu.write_key(fptr, "bar", -5i64)
+        hdu.write_key(&mut fptr.fits_file, "bar", -5i64)
             .expect("Couldn't write key 'bar'");
 
         // Verify that using the normal `fitsio` gives the wrong result, unless
         // the type is an i64.
-        let fits_value_i32 = hdu.read_key::<i32>(fptr, "FOO");
-        let fits_value_i64 = hdu.read_key::<i64>(fptr, "FOO");
+        let fits_value_i32 = hdu.read_key::<i32>(&mut fptr.fits_file, "FOO");
+        let fits_value_i64 = hdu.read_key::<i64>(&mut fptr.fits_file, "FOO");
         assert!(fits_value_i32.is_ok());
         assert!(fits_value_i64.is_ok());
         assert_eq!(fits_value_i32.unwrap(), 1);
         assert_eq!(fits_value_i64.unwrap(), 10);
 
         // Despite writing to "fits_value", the key is written as "FOO".
-        let fits_value_i64 = hdu.read_key::<i64>(fptr, "FOO");
+        let fits_value_i64 = hdu.read_key::<i64>(&mut fptr.fits_file, "FOO");
         assert!(fits_value_i64.is_ok());
         assert_eq!(fits_value_i64.unwrap(), 10);
 
@@ -264,7 +274,7 @@ fn test_get_required_fits_key() {
 fn test_get_optional_fits_key() {
     // with_temp_file creates a temp dir and temp file, then removes them once out of scope
     with_new_temp_fits_file("test_fits_read_key.fits", |fptr| {
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+        let hdu = fptr.fits_file.hdu(0).expect("Couldn't open HDU 0");
 
         // Failure to get a key that doesn't exist is OK if we're using the optional variant.
         let fits_value: Result<Option<u8>, _> = get_optional_fits_key!(fptr, &hdu, "foo");
@@ -272,22 +282,22 @@ fn test_get_optional_fits_key() {
         assert!(fits_value.unwrap().is_none());
 
         // Key types must be i64 to get any sort of sanity.
-        hdu.write_key(fptr, "foo", 10i64)
+        hdu.write_key(&mut fptr.fits_file, "foo", 10i64)
             .expect("Couldn't write key 'foo'");
-        hdu.write_key(fptr, "bar", -5i64)
+        hdu.write_key(&mut fptr.fits_file, "bar", -5i64)
             .expect("Couldn't write key 'bar'");
 
         // Verify that using the normal `fitsio` gives the wrong result, unless
         // the type is an i64.
-        let fits_value_i32 = hdu.read_key::<i32>(fptr, "FOO");
-        let fits_value_i64 = hdu.read_key::<i64>(fptr, "FOO");
+        let fits_value_i32 = hdu.read_key::<i32>(&mut fptr.fits_file, "FOO");
+        let fits_value_i64 = hdu.read_key::<i64>(&mut fptr.fits_file, "FOO");
         assert!(fits_value_i32.is_ok());
         assert!(fits_value_i64.is_ok());
         assert_eq!(fits_value_i32.unwrap(), 1);
         assert_eq!(fits_value_i64.unwrap(), 10);
 
         // Despite writing to "foo", the key is written as "FOO".
-        let fits_value_i64 = hdu.read_key::<i64>(fptr, "FOO");
+        let fits_value_i64 = hdu.read_key::<i64>(&mut fptr.fits_file, "FOO");
         assert!(fits_value_i64.is_ok());
         assert_eq!(fits_value_i64.unwrap(), 10);
 
@@ -319,7 +329,7 @@ fn test_get_required_fits_key_string() {
         assert!(does_not_exist.is_err());
 
         // Add a test string
-        hdu.write_key(fptr, "fits_value", "hello")
+        hdu.write_key(&mut fptr.fits_file, "fits_value", "hello")
             .expect("Couldn't write key 'fits_value'");
 
         // Read fits_value back in
@@ -334,7 +344,7 @@ fn test_get_required_fits_key_string() {
 fn test_get_optional_fits_key_string() {
     // with_temp_file creates a temp dir and temp file, then removes them once out of scope
     with_new_temp_fits_file("test_fits_read_key_string.fits", |fptr| {
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+        let hdu = fptr.fits_file.hdu(0).expect("Couldn't open HDU 0");
 
         // No Failure to get a key that doesn't exist.
         let does_not_exist: Result<Option<String>, FitsError> =
@@ -344,7 +354,7 @@ fn test_get_optional_fits_key_string() {
         assert!(does_not_exist.unwrap().is_none());
 
         // Add a test string
-        hdu.write_key(fptr, "fits_value", "hello")
+        hdu.write_key(&mut fptr.fits_file, "fits_value", "hello")
             .expect("Couldn't write key 'fits_value'");
 
         // Read fits_value back in
@@ -367,7 +377,7 @@ fn test_get_fits_long_string() {
         // Sadly, rust's `fitsio` library doesn't support writing long strings
         // with CONTINUE statements. We have to do it for ourselves.
         unsafe {
-            let fptr_ffi = fptr.as_raw();
+            let fptr_ffi = fptr.fits_file.as_raw();
             let keyword_ffi =
                 CString::new("foo").expect("get_fits_long_string: CString::new() failed for 'foo'");
             let value_ffi = CString::new(complete_string)
@@ -383,19 +393,19 @@ fn test_get_fits_long_string() {
             );
         }
 
-        let hdu = fptr.hdu(0).unwrap();
+        let hdu = fptr.fits_file.hdu(0).unwrap();
         let fits_value_str = get_required_fits_key_long_string!(fptr, &hdu, "FOO");
         assert!(fits_value_str.is_ok());
         assert_eq!(fits_value_str.unwrap(), complete_string);
 
         // Try out the `fitsio` read key.
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-        let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
+        let hdu = fptr.fits_file.hdu(0).expect("Couldn't open HDU 0");
+        let fitsio_str = hdu.read_key::<String>(&mut fptr.fits_file, "FOO");
         assert!(fitsio_str.is_ok());
         assert_eq!(fitsio_str.unwrap(), first_string);
 
         // A repeated read just returns the first string again.
-        let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
+        let fitsio_str = hdu.read_key::<String>(&mut fptr.fits_file, "FOO");
         assert!(fitsio_str.is_ok());
         assert_eq!(fitsio_str.unwrap(), first_string);
     });
@@ -411,7 +421,7 @@ fn test_get_required_fits_long_string() {
         // Sadly, rust's `fitsio` library doesn't support writing long strings
         // with CONTINUE statements. We have to do it for ourselves.
         unsafe {
-            let fptr_ffi = fptr.as_raw();
+            let fptr_ffi = fptr.fits_file.as_raw();
             let keyword_ffi =
                 CString::new("foo").expect("get_fits_long_string: CString::new() failed for 'foo'");
             let value_ffi = CString::new(complete_string)
@@ -427,7 +437,7 @@ fn test_get_required_fits_long_string() {
             );
         }
 
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+        let hdu = fptr.fits_file.hdu(0).expect("Couldn't open HDU 0");
 
         // Check for a valid long string
         let result1 = get_required_fits_key_long_string!(fptr, &hdu, "FOO");
@@ -435,13 +445,13 @@ fn test_get_required_fits_long_string() {
         assert_eq!(result1.unwrap(), complete_string);
 
         // Try out the `fitsio` read key.
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
-        let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
+        let hdu = fptr.fits_file.hdu(0).expect("Couldn't open HDU 0");
+        let fitsio_str = hdu.read_key::<String>(&mut fptr.fits_file, "FOO");
         assert!(fitsio_str.is_ok());
         assert_eq!(fitsio_str.unwrap(), first_string);
 
         // A repeated read just returns the first string again.
-        let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
+        let fitsio_str = hdu.read_key::<String>(&mut fptr.fits_file, "FOO");
         assert!(fitsio_str.is_ok());
         assert_eq!(fitsio_str.unwrap(), first_string);
 
@@ -470,7 +480,7 @@ fn test_get_optional_fits_long_string() {
         // Sadly, rust's `fitsio` library doesn't support writing long strings
         // with CONTINUE statements. We have to do it for ourselves.
         unsafe {
-            let fptr_ffi = fptr.as_raw();
+            let fptr_ffi = fptr.fits_file.as_raw();
             let keyword_ffi =
                 CString::new("foo").expect("get_fits_long_string: CString::new() failed for 'foo'");
             let value_ffi = CString::new(complete_string)
@@ -486,7 +496,7 @@ fn test_get_optional_fits_long_string() {
             );
         }
 
-        let hdu = fptr.hdu(0).expect("Couldn't open HDU 0");
+        let hdu = fptr.fits_file.hdu(0).expect("Couldn't open HDU 0");
 
         // Read a key that IS there
         let result1 = get_optional_fits_key_long_string!(fptr, &hdu, "FOO");
@@ -497,12 +507,12 @@ fn test_get_optional_fits_long_string() {
         assert_eq!(fits_value1_str.unwrap(), complete_string);
 
         // Try out the `fitsio` read key.
-        let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
+        let fitsio_str = hdu.read_key::<String>(&mut fptr.fits_file, "FOO");
         assert!(fitsio_str.is_ok());
         assert_eq!(fitsio_str.unwrap(), first_string);
 
         // A repeated read just returns the first string again.
-        let fitsio_str = hdu.read_key::<String>(fptr, "FOO");
+        let fitsio_str = hdu.read_key::<String>(&mut fptr.fits_file, "FOO");
         assert!(fitsio_str.is_ok());
         assert_eq!(fitsio_str.unwrap(), first_string);
 
@@ -525,7 +535,7 @@ fn test_get_fits_long_string_failure() {
         // Sadly, rust's `fitsio` library doesn't support writing long strings
         // with CONTINUE statements. We have to do it for ourselves.
         unsafe {
-            let fptr_ffi = fptr.as_raw();
+            let fptr_ffi = fptr.fits_file.as_raw();
             let keyword_ffi = CString::new("fits_value")
                 .expect("get_fits_long_string: CString::new() failed for 'fits_value'");
             let value_ffi = CString::new(complete_string)
@@ -541,7 +551,7 @@ fn test_get_fits_long_string_failure() {
             );
         }
 
-        let hdu = fptr.hdu(0).unwrap();
+        let hdu = fptr.fits_file.hdu(0).unwrap();
         let fits_value_str = get_required_fits_key_long_string!(fptr, &hdu, "NOTfits_value");
         assert!(fits_value_str.is_err());
     });

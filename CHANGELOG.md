@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.7.0 18-Oct-2024
+
+* Update fitsio to 0.21 and fitsio-sys to 0.5
+
 ## 1.6.0 18-Oct-2024
 
 * Updated ndarray to 0.16
