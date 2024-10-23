@@ -14,6 +14,9 @@ use std::collections::HashSet;
 use std::fmt;
 use std::path::Path;
 
+#[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
+
 #[cfg(test)]
 mod test;
 
@@ -29,11 +32,15 @@ pub(crate) struct ObsTimesAndChans {
 /// e.g.
 /// MWA Legacy: obsid_gpstime_datetime_chan
 /// MWAX      : obsid_gpstime_datetime_chan
+#[cfg_attr(feature = "python", gen_stub_pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 #[derive(Clone)]
-#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub struct VoltageFileBatch {
-    pub gps_time_seconds: u64,           // 1234567890
-    pub voltage_files: Vec<VoltageFile>, // Vector storing the details of each voltage file in this batch
+    // GPS second of this observation. e.g. 1234567890
+    pub gps_time_seconds: u64,
+
+    /// Vector storing the details of each voltage file in this batch
+    pub voltage_files: Vec<VoltageFile>,
 }
 
 impl VoltageFileBatch {
@@ -56,8 +63,9 @@ impl fmt::Debug for VoltageFileBatch {
 }
 
 /// This represents one voltage file
+#[cfg_attr(feature = "python", gen_stub_pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 #[derive(Clone)]
-#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub struct VoltageFile {
     /// Filename of voltage file
     pub filename: String,

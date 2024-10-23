@@ -7,29 +7,25 @@
 use super::*;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
-
 #[cfg(feature = "python")]
-#[pymethods]
+use pyo3_stub_gen_derive::gen_stub_pymethods;
+
+#[cfg_attr(feature = "python", gen_stub_pymethods)]
+#[cfg_attr(feature = "python", pymethods)]
+#[cfg(feature = "python")]
 impl MetafitsContext {
+    #[new]
+    #[pyo3(signature = (metafits_filename, mwa_version=None), text_signature = "(metafits_filename: str, mwa_version: typing.Optional[MWAVersion]=None)")]
     /// From a path to a metafits file, create a `MetafitsContext`.
     ///
-    /// # Arguments
+    /// Args:
+    ///     metafits_filename (str): filename of metafits file.
+    ///     mwa_version (Optional[MWAVersion]): the MWA version the metafits should be interpreted as. Pass None to have mwalib guess based on the MODE in the metafits.
     ///
-    /// * `metafits_filename` - filename of metafits file as a path or string.
-    ///
-    /// * `mwa_version` - (Optional) the MWA version the metafits should be interpreted as. Pass None to have mwalib guess based on the MODE in the metafits.
-    ///
-    /// # Returns
-    ///
-    /// * A populated MetafitsContext object if Ok.
-    ///
-    #[new]
-    #[pyo3(signature = (metafits_filename, mwa_version=None))]
-    fn pyo3_new(
-        metafits_filename: pyo3::PyObject,
-        mwa_version: Option<MWAVersion>,
-    ) -> pyo3::PyResult<Self> {
-        let m = Self::new(metafits_filename.to_string(), mwa_version)?;
+    /// Returns:
+    ///     metafits_contex (MetafitsContex): a populated MetafitsContext object if Ok.
+    fn pyo3_new(metafits_filename: &str, mwa_version: Option<MWAVersion>) -> pyo3::PyResult<Self> {
+        let m = Self::new(metafits_filename, mwa_version)?;
         Ok(m)
     }
 

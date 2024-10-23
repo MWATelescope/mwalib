@@ -12,6 +12,7 @@ use fitsio::hdu::HduInfo;
 use num_derive::FromPrimitive;
 use num_traits::ToPrimitive;
 
+use self::error::MetafitsError;
 use crate::antenna::*;
 use crate::baseline::*;
 use crate::coarse_channel::*;
@@ -20,12 +21,15 @@ use crate::rfinput::*;
 use crate::voltage_files::*;
 use crate::*;
 
-use self::error::MetafitsError;
 pub mod error;
 
 #[cfg(test)]
 mod test;
 
+#[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
+#[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass_enum;
 #[cfg(feature = "python")]
 mod python;
 
@@ -33,7 +37,7 @@ mod python;
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
 pub enum MWAVersion {
     /// MWA correlator (v1.0), having data files without any batch numbers.
     CorrOldLegacy = 1,
@@ -78,7 +82,8 @@ impl fmt::Display for MWAVersion {
 /// Visibility polarisations
 ///
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
 pub enum VisPol {
     XX = 1,
     XY = 2,
@@ -116,7 +121,7 @@ impl fmt::Display for VisPol {
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
 pub enum GeometricDelaysApplied {
     No = 0,
     Zenith = 1,
@@ -181,7 +186,7 @@ impl std::str::FromStr for GeometricDelaysApplied {
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
 pub enum CableDelaysApplied {
     NoCableDelaysApplied = 0,
     CableAndRecClock = 1,
@@ -234,7 +239,7 @@ impl std::str::FromStr for CableDelaysApplied {
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
 pub enum MWAMode {
     No_Capture = 0,
     Burst_Vsib = 1,
@@ -338,59 +343,11 @@ impl std::str::FromStr for MWAMode {
 }
 
 ///
-/// Signal chain correction table
-///
-#[derive(Clone, Debug, PartialEq)]
-#[repr(C)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
-pub struct SignalChainCorrection {
-    /// Receiver Type
-    pub receiver_type: ReceiverType,
-
-    /// Whitening Filter
-    pub whitening_filter: bool,
-
-    /// Corrections
-    pub corrections: Vec<f64>,
-}
-
-/// Implements fmt::Display for SignalChainCorrection
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for SignalChainCorrection {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let corr: String = if !self.corrections.is_empty() {
-            format!(
-                "[{}..{}]",
-                self.corrections[0],
-                self.corrections[MAX_RECEIVER_CHANNELS - 1]
-            )
-        } else {
-            "[]".to_string()
-        };
-
-        write!(
-            f,
-            "Receiver Type: {} Whitening filter: {} Corrections: {}",
-            self.receiver_type, self.whitening_filter, corr
-        )
-    }
-}
-
-///
 /// Metafits context. This represents the basic metadata for an MWA observation.
 ///
+#[cfg_attr(feature = "python", gen_stub_pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct MetafitsContext {
     /// mwa version
     pub mwa_version: Option<MWAVersion>,
@@ -406,7 +363,7 @@ pub struct MetafitsContext {
     pub sched_end_unix_time_ms: u64,
     /// Scheduled start (UTC) of observation
     pub sched_start_utc: DateTime<FixedOffset>,
-    /// Scheduled end (UTC) of observation
+    /// Scheduled end (UTC) of observation        
     pub sched_end_utc: DateTime<FixedOffset>,
     /// Scheduled start (MJD) of observation
     pub sched_start_mjd: f64,
@@ -533,7 +490,7 @@ pub struct MetafitsContext {
     pub num_baselines: usize,
     /// Baslines
     pub baselines: Vec<Baseline>,
-    /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
+    /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4    
     pub num_visibility_pols: usize,
     /// Filename of the metafits we were given
     pub metafits_filename: String,
@@ -576,7 +533,7 @@ impl MetafitsContext {
     /// # Returns
     ///
     /// * Result containing a populated MetafitsContext object if Ok.
-    ///    
+    ///
     pub fn new<P: AsRef<Path>>(
         metafits: P,
         mwa_version: Option<MWAVersion>,
@@ -1126,7 +1083,7 @@ impl MetafitsContext {
     ///
     /// # Arguments
     ///
-    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
+    /// * `metafits_fptr` - reference to the MWAFitsFile representing the metafits file.
     ///
     /// * `sig_chain_hdu` - The FitsHdu containing valid signal chain corrections data.
     ///
@@ -1135,7 +1092,7 @@ impl MetafitsContext {
     /// * Result containing a vector of signal chain corrections read from the sig_chain_hdu HDU.
     ///
     fn populate_signal_chain_corrections(
-        metafits_fptr: &mut fitsio::FitsFile,
+        metafits_fptr: &mut MWAFitsFile,
         sig_chain_hdu: &fitsio::hdu::FitsHdu,
     ) -> Result<Vec<SignalChainCorrection>, FitsError> {
         // Find out how many rows there are in the table

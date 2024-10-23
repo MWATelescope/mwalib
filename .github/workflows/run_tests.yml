@@ -42,4 +42,4 @@ jobs:
       run: |
         MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
         ~/.cargo/bin/rustup install $MIN_RUST --profile minimal          
-        cargo +${MIN_RUST} test --features cfitsio-static, examples
+        cargo +${MIN_RUST} test --features cfitsio-static,examples

@@ -7,17 +7,21 @@
 use crate::rfinput::*;
 use std::fmt;
 
+#[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
+
 #[cfg(test)]
 mod test;
 
 /// Structure for storing MWA antennas (tiles without polarisation) information from the metafits file
+#[cfg_attr(feature = "python", gen_stub_pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 #[derive(Clone)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct Antenna {
     /// This is the antenna number.
     /// Nominally this is the field we sort by to get the desired output order of antenna.
     /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
-    /// e.g. 0...N-1
+    /// e.g. 0...N-1   
     pub ant: u32,
     /// Numeric part of tile_name for the antenna. Each pol has the same value
     /// e.g. tile_name "tile011" hsa tile_id of 11

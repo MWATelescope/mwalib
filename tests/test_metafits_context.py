@@ -84,11 +84,13 @@ def test_mwax_metafits_context_rf_inputs(
     # this tests lists
     assert len(mwax_mc.rf_inputs) == 256
 
+    rfinput: mwalib.Rfinput = mwax_mc.rf_inputs[0]
+
     # this tests strings
-    assert mwax_mc.rf_inputs[0].tile_name == "Tile051"
+    assert rfinput.tile_name == "Tile051"
 
     # this tests enums
-    assert mwax_mc.rf_inputs[0].pol == mwalib.Pol.X
+    assert rfinput.pol == mwalib.Pol.X
 
 
 def test_mwax_metafits_context_antennas(
@@ -98,12 +100,14 @@ def test_mwax_metafits_context_antennas(
     assert len(mwax_mc.antennas) == 128
     assert mwax_mc.num_ants == 128
 
+    ant: mwalib.Antenna = mwax_mc.antennas[0]
+
     # this tests strings
-    assert mwax_mc.antennas[0].tile_name == "Tile051"
+    assert ant.tile_name == "Tile051"
 
     # this tests enums and objects as attributes
-    assert mwax_mc.antennas[0].rfinput_x.pol == mwalib.Pol.X
-    assert mwax_mc.antennas[0].rfinput_y.pol == mwalib.Pol.Y
+    assert ant.rfinput_x.pol == mwalib.Pol.X
+    assert ant.rfinput_y.pol == mwalib.Pol.Y
 
 
 def test_mwax_metafits_context_baselines(

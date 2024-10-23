@@ -9,6 +9,7 @@ use core::f32;
 #[cfg(test)]
 use super::*;
 use crate::antenna::*;
+use crate::fits_read::*;
 use crate::rfinput::*;
 use float_cmp::*;
 
@@ -27,7 +28,7 @@ use float_cmp::*;
 #[cfg(test)]
 pub fn with_new_temp_fits_file<F>(filename: &str, callback: F)
 where
-    F: for<'a> Fn(&'a mut fitsio::FitsFile),
+    F: for<'a> Fn(&'a mut MWAFitsFile),
 {
     let tdir = tempdir::TempDir::new("fitsio-").unwrap();
     let tdir_path = tdir.path();
@@ -35,11 +36,13 @@ where
 
     let filename_str = filename.to_str().expect("cannot create string filename");
 
-    let mut fptr = fitsio::FitsFile::create(filename_str)
+    let fptr = fitsio::FitsFile::create(filename_str)
         .open()
         .expect("Couldn't open tempfile");
 
-    callback(&mut fptr);
+    let mut mwa_fits_file = MWAFitsFile::new(filename_str.into(), fptr);
+
+    callback(&mut mwa_fits_file);
 }
 
 #[test]

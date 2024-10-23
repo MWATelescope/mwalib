@@ -11,12 +11,15 @@ use std::collections::HashSet;
 use std::fmt;
 use std::path::Path;
 
-use fitsio::{hdu::FitsHdu, FitsFile};
+use fitsio::hdu::FitsHdu;
 use rayon::prelude::*;
 use regex::Regex;
 
 use crate::*;
 pub use error::GpuboxError;
+
+#[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 #[cfg(test)]
 mod test;
@@ -32,11 +35,15 @@ pub(crate) struct ObsTimesAndChans {
 
 /// This represents one group of gpubox files with the same "batch" identitifer.
 /// e.g. obsid_datetime_chan_batch
+#[cfg_attr(feature = "python", gen_stub_pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 #[derive(Clone)]
-#[cfg_attr(feature = "python", pyo3::pyclass)]
 pub struct GpuBoxBatch {
-    pub batch_number: usize,           // 00,01,02..n
-    pub gpubox_files: Vec<GpuBoxFile>, // Vector storing the details of each gpubox file in this batch
+    /// Batch number: 00,01,02..n.
+    pub batch_number: usize,
+
+    /// Vector storing the details of each gpubox file in this batch
+    pub gpubox_files: Vec<GpuBoxFile>,
 }
 
 impl GpuBoxBatch {
@@ -59,10 +66,13 @@ impl fmt::Debug for GpuBoxBatch {
 }
 
 /// This represents one gpubox file
+#[cfg_attr(feature = "python", gen_stub_pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 #[derive(Clone)]
 pub struct GpuBoxFile {
     /// Filename of gpubox file
     pub filename: String,
+
     /// channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
     pub channel_identifier: usize,
 }
@@ -248,7 +258,7 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
 
             // Check that there are some HDUs (apart from just the primary)
             // Assuming it does have some, open the first one
-            let hdu = match fptr.iter().count() {
+            let hdu = match fptr.fits_file.iter().count() {
                 1 => {
                     return Err(GpuboxError::NoDataHDUsInGpuboxFile {
                         gpubox_filename: g.filename.clone(),
@@ -408,7 +418,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
 ///
 /// # Arguments
 ///
-/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
+/// * `gpubox_fptr` - An MWAFitsFile reference to this gpubox file.
 ///
 /// * `gpubox_hdu_fptr` - A reference to the HDU we are finding the time of.
 ///
@@ -419,7 +429,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
 ///
 ///
 fn determine_hdu_time(
-    gpubox_fptr: &mut FitsFile,
+    gpubox_fptr: &mut MWAFitsFile,
     gpubox_hdu_fptr: &FitsHdu,
 ) -> Result<u64, FitsError> {
     let start_unix_time: u64 = get_required_fits_key!(gpubox_fptr, gpubox_hdu_fptr, "TIME")?;
@@ -434,7 +444,7 @@ fn determine_hdu_time(
 ///
 /// # Arguments
 ///
-/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
+/// * `gpubox_fptr` - An MWAFitsFile reference to this gpubox file.
 ///
 /// * `mwa_version` - enum telling us which correlator version the observation was created by.
 ///
@@ -445,11 +455,11 @@ fn determine_hdu_time(
 ///
 ///
 fn map_unix_times_to_hdus(
-    gpubox_fptr: &mut FitsFile,
+    gpubox_fptr: &mut MWAFitsFile,
     mwa_version: MWAVersion,
 ) -> Result<BTreeMap<u64, usize>, FitsError> {
     let mut map = BTreeMap::new();
-    let last_hdu_index = gpubox_fptr.iter().count();
+    let last_hdu_index = gpubox_fptr.fits_file.iter().count();
     // The new correlator has a "weights" HDU in each alternating HDU. Skip
     // those.
     let step_size = if mwa_version == MWAVersion::CorrMWAXv2 {
@@ -474,7 +484,7 @@ fn map_unix_times_to_hdus(
 ///
 /// # Arguments
 ///
-/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
+/// * `gpubox_fptr` - An MWAFitsFile reference to this gpubox file.
 ///
 /// * `gpubox_primary_hdu` - The primary HDU of the gpubox file.
 ///
@@ -489,7 +499,7 @@ fn map_unix_times_to_hdus(
 ///
 ///
 fn validate_gpubox_metadata_mwa_version(
-    gpubox_fptr: &mut FitsFile,
+    gpubox_fptr: &mut MWAFitsFile,
     gpubox_primary_hdu: &FitsHdu,
     gpubox_filename: &str,
     mwa_version: MWAVersion,
@@ -527,7 +537,7 @@ fn validate_gpubox_metadata_mwa_version(
 ///
 /// # Arguments
 ///
-/// * `gpubox_fptr` - A FitsFile reference to this gpubox file.
+/// * `gpubox_fptr` - An MWAFitsFile reference to this gpubox file.
 ///
 /// * `gpubox_primary_hdu` - The primary HDU of the gpubox file.
 ///
@@ -542,7 +552,7 @@ fn validate_gpubox_metadata_mwa_version(
 ///
 ///
 fn validate_gpubox_metadata_obs_id(
-    gpubox_fptr: &mut FitsFile,
+    gpubox_fptr: &mut MWAFitsFile,
     gpubox_primary_hdu: &FitsHdu,
     gpubox_filename: &str,
     metafits_obs_id: u32,
@@ -610,7 +620,7 @@ fn create_time_map(
                 }
             }
 
-            // Get the UNIX times from each of the HDUs of this `FitsFile`.
+            // Get the UNIX times from each of the HDUs of this `MWAFitsFile`.
             map_unix_times_to_hdus(&mut fptr, mwa_version).map_err(GpuboxError::from)
         })
         .collect::<Vec<Result<BTreeMap<u64, usize>, GpuboxError>>>();

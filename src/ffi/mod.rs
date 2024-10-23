@@ -1856,25 +1856,22 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     // Populate signal chain corrections
     let mut signal_chain_corrections_vec: Vec<ffi::SignalChainCorrection> = Vec::new();
 
-    match &metafits_context.signal_chain_corrections {
-        Some(v) => {
-            for item in v.iter() {
-                let out_item = {
-                    let metafits_context::SignalChainCorrection {
-                        receiver_type,
-                        whitening_filter,
-                        corrections,
-                    } = item;
-                    ffi::SignalChainCorrection {
-                        receiver_type: *receiver_type,
-                        whitening_filter: *whitening_filter,
-                        corrections: ffi_array_to_boxed_slice(corrections.clone()),
-                    }
-                };
-                signal_chain_corrections_vec.push(out_item);
-            }
+    if let Some(v) = &metafits_context.signal_chain_corrections {
+        for item in v.iter() {
+            let out_item = {
+                let signal_chain_correction::SignalChainCorrection {
+                    receiver_type,
+                    whitening_filter,
+                    corrections,
+                } = item;
+                ffi::SignalChainCorrection {
+                    receiver_type: *receiver_type,
+                    whitening_filter: *whitening_filter,
+                    corrections: ffi_array_to_boxed_slice(corrections.clone()),
+                }
+            };
+            signal_chain_corrections_vec.push(out_item);
         }
-        None => {}
     }
 
     // Populate the outgoing structure with data from the metafits context

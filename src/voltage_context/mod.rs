@@ -16,6 +16,9 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
 #[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
+
+#[cfg(feature = "python")]
 mod python;
 
 #[cfg(test)]
@@ -24,8 +27,9 @@ pub(crate) mod test; // It's pub crate because I reuse some test code in the ffi
 ///
 /// This represents the basic metadata and methods for an MWA voltage capture system (VCS) observation.
 ///
+#[cfg_attr(feature = "python", gen_stub_pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 #[derive(Debug)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct VoltageContext {
     /// Observation Metadata obtained from the metafits file
     pub metafits_context: MetafitsContext,
@@ -136,7 +140,8 @@ pub struct VoltageContext {
     /// voltage number with a voltage batch number and HDU index. The voltage
     /// number, batch number and HDU index are everything needed to find the
     /// correct HDU out of all voltage files.
-    pub voltage_time_map: VoltageFileTimeMap,
+    #[allow(dead_code)]
+    pub(crate) voltage_time_map: VoltageFileTimeMap,
 }
 
 impl VoltageContext {

@@ -11,12 +11,16 @@ use crate::*;
 use error::CoarseChannelError;
 use std::fmt;
 
+#[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
+
 #[cfg(test)]
 mod test;
 
 /// This is a struct for coarse channels
+#[cfg_attr(feature = "python", gen_stub_pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 #[derive(Clone)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct CoarseChannel {
     /// Correlator channel is 0 indexed (0..N-1)
     pub corr_chan_number: usize,
@@ -105,7 +109,7 @@ impl CoarseChannel {
     ///
     /// # Arguments
     ///
-    /// `metafits_fptr` - a reference to a metafits FitsFile object.
+    /// `metafits_fptr` - a reference to a metafits MWAFitsFile object.
     ///
     /// `metafits_hdu` - a reference to a metafits primary HDU.
     ///    
@@ -118,7 +122,7 @@ impl CoarseChannel {
     ///                       The width in Hz of each coarse channel
     ///
     pub(crate) fn get_metafits_coarse_channel_info(
-        metafits_fptr: &mut fitsio::FitsFile,
+        metafits_fptr: &mut MWAFitsFile,
         hdu: &fitsio::hdu::FitsHdu,
         observation_bandwidth_hz: u32,
     ) -> Result<(Vec<usize>, u32), FitsError> {

@@ -13,25 +13,22 @@ use ndarray::Dim;
 use numpy::PyArray;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
-
 #[cfg(feature = "python")]
-#[pymethods]
+use pyo3_stub_gen_derive::gen_stub_pymethods;
+
+#[cfg_attr(feature = "python", gen_stub_pymethods)]
+#[cfg_attr(feature = "python", pymethods)]
 impl VoltageContext {
-    /// From a path to a metafits file and paths to voltage files, create an `VoltageContext`.    
+    /// From a path to a metafits file and paths to voltage files, create a `VoltageContext`.
     ///
-    /// # Arguments
+    /// Args:
+    ///     metafits_filename (str): filename of metafits file as a path or string.
+    ///     voltage_filenames (list[str]): list of filenames of voltage files.
     ///
-    /// * `metafits_filename` - filename of metafits file.
-    ///
-    /// * `voltage_filenames` - list of filenames of voltage files.
-    ///
-    ///
-    /// # Returns
-    ///
-    /// * A populated VoltageContext object if Ok.
-    ///    
+    /// Returns:
+    ///     voltage_context (VoltageContext): a populated VoltageContext object if Ok.
     #[new]
-    #[pyo3(signature = (metafits_filename, voltage_filenames))]
+    #[pyo3(signature = (metafits_filename, voltage_filenames), text_signature = "(metafits_filename: str, mwa_version: list[voltage_filenames])")]
     fn pyo3_new(metafits_filename: PyObject, voltage_filenames: Vec<PyObject>) -> PyResult<Self> {
         // Convert the voltage filenames.
         let voltage_filenames: Vec<String> = voltage_filenames
@@ -43,52 +40,35 @@ impl VoltageContext {
         Ok(c)
     }
 
-    /// For a given list of voltage coarse channel indices, return a list of the center
-    /// frequencies for all the fine channels in the given coarse channels.
+    /// For a given list of voltage coarse channel indices, return a list of the center frequencies for all the fine channels in the given coarse channels.
     ///
-    /// # Arguments
+    /// Args:
+    ///     volt_coarse_chan_indices (list[int]): a list containing correlator coarse channel indices for which you want fine channels for. Does not need to be contiguous.
     ///
-    /// * `volt_coarse_chan_indices` - a list containing voltage coarse channel indices
-    ///                                for which you want fine channels for. Does not need to be
-    ///                                contiguous.
-    ///    
-    /// # Returns
-    ///
-    /// * a list of floats containing the centre sky frequencies of all the fine channels for the
-    ///   given coarse channels.
-    ///
-    #[pyo3(
-        name = "get_fine_chan_freqs_hz_array",
-        signature = (volt_coarse_chan_indices)
-    )]
+    /// Returns:
+    ///     fine_chan_freqs_hz_array (list[float]): a vector of floats containing the centre sky frequencies of all the fine channels for the given coarse channels.
+    #[pyo3(name = "get_fine_chan_freqs_hz_array")]
     fn pyo3_get_fine_chan_freqs_hz_array(&self, volt_coarse_chan_indices: Vec<usize>) -> Vec<f64> {
         self.get_fine_chan_freqs_hz_array(&volt_coarse_chan_indices)
     }
 
     /// Read a single timestep / coarse channel worth of data
     ///
-    /// # Arguments
+    /// Args:
+    ///     volt_timestep_index (int): index within the timestep array for the desired timestep. This corresponds to the element within VoltageContext.timesteps. For mwa legacy each index represents 1 second increments, for mwax it is 8 second increments.
+    ///     volt_coarse_chan_index (int): index within the coarse_chan array for the desired coarse channel. This corresponds to the element within VoltageContext.coarse_chans.
     ///
-    /// * `volt_timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within VoltageContext.timesteps. For mwa legacy each index
-    ///                      represents 1 second increments, for mwax it is 8 second increments.
-    ///
-    /// * `volt_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within VoltageContext.coarse_chans.        
-    ///
-    /// # Returns
-    ///
-    /// * An ndarray of signed bytes containing the data, if Ok.
+    /// Returns:
+    ///     data (numpy.typing.NDArray[numpy.int8]): A 6 dimensional ndarray of signed bytes containing the data, if Ok.
     ///
     /// NOTE: The shape of the ndarray is different between LegacyVCS and MWAX VCS
-    /// Legacy: [second][time sample][chan][ant][pol][complexity]
-    ///         where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment
-    ///
-    /// MWAX  : [second][voltage_block][antenna][pol][sample][r,i]
+    /// Legacy: [second],[time sample],[chan],[ant],[pol],[complexity]
+    ///         where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment    
+    /// MWAX  : [second],[voltage_block],[antenna],[pol],[sample],[r,i]
     ///
     #[pyo3(
         name = "read_file",
-        signature = (volt_timestep_index, volt_coarse_chan_index)
+        text_signature = "(self, volt_timestep_index, volt_coarse_chan_index)"
     )]
     fn pyo3_read_file<'py>(
         &self,
@@ -146,27 +126,21 @@ impl VoltageContext {
 
     /// Read a single or multiple seconds of data for a coarse channel
     ///
-    /// # Arguments
+    /// Args:
+    ///     gps_second_start (int): GPS second within the observation to start returning data.
+    ///     gps_second_count (int): number of seconds of data to return.
+    ///     volt_coarse_chan_index (int): index within the coarse_chan array for the desired coarse channel. This corresponds to the element within VoltageContext.coarse_chans.
     ///
-    /// * `gps_second_start` - GPS second within the observation to start returning data.
-    ///
-    /// * `gps_second_count` - number of seconds of data to return.    
-    ///
-    /// * `volt_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within VoltageContext.coarse_chans.        
-    ///    
-    /// # Returns
-    ///
-    /// * An ndarray of signed bytes containing the data, if Ok.
+    /// Returns:
+    ///     data (numpy.typing.NDArray[numpy.int8]): A 6 dimensional ndarray of signed bytes containing the data, if Ok.
     ///
     /// NOTE: The shape is different between LegacyVCS and MWAX VCS
-    /// Legacy: [second][time sample][chan][ant][pol][complexity]
-    ///         where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment
-    ///
-    /// MWAX  : [second][voltage_block][antenna][pol][sample][r,i]
+    /// Legacy: [second],[time sample],[chan],[ant],[pol],[complexity]
+    ///         where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment    
+    /// MWAX  : [second],[voltage_block],[antenna],[pol],[sample],[r,i]
     #[pyo3(
         name = "read_second",
-        signature = (gps_second_start, gps_second_count, volt_coarse_chan_index)
+        text_signature = "(self, gps_second_start, gps_second_count, volt_coarse_chan_index)"
     )]
     fn pyo3_read_second<'py>(
         &self,

@@ -11,8 +11,7 @@ on:
 env:
   RUST_BACKTRACE: 1  
   CARGO_TERM_COLOR: always
-  CARGO_INCREMENTAL: 0
-  MWALIB_LINK_STATIC_CFITSIO: 1
+  CARGO_INCREMENTAL: 0  
 
 jobs:
   generate_coverage:

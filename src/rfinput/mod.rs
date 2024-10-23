@@ -5,12 +5,17 @@
 //! Structs and helper methods for rf_input metadata
 
 pub mod error;
-use crate::metafits_context::SignalChainCorrection;
 use crate::misc::{has_whitening_filter, vec_compare_f32, vec_compare_f64};
+use crate::signal_chain_correction::SignalChainCorrection;
 use crate::{fits_open_hdu_by_name, fits_read::*};
 use core::f32;
 use error::RfinputError;
 use std::fmt;
+
+#[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
+#[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass_enum;
 
 #[cfg(test)]
 mod test;
@@ -85,7 +90,7 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
 
 /// Instrument polarisation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
 pub enum Pol {
     X,
     Y,
@@ -170,7 +175,7 @@ struct RfInputMetafitsTableRow {
 /// ReceiverType enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum ReceiverType {
     Unknown,
@@ -250,8 +255,9 @@ struct RfInputMetafitsCalibDataTableRow {
 }
 
 /// Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
+#[cfg_attr(feature = "python", gen_stub_pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 #[derive(Clone)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
@@ -301,7 +307,7 @@ pub struct Rfinput {
     pub rec_slot_number: u32,
     /// Receiver type
     pub rec_type: ReceiverType,
-    /// Flavour
+    /// Cable Flavour
     pub flavour: String,
     /// Has whitening filter (depends on flavour)
     pub has_whitening_filter: bool,
@@ -368,7 +374,7 @@ impl Rfinput {
     ///
     /// # Arguments
     ///
-    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
+    /// * `metafits_fptr` - reference to the MWAFitsFile representing the metafits file.
     ///
     /// * `metafits_tile_table_hdu` - reference to the HDU containing the TILEDATA table.
     ///
@@ -382,7 +388,7 @@ impl Rfinput {
     /// * An Result containing a populated vector of RFInputMetafitsTableRow structss or an Error
     ///
     fn read_metafits_tiledata_values(
-        metafits_fptr: &mut fitsio::FitsFile,
+        metafits_fptr: &mut MWAFitsFile,
         metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
         row: usize,
         num_coarse_chans: usize,
@@ -496,7 +502,7 @@ impl Rfinput {
     ///
     /// # Arguments
     ///
-    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
+    /// * `metafits_fptr` - reference to the MWAFitsFile representing the metafits file.
     ///
     /// * `metafits_calibdata_table_hdu` - reference to the HDU containing the CALIBDATA table.
     ///
@@ -510,7 +516,7 @@ impl Rfinput {
     /// * An Result containing a populated vector of RFInputMetafitsTableRow structss or an Error
     ///
     fn read_metafits_calibdata_values(
-        metafits_fptr: &mut fitsio::FitsFile,
+        metafits_fptr: &mut MWAFitsFile,
         metafits_calibdata_table_hdu: &Option<fitsio::hdu::FitsHdu>,
         row: usize,
         num_coarse_chans: usize,
@@ -567,7 +573,7 @@ impl Rfinput {
     ///
     /// * `num_inputs` - number of rf_inputs to read from the metafits TILEDATA bintable.
     ///
-    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
+    /// * `metafits_fptr` - reference to the MWAFitsFile representing the metafits file.
     ///
     /// * `metafits_tile_table_hdu` - reference to the HDU containing the TILEDATA table.
     ///
@@ -581,7 +587,7 @@ impl Rfinput {
     ///
     pub(crate) fn populate_rf_inputs(
         num_inputs: usize,
-        metafits_fptr: &mut fitsio::FitsFile,
+        metafits_fptr: &mut MWAFitsFile,
         metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
         coax_v_factor: f64,
         num_coarse_chans: usize,

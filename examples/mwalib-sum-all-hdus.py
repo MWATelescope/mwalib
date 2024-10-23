@@ -78,18 +78,13 @@ def sum_parallel_by_freq(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=f"Using mwalib {mwalib.__version__}")
-    parser.add_argument(
-        "-m", "--metafits", required=True, help="Path to the metafits file."
-    )
+    parser.add_argument("-m", "--metafits", required=True, help="Path to the metafits file.")
     parser.add_argument("gpuboxes", nargs="*", help="Paths to the gpubox files.")
     args = parser.parse_args()
 
     # fast sum using all cores
     num_cores = os.cpu_count()
-    print(
-        f"Using {num_cores} cores to fast sum all hdus by baseline, then by"
-        " frequency..."
-    )
+    print(f"Using {num_cores} cores to fast sum all hdus by baseline, then by" " frequency...")
 
     start_time_fast = time.time()
     processed_list = Parallel(n_jobs=num_cores)(
@@ -101,8 +96,7 @@ if __name__ == "__main__":
 
     start_time_fast = time.time()
     processed_list = Parallel(n_jobs=num_cores)(
-        delayed(sum_parallel_by_freq)(args.metafits, args.gpuboxes, c)
-        for c in range(24)
+        delayed(sum_parallel_by_freq)(args.metafits, args.gpuboxes, c) for c in range(24)
     )
     fast_sum = np.sum(processed_list)
     stop_time_fast = time.time()

@@ -2,6 +2,14 @@
 
 Changes in each release are listed below.
 
+## 1.7.0 23-Oct-2024
+
+* Bumped MSRV to 1.65.
+* Update fitsio to 0.21 and fitsio-sys to 0.5.
+* Removed Rust Report Card from README status badges. Looks like this service is abandonded.
+* Added Python .pyi stub generation to provide mwalib Python users with type and docstring information. The mwalib.pyi should get baked into the python wheels released to github and Pypi. See `bin/README.md` for caveats and more details.
+* Added CI to test compilation against cfitsio 3.x and 4.x when not using the `cfitsio-static` feature.
+
 ## 1.6.0 18-Oct-2024
 
 * Updated ndarray to 0.16

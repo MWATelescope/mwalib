@@ -1,0 +1,111 @@
+name: cfitsio tests
+
+on:
+  push:
+    tags-ignore:
+      - '**'
+    branches:
+      - '**'
+  pull_request:
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  test_cfitsio_3:
+    name: Test cfitsio 3.49 on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
+        os: [ubuntu-latest, macos-13, macos-14, macos-15] # macos-13 is x86_64, macos-14 & 15 are Arm64
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+
+    - name: (macos) install automake and autoconf
+      if: ${{ startsWith(matrix.os, 'macOS') }}
+      run: |
+        brew install automake autoconf    
+          
+    - name: Install stable minimal toolchain
+      uses: dtolnay/rust-toolchain@v1
+      with:          
+          toolchain: stable
+
+    - name: Install cfitsio 3.49
+      run: |
+        curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-3.49.tar.gz" -o cfitsio.tar.gz
+        tar -xf cfitsio.tar.gz
+        rm cfitsio.tar.gz
+        cd cfitsio-3.49
+        # Enabling SSE2/SSSE3 could cause portability problems, but it's unlikely that anyone
+        # is using such a CPU...
+        # https://stackoverflow.com/questions/52858556/most-recent-processor-without-support-of-ssse3-instructions
+        # Disabling curl just means you cannot fits_open() using a URL.
+        CFLAGS="-O3" ./configure --prefix=/usr/local --enable-reentrant --enable-sse2 --enable-ssse3 --disable-curl
+
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then    
+            make -j
+            sudo make install
+            sudo ldconfig    
+
+        elif [[ "$OSTYPE" == "darwin"* ]]; then    
+            sudo make shared
+            sudo make install    
+        fi
+
+        cd ..
+
+    - name: Run tests run on latest stable rust
+      run: cargo test --features examples
+  
+  test_cfitsio_4:
+    name: Test cfitsio 4.5.0 on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
+        os: [ubuntu-latest, macos-13, macos-14, macos-15] # macos-13 is x86_64, macos-14 & 15 are Arm64
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+
+    - name: (macos) install automake and autoconf
+      if: ${{ startsWith(matrix.os, 'macOS') }}
+      run: |
+        brew install automake autoconf    
+          
+    - name: Install stable minimal toolchain
+      uses: dtolnay/rust-toolchain@v1
+      with:          
+          toolchain: stable
+
+    - name: Install cfitsio 4.5.0
+      run: |
+        curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-4.5.0.tar.gz" -o cfitsio.tar.gz
+        tar -xf cfitsio.tar.gz
+        rm cfitsio.tar.gz
+        cd cfitsio-4.5.0
+        # Enabling SSE2/SSSE3 could cause portability problems, but it's unlikely that anyone
+        # is using such a CPU...
+        # https://stackoverflow.com/questions/52858556/most-recent-processor-without-support-of-ssse3-instructions
+        # Disabling curl just means you cannot fits_open() using a URL.
+        CFLAGS="-O3" ./configure --prefix=/usr/local --enable-reentrant --enable-sse2 --enable-ssse3 --disable-curl
+
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then    
+            make -j
+            sudo make install
+            sudo ldconfig    
+
+        elif [[ "$OSTYPE" == "darwin"* ]]; then    
+            sudo make
+            sudo make install    
+        fi
+
+        cd ..
+
+    - name: Run tests run on latest stable rust
+      run: cargo test --features examples

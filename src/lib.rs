@@ -17,7 +17,9 @@ mod fits_read;
 mod gpubox_files;
 mod metafits_context;
 mod misc;
+mod mwa_fits_file;
 mod rfinput;
+mod signal_chain_correction;
 mod timestep;
 mod voltage_context;
 mod voltage_files;
@@ -68,6 +70,7 @@ pub use metafits_context::{
 };
 pub use misc::*;
 pub use rfinput::{error::RfinputError, Pol, ReceiverType, Rfinput};
+pub use signal_chain_correction::*;
 pub use timestep::TimeStep;
 pub use voltage_context::VoltageContext;
 pub use voltage_files::error::VoltageFileError;
@@ -77,4 +80,4 @@ pub use fitsio;
 pub use fitsio_sys;
 
 #[cfg(feature = "python")]
-mod python;
+pub mod python;

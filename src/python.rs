@@ -3,30 +3,88 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Python interface to mwalib via pyo3.
-
+#[cfg(feature = "python")]
+use pyo3::exceptions::PyException;
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
+#[cfg(feature = "python")]
+use pyo3_stub_gen::{create_exception, define_stub_info_gatherer};
 
 use crate::{
     gpubox_files::error::*,
     rfinput::{Pol, ReceiverType},
     voltage_files::error::*,
-    CableDelaysApplied, CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion,
-    MetafitsContext, VoltageContext,
+    Antenna, CableDelaysApplied, CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion,
+    MetafitsContext, Rfinput, SignalChainCorrection, VoltageContext,
 };
 
-// Add a python exception for mwalib.
-pyo3::create_exception!(mwalib, MwalibError, pyo3::exceptions::PyException);
+// Add a python exception for MmwalibError.
+create_exception!(mwalib, MwalibError, PyException);
 impl std::convert::From<crate::MwalibError> for PyErr {
     fn from(err: crate::MwalibError) -> PyErr {
         MwalibError::new_err(err.to_string())
     }
 }
 
+// Other exceptions
+create_exception!(mwalib, GpuboxErrorBatchMissing, PyException);
+create_exception!(mwalib, GpuboxErrorCorrVerMismatch, PyException);
+create_exception!(mwalib, GpuboxErrorEmptyBTreeMap, PyException);
+create_exception!(mwalib, GpuboxErrorFits, PyException);
+create_exception!(mwalib, GpuboxErrorInvalidCoarseChanIndex, PyException);
+create_exception!(mwalib, GpuboxErrorInvalidMwaVersion, PyException);
+create_exception!(mwalib, GpuboxErrorInvalidTimeStepIndex, PyException);
+create_exception!(mwalib, GpuboxErrorLegacyNaxis1Mismatch, PyException);
+create_exception!(mwalib, GpuboxErrorLegacyNaxis2Mismatch, PyException);
+create_exception!(mwalib, GpuboxErrorMissingObsid, PyException);
+create_exception!(mwalib, GpuboxErrorMixture, PyException);
+create_exception!(mwalib, GpuboxErrorMwaxNaxis1Mismatch, PyException);
+create_exception!(mwalib, GpuboxErrorMwaxNaxis2Mismatch, PyException);
+create_exception!(mwalib, GpuboxErrorMwaxCorrVerMismatch, PyException);
+create_exception!(mwalib, GpuboxErrorMwaxCorrVerMissing, PyException);
+create_exception!(
+    mwalib,
+    GpuboxErrorNoDataForTimeStepCoarseChannel,
+    PyException
+);
+create_exception!(mwalib, GpuboxErrorNoDataHDUsInGpuboxFile, PyException);
+create_exception!(mwalib, GpuboxErrorNoGpuboxes, PyException);
+create_exception!(mwalib, GpuboxErrorObsidMismatch, PyException);
+create_exception!(mwalib, GpuboxErrorUnequalHduSizes, PyException);
+create_exception!(mwalib, GpuboxErrorUnevenCountInBatches, PyException);
+create_exception!(mwalib, GpuboxErrorUnrecognised, PyException);
+create_exception!(mwalib, VoltageErrorInvalidTimeStepIndex, PyException);
+create_exception!(mwalib, VoltageErrorInvalidCoarseChanIndex, PyException);
+create_exception!(mwalib, VoltageErrorNoVoltageFiles, PyException);
+create_exception!(mwalib, VoltageErrorInvalidBufferSize, PyException);
+create_exception!(mwalib, VoltageErrorInvalidGpsSecondStart, PyException);
+create_exception!(mwalib, VoltageErrorInvalidVoltageFileSize, PyException);
+create_exception!(mwalib, VoltageErrorInvalidGpsSecondCount, PyException);
+create_exception!(mwalib, VoltageErro, PyException);
+create_exception!(mwalib, VoltageErrorMixture, PyException);
+create_exception!(mwalib, VoltageErrorGpsTimeMissing, PyException);
+create_exception!(mwalib, VoltageErrorUnevenChannelsForGpsTime, PyException);
+create_exception!(mwalib, VoltageErrorUnrecognised, PyException);
+create_exception!(mwalib, VoltageErrorMissingObsid, PyException);
+create_exception!(mwalib, VoltageErrorUnequalFileSizes, PyException);
+create_exception!(mwalib, VoltageErrorMetafitsObsidMismatch, PyException);
+create_exception!(mwalib, VoltageErrorObsidMismatch, PyException);
+create_exception!(mwalib, VoltageErrorEmptyBTreeMap, PyException);
+create_exception!(mwalib, VoltageErrorInvalidMwaVersion, PyException);
+create_exception!(
+    mwalib,
+    VoltageErrorNoDataForTimeStepCoarseChannel,
+    PyException
+);
+
 #[cfg_attr(feature = "python", pymodule)]
 fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<MetafitsContext>()?;
     m.add_class::<CorrelatorContext>()?;
     m.add_class::<VoltageContext>()?;
+    m.add_class::<SignalChainCorrection>()?;
+    m.add_class::<Antenna>()?;
+    m.add_class::<Rfinput>()?;
     m.add_class::<CableDelaysApplied>()?;
     m.add_class::<GeometricDelaysApplied>()?;
     m.add_class::<MWAVersion>()?;
@@ -196,3 +254,5 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
+
+define_stub_info_gatherer!(stub_info);

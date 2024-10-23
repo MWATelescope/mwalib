@@ -17,6 +17,9 @@ use crate::timestep::*;
 use crate::*;
 
 #[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
+
+#[cfg(feature = "python")]
 mod python;
 
 #[cfg(test)]
@@ -25,8 +28,9 @@ mod test;
 ///
 /// This represents the basic metadata and methods for an MWA correlator observation.
 ///
+#[cfg_attr(feature = "python", gen_stub_pyclass)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 #[derive(Debug)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct CorrelatorContext {
     /// Observation Metadata obtained from the metafits file
     pub metafits_context: MetafitsContext,
@@ -117,7 +121,7 @@ pub struct CorrelatorContext {
     /// number, batch number and HDU index are everything needed to find the
     /// correct HDU out of all gpubox files.
     pub gpubox_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
-    /// A conversion table to optimise reading of legacy MWA HDUs
+    /// A conversion table to optimise reading of legacy MWA HDUs    
     pub(crate) legacy_conversion_table: Vec<LegacyConversionBaseline>,
 }
 
@@ -782,7 +786,7 @@ impl CorrelatorContext {
     ///
     /// * `visibility_pols` - the number of pols produced by the correlator (always 4 for MWA)
     ///
-    /// * `gpubox_fptr` - FITSFile pointer to an MWA GPUbox file
+    /// * `gpubox_fptr` - MWAFITSFile pointer to an MWA GPUbox file
     ///
     /// # Returns
     ///
@@ -794,7 +798,7 @@ impl CorrelatorContext {
         metafits_fine_chans_per_coarse: usize,
         metafits_baselines: usize,
         visibility_pols: usize,
-        gpubox_fptr: &mut fitsio::FitsFile,
+        gpubox_fptr: &mut MWAFitsFile,
     ) -> Result<(), GpuboxError> {
         // Get NAXIS1 and NAXIS2 from a gpubox file first image HDU
         let hdu = fits_open_hdu!(gpubox_fptr, 1)?;

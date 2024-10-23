@@ -12,7 +12,6 @@
 ![Crates.io](https://img.shields.io/crates/d/mwalib)
 ![Crates.io](https://img.shields.io/crates/l/mwalib)
 [![docs](https://docs.rs/mwalib/badge.svg)](https://docs.rs/crate/mwalib/latest)
-[![Rust Report Card](https://rust-reportcard.xuri.me/badge/github.com/MWATelescope/mwalib)](https://rust-reportcard.xuri.me/report/github.com/MWATelescope/mwalib)
 
 mwalib is an MWA library to read raw visibilities, voltages and metadata into a common structure.
 mwalib supports the existing "legacy" MWA correlator, as well as the "MWAX" correlator observations. This library
