@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.7.1 23-Oct-2024
+
+* Release to fix issue generating Rust docs.
+
 ## 1.7.0 23-Oct-2024
 
 * Bumped MSRV to 1.65.

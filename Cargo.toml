@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "1.7.0"
+version = "1.7.1"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
@@ -26,8 +26,6 @@ required-features = ["python"]
 crate-type = ["rlib", "staticlib", "cdylib"]
 
 [features]
-# default
-default = ["cfitsio-static", "examples"]
 # Compile cfitsio from source and link it statically.
 cfitsio-static = ["fitsio-sys/fitsio-src"]
 # Enable optional features needed by examples.
