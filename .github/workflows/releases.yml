@@ -282,6 +282,7 @@ jobs:
             sudo ldconfig    
 
             cd ..
+            rm -rf cfitsio-3.49
           
         - name: Build on latest stable rust
           run: cargo build --release --features examples
