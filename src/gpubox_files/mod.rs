@@ -19,6 +19,8 @@ use crate::*;
 pub use error::GpuboxError;
 
 #[cfg(feature = "python")]
+use pyo3::prelude::*;
+#[cfg(feature = "python")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 #[cfg(test)]
@@ -35,8 +37,7 @@ pub(crate) struct ObsTimesAndChans {
 
 /// This represents one group of gpubox files with the same "batch" identitifer.
 /// e.g. obsid_datetime_chan_batch
-#[cfg_attr(feature = "python", gen_stub_pyclass)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
 #[derive(Clone)]
 pub struct GpuBoxBatch {
     /// Batch number: 00,01,02..n.
@@ -66,8 +67,7 @@ impl fmt::Debug for GpuBoxBatch {
 }
 
 /// This represents one gpubox file
-#[cfg_attr(feature = "python", gen_stub_pyclass)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
 #[derive(Clone)]
 pub struct GpuBoxFile {
     /// Filename of gpubox file

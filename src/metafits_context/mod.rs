@@ -27,6 +27,8 @@ pub mod error;
 mod test;
 
 #[cfg(feature = "python")]
+use pyo3::prelude::*;
+#[cfg(feature = "python")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 #[cfg(feature = "python")]
 use pyo3_stub_gen_derive::gen_stub_pyclass_enum;
@@ -345,8 +347,7 @@ impl std::str::FromStr for MWAMode {
 ///
 /// Metafits context. This represents the basic metadata for an MWA observation.
 ///
-#[cfg_attr(feature = "python", gen_stub_pyclass)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
 #[derive(Clone, Debug)]
 pub struct MetafitsContext {
     /// mwa version

@@ -12,6 +12,11 @@ use crate::rfinput::*;
 use log::trace;
 use std::fmt;
 
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+#[cfg(feature = "python")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
+
 #[cfg(test)]
 mod test;
 
@@ -35,8 +40,8 @@ fn fine_pfb_reorder(input: usize) -> usize {
 }
 
 /// Structure for storing where in the input visibilities to get the specified baseline when converting
+#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
 #[derive(Clone)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
 pub(crate) struct LegacyConversionBaseline {
     pub baseline: usize,    // baseline index
     pub ant1: usize,        // antenna1 index

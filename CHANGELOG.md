@@ -2,6 +2,11 @@
 
 Changes in each release are listed below.
 
+## 1.7.2 ???????????
+
+* Fixed pyo3 decorators to allow stub_gen to work properly- generating python stubs correctly.
+* (TODO) - used new future version of pyo3_stub_gen to ensure Chrono::FixedTimeOffset can have a stub generated in `MetafitsContext`.
+
 ## 1.7.1 23-Oct-2024
 
 * Release to fix issue generating Rust docs.

@@ -8,13 +8,15 @@ use crate::misc;
 use std::fmt;
 
 #[cfg(feature = "python")]
+use pyo3::prelude::*;
+#[cfg(feature = "python")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 #[cfg(test)]
 mod test;
+
 /// This is a struct for our baselines, so callers know the antenna ordering
-#[cfg_attr(feature = "python", gen_stub_pyclass)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
 #[derive(Clone)]
 pub struct Baseline {
     /// Index in the mwalibContext.antenna array for antenna1 for this baseline    
