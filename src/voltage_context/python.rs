@@ -12,8 +12,6 @@ use ndarray::Dim;
 #[cfg(feature = "python")]
 use numpy::PyArray;
 #[cfg(feature = "python")]
-use pyo3::prelude::*;
-#[cfg(feature = "python")]
 use pyo3_stub_gen_derive::gen_stub_pymethods;
 
 #[cfg_attr(feature = "python", gen_stub_pymethods)]

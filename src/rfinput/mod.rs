@@ -13,9 +13,9 @@ use error::RfinputError;
 use std::fmt;
 
 #[cfg(feature = "python")]
-use pyo3_stub_gen_derive::gen_stub_pyclass;
+use pyo3::prelude::*;
 #[cfg(feature = "python")]
-use pyo3_stub_gen_derive::gen_stub_pyclass_enum;
+use pyo3_stub_gen_derive::{gen_stub_pyclass, gen_stub_pyclass_enum};
 
 #[cfg(test)]
 mod test;
@@ -255,8 +255,7 @@ struct RfInputMetafitsCalibDataTableRow {
 }
 
 /// Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
-#[cfg_attr(feature = "python", gen_stub_pyclass)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
 #[derive(Clone)]
 pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
