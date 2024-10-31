@@ -35,7 +35,7 @@ python = ["anyhow", "env_logger", "ndarray", "numpy", "pyo3", "pyo3-stub-gen", "
 
 [dependencies]
 chrono = "0.4.38"
-fitsio = "~0.21"
+fitsio = "0.21.6"
 fitsio-sys = "~0.5"
 lazy_static = "~1.5"
 libc = "~0.2"
@@ -96,7 +96,3 @@ required-features = ["examples"]
 [[example]]
 name = "mwalib-sum-first-fine-channel-gpubox-hdus"
 required-features = ["examples"]
-
-[patch.crates-io]
-fitsio = { git = "https://github.com/simonrw/rust-fitsio.git", branch = "feat/filename-method" }
-fitsio-sys = { git = "https://github.com/simonrw/rust-fitsio.git", branch = "feat/filename-method" }
