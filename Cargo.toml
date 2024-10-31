@@ -96,3 +96,7 @@ required-features = ["examples"]
 [[example]]
 name = "mwalib-sum-first-fine-channel-gpubox-hdus"
 required-features = ["examples"]
+
+[patch.crates-io]
+fitsio = { git = "https://github.com/simonrw/rust-fitsio.git", branch = "feat/filename-method" }
+fitsio-sys = { git = "https://github.com/simonrw/rust-fitsio.git", branch = "feat/filename-method" }
