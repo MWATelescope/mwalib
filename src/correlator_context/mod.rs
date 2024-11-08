@@ -147,6 +147,11 @@ impl CorrelatorContext {
         metafits_filename: P,
         gpubox_filenames: &[P2],
     ) -> Result<Self, MwalibError> {
+        // Check CFITSIO is reentrant before proceeding
+        if !fits_read::is_fitsio_reentrant() {
+            return Err(MwalibError::Fits(FitsError::CfitsioIsNotReentrant));
+        }
+
         Self::new_inner(metafits_filename.as_ref(), gpubox_filenames)
     }
 

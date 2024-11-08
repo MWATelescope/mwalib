@@ -539,6 +539,11 @@ impl MetafitsContext {
         metafits: P,
         mwa_version: Option<MWAVersion>,
     ) -> Result<Self, MwalibError> {
+        // Check CFITSIO is reentrant before proceeding
+        if !fits_read::is_fitsio_reentrant() {
+            return Err(MwalibError::Fits(FitsError::CfitsioIsNotReentrant));
+        }
+
         Self::new_inner(metafits.as_ref(), mwa_version)
     }
 

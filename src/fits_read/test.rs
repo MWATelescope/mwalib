@@ -993,3 +993,8 @@ fn test_read_cell_array_f64() {
     let asdf = read_cell_array_f64(&mut fptr, &hdu, "NotReal", 0, 24);
     assert!(asdf.is_err());
 }
+
+#[test]
+fn test_is_fitsio_reentrant() {
+    assert!(is_fitsio_reentrant())
+}

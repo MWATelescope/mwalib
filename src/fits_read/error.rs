@@ -11,6 +11,10 @@ use thiserror::Error;
 /// FitsError subtypes - mainly used by CorrelatorContext
 #[derive(Error, Debug)]
 pub enum FitsError {
+    /// CFITSIO was not compiled with the REENTRANT directive
+    #[error("mwalib has been compiled with a CFITSIO library which was not built with the -DREENTRANT directive")]
+    CfitsioIsNotReentrant,
+
     /// Error when opening a fits file.
     #[error("{source_file}:{source_line}\nCouldn't open {fits_filename}: {fits_error}")]
     Open {
