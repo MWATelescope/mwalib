@@ -10,6 +10,7 @@ use crate::signal_chain_correction::SignalChainCorrection;
 use crate::{fits_open_hdu_by_name, fits_read::*};
 use core::f32;
 use error::RfinputError;
+use fitsio::FitsFile;
 use std::fmt;
 
 #[cfg(feature = "python")]
@@ -374,7 +375,7 @@ impl Rfinput {
     ///
     /// # Arguments
     ///
-    /// * `metafits_fptr` - reference to the MWAFitsFile representing the metafits file.
+    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
     ///
     /// * `metafits_tile_table_hdu` - reference to the HDU containing the TILEDATA table.
     ///
@@ -388,7 +389,7 @@ impl Rfinput {
     /// * An Result containing a populated vector of RFInputMetafitsTableRow structss or an Error
     ///
     fn read_metafits_tiledata_values(
-        metafits_fptr: &mut MWAFitsFile,
+        metafits_fptr: &mut FitsFile,
         metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
         row: usize,
         num_coarse_chans: usize,
@@ -404,7 +405,7 @@ impl Rfinput {
                 "Y" => Pol::Y,
                 _ => {
                     return Err(RfinputError::UnrecognisedPol {
-                        fits_filename: metafits_fptr.filename.clone(),
+                        fits_filename: metafits_fptr.file_path().to_path_buf(),
                         hdu_num: metafits_tile_table_hdu.number + 1,
                         row_num: row,
                         got: p,
@@ -502,7 +503,7 @@ impl Rfinput {
     ///
     /// # Arguments
     ///
-    /// * `metafits_fptr` - reference to the MWAFitsFile representing the metafits file.
+    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
     ///
     /// * `metafits_calibdata_table_hdu` - reference to the HDU containing the CALIBDATA table.
     ///
@@ -516,7 +517,7 @@ impl Rfinput {
     /// * An Result containing a populated vector of RFInputMetafitsTableRow structss or an Error
     ///
     fn read_metafits_calibdata_values(
-        metafits_fptr: &mut MWAFitsFile,
+        metafits_fptr: &mut FitsFile,
         metafits_calibdata_table_hdu: &Option<fitsio::hdu::FitsHdu>,
         row: usize,
         num_coarse_chans: usize,
@@ -532,7 +533,7 @@ impl Rfinput {
                     "Y" => Pol::Y,
                     _ => {
                         return Err(RfinputError::UnrecognisedPol {
-                            fits_filename: metafits_fptr.filename.clone(),
+                            fits_filename: metafits_fptr.file_path().to_path_buf(),
                             hdu_num: metafits_cal_hdu.number + 1,
                             row_num: row,
                             got: p,
@@ -573,7 +574,7 @@ impl Rfinput {
     ///
     /// * `num_inputs` - number of rf_inputs to read from the metafits TILEDATA bintable.
     ///
-    /// * `metafits_fptr` - reference to the MWAFitsFile representing the metafits file.
+    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
     ///
     /// * `metafits_tile_table_hdu` - reference to the HDU containing the TILEDATA table.
     ///
@@ -587,7 +588,7 @@ impl Rfinput {
     ///
     pub(crate) fn populate_rf_inputs(
         num_inputs: usize,
-        metafits_fptr: &mut MWAFitsFile,
+        metafits_fptr: &mut FitsFile,
         metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
         coax_v_factor: f64,
         num_coarse_chans: usize,

@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## next
+
+* Update to fitsio 0.21.6 - provides FitsFile.file_path() method.
+
 ## 1.7.1 23-Oct-2024
 
 * Release to fix issue generating Rust docs.

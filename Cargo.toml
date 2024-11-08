@@ -35,7 +35,7 @@ python = ["anyhow", "env_logger", "ndarray", "numpy", "pyo3", "pyo3-stub-gen", "
 
 [dependencies]
 chrono = "0.4.38"
-fitsio = "~0.21"
+fitsio = "0.21.6"
 fitsio-sys = "~0.5"
 lazy_static = "~1.5"
 libc = "~0.2"

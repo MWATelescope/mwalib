@@ -9,6 +9,7 @@ use crate::voltage_files::VoltageFileTimeMap;
 pub mod error;
 use crate::*;
 use error::CoarseChannelError;
+use fitsio::{hdu::FitsHdu, FitsFile};
 use std::fmt;
 
 #[cfg(feature = "python")]
@@ -109,10 +110,10 @@ impl CoarseChannel {
     ///
     /// # Arguments
     ///
-    /// `metafits_fptr` - a reference to a metafits MWAFitsFile object.
+    /// `metafits_fptr` - a reference to a metafits FitsFile object.
     ///
     /// `metafits_hdu` - a reference to a metafits primary HDU.
-    ///    
+    ///
     /// `observation_bandwidth_hz` - total bandwidth in Hz of the entire observation. If there are 24 x 1.28 MHz channels
     ///                              this would be 30.72 MHz (30,720,000 Hz)
     ///
@@ -122,8 +123,8 @@ impl CoarseChannel {
     ///                       The width in Hz of each coarse channel
     ///
     pub(crate) fn get_metafits_coarse_channel_info(
-        metafits_fptr: &mut MWAFitsFile,
-        hdu: &fitsio::hdu::FitsHdu,
+        metafits_fptr: &mut FitsFile,
+        hdu: &FitsHdu,
         observation_bandwidth_hz: u32,
     ) -> Result<(Vec<usize>, u32), FitsError> {
         // The coarse-channels string uses the FITS "CONTINUE" keywords. The
@@ -147,7 +148,7 @@ impl CoarseChannel {
     /// * if `voltage_time_map` is supplied, then the coarse channels represent actual coarse channels supplied for a VoltageContext.
     /// * if neither `gpubox_time_map` nor `voltage_time_map` is supplied, then the coarse channels represent the expected coarse channels supplied for a MetafitsContext.
     ///
-    /// # Arguments    
+    /// # Arguments
     ///
     /// `mwa_version` - enum representing the version of the correlator this observation was created with.
     ///
@@ -162,7 +163,7 @@ impl CoarseChannel {
     /// # Returns
     ///
     /// * A tuple containing: A vector of CoarseChannel structs (limited to those are supplied by the client and are valid, unless neither `gpubox_time_map` nor
-    ///                            `voltage_time_map` are provided, and the it is based on the metafits),    
+    ///                            `voltage_time_map` are provided, and the it is based on the metafits),
     ///                       The width in Hz of each coarse channel
     ///
     pub(crate) fn populate_coarse_channels(
@@ -313,11 +314,11 @@ impl CoarseChannel {
     /// This creates a populated vector of indices from the passed in `all_coarse_chans' slice of CoarseChannels based on the
     /// coarse_chan_identifiers vector of coarse channel identifers we pass in.
     ///
-    /// # Arguments    
+    /// # Arguments
     ///
-    /// * `all_coarse_chans` - Reference to a slice containing all the coarse channels  
+    /// * `all_coarse_chans` - Reference to a slice containing all the coarse channels
     ///
-    /// * `coarse_chan_identifiers` - Vector or coarse channel identifiers we want to find the indices for.    
+    /// * `coarse_chan_identifiers` - Vector or coarse channel identifiers we want to find the indices for.
     ///
     /// # Returns
     ///
@@ -345,7 +346,7 @@ impl CoarseChannel {
     /// Calculate the centre frequency of each fine channel of the provided coarse channels.
     ///
     ///
-    /// # Arguments    
+    /// # Arguments
     ///
     /// * `mwa_version` - The version of the MWA is in use.
     ///

@@ -5,7 +5,6 @@
 //! Helper functions for reading FITS files.
 
 pub(crate) mod error;
-pub use crate::mwa_fits_file::MWAFitsFile;
 pub use error::FitsError;
 use fitsio::{hdu::*, FitsFile};
 use log::trace;
@@ -293,13 +292,11 @@ pub fn _open_fits<T: AsRef<std::path::Path>>(
     file: T,
     source_file: &'static str,
     source_line: u32,
-) -> Result<MWAFitsFile, FitsError> {
+) -> Result<FitsFile, FitsError> {
     match FitsFile::open(&file) {
         Ok(f) => {
             trace!("_open_fits() filename: '{}'", file.as_ref().display());
-
-            // Create the wrapper/MWAFitsFile
-            Ok(MWAFitsFile::new(file.as_ref().to_path_buf(), f))
+            Ok(f)
         }
         Err(e) => Err(FitsError::Open {
             fits_error: e,
@@ -315,23 +312,23 @@ pub fn _open_fits<T: AsRef<std::path::Path>>(
 /// To only be used internally; use the `fits_open_hdu!` macro instead.
 #[doc(hidden)]
 pub fn _open_hdu(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     hdu_num: usize,
     source_file: &'static str,
     source_line: u32,
 ) -> Result<FitsHdu, FitsError> {
-    match fits_fptr.fits_file.hdu(hdu_num) {
+    match fits_fptr.hdu(hdu_num) {
         Ok(f) => {
             trace!(
                 "_open_hdu() filename: '{}' hdu: {}",
-                fits_fptr.filename.display(),
+                fits_fptr.file_path().display(),
                 hdu_num
             );
             Ok(f)
         }
         Err(e) => Err(FitsError::Fitsio {
             fits_error: e,
-            fits_filename: fits_fptr.filename.clone(),
+            fits_filename: fits_fptr.file_path().to_path_buf(),
             hdu_num: hdu_num + 1,
             source_file,
             source_line,
@@ -344,23 +341,23 @@ pub fn _open_hdu(
 /// To only be used internally; use the `fits_open_hdu_by_name!` macro instead.
 #[doc(hidden)]
 pub fn _open_hdu_by_name(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     hdu_name: &'static str,
     source_file: &'static str,
     source_line: u32,
 ) -> Result<FitsHdu, FitsError> {
-    match fits_fptr.fits_file.hdu(hdu_name) {
+    match fits_fptr.hdu(hdu_name) {
         Ok(f) => {
             trace!(
                 "_open_hdu_by_name() filename: '{}' hdu: {}",
-                fits_fptr.filename.display(),
+                fits_fptr.file_path().display(),
                 hdu_name
             );
             Ok(f)
         }
         Err(e) => Err(FitsError::Fitsio {
             fits_error: e,
-            fits_filename: fits_fptr.filename.clone(),
+            fits_filename: fits_fptr.file_path().to_path_buf(),
             hdu_num: 9999,
             source_file,
             source_line,
@@ -380,13 +377,13 @@ pub fn _open_hdu_by_name(
 //
 #[doc(hidden)]
 pub fn _get_optional_fits_key<T: std::str::FromStr>(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
     source_file: &'static str,
     source_line: u32,
 ) -> Result<Option<T>, FitsError> {
-    let unparsed_value: String = match hdu.read_key(&mut fits_fptr.fits_file, keyword) {
+    let unparsed_value: String = match hdu.read_key(fits_fptr, keyword) {
         Ok(key_value) => key_value,
         Err(e) => match &e {
             fitsio::errors::Error::Fits(fe) => match fe.status {
@@ -394,7 +391,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
                 _ => {
                     return Err(FitsError::Fitsio {
                         fits_error: e,
-                        fits_filename: fits_fptr.filename.clone(),
+                        fits_filename: fits_fptr.file_path().to_path_buf(),
                         hdu_num: hdu.number + 1,
                         source_file,
                         source_line,
@@ -404,7 +401,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
             _ => {
                 return Err(FitsError::Fitsio {
                     fits_error: e,
-                    fits_filename: fits_fptr.filename.clone(),
+                    fits_filename: fits_fptr.file_path().to_path_buf(),
                     hdu_num: hdu.number + 1,
                     source_file,
                     source_line,
@@ -415,7 +412,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
 
     trace!(
         "_get_optional_fits_key() filename: '{}' hdu: {} keyword: '{}' value: '{}'",
-        fits_fptr.filename.display(),
+        fits_fptr.file_path().display(),
         hdu.number,
         String::from(keyword),
         unparsed_value
@@ -425,7 +422,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
         Ok(parsed_value) => Ok(Some(parsed_value)),
         Err(_) => Err(FitsError::Parse {
             key: keyword.to_string(),
-            fits_filename: fits_fptr.filename.clone(),
+            fits_filename: fits_fptr.file_path().to_path_buf(),
             hdu_num: hdu.number + 1,
             source_file,
             source_line,
@@ -438,7 +435,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
 /// To only be used internally; use the `get_required_fits_key!` macro instead.
 #[doc(hidden)]
 pub fn _get_required_fits_key<T: std::str::FromStr>(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
     source_file: &'static str,
@@ -448,7 +445,7 @@ pub fn _get_required_fits_key<T: std::str::FromStr>(
         Ok(Some(value)) => Ok(value),
         Ok(None) => Err(FitsError::MissingKey {
             key: keyword.to_string(),
-            fits_filename: fits_fptr.filename.clone(),
+            fits_filename: fits_fptr.file_path().to_path_buf(),
             hdu_num: hdu.number + 1,
             source_file,
             source_line,
@@ -462,17 +459,17 @@ pub fn _get_required_fits_key<T: std::str::FromStr>(
 /// To only be used internally; use the `fits_get_col!` macro instead.
 #[doc(hidden)]
 pub fn _get_fits_col<T: fitsio::tables::ReadsCol>(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
     source_file: &'static str,
     source_line: u32,
 ) -> Result<Vec<T>, FitsError> {
-    match hdu.read_col(&mut fits_fptr.fits_file, keyword) {
+    match hdu.read_col(fits_fptr, keyword) {
         Ok(c) => {
             trace!(
                 "_get_fits_col() filename: '{}' hdu: {} keyword: '{}' values: {}",
-                fits_fptr.filename.display(),
+                fits_fptr.file_path().display(),
                 hdu.number,
                 keyword,
                 c.len()
@@ -481,7 +478,7 @@ pub fn _get_fits_col<T: fitsio::tables::ReadsCol>(
         }
         Err(fits_error) => Err(FitsError::Fitsio {
             fits_error,
-            fits_filename: fits_fptr.filename.clone(),
+            fits_filename: fits_fptr.file_path().to_path_buf(),
             hdu_num: hdu.number + 1,
             source_file,
             source_line,
@@ -506,7 +503,7 @@ pub fn _get_fits_col<T: fitsio::tables::ReadsCol>(
 /// This function calls cfitsio. Anything goes!
 #[doc(hidden)]
 pub fn _get_optional_fits_key_long_string(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
     source_file: &'static str,
@@ -519,7 +516,7 @@ pub fn _get_optional_fits_key_long_string(
         let mut status = 0;
         let mut long_string_ptr = ptr::null_mut();
         fitsio_sys::ffgkls(
-            fits_fptr.fits_file.as_raw(),
+            fits_fptr.as_raw(),
             keyword_ffi.as_ptr(),
             &mut long_string_ptr,
             ptr::null_mut(),
@@ -537,7 +534,7 @@ pub fn _get_optional_fits_key_long_string(
             _ => {
                 return Err(FitsError::LongString {
                     key: keyword.to_string(),
-                    fits_filename: fits_fptr.filename.clone(),
+                    fits_filename: fits_fptr.file_path().to_path_buf(),
                     hdu_num: hdu.number + 1,
                     source_file,
                     source_line,
@@ -548,7 +545,7 @@ pub fn _get_optional_fits_key_long_string(
 
     trace!(
         "_get_optional_fits_key_long_string() filename: {} keyword: '{}' value: '{:?}'",
-        fits_fptr.filename.display(),
+        fits_fptr.file_path().display(),
         keyword,
         long_string
     );
@@ -566,7 +563,7 @@ pub fn _get_optional_fits_key_long_string(
 /// macro instead.
 #[doc(hidden)]
 pub fn _get_required_fits_key_long_string(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     keyword: &str,
     source_file: &'static str,
@@ -576,7 +573,7 @@ pub fn _get_required_fits_key_long_string(
         Ok(Some(value)) => Ok(value),
         Ok(None) => Err(FitsError::MissingKey {
             key: keyword.to_string(),
-            fits_filename: fits_fptr.filename.clone(),
+            fits_filename: fits_fptr.file_path().to_path_buf(),
             hdu_num: hdu.number + 1,
             source_file,
             source_line,
@@ -590,7 +587,7 @@ pub fn _get_required_fits_key_long_string(
 /// To only be used internally; use the `get_hdu_image_size!` macro instead.
 #[doc(hidden)]
 pub fn _get_hdu_image_size(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     source_file: &'static str,
     source_line: u32,
@@ -599,14 +596,14 @@ pub fn _get_hdu_image_size(
         HduInfo::ImageInfo { shape, .. } => {
             trace!(
                 "_get_hdu_image_size() filename: '{}' hdu: {} shape: {:?}",
-                fits_fptr.filename.display(),
+                fits_fptr.file_path().display(),
                 hdu.number,
                 shape
             );
             Ok(shape.clone())
         }
         _ => Err(FitsError::NotImage {
-            fits_filename: fits_fptr.filename.clone(),
+            fits_filename: fits_fptr.file_path().to_path_buf(),
             hdu_num: hdu.number + 1,
             source_file,
             source_line,
@@ -619,31 +616,31 @@ pub fn _get_hdu_image_size(
 /// To only be used internally; use the `get_fits_image!` macro instead.
 #[doc(hidden)]
 pub fn _get_fits_image<T: fitsio::images::ReadImage>(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     source_file: &'static str,
     source_line: u32,
 ) -> Result<T, FitsError> {
     match &hdu.info {
-        HduInfo::ImageInfo { .. } => match hdu.read_image(&mut fits_fptr.fits_file) {
+        HduInfo::ImageInfo { .. } => match hdu.read_image(fits_fptr) {
             Ok(img) => {
                 trace!(
                     "_get_fits_image() filename: '{}' hdu: {}",
-                    fits_fptr.filename.display(),
+                    fits_fptr.file_path().display(),
                     hdu.number
                 );
                 Ok(img)
             }
             Err(e) => Err(FitsError::Fitsio {
                 fits_error: e,
-                fits_filename: fits_fptr.filename.clone(),
+                fits_filename: fits_fptr.file_path().to_path_buf(),
                 hdu_num: hdu.number + 1,
                 source_file,
                 source_line,
             }),
         },
         _ => Err(FitsError::NotImage {
-            fits_filename: fits_fptr.filename.clone(),
+            fits_filename: fits_fptr.file_path().to_path_buf(),
             hdu_num: hdu.number + 1,
             source_file,
             source_line,
@@ -654,7 +651,7 @@ pub fn _get_fits_image<T: fitsio::images::ReadImage>(
 /// Direct read of FITS HDU
 #[doc(hidden)]
 pub fn _get_fits_float_img_into_buf(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     hdu: &FitsHdu,
     buffer: &mut [f32],
     source_file: &'static str,
@@ -668,7 +665,7 @@ pub fn _get_fits_float_img_into_buf(
         // Call the underlying cfitsio read function for floats
         let mut status = 0;
         fitsio_sys::ffgpv(
-            fits_fptr.fits_file.as_raw(),
+            fits_fptr.as_raw(),
             fitsio_sys::TFLOAT as _,
             1,
             buffer_len,
@@ -684,7 +681,7 @@ pub fn _get_fits_float_img_into_buf(
             Err(e) => {
                 return Err(FitsError::Fitsio {
                     fits_error: e,
-                    fits_filename: fits_fptr.filename.clone(),
+                    fits_filename: fits_fptr.file_path().to_path_buf(),
                     hdu_num: hdu.number + 1,
                     source_file,
                     source_line,
@@ -695,7 +692,7 @@ pub fn _get_fits_float_img_into_buf(
 
     trace!(
         "_get_fits_float_img_into_buf() filename: '{}' hdu: {}",
-        fits_fptr.filename.display(),
+        fits_fptr.file_path().display(),
         hdu.number
     );
 
@@ -703,16 +700,16 @@ pub fn _get_fits_float_img_into_buf(
 }
 
 pub fn read_cell_value<T: fitsio::tables::ReadsCol>(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     fits_tile_table_hdu: &fitsio::hdu::FitsHdu,
     col_name: &str,
     row: usize,
 ) -> Result<T, FitsError> {
-    match fits_tile_table_hdu.read_cell_value(&mut fits_fptr.fits_file, col_name, row) {
+    match fits_tile_table_hdu.read_cell_value(fits_fptr, col_name, row) {
         Ok(c) => {
             trace!(
                 "read_cell_value() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                fits_fptr.filename.display(),
+                fits_fptr.file_path().display(),
                 fits_tile_table_hdu.number,
                 col_name,
                 row
@@ -720,7 +717,7 @@ pub fn read_cell_value<T: fitsio::tables::ReadsCol>(
             Ok(c)
         }
         Err(_) => Err(FitsError::ReadCell {
-            fits_filename: fits_fptr.filename.clone(),
+            fits_filename: fits_fptr.file_path().to_path_buf(),
             hdu_num: fits_tile_table_hdu.number + 1,
             row_num: row,
             col_name: col_name.to_string(),
@@ -730,7 +727,7 @@ pub fn read_cell_value<T: fitsio::tables::ReadsCol>(
 
 /// Pull out the array-in-a-cell values. T
 pub fn read_cell_array_u32(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     fits_table_hdu: &fitsio::hdu::FitsHdu,
     col_name: &str,
     row: i64,
@@ -741,17 +738,11 @@ pub fn read_cell_array_u32(
         let mut status = 0;
         let mut col_num = -1;
         let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
-        fitsio_sys::ffgcno(
-            fits_fptr.fits_file.as_raw(),
-            0,
-            keyword,
-            &mut col_num,
-            &mut status,
-        );
+        fitsio_sys::ffgcno(fits_fptr.as_raw(), 0, keyword, &mut col_num, &mut status);
         // Check the status.
         if status != 0 {
             return Err(FitsError::CellArray {
-                fits_filename: fits_fptr.filename.clone(),
+                fits_filename: fits_fptr.file_path().to_path_buf(),
                 hdu_num: fits_table_hdu.number,
                 row_num: row,
                 col_name: col_name.to_string(),
@@ -766,7 +757,7 @@ pub fn read_cell_array_u32(
         array.shrink_to_fit();
         let array_ptr = array.as_mut_ptr();
         fitsio_sys::ffgcv(
-            fits_fptr.fits_file.as_raw(),
+            fits_fptr.as_raw(),
             31,
             col_num,
             row + 1,
@@ -786,7 +777,7 @@ pub fn read_cell_array_u32(
 
                 trace!(
                     "read_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                    fits_fptr.filename.display(),
+                    fits_fptr.file_path().display(),
                     fits_table_hdu.number,
                     col_name,
                     row
@@ -798,14 +789,14 @@ pub fn read_cell_array_u32(
                 println!(
                     "ERROR {} read_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
                     status,
-                    fits_fptr.filename.display(),
+                    fits_fptr.file_path().display(),
                     fits_table_hdu.number,
                     col_name,
                     row
                 );
 
                 Err(FitsError::CellArray {
-                    fits_filename: fits_fptr.filename.clone(),
+                    fits_filename: fits_fptr.file_path().to_path_buf(),
                     hdu_num: fits_table_hdu.number + 1,
                     row_num: row,
                     col_name: col_name.to_string(),
@@ -819,7 +810,7 @@ pub fn read_cell_array_u32(
 /// datatype is f32, and that the fits datatype is E (f32), so it is not to be used
 /// generally!
 pub fn read_cell_array_f32(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     fits_table_hdu: &fitsio::hdu::FitsHdu,
     col_name: &str,
     row: i64,
@@ -830,17 +821,11 @@ pub fn read_cell_array_f32(
         let mut status = 0;
         let mut col_num = -1;
         let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
-        fitsio_sys::ffgcno(
-            fits_fptr.fits_file.as_raw(),
-            0,
-            keyword,
-            &mut col_num,
-            &mut status,
-        );
+        fitsio_sys::ffgcno(fits_fptr.as_raw(), 0, keyword, &mut col_num, &mut status);
         // Check the status.
         if status != 0 {
             return Err(FitsError::CellArray {
-                fits_filename: fits_fptr.filename.clone(),
+                fits_filename: fits_fptr.file_path().to_path_buf(),
                 hdu_num: fits_table_hdu.number,
                 row_num: row,
                 col_name: col_name.to_string(),
@@ -859,7 +844,7 @@ pub fn read_cell_array_f32(
         //let nullval_ptr: *mut c_void = &mut null_replace_value as *mut f32 as *mut c_void;
 
         fitsio_sys::ffgcv(
-            fits_fptr.fits_file.as_raw(),
+            fits_fptr.as_raw(),
             42,
             col_num,
             row + 1,
@@ -876,7 +861,7 @@ pub fn read_cell_array_f32(
             0 => {
                 trace!(
                     "read_cell_array_f32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                    fits_fptr.filename.display(),
+                    fits_fptr.file_path().display(),
                     fits_table_hdu.number,
                     col_name,
                     row
@@ -889,14 +874,14 @@ pub fn read_cell_array_f32(
                 println!(
                     "ERROR {} read_cell_array_f32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
                     status,
-                    fits_fptr.filename.display(),
+                    fits_fptr.file_path().display(),
                     fits_table_hdu.number,
                     col_name,
                     row
                 );
 
                 Err(FitsError::CellArray {
-                    fits_filename: fits_fptr.filename.clone(),
+                    fits_filename: fits_fptr.file_path().to_path_buf(),
                     hdu_num: fits_table_hdu.number + 1,
                     row_num: row,
                     col_name: col_name.to_string(),
@@ -910,7 +895,7 @@ pub fn read_cell_array_f32(
 /// datatype is f64, and that the fits datatype is D (f64), so it is not to be used
 /// generally!
 pub fn read_cell_array_f64(
-    fits_fptr: &mut MWAFitsFile,
+    fits_fptr: &mut FitsFile,
     fits_table_hdu: &fitsio::hdu::FitsHdu,
     col_name: &str,
     row: i64,
@@ -921,17 +906,11 @@ pub fn read_cell_array_f64(
         let mut status = 0;
         let mut col_num = -1;
         let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
-        fitsio_sys::ffgcno(
-            fits_fptr.fits_file.as_raw(),
-            0,
-            keyword,
-            &mut col_num,
-            &mut status,
-        );
+        fitsio_sys::ffgcno(fits_fptr.as_raw(), 0, keyword, &mut col_num, &mut status);
         // Check the status.
         if status != 0 {
             return Err(FitsError::CellArray {
-                fits_filename: fits_fptr.filename.clone(),
+                fits_filename: fits_fptr.file_path().to_path_buf(),
                 hdu_num: fits_table_hdu.number,
                 row_num: row,
                 col_name: col_name.to_string(),
@@ -950,7 +929,7 @@ pub fn read_cell_array_f64(
         //let nullval_ptr: *mut c_void = &mut null_replace_value as *mut f32 as *mut c_void;
 
         fitsio_sys::ffgcv(
-            fits_fptr.fits_file.as_raw(),
+            fits_fptr.as_raw(),
             82,
             col_num,
             row + 1,
@@ -967,7 +946,7 @@ pub fn read_cell_array_f64(
             0 => {
                 trace!(
                     "read_cell_array_f64() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                    fits_fptr.filename.display(),
+                    fits_fptr.file_path().display(),
                     fits_table_hdu.number,
                     col_name,
                     row
@@ -980,14 +959,14 @@ pub fn read_cell_array_f64(
                 println!(
                     "ERROR {} read_cell_array_f64() filename: '{}' hdu: {} col_name: '{}' row '{}'",
                     status,
-                    fits_fptr.filename.display(),
+                    fits_fptr.file_path().display(),
                     fits_table_hdu.number,
                     col_name,
                     row
                 );
 
                 Err(FitsError::CellArray {
-                    fits_filename: fits_fptr.filename.clone(),
+                    fits_filename: fits_fptr.file_path().to_path_buf(),
                     hdu_num: fits_table_hdu.number + 1,
                     row_num: row,
                     col_name: col_name.to_string(),

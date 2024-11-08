@@ -4,6 +4,7 @@
 
 //! The main interface to MWA data.
 
+use fitsio::FitsFile;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::Path;
@@ -121,7 +122,7 @@ pub struct CorrelatorContext {
     /// number, batch number and HDU index are everything needed to find the
     /// correct HDU out of all gpubox files.
     pub gpubox_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
-    /// A conversion table to optimise reading of legacy MWA HDUs    
+    /// A conversion table to optimise reading of legacy MWA HDUs
     pub(crate) legacy_conversion_table: Vec<LegacyConversionBaseline>,
 }
 
@@ -141,7 +142,7 @@ impl CorrelatorContext {
     ///
     /// * Result containing a populated CorrelatorContext object if Ok.
     ///
-    ///    
+    ///
     pub fn new<P: AsRef<Path>, P2: AsRef<Path>>(
         metafits_filename: P,
         gpubox_filenames: &[P2],
@@ -798,7 +799,7 @@ impl CorrelatorContext {
         metafits_fine_chans_per_coarse: usize,
         metafits_baselines: usize,
         visibility_pols: usize,
-        gpubox_fptr: &mut MWAFitsFile,
+        gpubox_fptr: &mut FitsFile,
     ) -> Result<(), GpuboxError> {
         // Get NAXIS1 and NAXIS2 from a gpubox file first image HDU
         let hdu = fits_open_hdu!(gpubox_fptr, 1)?;
@@ -926,7 +927,7 @@ impl fmt::Display for CorrelatorContext {
             r#"CorrelatorContext (
             Metafits Context:           {metafits_context}
             MWA version:                {corr_ver},
-            
+
             num timesteps:              {n_timesteps},
             timesteps:                  {timesteps:?},
             num coarse channels,        {n_coarse},
@@ -942,8 +943,8 @@ impl fmt::Display for CorrelatorContext {
             Common GPS start time:      {common_start_gps},
             Common GPS end time:        {common_end_gps},
             Common duration:            {common_duration} s,
-            Common bandwidth:           {common_bw} MHz,     
-            
+            Common bandwidth:           {common_bw} MHz,
+
             Common/Good timestep indices:    {num_common_good_timesteps}: {common_good_ts:?},
             Common/Good coarse chan indices: {num_common_good_coarse_chans}: {common_good_chans:?},
             Common/Good UNIX start time:     {common_good_start_unix},

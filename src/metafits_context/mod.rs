@@ -8,7 +8,7 @@ use std::fmt;
 use std::path::Path;
 
 use chrono::{DateTime, Duration, FixedOffset};
-use fitsio::hdu::HduInfo;
+use fitsio::{hdu::HduInfo, FitsFile};
 use num_derive::FromPrimitive;
 use num_traits::ToPrimitive;
 
@@ -363,7 +363,7 @@ pub struct MetafitsContext {
     pub sched_end_unix_time_ms: u64,
     /// Scheduled start (UTC) of observation
     pub sched_start_utc: DateTime<FixedOffset>,
-    /// Scheduled end (UTC) of observation        
+    /// Scheduled end (UTC) of observation
     pub sched_end_utc: DateTime<FixedOffset>,
     /// Scheduled start (MJD) of observation
     pub sched_start_mjd: f64,
@@ -422,7 +422,7 @@ pub struct MetafitsContext {
     pub mode: MWAMode,
     /// Which Geometric delays have been applied to the data?
     pub geometric_delays_applied: GeometricDelaysApplied,
-    /// Have cable delays been applied to the data?    
+    /// Have cable delays been applied to the data?
     pub cable_delays_applied: CableDelaysApplied,
     /// Have calibration delays and gains been applied to the data?
     pub calibration_delays_and_gains_applied: bool,
@@ -462,7 +462,7 @@ pub struct MetafitsContext {
     pub num_ants: usize,
     /// We also have just the antennas
     pub antennas: Vec<Antenna>,
-    /// Total number of rf_inputs (tiles * 2 pols X&Y)    
+    /// Total number of rf_inputs (tiles * 2 pols X&Y)
     pub num_rf_inputs: usize,
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
     pub rf_inputs: Vec<Rfinput>,
@@ -490,7 +490,7 @@ pub struct MetafitsContext {
     pub num_baselines: usize,
     /// Baslines
     pub baselines: Vec<Baseline>,
-    /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4    
+    /// Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
     pub num_visibility_pols: usize,
     /// Filename of the metafits we were given
     pub metafits_filename: String,
@@ -1083,7 +1083,7 @@ impl MetafitsContext {
     ///
     /// # Arguments
     ///
-    /// * `metafits_fptr` - reference to the MWAFitsFile representing the metafits file.
+    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
     ///
     /// * `sig_chain_hdu` - The FitsHdu containing valid signal chain corrections data.
     ///
@@ -1092,7 +1092,7 @@ impl MetafitsContext {
     /// * Result containing a vector of signal chain corrections read from the sig_chain_hdu HDU.
     ///
     fn populate_signal_chain_corrections(
-        metafits_fptr: &mut MWAFitsFile,
+        metafits_fptr: &mut FitsFile,
         sig_chain_hdu: &fitsio::hdu::FitsHdu,
     ) -> Result<Vec<SignalChainCorrection>, FitsError> {
         // Find out how many rows there are in the table
@@ -1138,7 +1138,7 @@ impl MetafitsContext {
     /// Given a hint at the expected `MWAVersion`, populate the coarse_channel vector with the expected
     /// coarse channels for an existing populated MetafitsContext.
     ///
-    /// # Arguments    
+    /// # Arguments
     ///
     /// * `mwa_version` - Hint, providing the `MWAVersion` info, so the expected `CoarseChannel`s can be returned.
     ///
@@ -1182,7 +1182,7 @@ impl MetafitsContext {
     /// Given a hint at the expected `MWAVersion`, populate the timesteps vector with the expected
     /// timesteps for an existing populated MetafitsContext.
     ///
-    /// # Arguments    
+    /// # Arguments
     ///
     /// * `mwa_version` - Hint, providing the `MWAVersion` info, so the expected `TimeStep`s can be returned.
     ///
@@ -1213,11 +1213,11 @@ impl MetafitsContext {
 
     /// Return an expected voltage filenames for the input timestep and coarse channel indices.
     ///
-    /// # Arguments    
+    /// # Arguments
     ///
-    /// * `metafits_timestep_index` - the timestep index.    
+    /// * `metafits_timestep_index` - the timestep index.
     ///
-    /// * `metafits_coarse_chan_index` - the coarse channel index.            
+    /// * `metafits_coarse_chan_index` - the coarse channel index.
     ///
     ///
     /// # Returns
@@ -1317,7 +1317,7 @@ impl fmt::Display for MetafitsContext {
     Scheduled duration        {sched_duration} s,
     Quack time:               {quack_duration} s,
     Good UNIX start time:     {good_time},
-    
+
     Num timesteps:            {nts},
     Timesteps:                {ts:?},
 
