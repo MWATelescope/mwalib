@@ -18,6 +18,8 @@ use regex::Regex;
 use crate::*;
 pub use error::GpuboxError;
 
+use fitsio::FitsFile;
+
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 #[cfg(feature = "python")]
@@ -258,7 +260,7 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
 
             // Check that there are some HDUs (apart from just the primary)
             // Assuming it does have some, open the first one
-            let hdu = match fptr.fits_file.iter().count() {
+            let hdu = match fptr.iter().count() {
                 1 => {
                     return Err(GpuboxError::NoDataHDUsInGpuboxFile {
                         gpubox_filename: g.filename.clone(),
@@ -418,7 +420,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
 ///
 /// # Arguments
 ///
-/// * `gpubox_fptr` - An MWAFitsFile reference to this gpubox file.
+/// * `gpubox_fptr` - a FitsFile reference to this gpubox file.
 ///
 /// * `gpubox_hdu_fptr` - A reference to the HDU we are finding the time of.
 ///
@@ -429,7 +431,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
 ///
 ///
 fn determine_hdu_time(
-    gpubox_fptr: &mut MWAFitsFile,
+    gpubox_fptr: &mut FitsFile,
     gpubox_hdu_fptr: &FitsHdu,
 ) -> Result<u64, FitsError> {
     let start_unix_time: u64 = get_required_fits_key!(gpubox_fptr, gpubox_hdu_fptr, "TIME")?;
@@ -444,7 +446,7 @@ fn determine_hdu_time(
 ///
 /// # Arguments
 ///
-/// * `gpubox_fptr` - An MWAFitsFile reference to this gpubox file.
+/// * `gpubox_fptr` - a FitsFile reference to this gpubox file.
 ///
 /// * `mwa_version` - enum telling us which correlator version the observation was created by.
 ///
@@ -455,11 +457,11 @@ fn determine_hdu_time(
 ///
 ///
 fn map_unix_times_to_hdus(
-    gpubox_fptr: &mut MWAFitsFile,
+    gpubox_fptr: &mut FitsFile,
     mwa_version: MWAVersion,
 ) -> Result<BTreeMap<u64, usize>, FitsError> {
     let mut map = BTreeMap::new();
-    let last_hdu_index = gpubox_fptr.fits_file.iter().count();
+    let last_hdu_index = gpubox_fptr.iter().count();
     // The new correlator has a "weights" HDU in each alternating HDU. Skip
     // those.
     let step_size = if mwa_version == MWAVersion::CorrMWAXv2 {
@@ -484,7 +486,7 @@ fn map_unix_times_to_hdus(
 ///
 /// # Arguments
 ///
-/// * `gpubox_fptr` - An MWAFitsFile reference to this gpubox file.
+/// * `gpubox_fptr` - a FitsFile reference to this gpubox file.
 ///
 /// * `gpubox_primary_hdu` - The primary HDU of the gpubox file.
 ///
@@ -499,7 +501,7 @@ fn map_unix_times_to_hdus(
 ///
 ///
 fn validate_gpubox_metadata_mwa_version(
-    gpubox_fptr: &mut MWAFitsFile,
+    gpubox_fptr: &mut FitsFile,
     gpubox_primary_hdu: &FitsHdu,
     gpubox_filename: &str,
     mwa_version: MWAVersion,
@@ -537,7 +539,7 @@ fn validate_gpubox_metadata_mwa_version(
 ///
 /// # Arguments
 ///
-/// * `gpubox_fptr` - An MWAFitsFile reference to this gpubox file.
+/// * `gpubox_fptr` - a FitsFile reference to this gpubox file.
 ///
 /// * `gpubox_primary_hdu` - The primary HDU of the gpubox file.
 ///
@@ -552,7 +554,7 @@ fn validate_gpubox_metadata_mwa_version(
 ///
 ///
 fn validate_gpubox_metadata_obs_id(
-    gpubox_fptr: &mut MWAFitsFile,
+    gpubox_fptr: &mut FitsFile,
     gpubox_primary_hdu: &FitsHdu,
     gpubox_filename: &str,
     metafits_obs_id: u32,
@@ -620,7 +622,7 @@ fn create_time_map(
                 }
             }
 
-            // Get the UNIX times from each of the HDUs of this `MWAFitsFile`.
+            // Get the UNIX times from each of the HDUs of this `FitsFile`.
             map_unix_times_to_hdus(&mut fptr, mwa_version).map_err(GpuboxError::from)
         })
         .collect::<Vec<Result<BTreeMap<u64, usize>, GpuboxError>>>();

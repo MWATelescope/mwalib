@@ -113,7 +113,6 @@ fn test_read_metafits_tiledata_values_from_invalid_metafits() {
         let descriptions = [first_description, second_description];
 
         metafits_fptr
-            .fits_file
             .create_table("TILEDATA".to_string(), &descriptions)
             .unwrap();
 
@@ -178,12 +177,10 @@ fn test_read_metafits_calibdata_values_from_invalid_metafits() {
         let descriptions = [first_description, second_description];
 
         metafits_fptr
-            .fits_file
             .create_table("TILEDATA".to_string(), &descriptions)
             .unwrap();
 
         metafits_fptr
-            .fits_file
             .create_table("CALIBDATA".to_string(), &descriptions)
             .unwrap();
 
