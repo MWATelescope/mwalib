@@ -46,5 +46,9 @@ RUSTUP_TOOLCHAIN=${MIN_RUST} maturin develop --all-features --release --strip
 echo "Running python tests..."
 pytest
 
+# Build C examples
+echo "Building C examples..."
+examples/build_c_examples.sh
+
 # Switch back to this dir
 popd
