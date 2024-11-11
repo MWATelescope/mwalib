@@ -2,7 +2,7 @@
 
 set -eux
 
-cargo build --release
+cargo build --release --features=cfitsio-static
 
 # Compile the example C code
 gcc -O3 \

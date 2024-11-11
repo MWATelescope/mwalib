@@ -5,6 +5,7 @@
 //! The main interface to MWA data.
 
 use fitsio::FitsFile;
+use log::warn;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::Path;
@@ -124,6 +125,8 @@ pub struct CorrelatorContext {
     pub gpubox_time_map: BTreeMap<u64, BTreeMap<usize, (usize, usize)>>,
     /// A conversion table to optimise reading of legacy MWA HDUs
     pub(crate) legacy_conversion_table: Vec<LegacyConversionBaseline>,
+    /// BSCALE- FITS BSCALE or SCALEFAC value set on the visibility HDUs (used in Legacy Correlator only)
+    pub bscale: f32,
 }
 
 impl CorrelatorContext {
@@ -171,6 +174,15 @@ impl CorrelatorContext {
 
         // Update the metafits now that we know the mwa_version
         metafits_context.mwa_version = Some(gpubox_info.mwa_version);
+
+        // Determine BSCALE from 1st visibility HDU of each gpubox file
+        let bscale: f32 = match metafits_context.mwa_version {
+            Some(MWAVersion::CorrOldLegacy) | Some(MWAVersion::CorrLegacy) => {
+                Self::get_bscale_from_gpubox_files(metafits_context.obs_id, gpubox_filenames)
+            }
+            // Only Legacy MWA Correlator observations have BSCALE set to anything other than 1.0
+            _ => 1.0,
+        };
 
         // Populate metafits coarse channels and timesteps now that we know what MWA Version we are dealing with
         // Populate the coarse channels
@@ -395,6 +407,7 @@ impl CorrelatorContext {
             num_timestep_coarse_chan_weight_floats: weight_floats,
             num_gpubox_files: gpubox_filenames.len(),
             legacy_conversion_table,
+            bscale,
         })
     }
 
@@ -907,6 +920,63 @@ impl CorrelatorContext {
 
         Ok(())
     }
+
+    /// Returns the BSCALE/SCALEFAC value used in the visibility FITS HDUs. The value
+    /// is only non-one in Legacy Correlator observations and is most of interest
+    /// only to EoR researchers.
+    ///    
+    /// # Arguments
+    ///
+    /// * `obs_id` - The observation ID of this observation
+    ///
+    /// * `gpubox_filenames` - A reference to a vector of paths to the gpubox files
+    ///
+    /// # Returns
+    ///
+    /// * an f32 which is either the BSCALE/SCALEFAC present in the visibility gpuboxfiles or 1.0
+    ///
+    fn get_bscale_from_gpubox_files<P: AsRef<Path>>(obs_id: u32, gpubox_filenames: &[P]) -> f32 {
+        let mut scale_factor: Option<f32> = None;
+
+        for raw_path in gpubox_filenames {
+            // Open each gpubox file
+            let mut fptr = fitsio::FitsFile::open(raw_path).unwrap();
+            // Only check the first visibilities HDU in each gpubox file
+            let hdu1 = fits_open_hdu!(&mut fptr, 1).unwrap();
+            // Check for SCALEFAC and BSCALE
+            for key in ["SCALEFAC", "BSCALE"] {
+                let this_scale_factor: Option<f32> =
+                    get_optional_fits_key!(&mut fptr, &hdu1, key).unwrap();
+                match (scale_factor, this_scale_factor) {
+                    (Some(sf), Some(this_sf)) => {
+                        assert!(
+                            ((sf - this_sf).abs() < f32::EPSILON),
+                            "Different scale factors found in gpubox files: {} and {}",
+                            sf,
+                            this_sf
+                        );
+                    }
+                    (None, Some(this_sf)) => {
+                        scale_factor = Some(this_sf);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        // If BSCALE/SCALEFAC was found then return it, otherwise
+        // Check if the obsid is < 1096160568 then return 0.25 otherwise return 1.0
+        // TODO we should really check this "0.25" assumption!
+        match (scale_factor, obs_id) {
+            (Some(sf), _) => sf,
+            // according to pyuvdata "correlator did a divide by 4 before october 2014"
+            // https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/05ee100af2e4e11c9d291c9eafc937578ef01763/src/pyuvdata/uvdata/mwa_corr_fits.py#L1464
+            (None, t) if t < 1096160568 => 0.25,
+            _ => {
+                warn!("No scale factor found in metafits or gpufits files, defaulting to 1.0");
+                1.0
+            }
+        }
+    }
 }
 
 /// Implements fmt::Display for CorrelatorContext struct
@@ -963,6 +1033,8 @@ impl fmt::Display for CorrelatorContext {
             Memory usage per scan:      {scan_size} MiB,
 
             gpubox batches:             {batches:#?},
+
+            BSCALE/SCALEFAC:            {bscale},
         )"#,
             metafits_context = self.metafits_context,
             corr_ver = self.mwa_version,
@@ -997,6 +1069,7 @@ impl fmt::Display for CorrelatorContext {
             hdu_size = size,
             scan_size = size * self.num_gpubox_files as f64,
             batches = self.gpubox_batches,
+            bscale = self.bscale
         )
     }
 }

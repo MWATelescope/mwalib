@@ -332,6 +332,7 @@ class CorrelatorContext:
     num_gpubox_files: int
     gpubox_batches: list[GpuBoxBatch]
     gpubox_time_map: dict[int, dict[int, tuple[int, int]]]
+    bscale: float
     def __new__(cls, metafits_filename: str, gpubox_filenames: list[str]) -> CorrelatorContext: ...
     def get_fine_chan_freqs_hz_array(self, corr_coarse_chan_indices: typing.Sequence[int]) -> list[float]:
         r"""

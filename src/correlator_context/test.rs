@@ -177,6 +177,8 @@ fn test_context_legacy_v1() {
         context.metafits_context.num_metafits_fine_chan_freqs,
         context.metafits_context.metafits_fine_chan_freqs_hz.len()
     );
+
+    assert_eq!(context.bscale, 0.5);
 }
 
 #[test]
@@ -272,7 +274,9 @@ fn test_context_mwax() {
     assert_eq!(
         context.num_timestep_coarse_chan_weight_floats,
         ((128 * 129) / 2) * 4
-    )
+    );
+
+    assert_eq!(context.bscale, 1.0);
 }
 
 #[test]
