@@ -33,9 +33,9 @@ def legacy_cc() -> mwalib.CorrelatorContext:
     return mwalib.CorrelatorContext(LEGACY_CORRELATOR_METAFITS, LEGACY_CORRELATOR_GPUBOX_FILES)
 
 
-def test_legacy_corr_context_attributes(mwax_cc: mwalib.CorrelatorContext):
-    assert mwax_cc.mwa_version == mwalib.MWAVersion.CorrLegacy
-    assert mwax_cc.bscale == 0.5
+def test_legacy_corr_context_attributes(legacy_cc: mwalib.CorrelatorContext):
+    assert legacy_cc.mwa_version == mwalib.MWAVersion.CorrLegacy
+    assert legacy_cc.bscale == 0.5
 
 
 def test_mwax_corr_context_attributes(mwax_cc: mwalib.CorrelatorContext):
