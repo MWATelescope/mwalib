@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.8.1 12-Nov-2024
+
+* Ensure only one version of pyo3-stub-gen-derive is used in the project.
+
 ## 1.8.0 11-Nov-2024
 
 * mwalib now will detect and raise an error (`MwalibError::Fits.CfitsioIsNotReentrant`) if the CFITSIO library that mwalib is linked with has been built without the `-D_REENTRANT` directive (github issue #82).
