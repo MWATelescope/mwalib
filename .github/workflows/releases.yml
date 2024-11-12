@@ -63,8 +63,55 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --all-features --out dist -i 3.9 3.10 3.11 3.12 3.13
           manylinux: auto
+          before-script-linux: |
+            export TAG="$(git describe --tags)"
+            echo "TAG=$TAG"
 
-      - name: Upload linux wheels
+            export PLATFORM_TARGET="${{ matrix.platform.target }}"
+            echo "PLATFORM_TARGET=$PLATFORM_TARGET"
+
+            # determine which target cpus for rustc to build for from machine type          
+            case $PLATFORM_TARGET in
+              x86_64)
+                if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+                  export TARGETS="x86-64 x86-64-v2 x86-64-v3"
+                else
+                  export TARGETS="x86-64"
+                fi
+                ;;            
+              aarch64)
+                export TARGETS="aarch64"
+                ;;
+              *) echo "unknown platform target $PLATFORM_TARGET"; exit 1 ;;
+            esac
+
+            echo "Rust TARGETS=$TARGETS"
+                      
+            export LIB_GLOB="{a,so}"
+
+            for TARGET in $TARGETS; do            
+              echo "building kernel-target linux-$TARGET"
+              export RUSTFLAGS="-C target-cpu=$TARGET"          
+              
+              # Build C objects
+              cargo build --release --features cfitsio-static,examples
+
+              # Create new release asset tarballs
+              # Get some debug            
+              ls -la target/release
+              ls -la include
+              ls -la .
+
+              eval mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
+              eval tar -acvf mwalib-${TAG}-linux-${TARGET}.tar.gz \
+                  LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
+                  libmwalib.${LIB_GLOB} mwalib.h
+              eval tar -acvf mwalib-${TAG}-linux-${TARGET}-python.tar.gz \
+                LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
+                ./dist/*.whl
+            done
+
+      - name: Upload linux wheels (only used by pypi publish step)
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.platform.target }}
@@ -75,55 +122,19 @@ jobs:
           # Fix permissions- output files from maturn-action end up owned by root
           # so lets change them back to root:root
           sudo chown -R runner:docker .
-         
-          export TAG="$(git describe --tags)"
-          echo "TAG=$TAG"
-
-          export PLATFORM_TARGET="${{ matrix.platform.target }}"
-          echo "PLATFORM_TARGET=$PLATFORM_TARGET"
-
-          # determine which target cpus for rustc to build for from machine type          
-          case $PLATFORM_TARGET in
-            x86_64)
-              if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-                export TARGETS="x86-64 x86-64-v2 x86-64-v3"
-              else
-                export TARGETS="x86-64"
-              fi
-              ;;            
-            aarch64)
-              export TARGETS="aarch64"
-              ;;
-            *) echo "unknown platform target $PLATFORM_TARGET"; exit 1 ;;
-          esac
-
+                                         
+          echo "TAG=$TAG"          
+          echo "PLATFORM_TARGET=$PLATFORM_TARGET"          
           echo "Rust TARGETS=$TARGETS"
-                    
-          export LIB_GLOB="{a,so}"
-
+          echo "lib glob=$LIB_GLOB"
+          
           for TARGET in $TARGETS; do            
-            echo "building kernel-target linux-$TARGET"
-            export RUSTFLAGS="-C target-cpu=$TARGET"          
-            
-            # Build C objects
-            cargo build --release --features cfitsio-static,examples
-
-            # Create new release asset tarballs
-            # Get some debug            
-            ls -la target/release
-            ls -la include
-            ls -la .
-
-            eval mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
-            eval tar -acvf mwalib-${TAG}-linux-${TARGET}.tar.gz \
-                LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
-                libmwalib.${LIB_GLOB} mwalib.h
             eval tar -acvf mwalib-${TAG}-linux-${TARGET}-python.tar.gz \
               LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
-              ./dist/*.whl          
+              ./dist/*.whl
           done
 
-      - name: Upload linux tarball
+      - name: Upload linux tarballs
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.platform.target }}.tar.gz
