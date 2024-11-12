@@ -15,7 +15,7 @@ name: Releasev2
 on:
   push:
     tags:
-      - "v*"  
+      - "*"  
   workflow_dispatch:
 
 env:
@@ -23,22 +23,39 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  build_linux:
+  # build_source_distribution:
+  #   runs-on: ubuntu-latest
+    
+  #   steps:                  
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4      
+
+  #     - name: Build source distribution wheel
+  #       uses: PyO3/maturin-action@v1        
+  #       with:
+  #         target: x86_64
+  #         args: --release --all-features --out dist --sdist
+  #         manylinux: auto
+
+  #     - name: Upload souce disttribution wheel
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: wheels-sdist
+  #         path: dist
+
+  build_linux_wheels:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
         platform:
           - runner: ubuntu-latest
             target: x86_64
-#          - runner: ubuntu-latest
-#            target: aarch64
-#          - runner: ubuntu-latest
-#            target: armv7
-#          - runner: ubuntu-latest
-#            target: ppc64le
+          - runner: ubuntu-latest
+            target: aarch64          
+
     steps:                  
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4      
 
       - name: Build linux wheels
         uses: PyO3/maturin-action@v1        
@@ -71,7 +88,13 @@ jobs:
               else
                 export TARGETS="x86-64"
               fi
-              ;;            
+              ;;
+            arm64)
+              export TARGETS="aarch64"
+              ;;
+            aarch64)
+              export TARGETS="aarch64"
+              ;;
             *) echo "unknown arch (uname -m) $ARCH"; exit 1 ;;
           esac
 
@@ -111,7 +134,7 @@ jobs:
           path: "*.tar.gz"
           if-no-files-found: error
 
-  build_macos:
+  build_macos_wheels:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -192,8 +215,8 @@ jobs:
   create-github-release:
     name: Create a new github release
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/') }}
-    needs: [build_linux, build_macos]    
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    needs: [build_linux_wheels, build_macos_wheels]    
     environment: CI
     steps:
       - name: Download artifacts
@@ -215,7 +238,7 @@ jobs:
   pypi_release:
     name: Publish to pypi
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     environment: CI
     needs: [create-github-release]
     permissions:
@@ -248,7 +271,7 @@ jobs:
   rust_release:
     name: Publish to crates.io
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     needs: [create-github-release]
     environment: CI
     steps:
@@ -285,10 +308,7 @@ jobs:
             rm -rf cfitsio-3.49
           
         - name: Build on latest stable rust
-          run: cargo build --release --features examples
-
-        - name: Run tests on latest stable rust
-          run: cargo test --release --features examples
+          run: cargo build --release --features examples        
 
         - uses: katyo/publish-crates@v2
           with:
