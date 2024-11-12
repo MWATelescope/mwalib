@@ -25,20 +25,22 @@ LEGACY_CORRELATOR_GPUBOX_FILES = [
 
 @pytest.fixture
 def mwax_cc() -> mwalib.CorrelatorContext:
-    return mwalib.CorrelatorContext(
-        MWAX_CORRELATOR_METAFITS, MWAX_CORRELATOR_GPUBOX_FILES
-    )
+    return mwalib.CorrelatorContext(MWAX_CORRELATOR_METAFITS, MWAX_CORRELATOR_GPUBOX_FILES)
 
 
 @pytest.fixture
-def legacy_cc() -> mwalib.CorrelatorContext:    
-    return mwalib.CorrelatorContext(
-        LEGACY_CORRELATOR_METAFITS, LEGACY_CORRELATOR_GPUBOX_FILES
-    )
+def legacy_cc() -> mwalib.CorrelatorContext:
+    return mwalib.CorrelatorContext(LEGACY_CORRELATOR_METAFITS, LEGACY_CORRELATOR_GPUBOX_FILES)
 
 
-def test_mwax_corr_context_mwa_version(mwax_cc: mwalib.CorrelatorContext):
+def test_legacy_corr_context_attributes(legacy_cc: mwalib.CorrelatorContext):
+    assert legacy_cc.mwa_version == mwalib.MWAVersion.CorrLegacy
+    assert legacy_cc.bscale == 0.5
+
+
+def test_mwax_corr_context_attributes(mwax_cc: mwalib.CorrelatorContext):
     assert mwax_cc.mwa_version == mwalib.MWAVersion.CorrMWAXv2
+    assert mwax_cc.bscale == 1.0
 
 
 def test_mwax_corr_context_read_visibilities(mwax_cc: mwalib.CorrelatorContext):
@@ -64,9 +66,7 @@ def test_mwax_corr_context_read_visibilities(mwax_cc: mwalib.CorrelatorContext):
     )
 
     # Check the sums are equial
-    assert np.sum(data_by_bl, dtype=np.float64) == np.sum(
-        data_by_freq, dtype=np.float64
-    )
+    assert np.sum(data_by_bl, dtype=np.float64) == np.sum(data_by_freq, dtype=np.float64)
 
 
 def test_mwax_corr_context_read_weights_by_baseline(mwax_cc: mwalib.CorrelatorContext):

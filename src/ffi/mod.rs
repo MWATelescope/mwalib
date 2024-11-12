@@ -2296,6 +2296,8 @@ pub struct CorrelatorMetadata {
     pub num_timestep_coarse_chan_weight_floats: usize,
     /// This is the number of gpubox files *per batch*.
     pub num_gpubox_files: usize,
+    /// BSCALE- FITS BSCALE or SCALEFAC value set on the visibility HDUs (used in Legacy Correlator only)
+    pub bscale: f32,
 }
 
 /// This returns a struct containing the `CorrelatorContext` metadata
@@ -2426,6 +2428,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             gpubox_batches: _, // This is currently not provided to FFI as it is private
             gpubox_time_map: _, // This is currently not provided to FFI
             legacy_conversion_table: _, // This is currently not provided to FFI as it is private
+            bscale,
         } = context;
         CorrelatorMetadata {
             mwa_version: *mwa_version,
@@ -2471,6 +2474,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             num_timestep_coarse_chan_floats: *num_timestep_coarse_chan_floats,
             num_timestep_coarse_chan_weight_floats: *num_timestep_coarse_chan_weight_floats,
             num_gpubox_files: *num_gpubox_files,
+            bscale: *bscale,
         }
     };
 

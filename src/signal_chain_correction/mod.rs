@@ -3,13 +3,14 @@ use crate::MAX_RECEIVER_CHANNELS;
 use std::fmt;
 
 #[cfg(feature = "python")]
+use pyo3::prelude::*;
+#[cfg(feature = "python")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 ///
 /// Signal chain correction table
 ///
-#[cfg_attr(feature = "python", gen_stub_pyclass)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
 #[derive(Clone, Debug, PartialEq)]
 #[repr(C)]
 pub struct SignalChainCorrection {

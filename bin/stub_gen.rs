@@ -39,23 +39,6 @@ fn fix_stubs() -> anyhow::Result<()> {
     // After the stub is generated, we have some "manual" fixes to do
     let stubfile = String::from("mwalib.pyi");
 
-    // Import datetime
-    insert_stub_below(&stubfile, "import typing\n", "import datetime\n")?;
-
-    // Add sched_start_utc (Chrono::DateTime<FixedOffset> is not supported yet)
-    insert_stub_below(
-        &stubfile,
-        "    sched_end_unix_time_ms: int\n",
-        "    sched_start_utc: datetime.datetime\n",
-    )?;
-
-    // Add sched_end_utc (Chrono::DateTime<FixedOffset> is not supported yet)
-    insert_stub_below(
-        &stubfile,
-        "    sched_start_utc: datetime.datetime\n",
-        "    sched_end_utc: datetime.datetime\n",
-    )?;
-
     // Replace the constructors as pyo3_stub_gen seems to ignore the text_signature
     replace_stub(&stubfile,"def __new__(cls,metafits_filename,mwa_version = ...): ...","def __new__(cls, metafits_filename: str, mwa_version: typing.Optional[MWAVersion]=None)->MetafitsContext:\n        ...\n",)?;
 
@@ -87,6 +70,8 @@ fn fix_stubs() -> anyhow::Result<()> {
 /// Inserts new items in the stubfile for when pyo3 cant do it
 /// properly.
 ///
+/// Currently this function is not used, but kept in case it is needed later!
+///
 /// This will:
 /// * Open the created stubfile
 /// * Find the line in `string_to_find` (fails if not found)
@@ -106,6 +91,7 @@ fn fix_stubs() -> anyhow::Result<()> {
 /// * Result Ok if stub file was modified successfully.
 ///
 ///
+#[allow(dead_code)]
 #[cfg(feature = "python")]
 fn insert_stub_below<P: AsRef<Path>>(
     stubfile: P,

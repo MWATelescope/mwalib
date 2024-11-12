@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "1.7.2"
+version = "1.8.0"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
@@ -54,7 +54,9 @@ env_logger = { version = "~0.10", optional = true }
 ndarray = { version = "~0.16", optional = true }
 numpy = { version = "~0.22", optional = true }
 pyo3 = { version = "~0.22", features = ["chrono", "extension-module", "macros"], optional = true }
-pyo3-stub-gen = { version = "~0.6", optional = true }
+# pyo3-stub-gen = { version = "~0.6", optional = true }
+# The below pyo3-stub-gen branch has not been merged with main as of 8-Nov-2024. once it has been it should be fine to go back to using the main branch again.
+pyo3-stub-gen = { branch = "chrono_feature", optional = true, git = "https://github.com/ThatOneShortGuy/pyo3-stub-gen" }
 pyo3-stub-gen-derive = { version = "~0.6", optional = true }
 
 # "examples" feature.

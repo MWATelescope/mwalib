@@ -16,6 +16,8 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
 #[cfg(feature = "python")]
+use pyo3::prelude::*;
+#[cfg(feature = "python")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 #[cfg(feature = "python")]
@@ -27,8 +29,7 @@ pub(crate) mod test; // It's pub crate because I reuse some test code in the ffi
 ///
 /// This represents the basic metadata and methods for an MWA voltage capture system (VCS) observation.
 ///
-#[cfg_attr(feature = "python", gen_stub_pyclass)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
 #[derive(Debug)]
 pub struct VoltageContext {
     /// Observation Metadata obtained from the metafits file
@@ -165,6 +166,11 @@ impl VoltageContext {
         metafits_filename: P,
         voltage_filenames: &[P2],
     ) -> Result<Self, MwalibError> {
+        // Check CFITSIO is reentrant before proceeding
+        if !fits_read::is_fitsio_reentrant() {
+            return Err(MwalibError::Fits(FitsError::CfitsioIsNotReentrant));
+        }
+
         Self::new_inner(metafits_filename.as_ref(), voltage_filenames)
     }
 

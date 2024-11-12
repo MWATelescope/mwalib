@@ -48,7 +48,9 @@ pytest
 
 # Build C examples
 echo "Building C examples..."
-examples/build_c_examples.sh
+pushd examples
+./build_c_examples.sh
+popd
 
 # Switch back to this dir
 popd

@@ -2292,6 +2292,9 @@ fn test_mwalib_correlator_metadata_get_valid() {
         );
         assert_eq!(item[0].unix_time_ms, 1_417_468_096_000);
 
+        // Check bscale
+        assert_eq!(correlator_metadata.bscale, 0.5);
+
         // So that the next free works, we set the pointer to null (the ffi_boxed_slice_to_array effectively freed the timestep array memory - as far as C/FFI is concerned)
         correlator_metadata.timesteps = std::ptr::null_mut();
 

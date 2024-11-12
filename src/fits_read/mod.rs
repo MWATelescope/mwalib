@@ -975,3 +975,13 @@ pub fn read_cell_array_f64(
         }
     }
 }
+
+/// Returns True if CFITSIO was compiled with the REENTRANT directive
+///
+/// # Returns
+///
+/// * boolean value indicating if CFITSIO is compiled with the REENTRANT directive.
+///
+pub fn is_fitsio_reentrant() -> bool {
+    unsafe { fitsio_sys::fits_is_reentrant() == 1 }
+}

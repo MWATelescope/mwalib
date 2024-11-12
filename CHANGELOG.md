@@ -2,6 +2,16 @@
 
 Changes in each release are listed below.
 
+## 1.8.0 11-Nov-2024
+
+* mwalib now will detect and raise an error (`MwalibError::Fits.CfitsioIsNotReentrant`) if the CFITSIO library that mwalib is linked with has been built without the `-D_REENTRANT` directive (github issue #82).
+* Expose the FITS BSCALE in image HDUs as a single value `bscale` in `CorrelatorContext` (github issue #85).
+  * For most Legacy MWA observations, this may be a value other than 1.0. For MWAX correlator this will always be 1.0.
+  * This is mainly of interest to EoR researchers who are trying to implement Van Vleck corrections.
+* Python type stubs:
+  * Fixed pyo3 decorators to allow stub_gen to work properly / generate python stubs correctly.
+  * Used prerelease version of pyo3_stub_gen to ensure Chrono::FixedTimeOffset can have a stub generated in `MetafitsContext`.
+
 ## 1.7.2 8-Nov-2024
 
 * Update to fitsio 0.21.6 - provides FitsFile.file_path() method.
@@ -14,7 +24,7 @@ Changes in each release are listed below.
 ## 1.7.0 23-Oct-2024 (Yanked- MWAFitsFile is no longer to be used)
 
 * Bumped MSRV to 1.65.
-* Update fitsio to 0.21 and fitsio-sys to 0.5.  To make v0.21 work, a new struct, MWAFitsFile is used inplace of FitsFile, as FitsFile no longer carries the `filename` property which is needed by mwalib.
+* Update fitsio to 0.21 and fitsio-sys to 0.5. To make v0.21 work, a new struct, MWAFitsFile is used inplace of FitsFile, as FitsFile no longer carries the `filename` property which is needed by mwalib.
 * Removed Rust Report Card from README status badges. Looks like this service is abandonded.
 * Added Python .pyi stub generation to provide mwalib Python users with type and docstring information. The mwalib.pyi should get baked into the python wheels released to github and Pypi. See `bin/README.md` for caveats and more details.
 * Added CI to test compilation against cfitsio 3.x and 4.x when not using the `cfitsio-static` feature.
