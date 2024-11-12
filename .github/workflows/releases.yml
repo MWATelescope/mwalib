@@ -15,7 +15,7 @@ name: Releasev2
 on:
   push:
     tags:
-      - "*"  
+      - "v*"  
   workflow_dispatch:
 
 env:
@@ -23,39 +23,22 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  # build_source_distribution:
-  #   runs-on: ubuntu-latest
-    
-  #   steps:                  
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4      
-
-  #     - name: Build source distribution wheel
-  #       uses: PyO3/maturin-action@v1        
-  #       with:
-  #         target: x86_64
-  #         args: --release --all-features --out dist --sdist
-  #         manylinux: auto
-
-  #     - name: Upload souce disttribution wheel
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: wheels-sdist
-  #         path: dist
-
-  build_linux_wheels:
+  build_linux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
         platform:
           - runner: ubuntu-latest
             target: x86_64
-          - runner: ubuntu-latest
-            target: aarch64          
-
+#          - runner: ubuntu-latest
+#            target: aarch64
+#          - runner: ubuntu-latest
+#            target: armv7
+#          - runner: ubuntu-latest
+#            target: ppc64le
     steps:                  
       - name: Checkout repository
-        uses: actions/checkout@v4      
+        uses: actions/checkout@v4
 
       - name: Build linux wheels
         uses: PyO3/maturin-action@v1        
@@ -63,53 +46,8 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --all-features --out dist -i 3.9 3.10 3.11 3.12 3.13
           manylinux: auto
-          before-script-linux: |
-            git config --global --add safe.directory /home/runner/work/mwalib/mwalib
-            export TAG="$(git describe --tags)"
-            echo "TAG=$TAG"
 
-            export PLATFORM_TARGET="${{ matrix.platform.target }}"
-            echo "PLATFORM_TARGET=$PLATFORM_TARGET"
-
-            # determine which target cpus for rustc to build for from machine type          
-            case $PLATFORM_TARGET in
-              x86_64)
-                if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-                  export TARGETS="x86-64 x86-64-v2 x86-64-v3"
-                else
-                  export TARGETS="x86-64"
-                fi
-                ;;            
-              aarch64)
-                export TARGETS="aarch64-unknown-linux-gnu"
-                ;;
-              *) echo "unknown platform target $PLATFORM_TARGET"; exit 1 ;;
-            esac
-
-            echo "Rust TARGETS=$TARGETS"
-                      
-            export LIB_GLOB="{a,so}"
-
-            for TARGET in $TARGETS; do            
-              echo "building kernel-target linux-$TARGET"
-              export RUSTFLAGS="-C target-cpu=$TARGET"          
-              
-              # Build C objects
-              cargo build --release --features cfitsio-static,examples
-
-              # Create new release asset tarballs
-              # Get some debug            
-              ls -la target/release
-              ls -la include
-              ls -la .
-
-              eval mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
-              eval tar -acvf mwalib-${TAG}-linux-${TARGET}.tar.gz \
-                  LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
-                  libmwalib.${LIB_GLOB} mwalib.h              
-            done
-
-      - name: Upload linux wheels (only used by pypi publish step)
+      - name: Upload linux wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.platform.target }}
@@ -120,26 +58,60 @@ jobs:
           # Fix permissions- output files from maturn-action end up owned by root
           # so lets change them back to root:root
           sudo chown -R runner:docker .
-                                         
-          echo "TAG=$TAG"          
-          echo "PLATFORM_TARGET=$PLATFORM_TARGET"          
-          echo "Rust TARGETS=$TARGETS"
-          echo "lib glob=$LIB_GLOB"
-          
+         
+          export TAG="$(git describe --tags)"
+          echo "TAG=$TAG"
+
+          # determine which target cpus for rustc to build for from machine type
+          export ARCH="$(uname -m)"
+          case $ARCH in
+            x86_64)
+              if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+                export TARGETS="x86-64 x86-64-v2 x86-64-v3"
+              else
+                export TARGETS="x86-64"
+              fi
+              ;;            
+            *) echo "unknown arch (uname -m) $ARCH"; exit 1 ;;
+          esac
+
+          # determine which library file extensions to include in archive from kernel
+          export KERNEL="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          case $KERNEL in            
+            linux*) export LIB_GLOB="{a,so}" ;;
+            *) echo "unknown kernel (uname -s) $KERNEL"; exit 1 ;;
+          esac        
+
           for TARGET in $TARGETS; do            
-            eval tar -acvf mwalib-${TAG}-linux-${TARGET}-python.tar.gz \
+            echo "building kernel-target $KERNEL-$TARGET"
+            export RUSTFLAGS="-C target-cpu=$TARGET"          
+            
+            # Build C objects
+            cargo build --release --features cfitsio-static,examples
+
+            # Create new release asset tarballs
+            # Get some debug            
+            ls -la target/release
+            ls -la include
+            ls -la .
+
+            eval mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
+            eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}.tar.gz \
+                LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
+                libmwalib.${LIB_GLOB} mwalib.h
+            eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}-python.tar.gz \
               LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
-              ./dist/*.whl
+              ./dist/*.whl          
           done
 
-      - name: Upload linux tarballs
+      - name: Upload linux tarball
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.platform.target }}.tar.gz
           path: "*.tar.gz"
           if-no-files-found: error
 
-  build_macos_wheels:
+  build_macos:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -181,15 +153,16 @@ jobs:
             arm64) export TARGET="arm64";;
             *) echo "unknown arch (uname -m) $ARCH"; exit 1 ;;
           esac
-          
-          echo "ARCH=$ARCH"
 
           # determine which library file extensions to include in archive from kernel
-          export LIB_GLOB="{a,dylib}"            
-
-          echo "Rust TARGETS=$TARGETS"
-
-          echo "building kernel-target darwin-$TARGET"
+          export KERNEL="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          case $KERNEL in
+            darwin*) export LIB_GLOB="{a,dylib}" ;;
+            linux*) export LIB_GLOB="{a,so}" ;;
+            *) echo "unknown kernel (uname -s) $KERNEL"; exit 1 ;;
+          esac
+                              
+          echo "building kernel-target $KERNEL-$TARGET"
           export RUSTFLAGS="-C target-cpu=$TARGET"          
           
           # Build C objects
@@ -202,10 +175,10 @@ jobs:
 
           # Create new release asset tarballs
           eval mv target/release/libmwalib.${LIB_GLOB} include/mwalib.h .
-          eval tar -acvf mwalib-${TAG}-darwin-${TARGET}.tar.gz \
+          eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}.tar.gz \
               LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
               libmwalib.${LIB_GLOB} mwalib.h
-          eval tar -acvf mwalib-${TAG}-darwin-${TARGET}-python.tar.gz \
+          eval tar -acvf mwalib-${TAG}-${KERNEL}-${TARGET}-python.tar.gz \
               LICENSE LICENSE-cfitsio README.md CHANGELOG.md \
               ./dist/*.whl
 
@@ -220,7 +193,7 @@ jobs:
     name: Create a new github release
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
-    needs: [build_linux_wheels, build_macos_wheels]    
+    needs: [build_linux, build_macos]    
     environment: CI
     steps:
       - name: Download artifacts
@@ -242,7 +215,7 @@ jobs:
   pypi_release:
     name: Publish to pypi
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     environment: CI
     needs: [create-github-release]
     permissions:
@@ -275,7 +248,7 @@ jobs:
   rust_release:
     name: Publish to crates.io
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
     needs: [create-github-release]
     environment: CI
     steps:
@@ -312,7 +285,10 @@ jobs:
             rm -rf cfitsio-3.49
           
         - name: Build on latest stable rust
-          run: cargo build --release --features examples        
+          run: cargo build --release --features examples
+
+        - name: Run tests on latest stable rust
+          run: cargo test --release --features examples
 
         - uses: katyo/publish-crates@v2
           with:
