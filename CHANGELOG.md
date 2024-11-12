@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.8.2 12-Nov-2024
+
+* Revert to published version of pyo3-stub-gen (and derive) to allow publish to crates.io.
+
 ## 1.8.1 12-Nov-2024
 
 * Ensure only one version of pyo3-stub-gen-derive is used in the project.
