@@ -36,7 +36,6 @@ pub const MWALIB_MWA_LONGITUDE_RADIANS: f64 = 2.0362898668561042;
 pub const MWALIB_MWA_ALTITUDE_METRES: f64 = 377.827;
 /// speed of light in m/s
 pub const MWALIB_SPEED_OF_LIGHT_IN_VACUUM_M_PER_S: f64 = 299792458.0;
-///
 /////////////////////////////////////////////////////////////////////////////
 
 /// the velocity factor of electic fields in RG-6 like coax cable

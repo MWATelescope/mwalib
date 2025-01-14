@@ -91,165 +91,162 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<MWAMode>()?;
     m.add_class::<Pol>()?;
     m.add_class::<ReceiverType>()?;
-    m.add("MwalibError", py.get_type_bound::<MwalibError>())?;
+    m.add("MwalibError", py.get_type::<MwalibError>())?;
     m.add(
         "GpuboxErrorBatchMissing",
-        py.get_type_bound::<PyGpuboxErrorBatchMissing>(),
+        py.get_type::<PyGpuboxErrorBatchMissing>(),
     )?;
     m.add(
         "GpuboxErrorCorrVerMismatch",
-        py.get_type_bound::<PyGpuboxErrorCorrVerMismatch>(),
+        py.get_type::<PyGpuboxErrorCorrVerMismatch>(),
     )?;
     m.add(
         "GpuboxErrorEmptyBTreeMap",
-        py.get_type_bound::<PyGpuboxErrorEmptyBTreeMap>(),
+        py.get_type::<PyGpuboxErrorEmptyBTreeMap>(),
     )?;
-    m.add("GpuboxErrorFits", py.get_type_bound::<PyGpuboxErrorFits>())?;
+    m.add("GpuboxErrorFits", py.get_type::<PyGpuboxErrorFits>())?;
     m.add(
         "GpuboxErrorInvalidCoarseChanIndex",
-        py.get_type_bound::<PyGpuboxErrorInvalidCoarseChanIndex>(),
+        py.get_type::<PyGpuboxErrorInvalidCoarseChanIndex>(),
     )?;
     m.add(
         "GpuboxErrorInvalidMwaVersion",
-        py.get_type_bound::<PyGpuboxErrorInvalidMwaVersion>(),
+        py.get_type::<PyGpuboxErrorInvalidMwaVersion>(),
     )?;
     m.add(
         "GpuboxErrorInvalidTimeStepIndex",
-        py.get_type_bound::<PyGpuboxErrorInvalidTimeStepIndex>(),
+        py.get_type::<PyGpuboxErrorInvalidTimeStepIndex>(),
     )?;
     m.add(
         "GpuboxErrorLegacyNaxis1Mismatch",
-        py.get_type_bound::<PyGpuboxErrorLegacyNaxis1Mismatch>(),
+        py.get_type::<PyGpuboxErrorLegacyNaxis1Mismatch>(),
     )?;
     m.add(
         "GpuboxErrorLegacyNaxis2Mismatch",
-        py.get_type_bound::<PyGpuboxErrorLegacyNaxis2Mismatch>(),
+        py.get_type::<PyGpuboxErrorLegacyNaxis2Mismatch>(),
     )?;
     m.add(
         "GpuboxErrorMissingObsid",
-        py.get_type_bound::<PyGpuboxErrorMissingObsid>(),
+        py.get_type::<PyGpuboxErrorMissingObsid>(),
     )?;
-    m.add(
-        "GpuboxErrorMixture",
-        py.get_type_bound::<PyGpuboxErrorMixture>(),
-    )?;
+    m.add("GpuboxErrorMixture", py.get_type::<PyGpuboxErrorMixture>())?;
     m.add(
         "GpuboxErrorMwaxNaxis1Mismatch",
-        py.get_type_bound::<PyGpuboxErrorMwaxNaxis1Mismatch>(),
+        py.get_type::<PyGpuboxErrorMwaxNaxis1Mismatch>(),
     )?;
     m.add(
         "GpuboxErrorMwaxNaxis2Mismatch",
-        py.get_type_bound::<PyGpuboxErrorMwaxNaxis2Mismatch>(),
+        py.get_type::<PyGpuboxErrorMwaxNaxis2Mismatch>(),
     )?;
     m.add(
         "GpuboxErrorMwaxCorrVerMismatch",
-        py.get_type_bound::<PyGpuboxErrorMwaxCorrVerMismatch>(),
+        py.get_type::<PyGpuboxErrorMwaxCorrVerMismatch>(),
     )?;
     m.add(
         "GpuboxErrorMwaxCorrVerMissing",
-        py.get_type_bound::<PyGpuboxErrorMwaxCorrVerMissing>(),
+        py.get_type::<PyGpuboxErrorMwaxCorrVerMissing>(),
     )?;
     m.add(
         "GpuboxErrorNoDataForTimeStepCoarseChannel",
-        py.get_type_bound::<PyGpuboxErrorNoDataForTimeStepCoarseChannel>(),
+        py.get_type::<PyGpuboxErrorNoDataForTimeStepCoarseChannel>(),
     )?;
     m.add(
         "GpuboxErrorNoDataHDUsInGpuboxFile",
-        py.get_type_bound::<PyGpuboxErrorNoDataHDUsInGpuboxFile>(),
+        py.get_type::<PyGpuboxErrorNoDataHDUsInGpuboxFile>(),
     )?;
     m.add(
         "GpuboxErrorNoGpuboxes",
-        py.get_type_bound::<PyGpuboxErrorNoGpuboxes>(),
+        py.get_type::<PyGpuboxErrorNoGpuboxes>(),
     )?;
     m.add(
         "GpuboxErrorObsidMismatch",
-        py.get_type_bound::<PyGpuboxErrorObsidMismatch>(),
+        py.get_type::<PyGpuboxErrorObsidMismatch>(),
     )?;
     m.add(
         "GpuboxErrorUnequalHduSizes",
-        py.get_type_bound::<PyGpuboxErrorUnequalHduSizes>(),
+        py.get_type::<PyGpuboxErrorUnequalHduSizes>(),
     )?;
     m.add(
         "GpuboxErrorUnevenCountInBatches",
-        py.get_type_bound::<PyGpuboxErrorUnevenCountInBatches>(),
+        py.get_type::<PyGpuboxErrorUnevenCountInBatches>(),
     )?;
     m.add(
         "GpuboxErrorUnrecognised",
-        py.get_type_bound::<PyGpuboxErrorUnrecognised>(),
+        py.get_type::<PyGpuboxErrorUnrecognised>(),
     )?;
 
     m.add(
         "VoltageErrorInvalidTimeStepIndex",
-        py.get_type_bound::<PyVoltageErrorInvalidTimeStepIndex>(),
+        py.get_type::<PyVoltageErrorInvalidTimeStepIndex>(),
     )?;
     m.add(
         "VoltageErrorInvalidCoarseChanIndex",
-        py.get_type_bound::<PyVoltageErrorInvalidCoarseChanIndex>(),
+        py.get_type::<PyVoltageErrorInvalidCoarseChanIndex>(),
     )?;
     m.add(
         "VoltageErrorNoVoltageFiles",
-        py.get_type_bound::<PyVoltageErrorNoVoltageFiles>(),
+        py.get_type::<PyVoltageErrorNoVoltageFiles>(),
     )?;
     m.add(
         "VoltageErrorInvalidBufferSize",
-        py.get_type_bound::<PyVoltageErrorInvalidBufferSize>(),
+        py.get_type::<PyVoltageErrorInvalidBufferSize>(),
     )?;
     m.add(
         "VoltageErrorInvalidGpsSecondStart",
-        py.get_type_bound::<PyVoltageErrorInvalidGpsSecondStart>(),
+        py.get_type::<PyVoltageErrorInvalidGpsSecondStart>(),
     )?;
     m.add(
         "VoltageErrorInvalidVoltageFileSize",
-        py.get_type_bound::<PyVoltageErrorInvalidVoltageFileSize>(),
+        py.get_type::<PyVoltageErrorInvalidVoltageFileSize>(),
     )?;
     m.add(
         "VoltageErrorInvalidGpsSecondCount",
-        py.get_type_bound::<PyVoltageErrorInvalidGpsSecondCount>(),
+        py.get_type::<PyVoltageErrorInvalidGpsSecondCount>(),
     )?;
-    m.add("VoltageError", py.get_type_bound::<PyVoltageError>())?;
+    m.add("VoltageError", py.get_type::<PyVoltageError>())?;
     m.add(
         "VoltageErrorMixture",
-        py.get_type_bound::<PyVoltageErrorMixture>(),
+        py.get_type::<PyVoltageErrorMixture>(),
     )?;
     m.add(
         "VoltageErrorGpsTimeMissing",
-        py.get_type_bound::<PyVoltageErrorGpsTimeMissing>(),
+        py.get_type::<PyVoltageErrorGpsTimeMissing>(),
     )?;
     m.add(
         "VoltageErrorUnevenChannelsForGpsTime",
-        py.get_type_bound::<PyVoltageErrorUnevenChannelsForGpsTime>(),
+        py.get_type::<PyVoltageErrorUnevenChannelsForGpsTime>(),
     )?;
     m.add(
         "VoltageErrorUnrecognised",
-        py.get_type_bound::<PyVoltageErrorUnrecognised>(),
+        py.get_type::<PyVoltageErrorUnrecognised>(),
     )?;
     m.add(
         "VoltageErrorMissingObsid",
-        py.get_type_bound::<PyVoltageErrorMissingObsid>(),
+        py.get_type::<PyVoltageErrorMissingObsid>(),
     )?;
     m.add(
         "VoltageErrorUnequalFileSizes",
-        py.get_type_bound::<PyVoltageErrorUnequalFileSizes>(),
+        py.get_type::<PyVoltageErrorUnequalFileSizes>(),
     )?;
     m.add(
         "VoltageErrorMetafitsObsidMismatch",
-        py.get_type_bound::<PyVoltageErrorMetafitsObsidMismatch>(),
+        py.get_type::<PyVoltageErrorMetafitsObsidMismatch>(),
     )?;
     m.add(
         "VoltageErrorObsidMismatch",
-        py.get_type_bound::<PyVoltageErrorObsidMismatch>(),
+        py.get_type::<PyVoltageErrorObsidMismatch>(),
     )?;
     m.add(
         "VoltageErrorEmptyBTreeMap",
-        py.get_type_bound::<PyVoltageErrorEmptyBTreeMap>(),
+        py.get_type::<PyVoltageErrorEmptyBTreeMap>(),
     )?;
     m.add(
         "VoltageErrorInvalidMwaVersion",
-        py.get_type_bound::<PyVoltageErrorInvalidMwaVersion>(),
+        py.get_type::<PyVoltageErrorInvalidMwaVersion>(),
     )?;
     m.add(
         "VoltageErrorNoDataForTimeStepCoarseChannel",
-        py.get_type_bound::<PyVoltageErrorNoDataForTimeStepCoarseChannel>(),
+        py.get_type::<PyVoltageErrorNoDataForTimeStepCoarseChannel>(),
     )?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())

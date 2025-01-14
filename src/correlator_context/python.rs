@@ -83,7 +83,7 @@ impl CorrelatorContext {
         )
         .expect("shape of data should match expected dimensions (num_baselines, num_corr_fine_chans_per_coarse, visibility_pols * 2)");
         // Convert to a numpy array.
-        let data = PyArray3::from_owned_array_bound(py, data);
+        let data = PyArray3::from_owned_array(py, data);
         Ok(data)
     }
 
@@ -118,7 +118,7 @@ impl CorrelatorContext {
         )
         .expect("shape of data should match expected dimensions (num_corr_fine_chans_per_coarse, num_baselines, visibility_pols * 2)");
         // Convert to a numpy array.
-        let data = PyArray3::from_owned_array_bound(py, data);
+        let data = PyArray3::from_owned_array(py, data);
         Ok(data)
     }
 
@@ -152,7 +152,7 @@ impl CorrelatorContext {
         )
         .expect("shape of data should match expected dimensions (num_baselines, visibility_pols)");
         // Convert to a numpy array.
-        let data = PyArray2::from_owned_array_bound(py, data);
+        let data = PyArray2::from_owned_array(py, data);
         Ok(data)
     }
 

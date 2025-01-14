@@ -118,7 +118,7 @@ impl VoltageContext {
             }
         };
         // Convert to a numpy array.
-        let data = PyArray::from_owned_array_bound(py, data);
+        let data = PyArray::from_owned_array(py, data);
         Ok(data)
     }
 
@@ -217,7 +217,7 @@ impl VoltageContext {
             }
         };
         // Convert to a numpy array.
-        let data = PyArray::from_owned_array_bound(py, data);
+        let data = PyArray::from_owned_array(py, data);
         Ok(data)
     }
 

@@ -112,7 +112,7 @@ struct TempGpuBoxFile<'a> {
     batch_number: usize,
 }
 
-impl<'a> std::cmp::PartialEq for TempGpuBoxFile<'a> {
+impl std::cmp::PartialEq for TempGpuBoxFile<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.filename == other.filename
             && self.channel_identifier == other.channel_identifier

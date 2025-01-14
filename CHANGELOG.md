@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.8.3 15-Jan-2025
+
+* Updated pyo3, pyo3-stub-gen, numpy and ndarray.
+
 ## 1.8.2 12-Nov-2024
 
 * Revert to published version of pyo3-stub-gen (and derive) to allow publish to crates.io.

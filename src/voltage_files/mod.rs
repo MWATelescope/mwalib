@@ -108,7 +108,7 @@ struct TempVoltageFile<'a> {
     gps_time_seconds: u64,
 }
 
-impl<'a> std::cmp::PartialEq for TempVoltageFile<'a> {
+impl std::cmp::PartialEq for TempVoltageFile<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.filename == other.filename
             && self.obs_id == other.obs_id

@@ -9,10 +9,9 @@ use thiserror::Error;
 /// MwalibError subtypes
 #[derive(Error, Debug)]
 pub enum MwalibError {
-    /// An error derived from `CfitsioError`.
-    //#[error("{0}")]
-    //Cfitsio(#[from] crate::fits_read::error::CfitsioError),
-
+    /* // An error derived from `CfitsioError`.
+    #[error("{0}")]
+    Cfitsio(#[from] crate::fits_read::error::CfitsioError),*/
     /// An error derived from `FitsError`.
     #[error("{0}")]
     Fits(#[from] crate::fits_read::error::FitsError),
