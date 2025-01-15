@@ -265,17 +265,7 @@ class MetafitsContext:
     best_cal_fit_iter_limit: typing.Optional[int]
     signal_chain_corrections: typing.Optional[list[SignalChainCorrection]]
     num_signal_chain_corrections: int
-    def pyo3_new(self, metafits_filename:str, mwa_version:typing.Optional[MWAVersion]) -> MetafitsContext:
-        r"""
-        From a path to a metafits file, create a `MetafitsContext`.
-        
-        Args:
-            metafits_filename (str): filename of metafits file.
-            mwa_version (Optional[MWAVersion]): the MWA version the metafits should be interpreted as. Pass None to have mwalib guess based on the MODE in the metafits.
-        
-        Returns:
-            metafits_contex (MetafitsContex): a populated MetafitsContext object if Ok.
-        """
+    def __new__(cls, metafits_filename: str, mwa_version: typing.Optional[MWAVersion]=None)->MetafitsContext:
         ...
 
     def __repr__(self) -> str:

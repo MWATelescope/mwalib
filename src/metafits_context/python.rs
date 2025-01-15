@@ -8,11 +8,10 @@ use super::*;
 #[cfg(feature = "python")]
 use pyo3_stub_gen_derive::gen_stub_pymethods;
 
-#[cfg_attr(feature = "python", pymethods, gen_stub_pymethods)]
+#[cfg_attr(feature = "python", gen_stub_pymethods)]
+#[cfg_attr(feature = "python", pymethods)]
 #[cfg(feature = "python")]
 impl MetafitsContext {
-    #[new]
-    #[pyo3(signature = (metafits_filename, mwa_version=None), text_signature = "(metafits_filename: str, mwa_version: typing.Optional[MWAVersion]=None)")]
     /// From a path to a metafits file, create a `MetafitsContext`.
     ///
     /// Args:
@@ -21,6 +20,8 @@ impl MetafitsContext {
     ///
     /// Returns:
     ///     metafits_contex (MetafitsContex): a populated MetafitsContext object if Ok.
+    #[new]
+    #[pyo3(signature = (metafits_filename, mwa_version=None), text_signature = "(metafits_filename: str, mwa_version: typing.Optional[MWAVersion]=None)")]
     fn pyo3_new(metafits_filename: &str, mwa_version: Option<MWAVersion>) -> pyo3::PyResult<Self> {
         let m = Self::new(metafits_filename, mwa_version)?;
         Ok(m)

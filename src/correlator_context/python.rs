@@ -19,6 +19,7 @@ use pyo3_stub_gen_derive::gen_stub_pymethods;
 
 #[cfg_attr(feature = "python", gen_stub_pymethods)]
 #[cfg_attr(feature = "python", pymethods)]
+#[cfg(feature = "python")]
 impl CorrelatorContext {
     /// From a path to a metafits file and paths to gpubox files, create a `CorrelatorContext`.
     ///
