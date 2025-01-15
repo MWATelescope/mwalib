@@ -1,6 +1,7 @@
 [project]
 name = "mwalib"
 description = "A library to work with raw data and metadata from the Murchison Widefield Array (MWA)"
+dynamic = ["version"]
 readme = "README.md"
 requires-python = ">=3.9"
 license = {file = "LICENSE"}
