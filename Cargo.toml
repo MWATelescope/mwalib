@@ -43,7 +43,7 @@ log = "~0.4"
 num-derive = "~0.4"
 num-traits = "~0.2"
 rayon = "~1.10"
-regex = "~1.9"
+regex = "1.9"
 thiserror = "~1.0"
 
 # "python" and examples features
