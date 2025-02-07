@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.8.5 07-Feb-2025
+
+* Loosened strict versioning for dependencies where version is >=1.0.0: lazy_static, rayon, regex, thiserror, anyhow, clap, csv
+
 ## 1.8.4 24-Jan-2025
 
 * mwalib now providews support for Linux/Arm64 platform in releases (and tests).
