@@ -4,7 +4,7 @@ Changes in each release are listed below.
 
 ## 1.8.5 07-Feb-2025
 
-* Loosened strict versioning for dependencies where version is >=1.0.0: lazy_static, rayon, regex, thiserror, anyhow, clap, csv
+* Relaxed strict versioning for dependencies where version is >=1.0.0: lazy_static, rayon, regex, thiserror, anyhow, csv
 
 ## 1.8.4 24-Jan-2025
 

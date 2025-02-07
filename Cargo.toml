@@ -58,7 +58,7 @@ pyo3-stub-gen = { version = "~0.6", optional = true }
 pyo3-stub-gen-derive = { version = "~0.6", optional = true }
 
 # "examples" feature.
-clap = { version = "4.1", features = ["derive"], optional = true }
+clap = { version = "~4.1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 csv = "1.3"
