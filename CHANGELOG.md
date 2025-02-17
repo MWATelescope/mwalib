@@ -4,7 +4,7 @@ Changes in each release are listed below.
 
 ## 1.8.4 24-Jan-2025
 
-* mwalib now providews support for Linux/Arm64 platform in releases (and tests).
+* mwalib now provides support for Linux/Arm64 platform in releases (and tests).
 
 ## 1.8.3 15-Jan-2025
 

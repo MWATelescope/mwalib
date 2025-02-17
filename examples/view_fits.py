@@ -3,8 +3,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from pymwalib.common import MWAVersion
-import pymwalib.correlator_context
+import mwalib
 
 # Allow X windows support- but you need to
 # pip install pycairo
@@ -47,11 +46,7 @@ class ViewFITSArgs:
 
         # Are we plotting?
         self.any_plotting = (
-            self.ppd_plot
-            or self.ppd_plot2
-            or self.grid_plot
-            or self.phase_plot_all
-            or self.phase_plot_one
+            self.ppd_plot or self.ppd_plot2 or self.grid_plot or self.phase_plot_all or self.phase_plot_one
         )
 
         if not self.any_plotting and self.dumpplot:
@@ -65,11 +60,8 @@ class ViewFITSArgs:
 
     def validate_params(self):  # noqa: C901
         # Read fits file
-        print(
-            "Opening with pymwalib using metafits file "
-            f"{self.metafits_filename} and data file {self.filename}..."
-        )
-        self.context = pymwalib.correlator_context.CorrelatorContext(
+        print("Opening with mwalib using metafits file " f"{self.metafits_filename} and data file {self.filename}...")
+        self.context = mwalib.CorrelatorContext(
             self.metafits_filename,
             [
                 self.filename,
@@ -77,27 +69,17 @@ class ViewFITSArgs:
         )
 
         for p in self.context.provided_coarse_chan_indices:
-            print(self.context.coarse_channels[p])
+            print(self.context.coarse_chans[p])
 
-        self.correlator_version: pymwalib.common.MWAVersion = (
-            self.context.mwa_version
-        )
-        self.pols = (
-            self.context.metafits_context.num_visibility_pols
-        )  # xx,xy,yx,yy
+        self.correlator_version: mwalib.MWAVersion = self.context.mwa_version
+        self.pols = self.context.metafits_context.num_visibility_pols  # xx,xy,yx,yy
 
         # in v2 NAXIS1 == fine channels * pols * r,i
         # in v2 NAXIS2 == baselines
         # Get number of tiles based on the number of signal chains
         self.fits_tiles = len(self.context.metafits_context.antennas)
-        self.chan_x_pols_x_vals = (
-            self.context.metafits_context.num_corr_fine_chans_per_coarse
-            * self.pols
-            * self.values
-        )
-        self.fits_channels = (
-            self.context.metafits_context.num_corr_fine_chans_per_coarse
-        )
+        self.chan_x_pols_x_vals = self.context.metafits_context.num_corr_fine_chans_per_coarse * self.pols * self.values
+        self.fits_channels = self.context.metafits_context.num_corr_fine_chans_per_coarse
         self.fits_has_weights = True
 
         # Check mode
@@ -170,25 +152,17 @@ class ViewFITSArgs:
         if self.mode == MODE_BASELINE:
             self.baseline_count = 1
         else:
-            self.baseline_count = int(
-                (self.tile_count * (self.tile_count + 1)) / 2
-            )
+            self.baseline_count = int((self.tile_count * (self.tile_count + 1)) / 2)
 
-        self.fits_baseline_count = int(
-            (self.fits_tiles * (self.fits_tiles + 1)) / 2
-        )
+        self.fits_baseline_count = int((self.fits_tiles * (self.fits_tiles + 1)) / 2)
         self.channel_count = self.channel2 - self.channel1 + 1
         self.time_step_count = self.time_step2 - self.time_step1 + 1
 
         self.hdu_time1 = self.time_step1 - 1
-        self.unix_time1 = (
-            self.context.timesteps[self.hdu_time1].unix_time_ms / 1000.0
-        )
+        self.unix_time1 = self.context.timesteps[self.hdu_time1].unix_time_ms / 1000.0
 
         self.hdu_time2 = self.time_step2 - 1
-        self.unix_time2 = (
-            self.context.timesteps[self.hdu_time2].unix_time_ms / 1000.0
-        )
+        self.unix_time2 = self.context.timesteps[self.hdu_time2].unix_time_ms / 1000.0
 
         # print params
         if self.grid_plot2:
@@ -241,13 +215,9 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
 
     # ppd array will be [timestep][channel]
     if program_args.ppd_plot:
-        plot_ppd_data_x = np.empty(
-            shape=(program_args.channel_count, program_args.time_step_count)
-        )
+        plot_ppd_data_x = np.empty(shape=(program_args.channel_count, program_args.time_step_count))
         plot_ppd_data_x.fill(0)
-        plot_ppd_data_y = np.empty(
-            shape=(program_args.channel_count, program_args.time_step_count)
-        )
+        plot_ppd_data_y = np.empty(shape=(program_args.channel_count, program_args.time_step_count))
         plot_ppd_data_y.fill(0)
 
     # ppd plot 2 array will be [timestep][baseline][channel]
@@ -313,7 +283,7 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
     raw_dump_file = None
     plot_dump_file = None
 
-    if program_args.correlator_version == MWAVersion.CorrMWAXv2.value:
+    if program_args.correlator_version == mwalib.MWAVersion.CorrMWAXv2:
         filename = f"{program_args.context.metafits_context.obs_id}_mwax.csv"
     else:
         filename = f"{program_args.context.metafits_context.obs_id}_mwa.csv"
@@ -332,14 +302,10 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
             plot_dump_file.write("plot_number, time_index, fine_chan, x, y\n")
 
         elif program_args.grid_plot:
-            plot_dump_file.write(
-                "unix_time, tile1, tile2, log10_scaled_power\n"
-            )
+            plot_dump_file.write("unix_time, tile1, tile2, log10_scaled_power\n")
 
         elif program_args.grid_plot2:
-            plot_dump_file.write(
-                "unix_time, tile1, tile2, log10_scaled_power\n"
-            )
+            plot_dump_file.write("unix_time, tile1, tile2, log10_scaled_power\n")
 
         elif program_args.phase_plot_one:
             plot_dump_file.write("time_index, baseline, x, y\n")
@@ -362,21 +328,15 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
     for timestep_index, timestep in enumerate(program_args.context.timesteps):
         time_index = timestep_index - program_args.hdu_time1
 
-        if (
-            timestep_index < program_args.hdu_time1
-            or timestep_index > program_args.hdu_time2
-        ):
+        if timestep_index < program_args.hdu_time1 or timestep_index > program_args.hdu_time2:
             # print(f"Skipping timestep index {timestep_index} (out of range)")
             continue
         else:
-            print(
-                f"Processing timestep: {timestep.index} "
-                f"(time index: {time_index})..."
-            )
+            print(f"Processing timestep: {timestep_index} " f"(time index: {time_index})...")
 
         # Read data
         data = program_args.context.read_by_baseline(
-            timestep.index,
+            timestep_index,
             program_args.context.provided_coarse_chan_indices[0],
         )
         data = data.reshape(
@@ -389,51 +349,34 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
 
         # Print all tile info but only for the first timestep we have
         if time_index == 0:
-            print(
-                f"QUAKTIME:"
-                f"{program_args.context.metafits_context.quack_time_duration_ms/1000.} s\n"
-            )
+            print(f"QUAKTIME:" f"{program_args.context.metafits_context.quack_time_duration_ms/1000.} s\n")
 
             print("\nUnflagged tiles:")
             print("================")
-            for i in range(
-                0, len(program_args.context.metafits_context.antennas)
-            ):
+            for i in range(0, len(program_args.context.metafits_context.antennas)):
                 if (
-                    program_args.context.metafits_context.antennas[
-                        i
-                    ].rf_input_x.flagged
-                    is False
-                    and program_args.context.metafits_context.antennas[
-                        i
-                    ].rf_input_y.flagged
-                    is False
+                    program_args.context.metafits_context.antennas[i].rfinput_x.flagged is False
+                    and program_args.context.metafits_context.antennas[i].rfinput_y.flagged is False
                 ):
                     print(
                         f"Index {i}, TileID: {program_args.context.metafits_context.antennas[i].tile_id} "
                         f"{program_args.context.metafits_context.antennas[i].tile_name}"
-                        f" (rec:{program_args.context.metafits_context.antennas[i].rf_input_x.rec_number},"
-                        f"slot:{program_args.context.metafits_context.antennas[i].rf_input_x.rec_slot_number})"
+                        f" (rec:{program_args.context.metafits_context.antennas[i].rfinput_x.rec_number},"
+                        f"slot:{program_args.context.metafits_context.antennas[i].rfinput_x.rec_slot_number})"
                     )
 
             print("\nFlagged tiles:")
             print("================")
-            for i in range(
-                0, len(program_args.context.metafits_context.antennas)
-            ):
+            for i in range(0, len(program_args.context.metafits_context.antennas)):
                 if (
-                    program_args.context.metafits_context.antennas[
-                        i
-                    ].rf_input_x.flagged
-                    or program_args.context.metafits_context.antennas[
-                        i
-                    ].rf_input_y.flagged
+                    program_args.context.metafits_context.antennas[i].rfinput_x.flagged
+                    or program_args.context.metafits_context.antennas[i].rfinput_y.flagged
                 ):
                     print(
                         f"Index {i}, TileID: {program_args.context.metafits_context.antennas[i].tile_id} "
                         f"{program_args.context.metafits_context.antennas[i].tile_name}"
-                        f" (rec:{program_args.context.metafits_context.antennas[i].rf_input_x.rec_number},"
-                        f"slot:{program_args.context.metafits_context.antennas[i].rf_input_x.rec_slot_number})"
+                        f" (rec:{program_args.context.metafits_context.antennas[i].rfinput_x.rec_number},"
+                        f"slot:{program_args.context.metafits_context.antennas[i].rfinput_x.rec_slot_number})"
                     )
 
         for i in range(0, program_args.tile2 + 1):
@@ -443,10 +386,7 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
                 # Line 2. OR just be True if we didn't ask for autos only.
                 # Line 3 (Applicable to cases 1 and 2 above):
                 #         Check the selected tile1 and tile2 are in range
-                if (
-                    (i == j and program_args.autos_only is True)
-                    or (program_args.autos_only is False)
-                ) and (
+                if ((i == j and program_args.autos_only is True) or (program_args.autos_only is False)) and (
                     meets_criteria(
                         i,
                         j,
@@ -456,26 +396,14 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
                     )
                 ):
 
-                    for chan in range(
-                        program_args.channel1, program_args.channel2 + 1
-                    ):
-                        index = chan * (
-                            program_args.pols * program_args.values
-                        )
+                    for chan in range(program_args.channel1, program_args.channel2 + 1):
+                        index = chan * (program_args.pols * program_args.values)
 
                         if (
-                            program_args.context.metafits_context.antennas[
-                                i
-                            ].rf_input_x.flagged
-                            or program_args.context.metafits_context.antennas[
-                                i
-                            ].rf_input_y.flagged
-                            or program_args.context.metafits_context.antennas[
-                                j
-                            ].rf_input_x.flagged
-                            or program_args.context.metafits_context.antennas[
-                                j
-                            ].rf_input_y.flagged
+                            program_args.context.metafits_context.antennas[i].rfinput_x.flagged
+                            or program_args.context.metafits_context.antennas[i].rfinput_y.flagged
+                            or program_args.context.metafits_context.antennas[j].rfinput_x.flagged
+                            or program_args.context.metafits_context.antennas[j].rfinput_y.flagged
                         ) and 1 == 0:
                             xx_r = 0
                             xx_i = 0
@@ -519,14 +447,10 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
                             phase_y = math.degrees(math.atan2(yy_i, yy_r))
 
                         if program_args.ppd_plot:
-                            plot_ppd_data_x[chan][
-                                time_index
-                            ] = plot_ppd_data_x[chan][time_index] + (
+                            plot_ppd_data_x[chan][time_index] = plot_ppd_data_x[chan][time_index] + (
                                 power_xx / program_args.baseline_count
                             )
-                            plot_ppd_data_y[chan][
-                                time_index
-                            ] = plot_ppd_data_y[chan][time_index] + (
+                            plot_ppd_data_y[chan][time_index] = plot_ppd_data_y[chan][time_index] + (
                                 power_yy / program_args.baseline_count
                             )  # noqa: E127
 
@@ -535,19 +459,11 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
                             # does not fail... weird
 
                         elif program_args.ppd_plot2:
-                            plot_ppd2_data_x[time_index][selected_baseline][
-                                chan
-                            ] = power_xx
-                            plot_ppd2_data_y[time_index][selected_baseline][
-                                chan
-                            ] = power_yy
+                            plot_ppd2_data_x[time_index][selected_baseline][chan] = power_xx
+                            plot_ppd2_data_y[time_index][selected_baseline][chan] = power_yy
 
                         elif program_args.grid_plot:
-                            plot_grid_data[time_index][j][i] = (
-                                plot_grid_data[time_index][j][i]
-                                + power_xx
-                                + power_yy
-                            )
+                            plot_grid_data[time_index][j][i] = plot_grid_data[time_index][j][i] + power_xx + power_yy
 
                         elif program_args.grid_plot2:
                             # offset index by the polarisation
@@ -567,16 +483,9 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
                                 )
                                 exit(-1)
 
-                        elif (
-                            program_args.phase_plot_all
-                            or program_args.phase_plot_one
-                        ):
-                            plot_phase_data_x[time_index][selected_baseline][
-                                chan
-                            ] = phase_x
-                            plot_phase_data_y[time_index][selected_baseline][
-                                chan
-                            ] = phase_y
+                        elif program_args.phase_plot_all or program_args.phase_plot_one:
+                            plot_phase_data_x[time_index][selected_baseline][chan] = phase_x
+                            plot_phase_data_y[time_index][selected_baseline][chan] = phase_y
 
                         if program_args.dumpraw:
                             raw_dump_file.write(
@@ -668,12 +577,8 @@ def do_ppd_plot(
     if convert_to_db:
         for t in range(0, program_args.time_step_count):
             for c in range(0, program_args.channel_count):
-                plot_ppd_data_x[c][t] = (
-                    math.log10(plot_ppd_data_x[c][t] + 1) * 10
-                )
-                plot_ppd_data_y[c][t] = (
-                    math.log10(plot_ppd_data_y[c][t] + 1) * 10
-                )
+                plot_ppd_data_x[c][t] = math.log10(plot_ppd_data_x[c][t] + 1) * 10
+                plot_ppd_data_y[c][t] = math.log10(plot_ppd_data_y[c][t] + 1) * 10
 
         # Get min dB value
         # Previously had min(np.array(plot_ppd_data_x).min(),
@@ -719,7 +624,7 @@ def do_ppd_plot(
     print("Saving figure...")
 
     # Save the final plot to disk
-    if program_args.correlator_version == MWAVersion.CorrMWAXv2.value:
+    if program_args.correlator_version == mwalib.MWAVersion.CorrMWAXv2:
         filename = "ppd_plot_mwax.png"
     else:
         filename = "ppd_plot_mwa.png"
@@ -750,12 +655,8 @@ def do_ppd_plot2(
         for t in range(0, program_args.time_step_count):
             for c in range(0, program_args.channel_count):
                 for b in range(0, program_args.baseline_count):
-                    plot_ppd_data_x[t][b][c] = (
-                        math.log10(plot_ppd_data_x[t][b][c] + 1) * 10
-                    )
-                    plot_ppd_data_y[t][b][c] = (
-                        math.log10(plot_ppd_data_y[t][b][c] + 1) * 10
-                    )
+                    plot_ppd_data_x[t][b][c] = math.log10(plot_ppd_data_x[t][b][c] + 1) * 10
+                    plot_ppd_data_y[t][b][c] = math.log10(plot_ppd_data_y[t][b][c] + 1) * 10
 
         # Get min dB value
         min_db = min(
@@ -780,12 +681,8 @@ def do_ppd_plot2(
         if min_db != 0:
             for c in range(0, program_args.channel_count):
                 for b in range(0, program_args.baseline_count):
-                    plot_ppd_data_x[t][b][c] = (
-                        plot_ppd_data_x[t][b][c] - min_db
-                    )
-                    plot_ppd_data_y[t][b][c] = (
-                        plot_ppd_data_y[t][b][c] - min_db
-                    )
+                    plot_ppd_data_x[t][b][c] = plot_ppd_data_x[t][b][c] - min_db
+                    plot_ppd_data_y[t][b][c] = plot_ppd_data_y[t][b][c] - min_db
 
         # Get the current plot
         plot = ax[plot_row][plot_col]
@@ -816,7 +713,7 @@ def do_ppd_plot2(
     print("Saving figure...")
 
     # Save the final plot to disk
-    if program_args.correlator_version == MWAVersion.CorrMWAXv2.value:
+    if program_args.correlator_version == mwalib.MWAVersion.CorrMWAXv2:
         filename = "ppd_plot2_mwax.png"
     else:
         filename = "ppd_plot2_mwa.png"
@@ -825,9 +722,7 @@ def do_ppd_plot2(
     plt.show()
 
 
-def do_grid_plot(
-    title, program_args: ViewFITSArgs, plot_grid_data
-):  # noqa: C901
+def do_grid_plot(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C901
     print("Preparing grid plot...")
 
     # Work out layout of plots
@@ -841,9 +736,7 @@ def do_grid_plot(
         for time_index in range(0, program_args.time_step_count):
             for t1 in range(0, program_args.tile_count):
                 for t2 in range(t1, program_args.tile_count):
-                    plot_grid_data[time_index][t2][t1] = (
-                        math.log10(plot_grid_data[time_index][t2][t1] + 1) * 10
-                    )
+                    plot_grid_data[time_index][t2][t1] = math.log10(plot_grid_data[time_index][t2][t1] + 1) * 10
 
         # Get min dB value
         # np_array_nonzero = plot_grid_data[plot_grid_data > 1]
@@ -895,19 +788,13 @@ def do_grid_plot(
         # Get the current plot
         plot = ax[plot_row][plot_col]
 
-        plot.imshow(
-            plot_grid_data[time_index], cmap="inferno", interpolation="None"
-        )
+        plot.imshow(plot_grid_data[time_index], cmap="inferno", interpolation="None")
 
         plot.set_title(f"t={time_index+program_args.time_step1}", size=6)
         plot.set_xticks(np.arange(program_args.tile_count, step=n_step))
         plot.set_yticks(np.arange(program_args.tile_count, step=n_step))
-        plot.set_xticklabels(
-            np.arange(program_args.tile1, program_args.tile2 + 1, step=n_step)
-        )
-        plot.set_yticklabels(
-            np.arange(program_args.tile1, program_args.tile2 + 1, step=n_step)
-        )
+        plot.set_xticklabels(np.arange(program_args.tile1, program_args.tile2 + 1, step=n_step))
+        plot.set_yticklabels(np.arange(program_args.tile1, program_args.tile2 + 1, step=n_step))
 
         # Set labels
         # Only do y label for first col
@@ -934,7 +821,7 @@ def do_grid_plot(
             plot_col = 0
 
     print("Saving figure...")
-    if program_args.correlator_version == MWAVersion.CorrMWAXv2.value:
+    if program_args.correlator_version == mwalib.MWAVersion.CorrMWAXv2:
         filename = "grid_plot_mwax.png"
     else:
         filename = "grid_plot_mwa.png"
@@ -943,9 +830,7 @@ def do_grid_plot(
     plt.show()
 
 
-def do_grid_plot2(
-    title, program_args: ViewFITSArgs, plot_grid_data
-):  # noqa: C901
+def do_grid_plot2(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C901
     print("Preparing grid plot2...")
 
     # Work out layout of plots
@@ -962,21 +847,14 @@ def do_grid_plot2(
     for time_index in range(0, program_args.time_step_count):
         for t1 in range(0, program_args.tile_count):
             for t2 in range(t1, program_args.tile_count):
-                value: float = (
-                    plot_grid_data[time_index][t2][t1] / scaling_value
-                )
+                value: float = plot_grid_data[time_index][t2][t1] / scaling_value
                 try:
                     if abs(value) < 0.0000001:
                         plot_grid_data[time_index][t2][t1] = 0
                     else:
-                        plot_grid_data[time_index][t2][t1] = math.log10(
-                            value * 10000000
-                        )
+                        plot_grid_data[time_index][t2][t1] = math.log10(value * 10000000)
                 except Exception as e:
-                    print(
-                        "Exception trying math.log10("
-                        f"{value * 10000000} / {scaling_value})"
-                    )
+                    print("Exception trying math.log10(" f"{value * 10000000} / {scaling_value})")
                     raise e
 
     # Now print some stats
@@ -1010,19 +888,13 @@ def do_grid_plot2(
         # Get the current plot
         plot = ax[plot_row][plot_col]
 
-        plot.imshow(
-            plot_grid_data[time_index], cmap="inferno", interpolation="None"
-        )
+        plot.imshow(plot_grid_data[time_index], cmap="inferno", interpolation="None")
 
         plot.set_title(f"t={time_index+program_args.time_step1}", size=6)
         plot.set_xticks(np.arange(program_args.tile_count, step=n_step))
         plot.set_yticks(np.arange(program_args.tile_count, step=n_step))
-        plot.set_xticklabels(
-            np.arange(program_args.tile1, program_args.tile2 + 1, step=n_step)
-        )
-        plot.set_yticklabels(
-            np.arange(program_args.tile1, program_args.tile2 + 1, step=n_step)
-        )
+        plot.set_xticklabels(np.arange(program_args.tile1, program_args.tile2 + 1, step=n_step))
+        plot.set_yticklabels(np.arange(program_args.tile1, program_args.tile2 + 1, step=n_step))
 
         # Set labels
         # Only do y label for first col
@@ -1049,7 +921,7 @@ def do_grid_plot2(
             plot_col = 0
 
     print("Saving figure...")
-    if program_args.correlator_version == MWAVersion.CorrMWAXv2.value:
+    if program_args.correlator_version == mwalib.MWAVersion.CorrMWAXv2:
         filename = f"grid_plot2_{program_args.grid_pol}_mwax.png"
     else:
         filename = f"grid_plot2_{program_args.grid_pol}_mwa.png"
@@ -1059,9 +931,7 @@ def do_grid_plot2(
     plt.show()
 
 
-def do_phase_plot(
-    title, program_args: ViewFITSArgs, plot_phase_data_x, plot_phase_data_y
-):  # noqa: C901
+def do_phase_plot(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_phase_data_y):  # noqa: C901
     print("Preparing phase plot...")
 
     # Work out layout of plots
@@ -1107,9 +977,7 @@ def do_phase_plot(
                     continue
 
             print(f"Adding data points for plot({i},{j})...")
-            channel_list = range(
-                program_args.channel1, program_args.channel2 + 1
-            )
+            channel_list = range(program_args.channel1, program_args.channel2 + 1)
 
             # Get the current plot
             plot = ax[plot_row][plot_col]
@@ -1150,12 +1018,8 @@ def do_phase_plot(
             # Ensure Y axis goes from -180 to 180
             plot.set_ylim([-180, 180])
 
-            tile1_name = program_args.context.metafits_context.antennas[
-                i + program_args.tile1
-            ].tile_name
-            tile2_name = program_args.context.metafits_context.antennas[
-                j + program_args.tile1
-            ].tile_name
+            tile1_name = program_args.context.metafits_context.antennas[i + program_args.tile1].tile_name
+            tile2_name = program_args.context.metafits_context.antennas[j + program_args.tile1].tile_name
             plot.set_title(f"{tile1_name} v {tile2_name}", size=6, pad=2)
 
             # Increment so we know which plot we are on
@@ -1170,7 +1034,7 @@ def do_phase_plot(
 
     print("Saving figure...")
     # Save final plot to disk
-    if program_args.correlator_version.value == MWAVersion.CorrMWAXv2.value:
+    if program_args.correlator_version == mwalib.MWAVersion.CorrMWAXv2:
         filename = "phase_plot_mwax.png"
     else:
         filename = "phase_plot_mwa.png"
@@ -1183,9 +1047,7 @@ def do_phase_plot(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("filename", help="fits filename")
-    parser.add_argument(
-        "-m", "--metafits", required=True, help="Path to the metafits file."
-    )
+    parser.add_argument("-m", "--metafits", required=True, help="Path to the metafits file.")
     parser.add_argument(
         "-t1",
         "--timestep1",
@@ -1252,8 +1114,7 @@ if __name__ == "__main__":
         "-p2",
         "--ppdplot2",
         required=False,
-        help="Create a ppd plot that does not sum across all "
-        "baselines. ie it plots all baselines",
+        help="Create a ppd plot that does not sum across all " "baselines. ie it plots all baselines",
         action="store_true",
     )
     parser.add_argument(
@@ -1276,16 +1137,14 @@ if __name__ == "__main__":
         "-gp",
         "--gridpol",
         required=False,
-        help="If gridplot2 used, use this to specify the pol. "
-        "Default is 'XX'",
+        help="If gridplot2 used, use this to specify the pol. " "Default is 'XX'",
         default="XX",
     )
     parser.add_argument(
         "-ph",
         "--phaseplot_all",
         required=False,
-        help="Will do a phase plot for all baselines for "
-        "given antennas and timesteps",
+        help="Will do a phase plot for all baselines for " "given antennas and timesteps",
         action="store_true",
     )
 
