@@ -282,11 +282,11 @@ impl std::convert::From<VoltageFileError> for PyErr {
                 PyVoltageErrorMissingObsid::new_err(err.to_string())
             }
 
-            VoltageFileError::UnequalFileSizes { .. } => {
+            VoltageFileError::UnequalFileSizes => {
                 PyVoltageErrorUnequalFileSizes::new_err(err.to_string())
             }
 
-            VoltageFileError::MetafitsObsidMismatch { .. } => {
+            VoltageFileError::MetafitsObsidMismatch => {
                 PyVoltageErrorMetafitsObsidMismatch::new_err(err.to_string())
             }
 
@@ -294,7 +294,7 @@ impl std::convert::From<VoltageFileError> for PyErr {
                 PyVoltageErrorObsidMismatch::new_err(err.to_string())
             }
 
-            VoltageFileError::EmptyBTreeMap { .. } => {
+            VoltageFileError::EmptyBTreeMap => {
                 PyVoltageErrorEmptyBTreeMap::new_err(err.to_string())
             }
 

@@ -636,10 +636,10 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
 /// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
 ///
 /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
-///                      to TimeStep.get(context, N) where N is timestep_index.
+///   to TimeStep.get(context, N) where N is timestep_index.
 ///
 /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
-///                            to CoarseChannel.get(context, N) where N is coarse_chan_index.
+///   to CoarseChannel.get(context, N) where N is coarse_chan_index.
 ///
 /// * `buffer_ptr` - pointer to caller-owned and allocated buffer to write data into.
 ///
@@ -819,8 +819,8 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_weights_by_baseline(
 /// * `correlator_context_ptr` - pointer to an already populated `CorrelatorContext` object.
 ///
 /// * `corr_coarse_chan_indices_array_ptr` - a pointer to an array containing correlator coarse channel indices
-///                                          for which you want fine channels for. Does not need to be
-///                                          contiguous.
+///   for which you want fine channels for. Does not need to be
+///   contiguous.
 ///
 /// * `corr_coarse_chan_indices_array_len` - length of `corr_coarse_chan_indices_array_ptr`.
 ///
@@ -919,8 +919,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
 /// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
 ///
 /// * `corr_coarse_chan_indices_array_ptr` - a pointer to an array containing correlator coarse channel indices
-///                                          for which you want fine channels for. Does not need to be
-///                                          contiguous.
+///   for which you want fine channels for. Does not need to be contiguous.
 ///
 /// * `corr_coarse_chan_indices_array_len` - length of `corr_coarse_chan_indices_array_ptr`.
 ///
@@ -1197,8 +1196,8 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
 /// * `voltage_coarse_chan_index` - index within the voltage coarse_chan array for the desired coarse channel.
 ///
 /// * `buffer_ptr` - pointer to caller-owned and allocated buffer of signed bytes to write data into. Buffer must be large enough
-///                  for all of the data. Calculate the buffer size in bytes using:
-///                  vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_timestep
+///   for all of the data. Calculate the buffer size in bytes using:
+///   vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_timestep
 ///
 /// * `buffer_len` - length of `buffer_ptr`.
 ///
@@ -1331,8 +1330,8 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
 /// * `voltage_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel.
 ///
 /// * `buffer_ptr` - pointer to caller-owned and allocated buffer of signed bytes to write data into. Buffer must be large enough
-///                  for all of the data. Calculate the buffer size in bytes using:
-///                  (vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_second) * gps_second_count
+///   for all of the data. Calculate the buffer size in bytes using:
+///   (vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_second) * gps_second_count
 ///
 /// * `buffer_len` - length of `buffer_ptr`.
 ///

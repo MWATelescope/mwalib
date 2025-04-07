@@ -799,3 +799,25 @@ fn test_signal_chain_corrections_hdu_in_metafits() {
     assert_eq!(sig_chain_corr[3].corrections[0], 0.0);
     assert_eq!(sig_chain_corr[3].corrections[255], 0.0);
 }
+
+#[test]
+fn test_metafits_context_new_corrmwaxv2_224_tiles_valid() {
+    // Open the test mwa v 1 metafits file
+    let metafits_filename = "test_files/1428041840_224T/1428041840_metafits.fits";
+
+    //
+    // Read the observation using mwalib
+    //
+    // Open a context and load in a test metafits
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrMWAXv2))
+        .expect("Failed to create MetafitsContext");
+
+    // Test the properties of the context object match what we expect
+
+    // obsid:                    1428041840,
+    assert_eq!(context.obs_id, 1_428_041_840);
+
+    assert_eq!(context.num_receivers, 28);
+
+    assert_eq!(context.num_ants, 224);
+}

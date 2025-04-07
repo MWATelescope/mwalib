@@ -876,7 +876,7 @@ impl MetafitsContext {
             (it * 1000.) as _
         };
         let receivers_string: String =
-            get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "RECVRS")?;
+            get_required_fits_key_long_string!(&mut metafits_fptr, &metafits_hdu, "RECVRS")?;
 
         // This is a new metafits key as of Oct 2021. So assume this value is 1.0 unless it is provided
         let corr_raw_scale_factor: f32 =

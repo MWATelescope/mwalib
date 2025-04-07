@@ -296,7 +296,7 @@ impl std::convert::From<GpuboxError> for PyErr {
             GpuboxError::CorrVerMismatch { .. } => {
                 PyGpuboxErrorCorrVerMismatch::new_err(err.to_string())
             }
-            GpuboxError::EmptyBTreeMap {} => PyGpuboxErrorEmptyBTreeMap::new_err(err.to_string()),
+            GpuboxError::EmptyBTreeMap => PyGpuboxErrorEmptyBTreeMap::new_err(err.to_string()),
             GpuboxError::Fits(_) => PyGpuboxErrorFits::new_err(err.to_string()),
             GpuboxError::InvalidCoarseChanIndex(_) => {
                 PyGpuboxErrorInvalidCoarseChanIndex::new_err(err.to_string())
@@ -314,7 +314,7 @@ impl std::convert::From<GpuboxError> for PyErr {
                 PyGpuboxErrorLegacyNaxis2Mismatch::new_err(err.to_string())
             }
             GpuboxError::MissingObsid(_) => PyGpuboxErrorMissingObsid::new_err(err.to_string()),
-            GpuboxError::Mixture {} => PyGpuboxErrorMixture::new_err(err.to_string()),
+            GpuboxError::Mixture => PyGpuboxErrorMixture::new_err(err.to_string()),
             GpuboxError::MwaxNaxis1Mismatch { .. } => {
                 PyGpuboxErrorMwaxNaxis1Mismatch::new_err(err.to_string())
             }

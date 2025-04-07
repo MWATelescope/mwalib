@@ -230,7 +230,7 @@ fn convert_temp_gpuboxes(temp_gpuboxes: Vec<TempGpuBoxFile>) -> Vec<GpuBoxBatch>
 /// # Arguments
 ///
 /// * `gpubox_filenames` - A vector or slice of strings or references to strings
-///                        containing all of the gpubox filenames provided by the client.
+///   containing all of the gpubox filenames provided by the client.
 ///
 /// * `metafits_obs_id` - The obs_id reported from the metafits file primary HDU
 ///
@@ -322,7 +322,7 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
 /// # Arguments
 ///
 /// * `gpubox_filenames` - A vector or slice of strings or references to strings containing
-///                        all of the gpubox filenames provided by the client.
+///   all of the gpubox filenames provided by the client.
 ///
 ///
 /// # Returns
@@ -747,7 +747,7 @@ pub(crate) fn populate_provided_coarse_channels(
 /// * `integration_time_ms` - Correlator dump time (so we know the gap between timesteps)
 ///
 /// * `good_time_unix_time_ms` - Option- Some is the 'good' time (i.e. the first time which is not part of the quack time). None means that
-///                              times during the quack time are ok to be included.
+///   times during the quack time are ok to be included.
 ///
 /// # Returns
 ///

@@ -2,6 +2,11 @@
 
 Changes in each release are listed below.
 
+## 1.8.6 07-Apr-2025
+
+* Fixed panic when RECVRS key in metafits is a long string- e.g. for high number tile observations.
+* Fixed some minor clippy lints.
+
 ## 1.8.5 07-Feb-2025
 
 * Relaxed strict versioning for dependencies where version is >=1.0.0: lazy_static, rayon, regex, thiserror, anyhow, csv

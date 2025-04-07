@@ -494,8 +494,7 @@ impl VoltageContext {
     /// # Arguments
     ///
     /// * `volt_coarse_chan_indices` - a slice containing voltage coarse channel indices
-    ///                                for which you want fine channels for. Does not need to be
-    ///                                contiguous.
+    ///   for which you want fine channels for. Does not need to be contiguous.
     ///
     ///
     /// # Returns
@@ -571,7 +570,7 @@ impl VoltageContext {
     /// * `gps_second_count` - number of seconds of data to return.
     ///
     /// * `volt_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within VoltageContext.coarse_chans.
+    ///   to the element within VoltageContext.coarse_chans.
     ///
     /// * `buffer` - a mutable reference to an already exitsing, initialised slice `[i8]` which will be filled with data.
     ///
@@ -736,11 +735,11 @@ impl VoltageContext {
     /// # Arguments
     ///
     /// * `volt_timestep_index` - index within the timestep array for the desired timestep. This corresponds
-    ///                      to the element within VoltageContext.timesteps. For mwa legacy each index
-    ///                      represents 1 second increments, for mwax it is 8 second increments.
+    ///   to the element within VoltageContext.timesteps. For mwa legacy each index
+    ///   represents 1 second increments, for mwax it is 8 second increments.
     ///
     /// * `volt_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within VoltageContext.coarse_chans.
+    ///   to the element within VoltageContext.coarse_chans.
     ///
     /// * `buffer` - a mutable reference to an already exitsing, initialised slice `[i8]` which will be filled with the data from one VCS data file.
     ///

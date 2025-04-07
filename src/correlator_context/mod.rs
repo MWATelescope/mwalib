@@ -417,8 +417,8 @@ impl CorrelatorContext {
     /// # Arguments
     ///
     /// * `corr_coarse_chan_indices` - a slice containing correlator coarse channel indices
-    ///                                for which you want fine channels for. Does not need to be
-    ///                                contiguous.
+    ///   for which you want fine channels for. Does not need to be
+    ///   contiguous.
     ///
     ///
     /// # Returns
@@ -444,10 +444,10 @@ impl CorrelatorContext {
     /// # Arguments
     ///
     /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
-    ///                      to the element within CorrelatorContext.timesteps.
+    ///   to the element within CorrelatorContext.timesteps.
     ///
     /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within CorrelatorContext.coarse_chans.
+    ///   to the element within CorrelatorContext.coarse_chans.
     ///
     ///
     /// # Returns
@@ -478,10 +478,10 @@ impl CorrelatorContext {
     /// # Arguments
     ///
     /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
-    ///                      to the element within CorrelatorContext.timesteps.
+    ///   to the element within CorrelatorContext.timesteps.
     ///
     /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within CorrelatorContext.coarse_chans.
+    ///   to the element within CorrelatorContext.coarse_chans.
     ///
     ///
     /// # Returns
@@ -512,10 +512,10 @@ impl CorrelatorContext {
     /// # Arguments
     ///
     /// * `corr_timestep_index` - index within the CorrelatorContext timestep array for the desired timestep. This corresponds
-    ///                      to the element within CorrelatorContext.timesteps.
+    ///   to the element within CorrelatorContext.timesteps.
     ///
     /// * `corr_coarse_chan_index` - index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds
-    ///                      to the element within CorrelatorContext.coarse_chans.
+    ///   to the element within CorrelatorContext.coarse_chans.
     ///
     ///
     /// # Returns

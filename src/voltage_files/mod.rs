@@ -228,7 +228,7 @@ fn convert_temp_voltage_files(
 /// # Arguments
 ///
 /// * `voltage_filenames` - A vector or slice of strings or references to strings containing
-///                        all of the voltage filenames provided by the client.
+///   all of the voltage filenames provided by the client.
 ///
 /// * `metafits_obs_id` - The obs_id of the observation from the metafits.
 ///
@@ -388,7 +388,7 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
 /// * `metafits_context`  - A reference to a populated metafits context we can use to verify voltage file metadata against.
 ///
 /// * `voltage_filenames` - A vector or slice of strings or references to strings
-///                         containing all of the voltage filenames provided by the client.
+///   containing all of the voltage filenames provided by the client.
 ///
 ///
 /// # Returns
@@ -586,7 +586,7 @@ pub(crate) fn populate_provided_coarse_channels(
 /// * `timestep_duration_ms` - the gap between timesteps in ms
 ///
 /// * `good_time_gps_time_ms` - Option- Some is the 'good' time (i.e. the first time which is not part of the quack time). None means that
-///                              times during the quack time are ok to be included.
+///   times during the quack time are ok to be included.
 ///
 /// # Returns
 ///

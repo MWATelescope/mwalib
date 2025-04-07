@@ -578,7 +578,7 @@ impl Rfinput {
     /// * `metafits_tile_table_hdu` - reference to the HDU containing the TILEDATA table.
     ///
     /// * `coax_v_factor` - a constant- the factor to apply to some older metafits "length" value to get the
-    ///                     electrical length, if "length" does not start with "EL".
+    ///   electrical length, if "length" does not start with "EL".
     ///
     ///
     /// # Returns
@@ -599,10 +599,7 @@ impl Rfinput {
         // is_ok() means it exists, is_err() = True means it does not.
         let metafits_cal_hdu_result = fits_open_hdu_by_name!(metafits_fptr, "CALIBDATA");
 
-        let metafits_cal_hdu_option = match metafits_cal_hdu_result {
-            Ok(m) => Some(m),
-            Err(_) => None,
-        };
+        let metafits_cal_hdu_option = metafits_cal_hdu_result.ok();
 
         for input in 0..num_inputs {
             // Note fits row numbers start at 1

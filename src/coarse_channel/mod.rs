@@ -121,7 +121,7 @@ impl CoarseChannel {
     /// # Returns
     ///
     /// * A tuple containing: A vector of receiver channel numbers expected to be in this observation (from the metafits file),
-    ///                       The width in Hz of each coarse channel
+    ///   The width in Hz of each coarse channel
     ///
     pub(crate) fn get_metafits_coarse_channel_info(
         metafits_fptr: &mut FitsFile,
@@ -164,8 +164,8 @@ impl CoarseChannel {
     /// # Returns
     ///
     /// * A tuple containing: A vector of CoarseChannel structs (limited to those are supplied by the client and are valid, unless neither `gpubox_time_map` nor
-    ///                            `voltage_time_map` are provided, and the it is based on the metafits),
-    ///                       The width in Hz of each coarse channel
+    ///   `voltage_time_map` are provided, and the it is based on the metafits),
+    ///   The width in Hz of each coarse channel
     ///
     pub(crate) fn populate_coarse_channels(
         mwa_version: metafits_context::MWAVersion,
