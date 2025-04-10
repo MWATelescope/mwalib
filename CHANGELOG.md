@@ -2,6 +2,10 @@
 
 Changes in each release are listed below.
 
+## 1.8.7 10-Apr-2025
+
+* Revert built package to 0.7.3 to keep compatibility with Marlu
+
 ## 1.8.6 07-Apr-2025
 
 * Fixed panic when RECVRS key in metafits is a long string- e.g. for high number tile observations.
