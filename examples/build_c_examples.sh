@@ -29,4 +29,12 @@ gcc -O3 \
     -L../target/release/ \
     -lmwalib
 
+gcc -O3 \
+    mwalib-sum-vcs.c \
+    -o mwalib-sum-vcs \
+    -I ../include \
+    -lm -lpthread -ldl \
+    -L../target/release/ \
+    -lmwalib
+
 echo "Run the compiled binaries with some MWA files to test mwalib. NOTE: you may need to add the ../target/release path to your LD_LIBRARY_PATH env variable for the executables to work."
