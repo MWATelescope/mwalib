@@ -332,8 +332,8 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
 ///
 ///
 fn determine_gpubox_batches<T: AsRef<Path>>(
-    gpubox_filenames: &[T],
-) -> Result<(Vec<TempGpuBoxFile>, MWAVersion), GpuboxError> {
+    gpubox_filenames: &'_ [T],
+) -> Result<(Vec<TempGpuBoxFile<'_>>, MWAVersion), GpuboxError> {
     if gpubox_filenames.is_empty() {
         return Err(GpuboxError::NoGpuboxes);
     }

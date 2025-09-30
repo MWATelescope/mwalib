@@ -625,21 +625,17 @@ impl Rfinput {
                 has_whitening_filter(&metafits_row.flavour, metafits_row.whitening_filter);
 
             let rec_type = metafits_row.rx_type.parse::<ReceiverType>().unwrap();
-
             // Get data from calibration hdu if it exists
-            let calibdata_row = Self::read_metafits_calibdata_values(
-                metafits_fptr,
-                &metafits_cal_hdu_option,
-                input,
-                num_coarse_chans,
-            )?;
 
             let mut calib_delay: Option<f32> = None;
             let mut calib_gains: Option<Vec<f32>> = None;
 
-            if calibdata_row.is_some() {
-                let calibdata_row = calibdata_row.unwrap();
-
+            if let Some(calibdata_row) = Self::read_metafits_calibdata_values(
+                metafits_fptr,
+                &metafits_cal_hdu_option,
+                input,
+                num_coarse_chans,
+            )? {
                 // Check to ensure we have the same order of rf_inputs between this rf_input and the calibration hdu
                 assert_eq!(calibdata_row.antenna, metafits_row.antenna);
                 assert_eq!(calibdata_row.tile, metafits_row.tile_id);

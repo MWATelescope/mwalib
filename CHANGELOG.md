@@ -2,6 +2,12 @@
 
 Changes in each release are listed below.
 
+## 1.8.8 ?-Aug-2025
+
+* Updated MSRV to 1.80
+* Update dependencies
+* Fix clippy lints
+
 ## 1.8.7 10-Apr-2025
 
 * Revert built package to 0.7.3 to keep compatibility with Marlu

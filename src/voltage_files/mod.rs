@@ -241,9 +241,9 @@ fn convert_temp_voltage_files(
 ///
 ///
 fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
-    voltage_filenames: &[T],
+    voltage_filenames: &'_ [T],
     metafits_obs_id: usize,
-) -> Result<(Vec<TempVoltageFile>, MWAVersion, usize, u64), VoltageFileError> {
+) -> Result<(Vec<TempVoltageFile<'_>>, MWAVersion, usize, u64), VoltageFileError> {
     if voltage_filenames.is_empty() {
         return Err(VoltageFileError::NoVoltageFiles);
     }

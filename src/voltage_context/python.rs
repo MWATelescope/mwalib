@@ -28,7 +28,7 @@ impl VoltageContext {
     ///     voltage_context (VoltageContext): a populated VoltageContext object if Ok.
     #[new]
     #[pyo3(signature = (metafits_filename, voltage_filenames), text_signature = "(metafits_filename: str, mwa_version: list[voltage_filenames])")]
-    fn pyo3_new(metafits_filename: PyObject, voltage_filenames: Vec<PyObject>) -> PyResult<Self> {
+    fn pyo3_new(metafits_filename: &str, voltage_filenames: Vec<String>) -> PyResult<Self> {
         // Convert the voltage filenames.
         let voltage_filenames: Vec<String> = voltage_filenames
             .into_iter()

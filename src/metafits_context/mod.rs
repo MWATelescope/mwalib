@@ -977,13 +977,12 @@ impl MetafitsContext {
                     get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITERS")?;
 
                 // Currently this is an f32, but will be changed soon to u16
-                let f32_val: Option<f32> =
-                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITLIM")?;
-                if f32_val.is_some() {
-                    best_cal_fit_iter_limit = f32_val.unwrap().to_u16();
-                } else {
-                    best_cal_fit_iter_limit = None;
-                }
+                // This is basically saying-
+                // If we do have the CALITLIM key, get the value and then convert it to a u16.
+                // If we don't then just make best_cal_fit_iter_limit = None.
+                best_cal_fit_iter_limit =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITLIM")?
+                        .and_then(|val: f32| val.to_u16());
             }
             Err(_) => {
                 // This will occur if the HDU does not exist (old / or metafits without this)
