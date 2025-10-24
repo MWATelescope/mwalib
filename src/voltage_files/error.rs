@@ -7,10 +7,10 @@
 use crate::MWAVersion;
 use thiserror::Error;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::create_exception;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
 
 /// VoltageFileError subtypes - mainly used by VoltageContext
@@ -87,7 +87,7 @@ maybe you have a mix of different files?"#)]
 // Create Python Exceptions for rust errors
 //
 // Add exception for PyVoltageErrorInvalidTimeStepIndex
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorInvalidTimeStepIndex,
@@ -95,7 +95,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorInvalidCoarseChanIndex
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorInvalidCoarseChanIndex,
@@ -103,7 +103,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorNoVoltageFiles
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorNoVoltageFiles,
@@ -111,7 +111,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorInvalidBufferSize
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorInvalidBufferSize,
@@ -119,7 +119,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorInvalidGpsSecondStart
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorInvalidGpsSecondStart,
@@ -127,7 +127,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorInvalidVoltageFileSize
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorInvalidVoltageFileSize,
@@ -135,7 +135,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorInvalidGpsSecondCount
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorInvalidGpsSecondCount,
@@ -143,15 +143,15 @@ create_exception!(
 );
 
 // Add exception for PyVoltageError
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(mwalib, PyVoltageError, pyo3::exceptions::PyException);
 
 // Add exception for PyVoltageErrorMixture
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(mwalib, PyVoltageErrorMixture, pyo3::exceptions::PyException);
 
 // Add exception for PyVoltageErrorGpsTimeMissing
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorGpsTimeMissing,
@@ -159,7 +159,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorUnevenChannelsForGpsTime
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorUnevenChannelsForGpsTime,
@@ -167,7 +167,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorUnrecognised
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorUnrecognised,
@@ -175,7 +175,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorMissingObsid
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorMissingObsid,
@@ -183,7 +183,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorUnequalFileSizes
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorUnequalFileSizes,
@@ -191,7 +191,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorMetafitsObsidMismatch
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorMetafitsObsidMismatch,
@@ -199,7 +199,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorObsidMismatch
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorObsidMismatch,
@@ -207,7 +207,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorEmptyBTreeMap
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorEmptyBTreeMap,
@@ -215,7 +215,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorInvalidMwaVersion
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorInvalidMwaVersion,
@@ -223,7 +223,7 @@ create_exception!(
 );
 
 // Add exception for PyVoltageErrorNoDataForTimeStepCoarseChannel
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyVoltageErrorNoDataForTimeStepCoarseChannel,
@@ -231,7 +231,7 @@ create_exception!(
 );
 
 // Convert a rust VoltageFileError to a python exception
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 impl std::convert::From<VoltageFileError> for PyErr {
     fn from(err: VoltageFileError) -> PyErr {
         match &err {

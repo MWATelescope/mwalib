@@ -1,0 +1,9 @@
+[project]
+name = "tools"
+version = "0.1.0"
+description = "A simple test python project for mwalib"
+requires-python = ">=3.12"
+dependencies = [
+    "maturin[patchelf]",
+    "pytest>=8.4.2",
+]

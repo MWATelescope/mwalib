@@ -18,12 +18,12 @@ use crate::metafits_context::*;
 use crate::timestep::*;
 use crate::*;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
-#[cfg(feature = "python")]
-use pyo3_stub_gen_derive::gen_stub_pyclass;
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 mod python;
+#[cfg(feature = "python-stubgen")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 #[cfg(test)]
 mod test;
@@ -31,7 +31,11 @@ mod test;
 ///
 /// This represents the basic metadata and methods for an MWA correlator observation.
 ///
-#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
 #[derive(Debug)]
 pub struct CorrelatorContext {
     /// Observation Metadata obtained from the metafits file

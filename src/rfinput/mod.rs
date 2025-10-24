@@ -13,9 +13,9 @@ use error::RfinputError;
 use fitsio::FitsFile;
 use std::fmt;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
-#[cfg(feature = "python")]
+#[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::{gen_stub_pyclass, gen_stub_pyclass_enum};
 
 #[cfg(test)]
@@ -91,7 +91,11 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
 
 /// Instrument polarisation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int)
+)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 pub enum Pol {
     X,
     Y,
@@ -176,7 +180,11 @@ struct RfInputMetafitsTableRow {
 /// ReceiverType enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int)
+)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum ReceiverType {
     Unknown,
@@ -256,7 +264,11 @@ struct RfInputMetafitsCalibDataTableRow {
 }
 
 /// Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
-#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
 #[derive(Clone)]
 pub struct Rfinput {
     /// This is the metafits order (0-n inputs)

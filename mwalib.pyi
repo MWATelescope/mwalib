@@ -3,11 +3,12 @@
 
 import builtins
 import datetime
+import enum
 import numpy
 import numpy.typing
 import typing
-from enum import Enum
 
+@typing.final
 class Antenna:
     r"""
     Structure for storing MWA antennas (tiles without polarisation) information from the metafits file
@@ -119,6 +120,7 @@ class Antenna:
         Antenna height from the array centre (metres)
         """
 
+@typing.final
 class Baseline:
     r"""
     This is a struct for our baselines, so callers know the antenna ordering
@@ -144,6 +146,7 @@ class Baseline:
         Index in the mwalibContext.antenna array for antenna2 for this baseline
         """
 
+@typing.final
 class CoarseChannel:
     r"""
     This is a struct for coarse channels
@@ -225,6 +228,7 @@ class CoarseChannel:
         Ending frequency of coarse channel in Hz
         """
 
+@typing.final
 class CorrelatorContext:
     r"""
     This represents the basic metadata and methods for an MWA correlator observation.
@@ -637,7 +641,7 @@ class CorrelatorContext:
         r"""
         BSCALE- FITS BSCALE or SCALEFAC value set on the visibility HDUs (used in Legacy Correlator only)
         """
-    def __new__(cls, metafits_filename:builtins.str, gpubox_filenames:typing.Sequence[builtins.str]) -> CorrelatorContext:
+    def __new__(cls, metafits_filename: builtins.str, gpubox_filenames: typing.Sequence[builtins.str]) -> CorrelatorContext:
         r"""
         From a path to a metafits file and paths to gpubox files, create a `CorrelatorContext`.
         
@@ -648,7 +652,7 @@ class CorrelatorContext:
         Returns:
             correlator_context (CorelatorContext): a populated CorrelatorContext object if Ok.
         """
-    def get_fine_chan_freqs_hz_array(self, corr_coarse_chan_indices:typing.Sequence[builtins.int]) -> builtins.list[builtins.float]:
+    def get_fine_chan_freqs_hz_array(self, corr_coarse_chan_indices: typing.Sequence[builtins.int]) -> builtins.list[builtins.float]:
         r"""
         For a given list of correlator coarse channel indices, return a list of the center frequencies for all the fine channels in the given coarse channels
         
@@ -658,7 +662,7 @@ class CorrelatorContext:
         Returns:
             fine_chan_freqs_hz_array (list[float]): a vector of floats containing the centre sky frequencies of all the fine channels for the given coarse channels.
         """
-    def read_by_baseline(self, corr_timestep_index:builtins.int, corr_coarse_chan_index:builtins.int) -> numpy.typing.NDArray[numpy.float32]:
+    def read_by_baseline(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.float32]:
         r"""
         Read a single timestep for a single coarse channel. The output visibilities are in order: baseline,frequency,pol,r,i
         
@@ -669,7 +673,7 @@ class CorrelatorContext:
         Returns:
             data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [baseline],[frequency],[pol,r,i] order, if Ok.
         """
-    def read_by_frequency(self, corr_timestep_index:builtins.int, corr_coarse_chan_index:builtins.int) -> numpy.typing.NDArray[numpy.float32]:
+    def read_by_frequency(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.float32]:
         r"""
         Read a single timestep for a single coarse channel. The output visibilities are in order: frequency,baseline,pol,r,i
         
@@ -680,7 +684,7 @@ class CorrelatorContext:
         Returns:
             data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [frequency],[baseline],[pol,r,i] order, if Ok.
         """
-    def read_weights_by_baseline(self, corr_timestep_index:builtins.int, corr_coarse_chan_index:builtins.int) -> numpy.typing.NDArray[numpy.float32]:
+    def read_weights_by_baseline(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.float32]:
         r"""
         Read weights for a single timestep for a single coarse channel. The output weights are in order: baseline,pol
         
@@ -692,9 +696,10 @@ class CorrelatorContext:
             data (numpy.typing.NDArray[numpy.float32]): A 2 dimensional ndarray of 32 bit floats containing the data in [baseline],[pol] order, if Ok.
         """
     def __repr__(self) -> builtins.str: ...
-    def __enter__(self) -> CorrelatorContext: ...
-    def __exit__(self, _exc_type:typing.Any, _exc_value:typing.Any, _traceback:typing.Any) -> None: ...
+    def __enter__(self, slf: CorrelatorContext) -> CorrelatorContext: ...
+    def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...
 
+@typing.final
 class GpuBoxBatch:
     r"""
     This represents one group of gpubox files with the same "batch" identitifer.
@@ -721,6 +726,7 @@ class GpuBoxBatch:
         Vector storing the details of each gpubox file in this batch
         """
 
+@typing.final
 class GpuBoxFile:
     r"""
     This represents one gpubox file
@@ -812,6 +818,7 @@ class GpuboxErrorUnevenCountInBatches(builtins.Exception):
 class GpuboxErrorUnrecognised(builtins.Exception):
     ...
 
+@typing.final
 class LegacyConversionBaseline:
     r"""
     Structure for storing where in the input visibilities to get the specified baseline when converting
@@ -861,6 +868,7 @@ class LegacyConversionBaseline:
     @yy_conjugate.setter
     def yy_conjugate(self, value: builtins.bool) -> None: ...
 
+@typing.final
 class MetafitsContext:
     r"""
     Metafits context. This represents the basic metadata for an MWA observation.
@@ -1709,7 +1717,7 @@ class MetafitsContext:
         r"""
         Number of Signal Chain corrections
         """
-    def __new__(cls, metafits_filename:builtins.str, mwa_version:typing.Optional[MWAVersion]=None) -> MetafitsContext:
+    def __new__(cls, metafits_filename: builtins.str, mwa_version: typing.Optional[MWAVersion] = None) -> MetafitsContext:
         r"""
         From a path to a metafits file, create a `MetafitsContext`.
         
@@ -1721,12 +1729,13 @@ class MetafitsContext:
             metafits_contex (MetafitsContex): a populated MetafitsContext object if Ok.
         """
     def __repr__(self) -> builtins.str: ...
-    def __enter__(self) -> MetafitsContext: ...
-    def __exit__(self, _exc_type:typing.Any, _exc_value:typing.Any, _traceback:typing.Any) -> None: ...
+    def __enter__(self, slf: MetafitsContext) -> MetafitsContext: ...
+    def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...
 
 class MwalibError(builtins.Exception):
     ...
 
+@typing.final
 class Rfinput:
     r"""
     Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
@@ -2002,6 +2011,7 @@ class Rfinput:
         receiver type and whitening filter combination
         """
 
+@typing.final
 class SignalChainCorrection:
     r"""
     Signal chain correction table
@@ -2037,6 +2047,7 @@ class SignalChainCorrection:
         Corrections
         """
 
+@typing.final
 class TimeStep:
     r"""
     This is a struct for our timesteps
@@ -2063,6 +2074,7 @@ class TimeStep:
         gps time (in milliseconds)
         """
 
+@typing.final
 class VoltageContext:
     r"""
     This represents the basic metadata and methods for an MWA voltage capture system (VCS) observation.
@@ -2535,7 +2547,7 @@ class VoltageContext:
         number, batch number and HDU index are everything needed to find the
         correct HDU out of all voltage files.
         """
-    def __new__(cls, metafits_filename:builtins.str, voltage_filenames:typing.Sequence[builtins.str]) -> VoltageContext:
+    def __new__(cls, metafits_filename: builtins.str, voltage_filenames: typing.Sequence[builtins.str]) -> VoltageContext:
         r"""
         From a path to a metafits file and paths to voltage files, create a `VoltageContext`.
         
@@ -2546,7 +2558,7 @@ class VoltageContext:
         Returns:
             voltage_context (VoltageContext): a populated VoltageContext object if Ok.
         """
-    def get_fine_chan_freqs_hz_array(self, volt_coarse_chan_indices:typing.Sequence[builtins.int]) -> builtins.list[builtins.float]:
+    def get_fine_chan_freqs_hz_array(self, volt_coarse_chan_indices: typing.Sequence[builtins.int]) -> builtins.list[builtins.float]:
         r"""
         For a given list of voltage coarse channel indices, return a list of the center frequencies for all the fine channels in the given coarse channels.
         
@@ -2556,7 +2568,7 @@ class VoltageContext:
         Returns:
             fine_chan_freqs_hz_array (list[float]): a vector of floats containing the centre sky frequencies of all the fine channels for the given coarse channels.
         """
-    def read_file(self, volt_timestep_index:builtins.int, volt_coarse_chan_index:builtins.int) -> numpy.typing.NDArray[numpy.int8]:
+    def read_file(self, volt_timestep_index: builtins.int, volt_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.int8]:
         r"""
         Read a single timestep / coarse channel worth of data
         
@@ -2572,7 +2584,7 @@ class VoltageContext:
                 where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment    
         MWAX  : [second],[voltage_block],[antenna],[pol],[sample],[r,i]
         """
-    def read_second(self, gps_second_start:builtins.int, gps_second_count:builtins.int, volt_coarse_chan_index:builtins.int) -> numpy.typing.NDArray[numpy.int8]:
+    def read_second(self, gps_second_start: builtins.int, gps_second_count: builtins.int, volt_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.int8]:
         r"""
         Read a single or multiple seconds of data for a coarse channel
         
@@ -2590,8 +2602,8 @@ class VoltageContext:
         MWAX  : [second],[voltage_block],[antenna],[pol],[sample],[r,i]
         """
     def __repr__(self) -> builtins.str: ...
-    def __enter__(self) -> VoltageContext: ...
-    def __exit__(self, _exc_type:typing.Any, _exc_value:typing.Any, _traceback:typing.Any) -> None: ...
+    def __enter__(self, slf: VoltageContext) -> VoltageContext: ...
+    def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...
 
 class VoltageErro(builtins.Exception):
     ...
@@ -2650,6 +2662,7 @@ class VoltageErrorUnevenChannelsForGpsTime(builtins.Exception):
 class VoltageErrorUnrecognised(builtins.Exception):
     ...
 
+@typing.final
 class VoltageFile:
     r"""
     This represents one voltage file
@@ -2675,6 +2688,7 @@ class VoltageFile:
         channel number (receiver channel number 001..255)
         """
 
+@typing.final
 class VoltageFileBatch:
     r"""
     This represents one group of voltage files with the same "batch" identitifer (gps time).
@@ -2697,7 +2711,8 @@ class VoltageFileBatch:
         Vector storing the details of each voltage file in this batch
         """
 
-class CableDelaysApplied(Enum):
+@typing.final
+class CableDelaysApplied(enum.Enum):
     r"""
     The type of cable delays applied to the data
     """
@@ -2705,7 +2720,8 @@ class CableDelaysApplied(Enum):
     CableAndRecClock = ...
     CableAndRecClockAndBeamformerDipoleDelays = ...
 
-class GeometricDelaysApplied(Enum):
+@typing.final
+class GeometricDelaysApplied(enum.Enum):
     r"""
     The type of geometric delays applied to the data
     """
@@ -2714,7 +2730,8 @@ class GeometricDelaysApplied(Enum):
     TilePointing = ...
     AzElTracking = ...
 
-class MWAMode(Enum):
+@typing.final
+class MWAMode(enum.Enum):
     r"""
     The MODE the system was in for this observation
     """
@@ -2741,7 +2758,8 @@ class MWAMode(Enum):
     Mwax_Vcs = ...
     Mwax_Buffer = ...
 
-class MWAVersion(Enum):
+@typing.final
+class MWAVersion(enum.Enum):
     r"""
     Enum for all of the known variants of file format based on Correlator version
     """
@@ -2766,14 +2784,16 @@ class MWAVersion(Enum):
     MWAX VCS
     """
 
-class Pol(Enum):
+@typing.final
+class Pol(enum.Enum):
     r"""
     Instrument polarisation.
     """
     X = ...
     Y = ...
 
-class ReceiverType(Enum):
+@typing.final
+class ReceiverType(enum.Enum):
     r"""
     ReceiverType enum.
     """
@@ -2784,7 +2804,8 @@ class ReceiverType(Enum):
     SHAO = ...
     EDA2 = ...
 
-class VisPol(Enum):
+@typing.final
+class VisPol(enum.Enum):
     r"""
     Visibility polarisations
     """

@@ -19,7 +19,7 @@ exclude = ["test_files/*", "tools/*",".github/*"]
 name = "stub_gen"
 path = "bin/stub_gen.rs"
 doc = false
-required-features = ["python"]
+required-features = ["python", "python-stubgen"]
 
 # Make a rust library, as well as static and C-compatible dynamic libraries
 # available as "libmwalib.a" and "libmwalib.so".
@@ -32,7 +32,9 @@ cfitsio-static = ["fitsio-sys/fitsio-src"]
 # Enable optional features needed by examples.
 examples = ["anyhow", "clap", "env_logger"]
 # Enable python
-python = ["anyhow", "env_logger", "ndarray", "numpy", "pyo3", "pyo3-stub-gen", "pyo3-stub-gen-derive"]
+python = ["anyhow", "env_logger", "ndarray", "numpy", "pyo3"]
+# Enable python-stubgen
+python-stubgen = ["ndarray", "numpy", "pyo3", "pyo3-stub-gen", "pyo3-stub-gen-derive"]
 
 [dependencies]
 chrono = "=0.4.42"
@@ -44,8 +46,7 @@ log = "=0.4"
 num-derive = "=0.4"
 num-traits = "=0.2"
 rayon = "1.11"
-#rayon-core = "=1.12.1"
-regex = "=1.11"
+regex = "=1.12"
 thiserror = "=2.0"
 
 # "python" and examples features
@@ -54,22 +55,29 @@ env_logger = { version = "=0.11.8", optional = true}
 
 # "python" feature
 ndarray = { version = "~0.16.1", optional = true }
-numpy = { version = "=0.26", optional = true }
-pyo3 = { version = "=0.26", features = ["chrono", "extension-module", "macros"], optional = true }
-pyo3-stub-gen = { version = "=0.10", optional = true }
-pyo3-stub-gen-derive = { version = "=0.10", optional = true }
+#numpy = { version = "=0.26", optional = true }
+#pyo3 = { version = "=0.26", features = ["chrono", "extension-module", "macros"], optional = true }
+numpy = { version = "=0.27", optional = true }
+pyo3 = { version = "=0.27.1", features = ["chrono", "extension-module", "macros"], optional = true }
+
+# "py-stubgen" feature
+#pyo3-stub-gen = { version = "=0.11", optional = true }
+#pyo3-stub-gen-derive = { version = "=0.11", optional = true }
+pyo3-stub-gen = { version = "=0.16.1", optional = true }
+pyo3-stub-gen-derive = { version = "=0.16.1", optional = true }
 
 # "examples" feature.
 clap = { version = "=4.5", features = ["derive"], optional = true }
 
 [dev-dependencies]
-csv = "=1.3"
+csv = "=1.4"
 float-cmp = "=0.10"
 tempdir = "=0.3"
 
 [build-dependencies]
 built = "=0.7.7"
-cbindgen = { version = "=0.29.0", default-features = false }
+cbindgen = { version = "=0.29.2", default-features = false }
+indexmap = "=2.11"
 
 [[example]]
 name = "mwalib-data-dump"
