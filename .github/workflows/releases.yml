@@ -255,6 +255,8 @@ jobs:
 
   rust_release:
     name: Publish to crates.io
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
     needs: [create-github-release]
