@@ -26,20 +26,24 @@ pub mod error;
 #[cfg(test)]
 mod test;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
-#[cfg(feature = "python")]
-use pyo3_stub_gen_derive::gen_stub_pyclass;
-#[cfg(feature = "python")]
-use pyo3_stub_gen_derive::gen_stub_pyclass_enum;
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 mod python;
+#[cfg(feature = "python-stubgen")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
+#[cfg(feature = "python-stubgen")]
+use pyo3_stub_gen_derive::gen_stub_pyclass_enum;
 
 /// Enum for all of the known variants of file format based on Correlator version
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int)
+)]
 pub enum MWAVersion {
     /// MWA correlator (v1.0), having data files without any batch numbers.
     CorrOldLegacy = 1,
@@ -85,7 +89,11 @@ impl fmt::Display for MWAVersion {
 ///
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int)
+)]
 pub enum VisPol {
     XX = 1,
     XY = 2,
@@ -123,7 +131,11 @@ impl fmt::Display for VisPol {
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int)
+)]
 pub enum GeometricDelaysApplied {
     No = 0,
     Zenith = 1,
@@ -188,7 +200,11 @@ impl std::str::FromStr for GeometricDelaysApplied {
 ///
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int)
+)]
 pub enum CableDelaysApplied {
     NoCableDelaysApplied = 0,
     CableAndRecClock = 1,
@@ -241,7 +257,11 @@ impl std::str::FromStr for CableDelaysApplied {
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int)
+)]
 pub enum MWAMode {
     No_Capture = 0,
     Burst_Vsib = 1,
@@ -347,7 +367,11 @@ impl std::str::FromStr for MWAMode {
 ///
 /// Metafits context. This represents the basic metadata for an MWA observation.
 ///
-#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
 #[derive(Clone, Debug)]
 pub struct MetafitsContext {
     /// mwa version    
@@ -977,13 +1001,12 @@ impl MetafitsContext {
                     get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITERS")?;
 
                 // Currently this is an f32, but will be changed soon to u16
-                let f32_val: Option<f32> =
-                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITLIM")?;
-                if f32_val.is_some() {
-                    best_cal_fit_iter_limit = f32_val.unwrap().to_u16();
-                } else {
-                    best_cal_fit_iter_limit = None;
-                }
+                // This is basically saying-
+                // If we do have the CALITLIM key, get the value and then convert it to a u16.
+                // If we don't then just make best_cal_fit_iter_limit = None.
+                best_cal_fit_iter_limit =
+                    get_optional_fits_key!(&mut metafits_fptr, &metafits_cal_hdu, "CALITLIM")?
+                        .and_then(|val: f32| val.to_u16());
             }
             Err(_) => {
                 // This will occur if the HDU does not exist (old / or metafits without this)

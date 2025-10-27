@@ -13,9 +13,9 @@ use error::RfinputError;
 use fitsio::FitsFile;
 use std::fmt;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
-#[cfg(feature = "python")]
+#[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::{gen_stub_pyclass, gen_stub_pyclass_enum};
 
 #[cfg(test)]
@@ -91,7 +91,11 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
 
 /// Instrument polarisation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int)
+)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 pub enum Pol {
     X,
     Y,
@@ -176,7 +180,11 @@ struct RfInputMetafitsTableRow {
 /// ReceiverType enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
-#[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int), gen_stub_pyclass_enum)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int)
+)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum ReceiverType {
     Unknown,
@@ -256,7 +264,11 @@ struct RfInputMetafitsCalibDataTableRow {
 }
 
 /// Structure for storing MWA rf_chains (tile with polarisation) information from the metafits file
-#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
 #[derive(Clone)]
 pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
@@ -625,21 +637,17 @@ impl Rfinput {
                 has_whitening_filter(&metafits_row.flavour, metafits_row.whitening_filter);
 
             let rec_type = metafits_row.rx_type.parse::<ReceiverType>().unwrap();
-
             // Get data from calibration hdu if it exists
-            let calibdata_row = Self::read_metafits_calibdata_values(
-                metafits_fptr,
-                &metafits_cal_hdu_option,
-                input,
-                num_coarse_chans,
-            )?;
 
             let mut calib_delay: Option<f32> = None;
             let mut calib_gains: Option<Vec<f32>> = None;
 
-            if calibdata_row.is_some() {
-                let calibdata_row = calibdata_row.unwrap();
-
+            if let Some(calibdata_row) = Self::read_metafits_calibdata_values(
+                metafits_fptr,
+                &metafits_cal_hdu_option,
+                input,
+                num_coarse_chans,
+            )? {
                 // Check to ensure we have the same order of rf_inputs between this rf_input and the calibration hdu
                 assert_eq!(calibdata_row.antenna, metafits_row.antenna);
                 assert_eq!(calibdata_row.tile, metafits_row.tile_id);

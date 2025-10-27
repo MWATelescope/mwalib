@@ -4,10 +4,10 @@
 
 //! Errors associated with reading in gpubox files.
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::create_exception;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
 
 use thiserror::Error;
@@ -120,7 +120,7 @@ maybe you have a mix of different files?"#)]
 // Create Python Exceptions for rust errors
 //
 // Add exception for PyGpuboxErrorBatchMissing
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorBatchMissing,
@@ -128,7 +128,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorCorrVerMismatch
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorCorrVerMismatch,
@@ -136,7 +136,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorEmptyBTreeMap
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorEmptyBTreeMap,
@@ -144,11 +144,11 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorFits
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(mwalib, PyGpuboxErrorFits, pyo3::exceptions::PyException);
 
 // Add exception for PyGpuboxErrorInvalidCoarseChanIndex
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorInvalidCoarseChanIndex,
@@ -156,7 +156,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorInvalidMwaVersion
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorInvalidMwaVersion,
@@ -164,7 +164,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorInvalidTimeStepIndex
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorInvalidTimeStepIndex,
@@ -172,7 +172,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorLegacyNaxis1Mismatch
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorLegacyNaxis1Mismatch,
@@ -180,7 +180,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorLegacyNaxis2Mismatch
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorLegacyNaxis2Mismatch,
@@ -188,7 +188,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorMissingObsid
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorMissingObsid,
@@ -196,11 +196,11 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorMixture
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(mwalib, PyGpuboxErrorMixture, pyo3::exceptions::PyException);
 
 // Add exception for PyGpuboxErrorMwaxNaxis1Mismatch
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorMwaxNaxis1Mismatch,
@@ -208,7 +208,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorMwaxNaxis2Mismatch
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorMwaxNaxis2Mismatch,
@@ -216,7 +216,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorMwaxCorrVerMismatch
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorMwaxCorrVerMismatch,
@@ -224,7 +224,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorMwaxCorrVerMissing
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorMwaxCorrVerMissing,
@@ -232,7 +232,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorNoDataForTimeStepCoarseChannel
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorNoDataForTimeStepCoarseChannel,
@@ -240,7 +240,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorNoDataHDUsInGpuboxFile
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorNoDataHDUsInGpuboxFile,
@@ -248,7 +248,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorNoGpuboxes
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorNoGpuboxes,
@@ -256,7 +256,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorObsidMismatch
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorObsidMismatch,
@@ -264,7 +264,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorUnequalHduSizes
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorUnequalHduSizes,
@@ -272,7 +272,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorUnevenCountInBatches
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorUnevenCountInBatches,
@@ -280,7 +280,7 @@ create_exception!(
 );
 
 // Add exception for PyGpuboxErrorUnrecognised
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(
     mwalib,
     PyGpuboxErrorUnrecognised,
@@ -288,7 +288,7 @@ create_exception!(
 );
 
 // Convert a rust GpuBoxError to a python exception
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 impl std::convert::From<GpuboxError> for PyErr {
     fn from(err: GpuboxError) -> PyErr {
         match &err {

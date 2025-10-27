@@ -1,19 +1,13 @@
 extern crate mwalib;
 
-#[cfg(feature = "python")]
 use std::env;
-#[cfg(feature = "python")]
 use std::fs::File;
-#[cfg(feature = "python")]
 use std::io::{Read, Write};
-#[cfg(feature = "python")]
 use std::path::Path;
 
 #[cfg(test)]
-#[cfg(feature = "python")]
 use tempdir::TempDir;
 
-#[cfg(feature = "python")]
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().filter_or("RUST_LOG", "info")).init();
 
@@ -24,7 +18,6 @@ fn main() -> anyhow::Result<()> {
     anyhow::Ok(())
 }
 
-#[cfg(feature = "python")]
 fn generate_stubs() -> anyhow::Result<()> {
     // Generating the stub requires the below env variable to be set for some reason?
     env::set_var("CARGO_MANIFEST_DIR", env::current_dir()?);
@@ -34,7 +27,6 @@ fn generate_stubs() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "python")]
 fn fix_stubs() -> anyhow::Result<()> {
     // After the stub is generated, we have some "manual" fixes to do
     let stubfile = String::from("mwalib.pyi");
@@ -92,7 +84,6 @@ fn fix_stubs() -> anyhow::Result<()> {
 ///
 ///
 #[allow(dead_code)]
-#[cfg(feature = "python")]
 fn insert_stub_below<P: AsRef<Path>>(
     stubfile: P,
     string_to_find: &str,
@@ -138,7 +129,6 @@ fn insert_stub_below<P: AsRef<Path>>(
 /// * Result Ok if stub file was modified successfully.
 ///
 ///
-#[cfg(feature = "python")]
 fn replace_stub<P: AsRef<Path>>(
     stubfile: P,
     string_to_find: &str,
@@ -161,7 +151,6 @@ fn replace_stub<P: AsRef<Path>>(
 }
 
 #[test]
-#[cfg(feature = "python")]
 fn test_insert_stub_below() {
     // Create ephemeral temp directory which will be deleted at end of test
     let dir =
@@ -199,7 +188,6 @@ fn test_insert_stub_below() {
 }
 
 #[test]
-#[cfg(feature = "python")]
 fn test_replace_stub() {
     // Create ephemeral temp directory which will be deleted at end of test
     let dir =

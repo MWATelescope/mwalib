@@ -3,12 +3,19 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Python interface to mwalib via pyo3.
-#[cfg(feature = "python")]
+
+// If we are only using "python" feature, use pyo3::create_exception
+#[cfg(all(feature = "python", not(feature = "python-stubgen")))]
+use pyo3::create_exception;
+// But if we are using python-stubgen feature, use pyo3_stub_gen version
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::exceptions::PyException;
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
-#[cfg(feature = "python")]
-use pyo3_stub_gen::{create_exception, define_stub_info_gatherer};
+#[cfg(all(feature = "python", feature = "python-stubgen"))]
+use pyo3_stub_gen::create_exception;
+#[cfg(feature = "python-stubgen")]
+use pyo3_stub_gen::define_stub_info_gatherer;
 
 use crate::{
     gpubox_files::error::*,
@@ -19,6 +26,7 @@ use crate::{
 };
 
 // Add a python exception for MmwalibError.
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(mwalib, MwalibError, PyException);
 impl std::convert::From<crate::MwalibError> for PyErr {
     fn from(err: crate::MwalibError) -> PyErr {
@@ -77,7 +85,7 @@ create_exception!(
     PyException
 );
 
-#[cfg_attr(feature = "python", pymodule)]
+#[cfg_attr(any(feature = "python", feature = "python-stubgen"), pymodule)]
 fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<MetafitsContext>()?;
     m.add_class::<CorrelatorContext>()?;
@@ -252,4 +260,5 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "python-stubgen")]
 define_stub_info_gatherer!(stub_info);

@@ -20,9 +20,9 @@ pub use error::GpuboxError;
 
 use fitsio::FitsFile;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
-#[cfg(feature = "python")]
+#[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 #[cfg(test)]
@@ -39,7 +39,11 @@ pub(crate) struct ObsTimesAndChans {
 
 /// This represents one group of gpubox files with the same "batch" identitifer.
 /// e.g. obsid_datetime_chan_batch
-#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
 #[derive(Clone)]
 pub struct GpuBoxBatch {
     /// Batch number: 00,01,02..n.
@@ -69,7 +73,11 @@ impl fmt::Debug for GpuBoxBatch {
 }
 
 /// This represents one gpubox file
-#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
 #[derive(Clone)]
 pub struct GpuBoxFile {
     /// Filename of gpubox file
@@ -332,8 +340,8 @@ pub(crate) fn examine_gpubox_files<T: AsRef<Path>>(
 ///
 ///
 fn determine_gpubox_batches<T: AsRef<Path>>(
-    gpubox_filenames: &[T],
-) -> Result<(Vec<TempGpuBoxFile>, MWAVersion), GpuboxError> {
+    gpubox_filenames: &'_ [T],
+) -> Result<(Vec<TempGpuBoxFile<'_>>, MWAVersion), GpuboxError> {
     if gpubox_filenames.is_empty() {
         return Err(GpuboxError::NoGpuboxes);
     }

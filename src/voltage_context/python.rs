@@ -3,20 +3,20 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! VoltageContext methods for Python
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use super::*;
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use ndarray::Array;
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use ndarray::Dim;
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use numpy::PyArray;
-#[cfg(feature = "python")]
+#[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pymethods;
 
-#[cfg_attr(feature = "python", gen_stub_pymethods)]
-#[cfg_attr(feature = "python", pymethods)]
-#[cfg(feature = "python")]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pymethods)]
+#[cfg_attr(any(feature = "python", feature = "python-stubgen"), pymethods)]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 impl VoltageContext {
     /// From a path to a metafits file and paths to voltage files, create a `VoltageContext`.
     ///
@@ -28,7 +28,7 @@ impl VoltageContext {
     ///     voltage_context (VoltageContext): a populated VoltageContext object if Ok.
     #[new]
     #[pyo3(signature = (metafits_filename, voltage_filenames), text_signature = "(metafits_filename: str, mwa_version: list[voltage_filenames])")]
-    fn pyo3_new(metafits_filename: PyObject, voltage_filenames: Vec<PyObject>) -> PyResult<Self> {
+    fn pyo3_new(metafits_filename: &str, voltage_filenames: Vec<String>) -> PyResult<Self> {
         // Convert the voltage filenames.
         let voltage_filenames: Vec<String> = voltage_filenames
             .into_iter()

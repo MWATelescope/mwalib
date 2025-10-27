@@ -2,15 +2,19 @@ use crate::rfinput::ReceiverType;
 use crate::MAX_RECEIVER_CHANNELS;
 use std::fmt;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
-#[cfg(feature = "python")]
+#[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 ///
 /// Signal chain correction table
 ///
-#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
 #[derive(Clone, Debug, PartialEq)]
 #[repr(C)]
 pub struct SignalChainCorrection {

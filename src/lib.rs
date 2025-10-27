@@ -77,5 +77,5 @@ pub use voltage_files::error::VoltageFileError;
 pub use fitsio;
 pub use fitsio_sys;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 pub mod python;

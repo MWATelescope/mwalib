@@ -2,6 +2,17 @@
 
 Changes in each release are listed below.
 
+## 1.9.0 27-Oct-2025
+
+* Updated MSRV to 1.80
+* Update dependencies
+* Removed support for Python 3.9 as it is EOL
+* Added support for Python 3.14
+* Fix clippy lints
+* Added example Docker file
+* Improved Python stub/docstring generation
+* Separated Python stub generation code and dependencies into its own "python-stubgen" feature. This is only needed when a new release is being prepared so regular users don't need it.
+
 ## 1.8.7 10-Apr-2025
 
 * Revert built package to 0.7.3 to keep compatibility with Marlu

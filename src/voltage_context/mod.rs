@@ -15,12 +15,12 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
-#[cfg(feature = "python")]
+#[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 mod python;
 
 #[cfg(test)]
@@ -29,7 +29,11 @@ pub(crate) mod test; // It's pub crate because I reuse some test code in the ffi
 ///
 /// This represents the basic metadata and methods for an MWA voltage capture system (VCS) observation.
 ///
-#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
 #[derive(Debug)]
 pub struct VoltageContext {
     /// Observation Metadata obtained from the metafits file

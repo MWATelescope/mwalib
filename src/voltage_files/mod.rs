@@ -14,9 +14,9 @@ use std::collections::HashSet;
 use std::fmt;
 use std::path::Path;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
-#[cfg(feature = "python")]
+#[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 #[cfg(test)]
@@ -34,7 +34,11 @@ pub(crate) struct ObsTimesAndChans {
 /// e.g.
 /// MWA Legacy: obsid_gpstime_datetime_chan
 /// MWAX      : obsid_gpstime_datetime_chan
-#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
 #[derive(Clone)]
 pub struct VoltageFileBatch {
     // GPS second of this observation. e.g. 1234567890
@@ -64,7 +68,11 @@ impl fmt::Debug for VoltageFileBatch {
 }
 
 /// This represents one voltage file
-#[cfg_attr(feature = "python", gen_stub_pyclass, pyclass(get_all, set_all))]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
 #[derive(Clone)]
 pub struct VoltageFile {
     /// Filename of voltage file
@@ -241,9 +249,9 @@ fn convert_temp_voltage_files(
 ///
 ///
 fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
-    voltage_filenames: &[T],
+    voltage_filenames: &'_ [T],
     metafits_obs_id: usize,
-) -> Result<(Vec<TempVoltageFile>, MWAVersion, usize, u64), VoltageFileError> {
+) -> Result<(Vec<TempVoltageFile<'_>>, MWAVersion, usize, u64), VoltageFileError> {
     if voltage_filenames.is_empty() {
         return Err(VoltageFileError::NoVoltageFiles);
     }
