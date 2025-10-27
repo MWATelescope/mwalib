@@ -11,6 +11,8 @@
 #    maturin generate-ci github --platform manylinux macos
 #
 name: Releasev2
+permissions:
+  contents: read
 
 on:
   push:
@@ -194,6 +196,8 @@ jobs:
   create-github-release:
     name: Create a new github release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
     needs: [build_linux, build_macos]    
     environment: CI
