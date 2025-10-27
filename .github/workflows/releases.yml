@@ -195,6 +195,8 @@ jobs:
 
   create-github-release:
     name: Create a new github release
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     permissions:
       contents: write
