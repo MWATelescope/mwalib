@@ -11,6 +11,8 @@
 #    maturin generate-ci github --platform manylinux macos
 #
 name: Releasev2
+permissions:
+  contents: read
 
 on:
   push:
