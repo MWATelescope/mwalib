@@ -1,4 +1,6 @@
 name: Cross-platform tests
+permissions:
+  contents: read
 
 on:
   push:
