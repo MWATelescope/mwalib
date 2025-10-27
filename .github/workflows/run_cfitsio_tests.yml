@@ -13,6 +13,8 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
 
+permissions:
+  contents: read
 jobs:
   test_cfitsio_3:
     name: Test cfitsio 3.49 on ${{ matrix.os }}
