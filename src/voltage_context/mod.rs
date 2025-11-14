@@ -565,6 +565,142 @@ impl VoltageContext {
         Ok(gps_second_end)
     }
 
+    pub fn read_second2(
+        &self,
+        gps_second_start: u64,
+        gps_second_count: usize,
+        volt_coarse_chan_index: usize,
+        buffer: &mut [i8],
+    ) -> Result<(), VoltageFileError> {
+        // Validate inputs...
+        if self.voltage_batches.is_empty() {
+            return Err(VoltageFileError::NoVoltageFiles);
+        }
+
+        // Validate the coarse chan
+        if volt_coarse_chan_index > self.num_coarse_chans - 1 {
+            return Err(VoltageFileError::InvalidCoarseChanIndex(
+                self.num_coarse_chans - 1,
+            ));
+        }
+
+        // Determine the channel identifier, which we will use later to find the correct data file
+        let channel_identifier = self.coarse_chans[volt_coarse_chan_index].gpubox_number;
+
+        // Validate the gpstime
+        let gps_second_end =
+            VoltageContext::validate_gps_time_parameters(self, gps_second_start, gps_second_count)?;
+
+        // Determine which timestep(s) we need to cover the start and end gps times.
+        // NOTE: mwax has 8 gps seconds per timestep, legacy vcs has 1
+        let timestep_index_start: usize = (((gps_second_start * 1000)
+            - self.timesteps[0].gps_time_ms) as f64
+            / self.timestep_duration_ms as f64)
+            .floor() as usize;
+
+        // Get end timestep which includes the end gps time
+        let timestep_index_end: usize =
+            ((((gps_second_end * 1000) - self.timesteps[0].gps_time_ms) as f64 + 1.)
+                / self.timestep_duration_ms as f64)
+                .floor() as usize;
+
+        let expected_size = self.voltage_block_size_bytes as usize
+            * self.num_voltage_blocks_per_second
+            * gps_second_count;
+        if buffer.len() != expected_size {
+            return Err(VoltageFileError::InvalidBufferSize(
+                buffer.len(),
+                expected_size,
+            ));
+        }
+
+        // Now do reading!
+        let buffer_u8: &mut [u8] = bytemuck::cast_slice_mut(buffer);
+        let mut buffer_pos = 0; // position in output buffer
+        let mut file: std::fs::File = std::fs::File::open("/dev/null")?; //open dummy file as we need it initialised
+        let mut prev_filename: String = String::from("");
+
+        // Don't get confused here- a timestep can be 8 seconds for mwax or 1 sec for VCS
+        // Basically in this context timestep == file (of which there are one per coarse chan per timestep)!
+        for timestep_idx in timestep_index_start..=timestep_index_end {
+            if let Some(batch) = self
+                .voltage_batches
+                .iter()
+                .find(|b| b.gps_time_seconds * 1000 == self.timesteps[timestep_idx].gps_time_ms)
+            {
+                if let Some(file_info) = batch
+                    .voltage_files
+                    .iter()
+                    .find(|f| f.channel_identifier == channel_identifier)
+                {
+                    // It's possible for mwax that the consecutive seconds can be in the same file (for the same
+                    // coarse channel, so don't repoen the same file unless we need to).
+                    // file.metadata().is_err() returns true if file does not point to an open file or if there is
+                    // some other error
+                    if prev_filename == "" {
+                        // No existing file is open, so open it!
+                        file = std::fs::File::open(&file_info.filename)?;
+                        prev_filename = file_info.filename.clone();
+                    } else {
+                        // The already open file is not the file we want. So open the right one
+                        if file.metadata().is_err() || file_info.filename != prev_filename {
+                            // Open the file- rust will take care of closing it first via the drop trait
+                            file = std::fs::File::open(&file_info.filename)?;
+                            prev_filename = file_info.filename.clone();
+                        }
+                    }
+
+                    let first_sec_to_read: u64;
+                    let last_sec_to_read: u64;
+
+                    // If we are in the first or last timestep_indexes then we could be doing a partial read (if MWAX)
+                    if timestep_idx == 0 {
+                        // Do a partial read
+                        first_sec_to_read =
+                            gps_second_start - (self.timesteps[timestep_idx].gps_time_ms / 1000);
+                        last_sec_to_read = (self.timestep_duration_ms / 1000) - 1;
+                        //max will be 7, legacy will be 0
+                    } else if timestep_idx == timestep_index_end {
+                        // Do a partial read
+                        first_sec_to_read = 0;
+                        last_sec_to_read =
+                            gps_second_end - (self.timesteps[timestep_idx].gps_time_ms / 1000);
+                    } else {
+                        // Do a full read
+                        first_sec_to_read = 0;
+                        last_sec_to_read = (self.timestep_duration_ms / 1000) - 1;
+                        //max will be 7, legacy will be 0
+                    }
+                    let secs_to_read_in_file = last_sec_to_read - first_sec_to_read + 1;
+                    assert!(secs_to_read_in_file < self.common_duration_ms / 1000);
+
+                    // Determine how many bytes to read. We want it to be a full second of data
+                    let read_size: usize = self.voltage_block_size_bytes as usize
+                        * self.num_voltage_blocks_per_second
+                        * secs_to_read_in_file as usize;
+
+                    // Determine the start point of the read
+                    // Go past the header, delay block, and then go forward to the block we are after
+                    let start_offset = self.data_file_header_size_bytes
+                        + self.delay_block_size_bytes
+                        + (first_sec_to_read
+                            * self.voltage_block_size_bytes
+                            * self.num_voltage_blocks_per_second as u64);
+
+                    file.seek(SeekFrom::Start(start_offset))?;
+
+                    // Read all blocks for this second
+                    // Note for MWAX, there are many blocks per timestep
+                    // and 1 "timestep" is 8 seconds
+
+                    file.read_exact(&mut buffer_u8[buffer_pos..buffer_pos + read_size])?;
+                    buffer_pos += read_size;
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Read a single or multiple seconds of data for a coarse channel
     ///
     /// # Arguments

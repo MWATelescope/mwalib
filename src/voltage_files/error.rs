@@ -81,6 +81,15 @@ maybe you have a mix of different files?"#)]
         timestep_index: usize,
         coarse_chan_index: usize,
     },
+
+    #[error("IO error reading the voltage file.")]
+    IoError(String),
+}
+
+impl From<std::io::Error> for VoltageFileError {
+    fn from(err: std::io::Error) -> Self {
+        VoltageFileError::IoError(err.to_string())
+    }
 }
 
 //
@@ -230,6 +239,10 @@ create_exception!(
     pyo3::exceptions::PyException
 );
 
+// Add exception for PyVoltageErrorIoError
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+create_exception!(mwalib, PyVoltageErrorIoError, pyo3::exceptions::PyException);
+
 // Convert a rust VoltageFileError to a python exception
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 impl std::convert::From<VoltageFileError> for PyErr {
@@ -305,6 +318,8 @@ impl std::convert::From<VoltageFileError> for PyErr {
             VoltageFileError::NoDataForTimeStepCoarseChannel { .. } => {
                 PyVoltageErrorNoDataForTimeStepCoarseChannel::new_err(err.to_string())
             }
+
+            VoltageFileError::IoError { .. } => PyVoltageErrorIoError::new_err(err.to_string()),
         }
     }
 }

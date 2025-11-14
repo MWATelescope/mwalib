@@ -1861,6 +1861,196 @@ fn test_context_read_second_mwaxv2_valid() {
 }
 
 #[test]
+fn test_context_read_second2_legacyv1_valid() {
+    //
+    // We will test reading across 2 data files in time
+    // file 0 has gps seconds 1_101_503_312 - 1_101_503_313
+    // file 1 has gps seconds 1_101_503_313 - 1_101_503_314
+    //
+    // We will read the 1 sec from file 0 and the 1 sec from file 1
+    // which is 1_101_503_312, 1_101_503_313
+
+    // Open a context and load in a test metafits and gpubox file
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+
+    let gps_second_start = 1_101_503_312;
+    let gps_second_count: usize = 2;
+    let coarse_chan_index = 14;
+
+    //
+    // Now do a read of the data
+    //
+    // Create output buffer
+    let mut buffer: Vec<i8> = vec![
+        0;
+        (context.voltage_block_size_bytes
+            * context.num_voltage_blocks_per_second as u64
+            * gps_second_count as u64) as usize
+    ];
+
+    // Do the read
+    let read_result: Result<(), VoltageFileError> = context.read_second2(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_ok(), "{:?}", read_result);
+
+    // Check values
+    // Sample: 0, fine_chan: 0, rfinput: 0
+    // Second 1_101_503_312
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_legacy(0, 0, 0)],
+        0
+    );
+
+    // Second 1_101_503_313 data is offset by +2
+    assert_eq!(
+        buffer[context.voltage_block_size_bytes as usize * context.num_voltage_blocks_per_second
+            + get_index_for_location_in_test_voltage_file_legacy(0, 0, 0)],
+        2
+    );
+
+    // Sample: 1000, fine_chan: 13, rfinput: 1
+    // Second 1_101_503_312
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_legacy(1000, 13, 1)],
+        -55
+    );
+
+    // Second 1_101_503_313 data is offset by +2
+    assert_eq!(
+        buffer[context.voltage_block_size_bytes as usize * context.num_voltage_blocks_per_second
+            + get_index_for_location_in_test_voltage_file_legacy(1000, 13, 1)],
+        -53
+    );
+}
+
+#[test]
+fn test_context_read_second2_mwaxv2_valid() {
+    //
+    // We will test reading across 2 data files in time
+    // file 0 has gps seconds 1_101_503_312 - 1_101_503_319
+    // file 1 has gps seconds 1_101_503_320 - 1_101_503_327
+    //
+    // We will read the last 2 secs from file 0 and the first 2 secs from file 1
+    // which is 1_101_503_318, 1_101_503_319, 1_101_503_320, 1_101_503_321
+
+    // Open a context and load in a test metafits and gpubox file
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
+
+    let gps_second_start = 1_101_503_318;
+    let gps_second_count: usize = 4;
+    let coarse_chan_index = 14;
+
+    //
+    // Now do a read of the data
+    //
+    // Create output buffer
+    let mut buffer: Vec<i8> = vec![
+        0;
+        (context.voltage_block_size_bytes
+            * context.num_voltage_blocks_per_second as u64
+            * gps_second_count as u64) as usize
+    ];
+
+    // Do the read
+    let read_result: Result<(), VoltageFileError> = context.read_second2(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_ok(), "{:?}", read_result);
+
+    // Check values
+    //
+    // Second 1_101_503_318
+    //
+    // location in buffer: block: 0, rfinput: 0, sample: 0, value: 0
+    // location in file0:  block: 120, rfinput: 0, sample: 0, value: 0
+    //
+    // (this is the 120th block / 7th second of the 8 second block in the FILE, but the first block of the buffer)
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
+        88
+    );
+
+    // Second 1_101_503_319
+    // location in buffer: block: 20, rfinput: 0, sample: 0, value: 0
+    // location in file0:  block: 140, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(20, 0, 0, 0)],
+        -68
+    );
+
+    // Second 1_101_503_320 (now we are in a new data file so the values are incrememented by 2 from the first file)
+    // location in buffer: block: 40+0, rfinput: 0, sample: 0, value: 0
+    // location in file1:  block: 0, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[2
+            * context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_second
+            + get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
+        2
+    );
+
+    // Second 1_101_503_321 (now we are in a new data file so the values are incrememented by 2 from the first file)
+    // location in buffer: block: 40+20, rfinput: 0, sample: 0, value: 0
+    // location in file1:  block: 20, rfinput: 0, sample: 0, value: 0
+    assert_eq!(
+        buffer[2
+            * context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_second
+            + get_index_for_location_in_test_voltage_file_mwaxv2(20, 0, 0, 0)],
+        102
+    );
+
+    // Second 1_101_503_318 (this is the 7th block / 7th second of the 8 second block in the FILE, but the first block of the buffer)
+    // location in buffer: block: 0, rfinput: 1, sample: 16750, value: 1
+    // location in file0:  block: 120, rfinput: 1, sample: 16750, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 1, 16750, 1)],
+        -57,
+    );
+
+    // Second 1_101_503_319
+    // location in buffer: block: 20, rfinput: 1, sample: 16750, value: 1
+    // location in file0:  block: 140, rfinput: 1, sample: 16750, value: 1
+    assert_eq!(
+        buffer[get_index_for_location_in_test_voltage_file_mwaxv2(20, 1, 16750, 1)],
+        99
+    );
+
+    // Second 1_101_503_320 (now we are in a new data file so the values are incrememented by 2 from the first file)
+    // location in buffer: block: 40+0, rfinput: 1, sample: 16750, value: 1
+    // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
+    assert_eq!(
+        buffer[2
+            * context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_second
+            + get_index_for_location_in_test_voltage_file_mwaxv2(0, 1, 16750, 1)],
+        29
+    );
+
+    // Second 1_101_503_321 (now we are in a new data file so the values are incrememented by 2 from the first file)
+    // location in buffer: block: 40+0, rfinput: 1, sample: 16750, value: 1
+    // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
+    assert_eq!(
+        buffer[2
+            * context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_second
+            + get_index_for_location_in_test_voltage_file_mwaxv2(20, 1, 16750, 1)],
+        -71
+    );
+}
+
+#[test]
 fn test_context_legacy_v1_get_fine_chan_feqs_one_coarse_chan() {
     let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
 
