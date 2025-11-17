@@ -10,6 +10,8 @@ use crate::metafits_context::*;
 use crate::timestep::*;
 use crate::voltage_files::*;
 use crate::*;
+use std::cmp::max;
+use std::cmp::min;
 use std::fmt;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -565,6 +567,24 @@ impl VoltageContext {
         Ok(gps_second_end)
     }
 
+    /// Read a single or multiple seconds of data for a coarse channel
+    ///
+    /// # Arguments
+    ///
+    /// * `gps_second_start` - GPS second within the observation to start returning data.
+    ///
+    /// * `gps_second_count` - number of seconds of data to return.
+    ///
+    /// * `volt_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel. This corresponds
+    ///   to the element within VoltageContext.coarse_chans.
+    ///
+    /// * `buffer` - a mutable reference to an already exitsing, initialised slice `[i8]` which will be filled with data.
+    ///
+    /// # Returns
+    ///
+    /// * A Result of Ok or error.
+    ///
+    ///
     pub fn read_second2(
         &self,
         gps_second_start: u64,
@@ -650,29 +670,20 @@ impl VoltageContext {
                         }
                     }
 
-                    let first_sec_to_read: u64;
-                    let last_sec_to_read: u64;
+                    // Determine the first and last second of this timestep
+                    let ts_start_gps_time = self.timesteps[timestep_idx].gps_time_ms / 1000;
 
-                    // If we are in the first or last timestep_indexes then we could be doing a partial read (if MWAX)
-                    if timestep_idx == 0 {
-                        // Do a partial read
-                        first_sec_to_read =
-                            gps_second_start - (self.timesteps[timestep_idx].gps_time_ms / 1000);
-                        last_sec_to_read = (self.timestep_duration_ms / 1000) - 1;
-                        //max will be 7, legacy will be 0
-                    } else if timestep_idx == timestep_index_end {
-                        // Do a partial read
-                        first_sec_to_read = 0;
-                        last_sec_to_read =
-                            gps_second_end - (self.timesteps[timestep_idx].gps_time_ms / 1000);
-                    } else {
-                        // Do a full read
-                        first_sec_to_read = 0;
-                        last_sec_to_read = (self.timestep_duration_ms / 1000) - 1;
-                        //max will be 7, legacy will be 0
-                    }
+                    // These variables will always be: 1 (for Legacy VCS)
+                    // and between: 0 and 7 (for MWAX)
+                    let first_sec_to_read: u64 =
+                        max(gps_second_start as i64 - ts_start_gps_time as i64, 0) as u64;
+                    let last_sec_to_read: u64 = min(
+                        gps_second_end as i64 - ts_start_gps_time as i64,
+                        (self.timestep_duration_ms as i64 / 1000) - 1,
+                    ) as u64;
+
                     let secs_to_read_in_file = last_sec_to_read - first_sec_to_read + 1;
-                    assert!(secs_to_read_in_file < self.common_duration_ms / 1000);
+                    assert!(secs_to_read_in_file <= self.common_duration_ms / 1000);
 
                     // Determine how many bytes to read. We want it to be a full second of data
                     let read_size: usize = self.voltage_block_size_bytes as usize

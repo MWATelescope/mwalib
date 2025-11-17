@@ -7,8 +7,8 @@
 #[cfg(test)]
 use super::*;
 use float_cmp::*;
-use std::fs::File;
-use std::io::{Error, Write};
+use misc::generate_test_voltage_file;
+use std::io::Error;
 use std::path::PathBuf;
 use std::sync::Once;
 
@@ -16,111 +16,6 @@ use std::sync::Once;
 pub(crate) static VCS_LEGACY_TEST_DATA_CREATED: Once = Once::new();
 pub(crate) static VCS_MWAXV2_TEST_DATA_CREATED: Once = Once::new();
 pub(crate) static VCS_MWAXV2_OS_TEST_DATA_CREATED: Once = Once::new();
-
-/// Helper fuctions to generate (small-sh) test voltage files
-/// for mwax test files they contain an incrememting byte for the real in each samples and decrementing byte value for the imag value.
-/// for legacy test files they contain a single incrememnting byte for the real/imag value.
-#[allow(clippy::too_many_arguments)]
-#[cfg(test)]
-fn generate_test_voltage_file(
-    filename: &str,
-    mwa_version: MWAVersion,
-    num_voltage_blocks: usize,
-    samples_per_block: usize,
-    rf_inputs: usize,
-    fine_chans: usize,
-    bytes_per_sample: usize,
-    initial_value: u8,
-) -> Result<String, Error> {
-    // initialization test data
-    let mut output_file: File = File::create(filename)?;
-
-    // Write out header if one is needed
-    if mwa_version == MWAVersion::VCSMWAXv2 {
-        let header_buffer: Vec<u8> = vec![0x01; 4096];
-        output_file
-            .write_all(&header_buffer)
-            .expect("Cannot write header!");
-    }
-
-    // Each voltage_block has samples_per_rf_fine for each combination of rfinputs x fine_chans
-    let num_bytes_per_voltage_block = samples_per_block * rf_inputs * fine_chans * bytes_per_sample;
-
-    // Write out delay block if one is needed
-    if mwa_version == MWAVersion::VCSMWAXv2 {
-        let delay_buffer: Vec<u8> = vec![0x02; num_bytes_per_voltage_block];
-        output_file
-            .write_all(&delay_buffer)
-            .expect("Cannot write delay block!");
-    }
-
-    // Write out num_voltage_blocks
-    //
-
-    // Loop for each voltage block
-    // legacy: 1 blocks per file
-    // mwax  : 160 blocks per file
-    for b in 0..num_voltage_blocks {
-        let mut value1: u8;
-        let mut value2: u8;
-
-        // Allocate a buffer
-        let mut voltage_block_buffer: Vec<u8> = vec![0; num_bytes_per_voltage_block];
-
-        // Populate the buffer with test data
-        let mut bptr: usize = 0; // Keeps track of where we are in the byte array
-
-        match mwa_version {
-            MWAVersion::VCSMWAXv2 => {
-                // Data should be written in the following order (slowest to fastest axis)
-                // voltage_block (time1), rf_input, sample (time2), value (complex)
-                for r in 0..rf_inputs {
-                    for s in 0..samples_per_block {
-                        // Encode the data location (plus inital value)
-                        value1 =
-                            ((initial_value as u64 + (b * 5 + r * 4 + s * 2) as u64) % 256) as u8;
-
-                        // Value 2 is the reverse
-                        value2 = 255 - value1;
-
-                        // Byte 1
-                        voltage_block_buffer[bptr] = value1;
-                        bptr += 1;
-
-                        // Byte 2
-                        voltage_block_buffer[bptr] = value2;
-                        bptr += 1;
-                    }
-                }
-            }
-            MWAVersion::VCSLegacyRecombined => {
-                // Data should be written in the following order (slowest to fastest axis)
-                // sample (time1), fine_chan, rf_input, value (complex)
-                for s in 0..samples_per_block {
-                    for f in 0..fine_chans {
-                        for r in 0..rf_inputs {
-                            // Encode the data location (plus inital value)
-                            value1 = ((initial_value as u64 + (s * 4 + f * 3 + r * 2) as u64) % 256)
-                                as u8;
-
-                            // In this case 1 byte is split into 4bits real and 4bits imag
-                            voltage_block_buffer[bptr] = value1;
-                            bptr += 1;
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-        output_file
-            .write_all(&voltage_block_buffer)
-            .expect("Cannot write voltage data block");
-    }
-
-    output_file.flush()?;
-
-    Ok(String::from(filename))
-}
 
 #[cfg(test)]
 pub(crate) fn generate_test_voltage_file_legacy_recombined(
@@ -2161,4 +2056,63 @@ fn test_context_mwax_v2_oversampled() {
     rf_input_copy.sort_by_key(|k| k.subfile_order);
     // Now compare this copy with the 'real' rf_inputs
     assert_eq!(&rf_input_copy, &context.metafits_context.rf_inputs);
+}
+
+#[test]
+fn test_read_second2_valid() {
+    fn setup_test_files_1363085416() -> (String, Vec<String>) {
+        let metafits_filename = String::from("test_files/1363085416/1363085416_metafits.fits");
+
+        let filenames: Vec<String> = [
+            String::from("test_files/1363085416/1363085416_1363085416_171.sub"),
+            String::from("test_files/1363085416/1363085416_1363085424_171.sub"),
+            String::from("test_files/1363085416/1363085416_1363085432_171.sub"),
+            String::from("test_files/1363085416/1363085416_1363085440_171.sub"),
+        ]
+        .to_vec();
+
+        // Don't recreate the files if they exist
+        for filename in &filenames {
+            if !Path::new(&filename).exists() {
+                generate_test_voltage_file(
+                    &filename,
+                    MWAVersion::VCSMWAXv2,
+                    160,
+                    64_000,
+                    288,
+                    1,
+                    2,
+                    0,
+                )
+                .expect("Error generating test voltage file");
+            }
+        }
+
+        return (metafits_filename, filenames);
+    }
+
+    let (metafits_filename, filenames) = setup_test_files_1363085416();
+
+    // Open a context and load in a test metafits and gpubox file
+    let context = VoltageContext::new(&metafits_filename, &filenames)
+        .expect("Error creating voltage context");
+
+    //
+    // Now do a read of the data from time 0, channel 0
+    //
+    let gps_start: u64 = context.timesteps[context.provided_timestep_indices[0]].gps_time_ms / 1000; // Get first provided timestep
+    let gps_count: usize = context.provided_timestep_indices.len(); // Get last provided timestep
+    let chan_index: usize = context.provided_coarse_chan_indices[0]; // Get first provided cc
+
+    // Create output buffer
+    let mut buffer: Vec<i8> = vec![
+        0;
+        context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_second
+            * gps_count
+    ];
+
+    context
+        .read_second2(gps_start, gps_count, chan_index, &mut buffer)
+        .expect("Error calling read_second2");
 }

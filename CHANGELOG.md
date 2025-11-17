@@ -2,6 +2,12 @@
 
 Changes in each release are listed below.
 
+## 1.10.0 XX-Nov-2025
+
+* Updated metafits reading to take into account November 2025 metafits changes (TODO)
+* Created new read_second2 function which is much more efficient when reading MWAX Subfiles (7x less open, seek, read and close calls)
+* Added VoltageContext read_second benchmark
+
 ## 1.9.0 27-Oct-2025
 
 * Updated MSRV to 1.80

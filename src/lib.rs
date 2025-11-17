@@ -16,7 +16,7 @@ mod ffi;
 mod fits_read;
 mod gpubox_files;
 mod metafits_context;
-mod misc;
+pub mod misc;
 mod rfinput;
 mod signal_chain_correction;
 mod timestep;
