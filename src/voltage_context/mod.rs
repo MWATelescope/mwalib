@@ -10,7 +10,6 @@ use crate::metafits_context::*;
 use crate::timestep::*;
 use crate::voltage_files::*;
 use crate::*;
-use std::cmp::max;
 use std::cmp::min;
 use std::fmt;
 use std::fs::File;
@@ -675,15 +674,13 @@ impl VoltageContext {
 
                     // These variables will always be: 1 (for Legacy VCS)
                     // and between: 0 and 7 (for MWAX)
-                    let first_sec_to_read: u64 =
-                        max(gps_second_start as i64 - ts_start_gps_time as i64, 0) as u64;
-                    let last_sec_to_read: u64 = min(
-                        gps_second_end as i64 - ts_start_gps_time as i64,
-                        (self.timestep_duration_ms as i64 / 1000) - 1,
-                    ) as u64;
-
-                    let secs_to_read_in_file = last_sec_to_read - first_sec_to_read + 1;
-                    assert!(secs_to_read_in_file <= self.common_duration_ms / 1000);
+                    let (first_sec_to_read, secs_to_read_in_file) =
+                        Self::determine_part_of_timestep_to_read(
+                            gps_second_start,
+                            gps_second_end,
+                            ts_start_gps_time,
+                            self.timestep_duration_ms / 1000,
+                        )?;
 
                     // Determine how many bytes to read. We want it to be a full second of data
                     let read_size: usize = self.voltage_block_size_bytes as usize
@@ -710,6 +707,65 @@ impl VoltageContext {
             }
         }
         Ok(())
+    }
+
+    // Given the gps_start and gps_end that is being requested, and the start time of the timestep
+    // we are reading from, determine which seconds within that timestep to read.
+    //
+    // # Examples for MWAX (8 seconds per timestep):
+    //     0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16  17  18  19  20  21  22  23
+    //     |---timestep 0----------------|---timestep 1-------------------|---timestep 2----------------|
+    // A)  X
+    // B)              X   X
+    // C)                              X
+    // D)  X   X   X   X   X   X   X   X
+    // E)  X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
+    // F)                          X   X   X   X
+    // G)                          X   X   X   X   X   X   X   X   X   X   X   X
+    // H)                          X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
+    // I)  X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
+    // J)  X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
+    //
+    // # Arguments
+    //
+    // * `gps_second_start` - GPS second within the observation to start reading data.
+    //
+    // * `gps_second_end` - GPS second within the observation to stop reading data.
+    //
+    // * `ts_start_gps_time` - GPS start time of the timestep we are reading from.
+    //
+    // * `ts_duration_sec` - Duration of the timestep in seconds. (1 for Legacy VCS, 8 for MWAX)
+    //
+    // # Returns
+    //
+    // * Result containing Tuple containing: `first_sec_to_read` (0-7 for MWAX or 0 for Legacy VCS), `secs_to_read_in_file`
+    //
+    //
+    fn determine_part_of_timestep_to_read(
+        gps_second_start: u64,
+        gps_second_end: u64,
+        ts_start_gps_time: u64,
+        ts_duration_sec: u64,
+    ) -> Result<(u64, u64), VoltageFileError> {
+        assert!(ts_duration_sec == 1 || ts_duration_sec == 8);
+
+        if gps_second_start > gps_second_end
+            || gps_second_end < ts_start_gps_time
+            || gps_second_start >= ts_start_gps_time + ts_duration_sec
+        {
+            return Err(VoltageFileError::ReadSecondOutOfBounds {
+                gps_second_start,
+                gps_second_end,
+                ts_start_gps_time,
+                ts_duration_sec,
+            });
+        }
+
+        let first_sec_to_read: u64 = gps_second_start.saturating_sub(ts_start_gps_time);
+        let last_sec_to_read: u64 = min(gps_second_end - ts_start_gps_time, ts_duration_sec - 1);
+        let secs_to_read_in_file = last_sec_to_read - first_sec_to_read + 1;
+
+        Ok((first_sec_to_read, secs_to_read_in_file))
     }
 
     /// Read a single or multiple seconds of data for a coarse channel

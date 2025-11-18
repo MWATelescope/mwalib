@@ -2116,3 +2116,236 @@ fn test_read_second2_valid() {
         .read_second2(gps_start, gps_count, chan_index, &mut buffer)
         .expect("Error calling read_second2");
 }
+
+//--- Tests for ts_duration_sec = 1 (Legacy VCS)---
+#[test]
+fn test_duration_one_full_overlap() {
+    // gps range fully overlaps the single second
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 0, 0, 1);
+    assert_eq!(result.unwrap(), (0, 1), "Should read the single second");
+}
+
+#[test]
+fn test_duration_one_outside_range() {
+    // gps range completely outside the single second
+    let result = VoltageContext::determine_part_of_timestep_to_read(2, 3, 0, 1);
+    assert!(
+        result.is_err(),
+        "Should read zero seconds because range is outside"
+    );
+}
+
+// --- Tests for ts_duration_sec = 8 (MWAX VCS)---
+
+// ---------------- TIMESTEP 0 ----------------
+#[test]
+fn test_case_a_timestep0() {
+    // Case A: Single GPS second at start of timestep (0..0)
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 0, 0, 8);
+    assert_eq!(result.unwrap(), (0, 1));
+}
+
+#[test]
+fn test_case_b_timestep0() {
+    // Case B: Two GPS seconds inside timestep (2..3)
+    let result = VoltageContext::determine_part_of_timestep_to_read(2, 3, 0, 8);
+    assert_eq!(result.unwrap(), (2, 2));
+}
+
+#[test]
+fn test_case_c_timestep0() {
+    // Case C: Single GPS second in middle of timestep (4..4)
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 4, 0, 8);
+    assert_eq!(result.unwrap(), (4, 1));
+}
+
+#[test]
+fn test_case_d_timestep0() {
+    // Case D: Full overlap with timestep (0..7)
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 7, 0, 8);
+    assert_eq!(result.unwrap(), (0, 8));
+}
+
+#[test]
+fn test_case_e_timestep0() {
+    // Case E: GPS range extends beyond timestep (0..15)
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 15, 0, 8);
+    assert_eq!(result.unwrap(), (0, 8));
+}
+
+#[test]
+fn test_case_f_timestep0() {
+    // Case F: Last half of timestep (4..7)
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 7, 0, 8);
+    assert_eq!(result.unwrap(), (4, 4));
+}
+
+#[test]
+fn test_case_g_timestep0() {
+    // Case G: Overlap then extend beyond (4..15)
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 15, 0, 8);
+    assert_eq!(result.unwrap(), (4, 4));
+}
+
+#[test]
+fn test_case_h_timestep0() {
+    // Case H: Overlap then extend far beyond (4..21)
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 21, 0, 8);
+    assert_eq!(result.unwrap(), (4, 4));
+}
+
+#[test]
+fn test_case_i_timestep0() {
+    // Case I: Full overlap and extend far (0..17)
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 17, 0, 8);
+    assert_eq!(result.unwrap(), (0, 8));
+}
+
+#[test]
+fn test_case_j_timestep0() {
+    // Case J: Massive overlap (0..23)
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 23, 0, 8);
+    assert_eq!(result.unwrap(), (0, 8));
+}
+
+// ---------------- TIMESTEP 1 ----------------
+#[test]
+fn test_case_a_timestep1() {
+    // Case A: GPS range before timestep (0..0) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 0, 8, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_b_timestep1() {
+    // Case B: GPS range before timestep (2..3) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(2, 3, 8, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_c_timestep1() {
+    // Case C: GPS range before timestep (4..4) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 4, 8, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_d_timestep1() {
+    // Case D: Entirely before timestep (0..7) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 7, 8, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_e_timestep1() {
+    // Case E: Overlap full timestep (0..15)
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 15, 8, 8);
+    assert_eq!(result.unwrap(), (0, 8));
+}
+
+#[test]
+fn test_case_f_timestep1() {
+    // Case F: GPS range before timestep (4..7) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 7, 8, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_g_timestep1() {
+    // Case G: Overlap full timestep (4..15)
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 15, 8, 8);
+    assert_eq!(result.unwrap(), (0, 8));
+}
+
+#[test]
+fn test_case_h_timestep1() {
+    // Case H: Overlap full timestep (4..21)
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 21, 8, 8);
+    assert_eq!(result.unwrap(), (0, 8));
+}
+
+#[test]
+fn test_case_i_timestep1() {
+    // Case I: Overlap full timestep (0..17)
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 17, 8, 8);
+    assert_eq!(result.unwrap(), (0, 8));
+}
+
+#[test]
+fn test_case_j_timestep1() {
+    // Case J: Overlap full timestep (0..23)
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 23, 8, 8);
+    assert_eq!(result.unwrap(), (0, 8));
+}
+
+// ---------------- TIMESTEP 2 ----------------
+#[test]
+fn test_case_a_timestep2() {
+    // Case A: GPS range before timestep (0..0) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 0, 16, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_b_timestep2() {
+    // Case B: GPS range before timestep (2..3) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(2, 3, 16, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_c_timestep2() {
+    // Case C: GPS range before timestep (4..4) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 4, 16, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_d_timestep2() {
+    // Case D: Entirely before timestep (0..7) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 7, 16, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_e_timestep2() {
+    // Case E: Ends before start (0..15) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 15, 16, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_f_timestep2() {
+    // Case F: GPS range before timestep (4..7) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 7, 16, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_g_timestep2() {
+    // Case G: Ends before start (4..15) → error
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 15, 16, 8);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_case_h_timestep2() {
+    // Case H: Partial overlap (4..21) → should read 6 seconds (16..21)
+    let result = VoltageContext::determine_part_of_timestep_to_read(4, 21, 16, 8);
+    assert_eq!(result.unwrap(), (0, 6));
+}
+
+#[test]
+fn test_case_i_timestep2() {
+    // Case I: Partial overlap (0..17) → should read 2 seconds (16..17)
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 17, 16, 8);
+    assert_eq!(result.unwrap(), (0, 2));
+}
+
+#[test]
+fn test_case_j_timestep2() {
+    // Case J: Full overlap (0..23) → should read all 8 seconds
+    let result = VoltageContext::determine_part_of_timestep_to_read(0, 23, 16, 8);
+    assert_eq!(result.unwrap(), (0, 8));
+}
