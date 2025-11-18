@@ -194,9 +194,7 @@ jobs:
           if-no-files-found: error
 
   create-github-release:
-    name: Create a new github release
-    permissions:
-      contents: write
+    name: Create a new github release    
     runs-on: ubuntu-latest
     permissions:
       contents: write
