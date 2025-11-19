@@ -1756,6 +1756,256 @@ fn test_context_read_second_mwaxv2_valid() {
 }
 
 #[test]
+fn test_context_read_second2_invalid_coarse_chan_index() {
+    // Open a context and load in a test metafits and gpubox file
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+
+    // Create output buffer
+    let mut buffer: Vec<i8> = vec![
+        0;
+        context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_timestep
+    ];
+
+    // Do the read
+    let gps_second_start = 1_101_503_312;
+    let gps_second_count = 1;
+    let coarse_chan_index = 100;
+
+    let read_result: Result<(), VoltageFileError> = context.read_second2(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_err(), "{:?}", read_result);
+
+    let error = read_result.unwrap_err();
+    assert!(
+        matches!(error, VoltageFileError::InvalidCoarseChanIndex(23)),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
+fn test_context_read_second2_invalid_buffer_size() {
+    // Open a context and load in a test metafits and gpubox file
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+
+    let gps_second_start = 1_101_503_312;
+    let gps_second_count: usize = 1;
+    let coarse_chan_index = 0;
+
+    // Create output buffer
+    // NOTE we are sabotaging this to generate our error, by dividing by 2
+    let mut buffer: Vec<i8> = vec![
+        0;
+        (context.voltage_block_size_bytes
+            * context.num_voltage_blocks_per_second as u64
+            * gps_second_count as u64
+            / 2) as usize
+    ];
+
+    // Do the read
+    let read_result: Result<(), VoltageFileError> = context.read_second2(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_err(), "{:?}", read_result);
+
+    let error = read_result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            VoltageFileError::InvalidBufferSize(1_280_000, 2_560_000)
+        ),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
+fn test_context_read_second2_legacy_invalid_data_file_size() {
+    // Open a context and load in a test metafits and gpubox file
+    let mut context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+
+    // Alter the context values so we generate an invalid file size error
+    context.expected_voltage_data_file_size_bytes += 1;
+
+    let gps_second_start = 1_101_503_312;
+    let gps_second_count: usize = 1;
+    let coarse_chan_index = 14;
+
+    //
+    // Now do a read of the data
+    //
+    // Create output buffer
+    let mut buffer: Vec<i8> = vec![
+        0;
+        (context.voltage_block_size_bytes
+            * context.num_voltage_blocks_per_second as u64
+            * gps_second_count as u64) as usize
+    ];
+
+    // Do the read
+    let read_result: Result<(), VoltageFileError> = context.read_second2(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_err(), "{:?}", read_result);
+
+    let error = read_result.unwrap_err();
+    assert!(
+        matches!(error, VoltageFileError::InvalidVoltageFileSize(_, _, _)),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
+fn test_context_read_second2_mwaxv2_invalid_data_file_size() {
+    // Open a context and load in a test metafits and gpubox file
+    let mut context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
+
+    // Alter the context values so we generate an invalid file size error
+    context.expected_voltage_data_file_size_bytes += 1;
+
+    let gps_second_start = 1_101_503_312;
+    let gps_second_count: usize = 1;
+    let coarse_chan_index = 14;
+
+    //
+    // Now do a read of the data
+    //
+    // Create output buffer
+    let mut buffer: Vec<i8> = vec![
+        0;
+        (context.voltage_block_size_bytes
+            * context.num_voltage_blocks_per_second as u64
+            * gps_second_count as u64) as usize
+    ];
+
+    // Do the read
+    let read_result: Result<(), VoltageFileError> = context.read_second2(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_err(), "{:?}", read_result,);
+
+    let error = read_result.unwrap_err();
+    assert!(
+        matches!(error, VoltageFileError::InvalidVoltageFileSize(_, _, _)),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
+fn test_context_read_second2_legacy_no_data_for_gpstime() {
+    // Open a context and load in a test metafits and gpubox file
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+
+    let gps_second_start = 1_101_503_350; // No data at this timestep
+    let gps_second_count: usize = 1;
+    let coarse_chan_index = 14;
+
+    //
+    // Now do a read of the data
+    //
+    // Create output buffer
+    let mut buffer: Vec<i8> = vec![
+        0;
+        (context.voltage_block_size_bytes
+            * context.num_voltage_blocks_per_second as u64
+            * gps_second_count as u64) as usize
+    ];
+
+    // Do the read
+    let read_result: Result<(), VoltageFileError> = context.read_second2(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_err(), "{:?}", read_result);
+
+    let error = read_result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            VoltageFileError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
+fn test_context_read_second2_mwaxv2_no_data_for_gpstime() {
+    // Open a context and load in a test metafits and gpubox file
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
+
+    let gps_second_start = 1_101_503_350; // No data at this timestep
+    let gps_second_count: usize = 1;
+    let coarse_chan_index = 14;
+
+    //
+    // Now do a read of the data
+    //
+    // Create output buffer
+    let mut buffer: Vec<i8> = vec![
+        0;
+        (context.voltage_block_size_bytes
+            * context.num_voltage_blocks_per_second as u64
+            * gps_second_count as u64) as usize
+    ];
+
+    // Do the read
+    let read_result: Result<(), VoltageFileError> = context.read_second2(
+        gps_second_start,
+        gps_second_count,
+        coarse_chan_index,
+        &mut buffer,
+    );
+
+    // Ensure read returns correct error
+    assert!(read_result.is_err(), "{:?}", read_result);
+
+    let error = read_result.unwrap_err();
+    assert!(
+        matches!(
+            error,
+            VoltageFileError::NoDataForTimeStepCoarseChannel {
+                timestep_index: _,
+                coarse_chan_index: _
+            }
+        ),
+        "Error was {:?}",
+        error
+    );
+}
+
+#[test]
 fn test_context_read_second2_legacyv1_valid() {
     //
     // We will test reading across 2 data files in time
@@ -1837,9 +2087,9 @@ fn test_context_read_second2_mwaxv2_valid() {
     // Open a context and load in a test metafits and gpubox file
     let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
 
-    let gps_second_start = 1_101_503_318;
+    let gps_second_start: u64 = 1_101_503_318;
     let gps_second_count: usize = 4;
-    let coarse_chan_index = 14;
+    let coarse_chan_index: usize = 14;
 
     //
     // Now do a read of the data

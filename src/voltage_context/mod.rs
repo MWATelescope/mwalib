@@ -636,16 +636,16 @@ impl VoltageContext {
         // Now do reading!
         let buffer_u8: &mut [u8] = bytemuck::cast_slice_mut(buffer);
         let mut buffer_pos = 0; // position in output buffer
-        let mut file: std::fs::File = std::fs::File::open("/dev/null")?; //open dummy file as we need it initialised
+        let mut file_handle: std::fs::File = std::fs::File::open("/dev/null")?; //open dummy file as we need it initialised
         let mut prev_filename: String = String::from("");
 
         // Don't get confused here- a timestep can be 8 seconds for mwax or 1 sec for VCS
         // Basically in this context timestep == file (of which there are one per coarse chan per timestep)!
-        for timestep_idx in timestep_index_start..=timestep_index_end {
+        for timestep_index in timestep_index_start..=timestep_index_end {
             if let Some(batch) = self
                 .voltage_batches
                 .iter()
-                .find(|b| b.gps_time_seconds * 1000 == self.timesteps[timestep_idx].gps_time_ms)
+                .find(|b| b.gps_time_seconds * 1000 == self.timesteps[timestep_index].gps_time_ms)
             {
                 if let Some(file_info) = batch
                     .voltage_files
@@ -656,21 +656,29 @@ impl VoltageContext {
                     // coarse channel, so don't repoen the same file unless we need to).
                     // file.metadata().is_err() returns true if file does not point to an open file or if there is
                     // some other error
-                    if prev_filename == "" {
+                    if prev_filename == ""
+                        || file_handle.metadata().is_err()
+                        || file_info.filename != prev_filename
+                    {
                         // No existing file is open, so open it!
-                        file = std::fs::File::open(&file_info.filename)?;
+                        file_handle = std::fs::File::open(&file_info.filename)?;
                         prev_filename = file_info.filename.clone();
-                    } else {
-                        // The already open file is not the file we want. So open the right one
-                        if file.metadata().is_err() || file_info.filename != prev_filename {
-                            // Open the file- rust will take care of closing it first via the drop trait
-                            file = std::fs::File::open(&file_info.filename)?;
-                            prev_filename = file_info.filename.clone();
+
+                        // Obtain metadata
+                        let metadata = file_handle.metadata().expect("unable to read metadata");
+
+                        // Check file is as big as we expect
+                        if metadata.len() != self.expected_voltage_data_file_size_bytes {
+                            return Err(VoltageFileError::InvalidVoltageFileSize(
+                                metadata.len(),
+                                String::from(&file_info.filename),
+                                self.expected_voltage_data_file_size_bytes,
+                            ));
                         }
                     }
 
-                    // Determine the first and last second of this timestep
-                    let ts_start_gps_time = self.timesteps[timestep_idx].gps_time_ms / 1000;
+                    // Determine the first second of this timestep
+                    let ts_start_gps_time = self.timesteps[timestep_index].gps_time_ms / 1000;
 
                     // These variables will always be: 1 (for Legacy VCS)
                     // and between: 0 and 7 (for MWAX)
@@ -695,15 +703,20 @@ impl VoltageContext {
                             * self.voltage_block_size_bytes
                             * self.num_voltage_blocks_per_second as u64);
 
-                    file.seek(SeekFrom::Start(start_offset))?;
+                    file_handle.seek(SeekFrom::Start(start_offset))?;
 
                     // Read all blocks for this second
                     // Note for MWAX, there are many blocks per timestep
                     // and 1 "timestep" is 8 seconds
 
-                    file.read_exact(&mut buffer_u8[buffer_pos..buffer_pos + read_size])?;
+                    file_handle.read_exact(&mut buffer_u8[buffer_pos..buffer_pos + read_size])?;
                     buffer_pos += read_size;
                 }
+            } else {
+                return Err(VoltageFileError::NoDataForTimeStepCoarseChannel {
+                    timestep_index,
+                    coarse_chan_index: volt_coarse_chan_index,
+                });
             }
         }
         Ok(())
@@ -874,7 +887,7 @@ impl VoltageContext {
             let mut file_handle = File::open(filename).expect("no file found");
 
             // Obtain metadata
-            let metadata = std::fs::metadata(filename).expect("unable to read metadata");
+            let metadata = file_handle.metadata().expect("unable to read metadata");
 
             // Check file is as big as we expect
             if metadata.len() != self.expected_voltage_data_file_size_bytes {

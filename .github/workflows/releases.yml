@@ -46,7 +46,7 @@ jobs:
         uses: PyO3/maturin-action@v1        
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --all-features --out dist -i 3.10 3.11 3.12 3.13 3.14
+          args: --release --features=cfitsio-static,examples,python --out dist -i 3.10 3.11 3.12 3.13 3.14
           manylinux: auto
 
       - name: Upload linux wheels
@@ -136,7 +136,7 @@ jobs:
         uses: PyO3/maturin-action@v1        
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --all-features --out dist -i 3.10 3.11 3.12 3.13 3.14
+          args: --release --features=cfitsio-static,examples,python --out dist -i 3.10 3.11 3.12 3.13 3.14
 
       - name: Upload macos wheels
         uses: actions/upload-artifact@v4
