@@ -1317,6 +1317,246 @@ fn test_mwalib_voltage_context_display_null_ptr() {
 }
 
 #[test]
+fn test_mwalib_voltage_context_legacy_read_file2_valid() {
+    let voltage_context_ptr: *mut VoltageContext =
+        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let timestep_index = 0;
+    let coarse_chan_index = 14;
+
+    // 2 pols x 128 fine chans x 1 tile * 10000 samples
+    let buffer_len = 2 * 128 * 10000;
+
+    unsafe {
+        let in_buffer: Vec<i8> = vec![0; buffer_len];
+        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
+
+        let retval = mwalib_voltage_context_read_file2(
+            voltage_context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        assert_eq!(retval, 0);
+
+        // Reconstitute the buffer
+        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
+
+        // Check contents
+        // Check for various values
+        // sample: 0, fine_chan: 0, rfinput: 0
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 0, 0)],
+            0
+        );
+
+        // sample: 0, fine_chan: 0, rfinput: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 0, 1)],
+            2
+        );
+
+        // sample: 0, fine_chan: 1, rfinput: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 1, 1)],
+            5
+        );
+
+        // sample: 0, fine_chan: 127, rfinput: 0
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 127, 0)],
+            125
+        );
+
+        // sample: 10, fine_chan: 32, rfinput: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_legacy(10, 32, 1)],
+            -118
+        );
+
+        // sample: 9999, fine_chan: 127, rfinput: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_legacy(9999, 127, 1)],
+            -69
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_mwaxv2_read_file2_valid() {
+    // Read data from a critically sampled MWAXv2 VCS obs
+    let voltage_context_ptr: *mut VoltageContext =
+        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, false);
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let timestep_index = 0;
+    let coarse_chan_index = 14;
+
+    // 2 pols x 1 fine chans x 1 tile * 64000 samples * 160 blocks * 2 bytes per sample
+    let buffer_len = 2 * 64000 * 160 * 2;
+
+    unsafe {
+        let in_buffer: Vec<i8> = vec![0; buffer_len];
+        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
+
+        let retval = mwalib_voltage_context_read_file2(
+            voltage_context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        assert_eq!(retval, 0);
+
+        // Reconstitute the buffer
+        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
+
+        // Check for various values
+        // block: 0, rfinput: 0, sample: 0, value: 0
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
+            0
+        );
+
+        // block: 0, rfinput: 0, sample: 1, value: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 1, 1)],
+            -3
+        );
+
+        // block: 0, rfinput: 0, sample: 255, value: 0
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 255, 0)],
+            -2
+        );
+
+        // block: 0, rfinput: 0, sample: 256, value: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 256, 1)],
+            -1
+        );
+
+        // block: 1, rfinput: 0, sample: 2, value: 0
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(1, 0, 2, 0)],
+            9
+        );
+
+        // block: 159, rfinput: 1, sample: 63999, value: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(159, 1, 63999, 1)],
+            -30
+        );
+
+        // block: 120, rfinput: 0, sample: 0, value: 0
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(120, 0, 0, 0)],
+            88
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_mwaxv2_read_os_file2_valid() {
+    // Read data from a oversampled MWAXv2 VCS obs
+    let voltage_context_ptr: *mut VoltageContext =
+        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, true);
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *const c_char;
+
+    let timestep_index = 0;
+    let coarse_chan_index = 14;
+
+    // 2 pols x 1 fine chans x 1 tile * 81920 samples * 160 blocks * 2 bytes per sample
+    let buffer_len = 2 * 81920 * 160 * 2;
+
+    unsafe {
+        let in_buffer: Vec<i8> = vec![0; buffer_len];
+        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
+
+        let retval = mwalib_voltage_context_read_file2(
+            voltage_context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        assert_eq!(retval, 0);
+
+        // Reconstitute the buffer
+        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
+
+        // Check for various values
+        // block: 0, rfinput: 0, sample: 0, value: 0
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
+            0
+        );
+
+        // block: 0, rfinput: 0, sample: 1, value: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
+            -3
+        );
+
+        // block: 0, rfinput: 0, sample: 255, value: 0
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
+            -2
+        );
+
+        // block: 0, rfinput: 0, sample: 256, value: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
+            -1
+        );
+
+        // block: 1, rfinput: 0, sample: 2, value: 0
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
+            9
+        );
+
+        // block: 159, rfinput: 1, sample: 63999, value: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
+            -30
+        );
+
+        // block: 159, rfinput: 1, sample: 81919, value: 1
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
+            -30
+        );
+
+        // block: 120, rfinput: 0, sample: 0, value: 0
+        assert_eq!(
+            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(120, 0, 0, 0)],
+            88
+        );
+    }
+}
+
+#[test]
 fn test_mwalib_voltage_context_legacy_read_file_valid() {
     let voltage_context_ptr: *mut VoltageContext =
         get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);

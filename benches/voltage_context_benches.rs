@@ -34,8 +34,9 @@ fn bench_mwaxvcs_read_second(c: &mut Criterion) {
     //
     // Now do a read of the data from time 0, channel 0
     //
-    let gps_start: u64 = context.timesteps[context.provided_timestep_indices[0]].gps_time_ms / 1000; // Get first provided timestep
-    let gps_count: usize = context.provided_timestep_indices.len(); // Get last provided timestep
+    let first_timestep_index: usize = context.provided_timestep_indices[0];
+    let gps_start: u64 = context.timesteps[first_timestep_index].gps_time_ms / 1000; // Get first provided timestep
+    let gps_count: usize = context.timestep_duration_ms as usize / 1000; // Read 1 second of data (vcs or 8 for mwax)
     let chan_index: usize = context.provided_coarse_chan_indices[0]; // Get first provided cc
 
     // Create output buffer
@@ -60,6 +61,22 @@ fn bench_mwaxvcs_read_second(c: &mut Criterion) {
             context
                 .read_second2(gps_start, gps_count, chan_index, &mut buffer)
                 .expect("Error calling read_second2");
+        })
+    });
+
+    c.bench_function("mwaxvcs_read_file", |b| {
+        b.iter(|| {
+            context
+                .read_file(first_timestep_index, chan_index, &mut buffer)
+                .expect("Error calling read_file");
+        })
+    });
+
+    c.bench_function("mwaxvcs_read_file2", |b| {
+        b.iter(|| {
+            context
+                .read_file2(first_timestep_index, chan_index, &mut buffer)
+                .expect("Error calling read_file2");
         })
     });
 }

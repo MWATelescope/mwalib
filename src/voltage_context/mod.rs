@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! The main interface to MWA voltage data.
-
 use crate::coarse_channel::*;
 use crate::error::*;
 use crate::metafits_context::*;
@@ -25,7 +24,7 @@ use pyo3_stub_gen_derive::gen_stub_pyclass;
 mod python;
 
 #[cfg(test)]
-pub(crate) mod test; // It's pub crate because I reuse some test code in the ffi tests.
+pub mod test; // It's pub crate because I reuse some test code in the ffi tests.
 
 ///
 /// This represents the basic metadata and methods for an MWA voltage capture system (VCS) observation.
@@ -145,8 +144,7 @@ pub struct VoltageContext {
     /// voltage file, which is associated with another `BTreeMap`, associating each
     /// voltage number with a voltage batch number and HDU index. The voltage
     /// number, batch number and HDU index are everything needed to find the
-    /// correct HDU out of all voltage files.
-    #[allow(dead_code)]
+    /// correct HDU out of all voltage files.    
     pub(crate) voltage_time_map: VoltageFileTimeMap,
 }
 
@@ -591,38 +589,29 @@ impl VoltageContext {
         volt_coarse_chan_index: usize,
         buffer: &mut [i8],
     ) -> Result<(), VoltageFileError> {
-        // Validate inputs...
+        // Validate inputs
         if self.voltage_batches.is_empty() {
             return Err(VoltageFileError::NoVoltageFiles);
         }
 
-        // Validate the coarse chan
-        if volt_coarse_chan_index > self.num_coarse_chans - 1 {
+        if volt_coarse_chan_index >= self.num_coarse_chans {
             return Err(VoltageFileError::InvalidCoarseChanIndex(
                 self.num_coarse_chans - 1,
             ));
         }
 
-        // Determine the channel identifier, which we will use later to find the correct data file
         let channel_identifier = self.coarse_chans[volt_coarse_chan_index].gpubox_number;
 
-        // Validate the gpstime
         let gps_second_end =
             VoltageContext::validate_gps_time_parameters(self, gps_second_start, gps_second_count)?;
 
-        // Determine which timestep(s) we need to cover the start and end gps times.
-        // NOTE: mwax has 8 gps seconds per timestep, legacy vcs has 1
-        let timestep_index_start: usize = (((gps_second_start * 1000)
-            - self.timesteps[0].gps_time_ms) as f64
-            / self.timestep_duration_ms as f64)
-            .floor() as usize;
+        // Calculate timestep indices
+        let timestep_index_start =
+            ((gps_second_start * 1000) - self.timesteps[0].gps_time_ms) / self.timestep_duration_ms;
+        let timestep_index_end = (((gps_second_end * 1000) - self.timesteps[0].gps_time_ms) + 1)
+            / self.timestep_duration_ms;
 
-        // Get end timestep which includes the end gps time
-        let timestep_index_end: usize =
-            ((((gps_second_end * 1000) - self.timesteps[0].gps_time_ms) as f64 + 1.)
-                / self.timestep_duration_ms as f64)
-                .floor() as usize;
-
+        // Validate buffer size
         let expected_size = self.voltage_block_size_bytes as usize
             * self.num_voltage_blocks_per_second
             * gps_second_count;
@@ -633,127 +622,96 @@ impl VoltageContext {
             ));
         }
 
-        // Now do reading!
-        let buffer_u8: &mut [u8] = bytemuck::cast_slice_mut(buffer);
-        let mut buffer_pos = 0; // position in output buffer
-        let mut file_handle: std::fs::File = std::fs::File::open("/dev/null")?; //open dummy file as we need it initialised
-        let mut prev_filename: String = String::from("");
+        // Prepare unsafe cast for zero-copy read
+        let ptr = buffer.as_mut_ptr() as *mut u8;
+        let len = buffer.len();
+        let buffer_u8 = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
 
-        // Don't get confused here- a timestep can be 8 seconds for mwax or 1 sec for VCS
-        // Basically in this context timestep == file (of which there are one per coarse chan per timestep)!
-        for timestep_index in timestep_index_start..=timestep_index_end {
-            if let Some(batch) = self
-                .voltage_batches
-                .iter()
-                .find(|b| b.gps_time_seconds * 1000 == self.timesteps[timestep_index].gps_time_ms)
-            {
-                if let Some(file_info) = batch
-                    .voltage_files
-                    .iter()
-                    .find(|f| f.channel_identifier == channel_identifier)
-                {
-                    // It's possible for mwax that the consecutive seconds can be in the same file (for the same
-                    // coarse channel, so don't repoen the same file unless we need to).
-                    // file.metadata().is_err() returns true if file does not point to an open file or if there is
-                    // some other error
-                    if prev_filename == ""
-                        || file_handle.metadata().is_err()
-                        || file_info.filename != prev_filename
-                    {
-                        // No existing file is open, so open it!
-                        file_handle = std::fs::File::open(&file_info.filename)?;
-                        prev_filename = file_info.filename.clone();
+        let mut buffer_pos = 0;
+        let mut file_handle: Option<File> = None;
+        let mut prev_filename: &str = "";
 
-                        // Obtain metadata
-                        let metadata = file_handle.metadata().expect("unable to read metadata");
+        for timestep_index in timestep_index_start as usize..=timestep_index_end as usize {
+            let ts_gps = self.timesteps[timestep_index].gps_time_ms / 1000;
 
-                        // Check file is as big as we expect
-                        if metadata.len() != self.expected_voltage_data_file_size_bytes {
-                            return Err(VoltageFileError::InvalidVoltageFileSize(
-                                metadata.len(),
-                                String::from(&file_info.filename),
-                                self.expected_voltage_data_file_size_bytes,
-                            ));
-                        }
-                    }
-
-                    // Determine the first second of this timestep
-                    let ts_start_gps_time = self.timesteps[timestep_index].gps_time_ms / 1000;
-
-                    // These variables will always be: 1 (for Legacy VCS)
-                    // and between: 0 and 7 (for MWAX)
-                    let (first_sec_to_read, secs_to_read_in_file) =
-                        Self::determine_part_of_timestep_to_read(
-                            gps_second_start,
-                            gps_second_end,
-                            ts_start_gps_time,
-                            self.timestep_duration_ms / 1000,
-                        )?;
-
-                    // Determine how many bytes to read. We want it to be a full second of data
-                    let read_size: usize = self.voltage_block_size_bytes as usize
-                        * self.num_voltage_blocks_per_second
-                        * secs_to_read_in_file as usize;
-
-                    // Determine the start point of the read
-                    // Go past the header, delay block, and then go forward to the block we are after
-                    let start_offset = self.data_file_header_size_bytes
-                        + self.delay_block_size_bytes
-                        + (first_sec_to_read
-                            * self.voltage_block_size_bytes
-                            * self.num_voltage_blocks_per_second as u64);
-
-                    file_handle.seek(SeekFrom::Start(start_offset))?;
-
-                    // Read all blocks for this second
-                    // Note for MWAX, there are many blocks per timestep
-                    // and 1 "timestep" is 8 seconds
-
-                    file_handle.read_exact(&mut buffer_u8[buffer_pos..buffer_pos + read_size])?;
-                    buffer_pos += read_size;
-                }
-            } else {
-                return Err(VoltageFileError::NoDataForTimeStepCoarseChannel {
+            let filename = self
+                .voltage_time_map
+                .get(&ts_gps)
+                .and_then(|batch_map| batch_map.get(&channel_identifier))
+                .ok_or_else(|| VoltageFileError::NoDataForTimeStepCoarseChannel {
                     timestep_index,
                     coarse_chan_index: volt_coarse_chan_index,
-                });
+                })?;
+
+            // Open file only if needed
+            if prev_filename.is_empty() || filename != prev_filename {
+                let fh = File::open(&filename)?;
+                file_handle = Some(fh);
+                prev_filename = &filename;
             }
+
+            let fh = file_handle.as_mut().unwrap();
+
+            // Determine which seconds to read
+            let ts_start_gps_time = ts_gps;
+            let (first_sec_to_read, secs_to_read_in_file) =
+                Self::determine_part_of_timestep_to_read(
+                    gps_second_start,
+                    gps_second_end,
+                    ts_start_gps_time,
+                    self.timestep_duration_ms / 1000,
+                )?;
+
+            let read_size = self.voltage_block_size_bytes as usize
+                * self.num_voltage_blocks_per_second
+                * secs_to_read_in_file as usize;
+
+            let start_offset = self.data_file_header_size_bytes
+                + self.delay_block_size_bytes
+                + (first_sec_to_read
+                    * self.voltage_block_size_bytes
+                    * self.num_voltage_blocks_per_second as u64);
+
+            fh.seek(SeekFrom::Start(start_offset))?;
+            fh.read_exact(&mut buffer_u8[buffer_pos..buffer_pos + read_size])?;
+            buffer_pos += read_size;
         }
+
         Ok(())
     }
 
-    // Given the gps_start and gps_end that is being requested, and the start time of the timestep
-    // we are reading from, determine which seconds within that timestep to read.
-    //
-    // # Examples for MWAX (8 seconds per timestep):
-    //     0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16  17  18  19  20  21  22  23
-    //     |---timestep 0----------------|---timestep 1-------------------|---timestep 2----------------|
-    // A)  X
-    // B)              X   X
-    // C)                              X
-    // D)  X   X   X   X   X   X   X   X
-    // E)  X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
-    // F)                          X   X   X   X
-    // G)                          X   X   X   X   X   X   X   X   X   X   X   X
-    // H)                          X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
-    // I)  X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
-    // J)  X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
-    //
-    // # Arguments
-    //
-    // * `gps_second_start` - GPS second within the observation to start reading data.
-    //
-    // * `gps_second_end` - GPS second within the observation to stop reading data.
-    //
-    // * `ts_start_gps_time` - GPS start time of the timestep we are reading from.
-    //
-    // * `ts_duration_sec` - Duration of the timestep in seconds. (1 for Legacy VCS, 8 for MWAX)
-    //
-    // # Returns
-    //
-    // * Result containing Tuple containing: `first_sec_to_read` (0-7 for MWAX or 0 for Legacy VCS), `secs_to_read_in_file`
-    //
-    //
+    /// Given the gps_start and gps_end that is being requested, and the start time of the timestep
+    /// we are reading from, determine which seconds within that timestep to read.
+    ///
+    /// # Examples for MWAX (8 seconds per timestep):
+    /// #     0  1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16  17  18  19  20  21  22 23
+    /// #    |---timestep 0----------------|---timestep 1-------------------|---timestep 2----------------|
+    /// #(A)  X
+    /// #(B)              X   X
+    /// #(C)                              X
+    /// #(D)  X   X   X   X   X   X   X   X
+    /// #(E)  X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
+    /// #(F)                          X   X   X   X
+    /// #(G)                          X   X   X   X   X   X   X   X   X   X   X   X
+    /// #(H)                          X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
+    /// #(I)  X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
+    /// #(J)  X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
+    ///
+    /// # Arguments
+    ///
+    /// * `gps_second_start` - GPS second within the observation to start reading data.
+    ///
+    /// * `gps_second_end` - GPS second within the observation to stop reading data.
+    ///
+    /// * `ts_start_gps_time` - GPS start time of the timestep we are reading from.
+    ///
+    /// * `ts_duration_sec` - Duration of the timestep in seconds. (1 for Legacy VCS, 8 for MWAX)
+    ///
+    /// # Returns
+    ///
+    /// * Result containing Tuple containing: `first_sec_to_read` (0-7 for MWAX or 0 for Legacy VCS), `secs_to_read_in_file`
+    ///
+    ///
     fn determine_part_of_timestep_to_read(
         gps_second_start: u64,
         gps_second_end: u64,
@@ -950,7 +908,7 @@ impl VoltageContext {
         Ok(())
     }
 
-    /// Read a single or multiple seconds of data for a coarse channel
+    /// Read a single or multiple seconds of data for a coarse channel from one file
     ///
     /// # Arguments
     ///
@@ -968,6 +926,81 @@ impl VoltageContext {
     ///
     /// * A Result of Ok or error.
     ///    
+    pub fn read_file2(
+        &self,
+        volt_timestep_index: usize,
+        volt_coarse_chan_index: usize,
+        buffer: &mut [i8],
+    ) -> Result<(), VoltageFileError> {
+        if self.voltage_batches.is_empty() {
+            return Err(VoltageFileError::NoVoltageFiles);
+        }
+
+        // Validate the timestep
+        if volt_timestep_index > self.num_timesteps - 1 {
+            return Err(VoltageFileError::InvalidTimeStepIndex(
+                self.num_timesteps - 1,
+            ));
+        }
+
+        // Validate the coarse chan
+        if volt_coarse_chan_index > self.num_coarse_chans - 1 {
+            return Err(VoltageFileError::InvalidCoarseChanIndex(
+                self.num_coarse_chans - 1,
+            ));
+        }
+
+        // Determine the GPS time for this timestep
+        let ts_gps = self.timesteps[volt_timestep_index].gps_time_ms / 1000;
+
+        // Determine the channel identifier, which we will use later to find the correct data file
+        let channel_identifier = self.coarse_chans[volt_coarse_chan_index].gpubox_number;
+
+        // find the filename if the timestep/coarse chan combo exists
+        let filename = self
+            .voltage_time_map
+            .get(&ts_gps)
+            .and_then(|batch_map| batch_map.get(&channel_identifier))
+            .ok_or_else(|| VoltageFileError::NoDataForTimeStepCoarseChannel {
+                timestep_index: volt_timestep_index,
+                coarse_chan_index: volt_coarse_chan_index,
+            })?;
+
+        // Prepare unsafe cast for zero-copy read
+        let ptr = buffer.as_mut_ptr() as *mut u8;
+        let len = buffer.len();
+        let buffer_u8 = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
+
+        // Open the file
+        let mut fh = File::open(filename).expect("no file found");
+
+        // Normally we would compare the file len to context.expected_voltage_data_file_size_bytes,
+        // but it is already checked in new()
+
+        // Check buffer is big enough
+        let expected_buffer_size =
+            self.voltage_block_size_bytes as usize * self.num_voltage_blocks_per_timestep;
+
+        if buffer.len() != expected_buffer_size {
+            return Err(VoltageFileError::InvalidBufferSize(
+                buffer.len(),
+                expected_buffer_size,
+            ));
+        }
+
+        // Skip header
+        fh.by_ref()
+            .seek(SeekFrom::Start(
+                self.data_file_header_size_bytes + self.delay_block_size_bytes,
+            ))
+            .expect("Unable to seek to data in voltage file");
+
+        // Read the data into the final output buffer in blocks, spaced out with delay blocks (possibly)
+        fh.read_exact(buffer_u8)?;
+
+        Ok(())
+    }
+
     pub fn read_file(
         &self,
         volt_timestep_index: usize,
@@ -1150,7 +1183,7 @@ impl fmt::Display for VoltageContext {
             Common/Good duration:            {common_good_duration} s,
             Common/Good bandwidth:           {common_good_bw} MHz,
 
-            fine channel resolution:  {fcw} Hz,
+            fine channel resolution:  {fcw} kHz,
             num fine channels/coarse: {nfcpc},
 
             Number of bytes/sample:          {ssb} bytes,
