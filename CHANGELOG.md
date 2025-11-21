@@ -4,10 +4,14 @@ Changes in each release are listed below.
 
 ## 1.10.0 XX-Nov-2025
 
-* Bumped MSRV to 1.81 due to dependency hell
-* Created test read_second2 function which is much more efficient when reading MWAX Subfiles (7x less open, seek, read and close calls)
-* Added VoltageContext read_second and read_second2 benchmark
-* Added FFI tests for VoltageContext read_second
+* Bumped MSRV to 1.81 due to dependency hell.
+* Created test read_second2 function which is much more efficient when reading MWAX Subfiles (7x less open, seek, read and close calls).
+* Created test read_file2 function which is also slightly more efficient than read_file.
+* Added VoltageContext read_file, read_file2, read_second and read_second2 benchmark.
+* Added FFI tests for VoltageContext read_second, read_second2, read_file and read_file2.
+* Fixed bug in VoltageContext::Display() which had the fine channel width units as "Hz" when they should have been "kHz".
+* Moved SignalChainCorrections population code into the signal_chain_correction module.
+* Added support for reading old and new versions of the CALIBDATA HDU (calibration_fit/mod.rs = CalibrationFit) from the metafits files - providing the client with info on the best calibration solution found at the time the metafits file was generated.
 
 ## 1.9.0 27-Oct-2025
 

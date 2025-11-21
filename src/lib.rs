@@ -8,6 +8,7 @@
 // Public items will be exposed as mwalib::module.
 mod antenna;
 mod baseline;
+mod calibration_fit;
 mod coarse_channel;
 mod convert;
 mod correlator_context;
@@ -56,6 +57,8 @@ pub mod built_info {
 // Re-exports (public to other crates and in a flat structure)
 pub use antenna::Antenna;
 pub use baseline::Baseline;
+pub use calibration_fit::error::CalibrationFitError;
+pub use calibration_fit::CalibrationFit;
 pub use coarse_channel::error::CoarseChannelError;
 pub use coarse_channel::CoarseChannel;
 pub use correlator_context::CorrelatorContext;

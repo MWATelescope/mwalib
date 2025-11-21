@@ -1886,6 +1886,10 @@ pub struct MetafitsMetadata {
     pub signal_chain_corrections: *mut SignalChainCorrection,
     /// Number of signal chain corrections in the array
     pub num_signal_chain_corrections: usize,
+    /// Calibration fits
+    pub calibration_fits: *mut CalibrationFit,
+    /// Number of calibration fits in the array
+    pub num_calibration_fits: usize,
 }
 
 /// This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext, CorrelatorContext or VoltageContext
@@ -2142,6 +2146,42 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
         }
     }
 
+    // Populate calibration fits
+    let mut calibration_fits_vec: Vec<ffi::CalibrationFit> = Vec::new();
+
+    if let Some(v) = &metafits_context.calibration_fits {
+        for item in v.iter() {
+            let out_item = {
+                let calibration_fit::CalibrationFit {
+                    rf_input: _,
+                    delay_metres,
+                    intercept_metres,
+                    gains,
+                    gain_polynomial_fit0,
+                    gain_polynomial_fit1,
+                    phase_fit_quality,
+                    gain_fit_quality,
+                } = item;
+
+                ffi::CalibrationFit {
+                    rf_input: metafits_context
+                        .rf_inputs
+                        .iter()
+                        .position(|x| x.ant == item.rf_input.ant && x.pol == item.rf_input.pol)
+                        .unwrap(),
+                    delay_metres: *delay_metres,
+                    intercept_metres: *intercept_metres,
+                    gains: ffi_array_to_boxed_slice(gains.clone()),
+                    gain_polynomial_fit0: ffi_array_to_boxed_slice(gain_polynomial_fit0.clone()),
+                    gain_polynomial_fit1: ffi_array_to_boxed_slice(gain_polynomial_fit1.clone()),
+                    phase_fit_quality: *phase_fit_quality,
+                    gain_fit_quality: *gain_fit_quality,
+                }
+            };
+            calibration_fits_vec.push(out_item);
+        }
+    }
+
     // Populate the outgoing structure with data from the metafits context
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
@@ -2232,6 +2272,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             best_cal_fit_iter_limit,
             signal_chain_corrections: _, // This is populated seperately
             num_signal_chain_corrections,
+            calibration_fits: _, // This is populated seperately
+            num_calibration_fits,
         } = metafits_context;
         MetafitsMetadata {
             mwa_version: mwa_version.unwrap(),
@@ -2342,6 +2384,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             best_cal_fit_iter_limit: best_cal_fit_iter_limit.unwrap_or_else(|| 0),
             signal_chain_corrections: ffi_array_to_boxed_slice(signal_chain_corrections_vec),
             num_signal_chain_corrections: *num_signal_chain_corrections,
+            calibration_fits: ffi_array_to_boxed_slice(calibration_fits_vec),
+            num_calibration_fits: *num_calibration_fits,
         }
     };
 
@@ -2479,6 +2523,32 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
         drop(Box::from_raw(
             (*metafits_metadata_ptr).signal_chain_corrections,
         ));
+    }
+
+    // signal chain corrections
+    if !(*metafits_metadata_ptr).calibration_fits.is_null() {
+        // Extract a slice from the pointer
+        let slice: &mut [CalibrationFit] = slice::from_raw_parts_mut(
+            (*metafits_metadata_ptr).calibration_fits,
+            (*metafits_metadata_ptr).num_calibration_fits,
+        );
+
+        // Now for each item we need to free anything on the heap
+        for i in slice.iter_mut() {
+            if !i.gains.is_null() {
+                drop(Box::from_raw(i.gains));
+            }
+
+            if !i.gains.is_null() {
+                drop(Box::from_raw(i.gain_polynomial_fit0));
+            }
+
+            if !i.gains.is_null() {
+                drop(Box::from_raw(i.gain_polynomial_fit1));
+            }
+        }
+
+        drop(Box::from_raw((*metafits_metadata_ptr).calibration_fits));
     }
 
     // Free main metadata struct
@@ -3406,4 +3476,36 @@ pub struct TimeStep {
     pub unix_time_ms: u64,
     /// gps time (in milliseconds)
     pub gps_time_ms: u64,
+}
+
+///
+/// C Representation of a `CalibrationFit` struct
+///
+///
+/// Calibration Fit table
+///
+#[repr(C)]
+pub struct CalibrationFit {
+    /// RF input index
+    pub rf_input: usize,
+    /// The calibration offset, in metres, for that input,
+    /// derived from the most recently processed calibrator
+    /// observation with the same coarse channels.
+    /// May be missing or all zeros in some metafits files.
+    /// Used to generate the slope (versus frequency) for the phase correction.
+    pub delay_metres: f32,
+    /// /// Used, with the phase slope above to generate the phase correction for each fine channel, for this tile.
+    pub intercept_metres: f32,
+    /// /// The calibration gain multiplier (not in dB) for each of the N channels (normally 24) in this observation,
+    /// for this input. Derived from the most recently processed calibrator observation with the same coarse
+    /// channels. May be missing or all ones in some metafits files.
+    pub gains: *mut f32,
+    /// polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
+    pub gain_polynomial_fit0: *mut f32,
+    /// polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
+    pub gain_polynomial_fit1: *mut f32,
+    /// dimensionless quality parameter (0-1.0) for the phase fit
+    pub phase_fit_quality: f32,
+    /// dimensionless quality parameter (0-1.0) for the gain fit
+    pub gain_fit_quality: f32,
 }

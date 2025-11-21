@@ -8,7 +8,6 @@ use std::fmt;
 use std::path::Path;
 
 use chrono::{DateTime, Duration, FixedOffset};
-use fitsio::{hdu::HduInfo, FitsFile};
 use num_derive::FromPrimitive;
 use num_traits::ToPrimitive;
 
@@ -544,6 +543,10 @@ pub struct MetafitsContext {
     pub signal_chain_corrections: Option<Vec<SignalChainCorrection>>,
     /// Number of Signal Chain corrections
     pub num_signal_chain_corrections: usize,
+    /// Calibration fits
+    pub calibration_fits: Option<Vec<CalibrationFit>>,
+    /// Number of calibration fits
+    pub num_calibration_fits: usize,
 }
 
 impl MetafitsContext {
@@ -683,7 +686,7 @@ impl MetafitsContext {
 
         match metafits_signalchain_hdu_result {
             Ok(metafits_signalchain_hdu) => {
-                let sig_chain_corrs = Self::populate_signal_chain_corrections(
+                let sig_chain_corrs = signal_chain_correction::populate_signal_chain_corrections(
                     &mut metafits_fptr,
                     &metafits_signalchain_hdu,
                 )?;
@@ -976,6 +979,29 @@ impl MetafitsContext {
         let num_volt_fine_chans_per_coarse =
             (metafits_coarse_chan_width_hz / volt_fine_chan_width_hz) as usize;
 
+        // Calibration fits
+        let calibration_fits: Option<Vec<CalibrationFit>>;
+        let num_calibration_fits: usize;
+
+        match &metafits_cal_hdu_result {
+            Ok(metafits_calibdata_hdu) => {
+                let cal_fits = calibration_fit::populate_calibration_fits(
+                    &mut metafits_fptr,
+                    &metafits_calibdata_hdu,
+                    &rf_inputs,
+                    num_metafits_coarse_chans,
+                )?;
+
+                num_calibration_fits = cal_fits.len();
+                calibration_fits = Some(cal_fits);
+            }
+            Err(_) => {
+                // This will occur if the HDU does not exist (old / or metafits without this)
+                num_calibration_fits = 0;
+                calibration_fits = None;
+            }
+        }
+
         // Handle all of the calibration metadata
         let best_cal_fit_id: Option<u32>;
         let best_cal_obs_id: Option<u32>;
@@ -1105,63 +1131,9 @@ impl MetafitsContext {
             best_cal_fit_iter_limit,
             signal_chain_corrections,
             num_signal_chain_corrections,
+            calibration_fits,
+            num_calibration_fits,
         })
-    }
-
-    /// Read the signal chain FitsHdu and return a populated vector of `SignalChainCorrection`s
-    ///
-    /// # Arguments
-    ///
-    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
-    ///
-    /// * `sig_chain_hdu` - The FitsHdu containing valid signal chain corrections data.
-    ///
-    /// # Returns
-    ///
-    /// * Result containing a vector of signal chain corrections read from the sig_chain_hdu HDU.
-    ///
-    fn populate_signal_chain_corrections(
-        metafits_fptr: &mut FitsFile,
-        sig_chain_hdu: &fitsio::hdu::FitsHdu,
-    ) -> Result<Vec<SignalChainCorrection>, FitsError> {
-        // Find out how many rows there are in the table
-        let rows = match &sig_chain_hdu.info {
-            HduInfo::TableInfo {
-                column_descriptions: _,
-                num_rows,
-            } => *num_rows,
-            _ => 0,
-        };
-
-        let mut sig_chain_vec: Vec<SignalChainCorrection> = Vec::new();
-
-        for row in 0..rows {
-            let rx_type_str: String =
-                read_cell_value(metafits_fptr, sig_chain_hdu, "Receiver_type", row)
-                    .unwrap_or_default();
-            let receiver_type: ReceiverType = rx_type_str.parse::<ReceiverType>().unwrap();
-
-            let whitening_filter: bool =
-                read_cell_value(metafits_fptr, sig_chain_hdu, "Whitening_Filter", row)
-                    .unwrap_or(-1)
-                    == 1;
-
-            let corrections: Vec<f64> = read_cell_array_f64(
-                metafits_fptr,
-                sig_chain_hdu,
-                "Corrections",
-                row as i64,
-                MAX_RECEIVER_CHANNELS,
-            )?;
-
-            sig_chain_vec.push(SignalChainCorrection {
-                receiver_type,
-                whitening_filter,
-                corrections,
-            });
-        }
-
-        Ok(sig_chain_vec)
     }
 
     /// Given a hint at the expected `MWAVersion`, populate the coarse_channel vector with the expected
@@ -1398,6 +1370,8 @@ impl fmt::Display for MetafitsContext {
 
     num signal chain corrs:   {n_scc},
 
+    num calibration fits:     {ncfits},
+
     metafits filename:        {meta},
 )"#,
             obsid = self.obs_id,
@@ -1492,6 +1466,7 @@ impl fmt::Display for MetafitsContext {
             int_time = self.corr_int_time_ms as f64 / 1e3,
             crsf = self.corr_raw_scale_factor,
             n_scc = self.num_signal_chain_corrections,
+            ncfits = self.num_calibration_fits,
             bcal_fit_id = match self.best_cal_fit_id {
                 Some(b) => b.to_string(),
                 None => String::from("None"),
