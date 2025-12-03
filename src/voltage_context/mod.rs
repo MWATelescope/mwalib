@@ -638,16 +638,16 @@ impl VoltageContext {
                 .voltage_time_map
                 .get(&ts_gps)
                 .and_then(|batch_map| batch_map.get(&channel_identifier))
-                .ok_or_else(|| VoltageFileError::NoDataForTimeStepCoarseChannel {
+                .ok_or(VoltageFileError::NoDataForTimeStepCoarseChannel {
                     timestep_index,
                     coarse_chan_index: volt_coarse_chan_index,
                 })?;
 
             // Open file only if needed
             if prev_filename.is_empty() || filename != prev_filename {
-                let fh = File::open(&filename)?;
+                let fh = File::open(filename)?;
                 file_handle = Some(fh);
-                prev_filename = &filename;
+                prev_filename = filename;
             }
 
             let fh = file_handle.as_mut().unwrap();
@@ -961,7 +961,7 @@ impl VoltageContext {
             .voltage_time_map
             .get(&ts_gps)
             .and_then(|batch_map| batch_map.get(&channel_identifier))
-            .ok_or_else(|| VoltageFileError::NoDataForTimeStepCoarseChannel {
+            .ok_or(VoltageFileError::NoDataForTimeStepCoarseChannel {
                 timestep_index: volt_timestep_index,
                 coarse_chan_index: volt_coarse_chan_index,
             })?;

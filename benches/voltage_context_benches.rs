@@ -16,12 +16,12 @@ fn setup_test_files_1363085416() -> (String, Vec<String>) {
     // Don't recreate the files if they exist
     for filename in &filenames {
         if !Path::new(&filename).exists() {
-            generate_test_voltage_file(&filename, MWAVersion::VCSMWAXv2, 160, 64_000, 288, 1, 2, 0)
+            generate_test_voltage_file(filename, MWAVersion::VCSMWAXv2, 160, 64_000, 288, 1, 2, 0)
                 .expect("Error generating test voltage file");
         }
     }
 
-    return (metafits_filename, filenames);
+    (metafits_filename, filenames)
 }
 
 fn bench_mwaxvcs_read_second(c: &mut Criterion) {

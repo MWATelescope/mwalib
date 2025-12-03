@@ -425,6 +425,7 @@ where
 /// Helper fuctions to generate (small-sh) test voltage files
 /// for mwax test files they contain an incrememting byte for the real in each samples and decrementing byte value for the imag value.
 /// for legacy test files they contain a single incrememnting byte for the real/imag value.
+#[allow(clippy::too_many_arguments)]
 pub fn generate_test_voltage_file(
     filename: &str,
     mwa_version: MWAVersion,

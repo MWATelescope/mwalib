@@ -987,7 +987,7 @@ impl MetafitsContext {
             Ok(metafits_calibdata_hdu) => {
                 let cal_fits = calibration_fit::populate_calibration_fits(
                     &mut metafits_fptr,
-                    &metafits_calibdata_hdu,
+                    metafits_calibdata_hdu,
                     &rf_inputs,
                     num_metafits_coarse_chans,
                 )?;

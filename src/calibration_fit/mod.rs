@@ -112,7 +112,7 @@ impl fmt::Display for CalibrationFit {
 pub(crate) fn populate_calibration_fits(
     metafits_fptr: &mut FitsFile,
     calibdata_hdu: &FitsHdu,
-    rf_inputs: &Vec<Rfinput>,
+    rf_inputs: &[Rfinput],
     num_coarse_channels: usize,
 ) -> Result<Vec<CalibrationFit>, error::CalibrationFitError> {
     // Find out how many rows there are in the table
@@ -159,7 +159,7 @@ pub(crate) fn populate_calibration_fits(
             calibdata_hdu,
             "gains",
             row as i64,
-            num_coarse_channels as usize,
+            num_coarse_channels,
         ) {
             Ok(val) => val,
             Err(_) => read_cell_array_f32(
@@ -167,7 +167,7 @@ pub(crate) fn populate_calibration_fits(
                 calibdata_hdu,
                 "Calib_Gains",
                 row as i64,
-                num_coarse_channels as usize,
+                num_coarse_channels,
             )?,
         };
 
@@ -177,7 +177,7 @@ pub(crate) fn populate_calibration_fits(
             calibdata_hdu,
             "gains_pol0",
             row as i64,
-            num_coarse_channels as usize,
+            num_coarse_channels,
         )
         .unwrap_or_default();
 
@@ -187,7 +187,7 @@ pub(crate) fn populate_calibration_fits(
             calibdata_hdu,
             "gains_pol1",
             row as i64,
-            num_coarse_channels as usize,
+            num_coarse_channels,
         )
         .unwrap_or_default();
 
