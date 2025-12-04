@@ -4,14 +4,11 @@
 
 //! This module exists purely for other languages to interface with mwalib.
 
-use crate::rfinput::ReceiverType;
 use crate::*;
-use gpubox_files::GpuboxError;
 use libc::{c_char, c_double, c_float, c_schar, c_uint, c_ulong, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
-use voltage_files::VoltageFileError;
 
 #[cfg(test)]
 mod test;
@@ -1828,23 +1825,23 @@ pub struct MetafitsMetadata {
     /// Total number of antennas (tiles) in the array
     pub num_ants: usize,
     /// Array of antennas
-    pub antennas: *mut Antenna,
+    pub antennas: *mut antenna::ffi::Antenna,
     /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
     pub num_rf_inputs: usize,
     /// Array of rf inputs
-    pub rf_inputs: *mut Rfinput,
+    pub rf_inputs: *mut rfinput::ffi::Rfinput,
     /// Number of antenna pols. e.g. X and Y
     pub num_ant_pols: usize,
     /// Number of baselines
     pub num_baselines: usize,
     /// Baseline array
-    pub baselines: *mut Baseline,
+    pub baselines: *mut baseline::ffi::Baseline,
     /// Number of visibility_pols
     pub num_visibility_pols: usize,
     /// Number of coarse channels based on the metafits
     pub num_metafits_coarse_chans: usize,
     /// metafits_coarse_chans array
-    pub metafits_coarse_chans: *mut CoarseChannel,
+    pub metafits_coarse_chans: *mut coarse_channel::ffi::CoarseChannel,
     /// Number of fine channels for the whole observation
     pub num_metafits_fine_chan_freqs_hz: usize,
     /// Vector of fine channel frequencies for the whole observation
@@ -1852,7 +1849,7 @@ pub struct MetafitsMetadata {
     /// Number of timesteps based on the metafits
     pub num_metafits_timesteps: usize,
     /// metafits_timesteps array
-    pub metafits_timesteps: *mut TimeStep,
+    pub metafits_timesteps: *mut timestep::ffi::TimeStep,
     /// Total bandwidth of observation assuming we have all coarse channels
     pub obs_bandwidth_hz: u32,
     /// Bandwidth of each coarse channel
@@ -1883,11 +1880,11 @@ pub struct MetafitsMetadata {
     /// Best calibration fit iteration limit
     pub best_cal_fit_iter_limit: u16,
     /// Signal Chain corrections array
-    pub signal_chain_corrections: *mut SignalChainCorrection,
+    pub signal_chain_corrections: *mut signal_chain_correction::ffi::SignalChainCorrection,
     /// Number of signal chain corrections in the array
     pub num_signal_chain_corrections: usize,
     /// Calibration fits
-    pub calibration_fits: *mut CalibrationFit,
+    pub calibration_fits: *mut calibration_fit::ffi::CalibrationFit,
     /// Number of calibration fits in the array
     pub num_calibration_fits: usize,
 }
@@ -1955,14 +1952,14 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     };
 
     // Populate baselines
-    let mut baseline_vec: Vec<Baseline> = Vec::new();
+    let mut baseline_vec: Vec<baseline::ffi::Baseline> = Vec::new();
     for item in metafits_context.baselines.iter() {
         let out_item = {
             let baseline::Baseline {
                 ant1_index,
                 ant2_index,
             } = item;
-            Baseline {
+            baseline::ffi::Baseline {
                 ant1_index: *ant1_index,
                 ant2_index: *ant2_index,
             }
@@ -1972,7 +1969,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     }
 
     // Populate antennas
-    let mut antenna_vec: Vec<Antenna> = Vec::new();
+    let mut antenna_vec: Vec<antenna::ffi::Antenna> = Vec::new();
     for item in metafits_context.antennas.iter() {
         let out_item = {
             let antenna::Antenna {
@@ -1986,7 +1983,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 east_m,
                 height_m,
             } = item;
-            Antenna {
+            antenna::ffi::Antenna {
                 ant: *ant,
                 tile_id: *tile_id,
                 tile_name: CString::new(tile_name.as_str()).unwrap().into_raw(),
@@ -2011,7 +2008,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     }
 
     // Populate rf_inputs
-    let mut rfinput_vec: Vec<Rfinput> = Vec::new();
+    let mut rfinput_vec: Vec<rfinput::ffi::Rfinput> = Vec::new();
     for item in metafits_context.rf_inputs.iter() {
         let out_item = {
             let rfinput::Rfinput {
@@ -2046,7 +2043,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 .unwrap_or(vec![f32::NAN; metafits_context.num_metafits_coarse_chans]);
             let num_calib_gains = calib_gains_vec.len();
 
-            Rfinput {
+            rfinput::ffi::Rfinput {
                 input: *input,
                 ant: *ant,
                 tile_id: *tile_id,
@@ -2081,7 +2078,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     }
 
     // Populate metafits coarse channels
-    let mut coarse_chan_vec: Vec<CoarseChannel> = Vec::new();
+    let mut coarse_chan_vec: Vec<coarse_channel::ffi::CoarseChannel> = Vec::new();
 
     for item in metafits_context.metafits_coarse_chans.iter() {
         let out_item = {
@@ -2094,7 +2091,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 chan_centre_hz,
                 chan_end_hz,
             } = item;
-            CoarseChannel {
+            coarse_channel::ffi::CoarseChannel {
                 corr_chan_number: *corr_chan_number,
                 rec_chan_number: *rec_chan_number,
                 gpubox_number: *gpubox_number,
@@ -2109,7 +2106,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     }
 
     // Populate metafits timesteps
-    let mut timestep_vec: Vec<TimeStep> = Vec::new();
+    let mut timestep_vec: Vec<timestep::ffi::TimeStep> = Vec::new();
 
     for item in metafits_context.metafits_timesteps.iter() {
         let out_item = {
@@ -2117,7 +2114,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 unix_time_ms,
                 gps_time_ms,
             } = item;
-            TimeStep {
+            timestep::ffi::TimeStep {
                 unix_time_ms: *unix_time_ms,
                 gps_time_ms: *gps_time_ms,
             }
@@ -2126,7 +2123,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     }
 
     // Populate signal chain corrections
-    let mut signal_chain_corrections_vec: Vec<ffi::SignalChainCorrection> = Vec::new();
+    let mut signal_chain_corrections_vec: Vec<signal_chain_correction::ffi::SignalChainCorrection> =
+        Vec::new();
 
     if let Some(v) = &metafits_context.signal_chain_corrections {
         for item in v.iter() {
@@ -2136,7 +2134,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                     whitening_filter,
                     corrections,
                 } = item;
-                ffi::SignalChainCorrection {
+                signal_chain_correction::ffi::SignalChainCorrection {
                     receiver_type: *receiver_type,
                     whitening_filter: *whitening_filter,
                     corrections: ffi_array_to_boxed_slice(corrections.clone()),
@@ -2147,7 +2145,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     }
 
     // Populate calibration fits
-    let mut calibration_fits_vec: Vec<ffi::CalibrationFit> = Vec::new();
+    let mut calibration_fits_vec: Vec<calibration_fit::ffi::CalibrationFit> = Vec::new();
 
     if let Some(v) = &metafits_context.calibration_fits {
         for item in v.iter() {
@@ -2163,7 +2161,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                     gain_fit_quality,
                 } = item;
 
-                ffi::CalibrationFit {
+                calibration_fit::ffi::CalibrationFit {
                     rf_input: metafits_context
                         .rf_inputs
                         .iter()
@@ -2432,7 +2430,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     // antennas
     if !(*metafits_metadata_ptr).antennas.is_null() {
         // Extract a slice from the pointer
-        let slice: &mut [Antenna] = slice::from_raw_parts_mut(
+        let slice: &mut [antenna::ffi::Antenna] = slice::from_raw_parts_mut(
             (*metafits_metadata_ptr).antennas,
             (*metafits_metadata_ptr).num_ants,
         );
@@ -2448,7 +2446,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     // rf inputs
     if !(*metafits_metadata_ptr).rf_inputs.is_null() {
         // Extract a slice from the pointer
-        let slice: &mut [Rfinput] = slice::from_raw_parts_mut(
+        let slice: &mut [rfinput::ffi::Rfinput] = slice::from_raw_parts_mut(
             (*metafits_metadata_ptr).rf_inputs,
             (*metafits_metadata_ptr).num_rf_inputs,
         );
@@ -2508,10 +2506,11 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     // signal chain corrections
     if !(*metafits_metadata_ptr).signal_chain_corrections.is_null() {
         // Extract a slice from the pointer
-        let slice: &mut [SignalChainCorrection] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).signal_chain_corrections,
-            (*metafits_metadata_ptr).num_signal_chain_corrections,
-        );
+        let slice: &mut [signal_chain_correction::ffi::SignalChainCorrection] =
+            slice::from_raw_parts_mut(
+                (*metafits_metadata_ptr).signal_chain_corrections,
+                (*metafits_metadata_ptr).num_signal_chain_corrections,
+            );
 
         // Now for each item we need to free anything on the heap
         for i in slice.iter_mut() {
@@ -2528,7 +2527,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     // signal chain corrections
     if !(*metafits_metadata_ptr).calibration_fits.is_null() {
         // Extract a slice from the pointer
-        let slice: &mut [CalibrationFit] = slice::from_raw_parts_mut(
+        let slice: &mut [calibration_fit::ffi::CalibrationFit] = slice::from_raw_parts_mut(
             (*metafits_metadata_ptr).calibration_fits,
             (*metafits_metadata_ptr).num_calibration_fits,
         );
@@ -3309,203 +3308,4 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_free(
 
     // Return success
     MWALIB_SUCCESS
-}
-
-/// Representation in C of an `Antenna` struct
-#[repr(C)]
-pub struct Antenna {
-    /// This is the antenna number.
-    /// Nominally this is the field we sort by to get the desired output order of antenna.
-    /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
-    /// e.g. 0...N-1
-    pub ant: u32,
-    /// Numeric part of tile_name for the antenna. Each pol has the same value
-    /// e.g. tile_name "tile011" hsa tile_id of 11
-    pub tile_id: u32,
-    /// Human readable name of the antenna
-    /// X and Y have the same name
-    pub tile_name: *mut c_char,
-    /// Index within the array of rfinput structs of the x pol
-    pub rfinput_x: usize,
-    /// Index within the array of rfinput structs of the y pol
-    pub rfinput_y: usize,
-    ///
-    /// Note: the next 4 values are from the rfinput of which we have X and Y, however these values are the same for each pol so can be safely placed in the antenna struct
-    /// for efficiency
-    ///
-    /// Electrical length in metres for this antenna and polarisation to the receiver
-    pub electrical_length_m: f64,
-    /// Antenna position North from the array centre (metres)
-    pub north_m: f64,
-    /// Antenna position East from the array centre (metres)
-    pub east_m: f64,
-    /// Antenna height from the array centre (metres)
-    pub height_m: f64,
-}
-
-///
-/// C Representation of a `Baseline` struct
-///
-#[repr(C)]
-pub struct Baseline {
-    /// Index in the `MetafitsContext` antenna array for antenna1 for this baseline
-    pub ant1_index: usize,
-    /// Index in the `MetafitsContext` antenna array for antenna2 for this baseline
-    pub ant2_index: usize,
-}
-
-/// Representation in C of an `CoarseChannel` struct
-#[repr(C)]
-pub struct CoarseChannel {
-    /// Correlator channel is 0 indexed (0..N-1)
-    pub corr_chan_number: usize,
-    /// Receiver channel is 0-255 in the RRI recivers
-    pub rec_chan_number: usize,
-    /// gpubox channel number
-    /// This is better described as the identifier which would be in the filename of visibility files
-    /// Legacy e.g. obsid_datetime_gpuboxXX_00
-    /// v2     e.g. obsid_datetime_gpuboxXXX_00
-    pub gpubox_number: usize,
-    /// Width of a coarse channel in Hz
-    pub chan_width_hz: u32,
-    /// Starting frequency of coarse channel in Hz
-    pub chan_start_hz: u32,
-    /// Centre frequency of coarse channel in Hz
-    pub chan_centre_hz: u32,
-    /// Ending frequency of coarse channel in Hz
-    pub chan_end_hz: u32,
-}
-
-/// Representation in C of an `RFInput` struct
-#[repr(C)]
-pub struct Rfinput {
-    /// This is the metafits order (0-n inputs)
-    pub input: u32,
-    /// This is the antenna number.
-    /// Nominally this is the field we sort by to get the desired output order of antenna.
-    /// X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
-    /// e.g. 0...N-1
-    pub ant: u32,
-    /// Numeric part of tile_name for the antenna. Each pol has the same value
-    /// e.g. tile_name "tile011" hsa tile_id of 11
-    pub tile_id: u32,
-    /// Human readable name of the antenna
-    /// X and Y have the same name
-    pub tile_name: *mut c_char,
-    /// Polarisation - X or Y
-    pub pol: *mut c_char,
-    /// Electrical length in metres for this antenna and polarisation to the receiver
-    pub electrical_length_m: f64,
-    /// Antenna position North from the array centre (metres)
-    pub north_m: f64,
-    /// Antenna position East from the array centre (metres)
-    pub east_m: f64,
-    /// Antenna height from the array centre (metres)
-    pub height_m: f64,
-    /// AKA PFB to correlator input order (only relevant for pre V2 correlator)
-    pub vcs_order: u32,
-    /// Subfile order is the order in which this rf_input is desired in our final output of data
-    pub subfile_order: u32,
-    /// Is this rf_input flagged out (due to tile error, etc from metafits)
-    pub flagged: bool,
-    /// Digital gains
-    /// The values from the metafits are scaled by 64, so mwalib divides by 64.
-    /// Digital gains are in mwalib metafits coarse channel order (ascending sky frequency order)
-    pub digital_gains: *mut f64,
-    /// Number of elements in the digital_gains array
-    pub num_digital_gains: usize,
-    /// Dipole delays
-    pub dipole_delays: *mut u32,
-    /// Number of elements in the dipole_delays array
-    pub num_dipole_delays: usize,
-    /// Dipole gains.
-    ///
-    /// These are either 1 or 0 (on or off), depending on the dipole delay; a
-    /// dipole delay of 32 corresponds to "dead dipole", so the dipole gain of 0
-    /// reflects that. All other dipoles are assumed to be "live". The values
-    /// are made floats for easy use in beam code.
-    pub dipole_gains: *mut f64,
-    /// Number of elements in the dipole_gains array
-    pub num_dipole_gains: usize,
-    /// Receiver number
-    pub rec_number: u32,
-    /// Receiver slot number
-    pub rec_slot_number: u32,
-    /// Receiver type
-    pub rec_type: ReceiverType,
-    /// Flavour
-    pub flavour: *mut c_char,
-    /// Has whitening filter depends on flavour
-    pub has_whitening_filter: bool,
-    /// Calibration delay in meters (if provided)
-    pub calib_delay: f32,
-    /// Calibration gains (vector- 1 per coarse channel) if provided. Channels are in `MetafitsContext.course_chans` order.
-    pub calib_gains: *mut f32,
-    /// Number of elements in the calibration gains vector
-    pub num_calib_gains: usize,
-    /// Signal chain correction index
-    /// This is the index into the MetafitsContext.signal_chain_corrections vector, or MAX_RECEIVER_CHANNELS if not applicable/not found for the
-    /// receiver type and whitening filter combination
-    pub signal_chain_corrections_index: usize,
-}
-
-///
-/// C Representation of a `SignalChainCorrection` struct
-///
-///
-/// Signal chain correction table
-///
-#[repr(C)]
-pub struct SignalChainCorrection {
-    /// Receiver Type
-    pub receiver_type: ReceiverType,
-
-    /// Whitening Filter
-    pub whitening_filter: bool,
-
-    /// Corrections
-    pub corrections: *mut f64,
-}
-
-///
-/// C Representation of a `TimeStep` struct
-///
-#[repr(C)]
-pub struct TimeStep {
-    /// UNIX time (in milliseconds to avoid floating point inaccuracy)
-    pub unix_time_ms: u64,
-    /// gps time (in milliseconds)
-    pub gps_time_ms: u64,
-}
-
-///
-/// C Representation of a `CalibrationFit` struct
-///
-///
-/// Calibration Fit table
-///
-#[repr(C)]
-pub struct CalibrationFit {
-    /// RF input index
-    pub rf_input: usize,
-    /// The calibration offset, in metres, for that input,
-    /// derived from the most recently processed calibrator
-    /// observation with the same coarse channels.
-    /// May be missing or all zeros in some metafits files.
-    /// Used to generate the slope (versus frequency) for the phase correction.
-    pub delay_metres: f32,
-    /// /// Used, with the phase slope above to generate the phase correction for each fine channel, for this tile.
-    pub intercept_metres: f32,
-    /// /// The calibration gain multiplier (not in dB) for each of the N channels (normally 24) in this observation,
-    /// for this input. Derived from the most recently processed calibrator observation with the same coarse
-    /// channels. May be missing or all ones in some metafits files.
-    pub gains: *mut f32,
-    /// polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
-    pub gain_polynomial_fit0: *mut f32,
-    /// polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
-    pub gain_polynomial_fit1: *mut f32,
-    /// dimensionless quality parameter (0-1.0) for the phase fit
-    pub phase_fit_quality: f32,
-    /// dimensionless quality parameter (0-1.0) for the gain fit
-    pub gain_fit_quality: f32,
 }

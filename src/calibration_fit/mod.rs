@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 use crate::{read_cell_array_f32, read_cell_value, Rfinput};
 use std::fmt;
 pub mod error;
@@ -8,6 +12,8 @@ use fitsio::FitsFile;
 use pyo3::prelude::*;
 #[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
+
+pub mod ffi;
 
 ///
 /// Calibration Fits

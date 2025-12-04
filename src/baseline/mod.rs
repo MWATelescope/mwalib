@@ -15,6 +15,8 @@ use pyo3_stub_gen_derive::gen_stub_pyclass;
 #[cfg(test)]
 mod test;
 
+pub mod ffi;
+
 /// This is a struct for our baselines, so callers know the antenna ordering
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(

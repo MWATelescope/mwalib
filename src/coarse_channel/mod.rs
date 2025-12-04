@@ -17,6 +17,8 @@ use pyo3::prelude::*;
 #[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
+pub mod ffi;
+
 #[cfg(test)]
 mod test;
 

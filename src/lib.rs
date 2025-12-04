@@ -13,7 +13,7 @@ mod coarse_channel;
 mod convert;
 mod correlator_context;
 mod error;
-mod ffi;
+pub mod ffi;
 mod fits_read;
 mod gpubox_files;
 mod metafits_context;

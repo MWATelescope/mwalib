@@ -3,13 +3,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Structs and helper methods for timestep metadata
-
 use crate::gpubox_files::GpuboxTimeMap;
 use crate::misc;
 use crate::voltage_files::VoltageFileTimeMap;
 use crate::{metafits_context, MWAVersion, MetafitsContext};
 use crate::{MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS, MWA_VCS_MWAXV2_SUBFILE_SECONDS};
 use std::fmt;
+
+pub mod ffi;
 
 #[cfg(test)]
 mod test;

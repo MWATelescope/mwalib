@@ -12,6 +12,7 @@ use crate::voltage_context::test::{
 
 #[cfg(test)]
 use super::*;
+use antenna::ffi::Antenna;
 use float_cmp::*;
 use voltage_context::test::get_test_voltage_context;
 
@@ -2371,7 +2372,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         //
         // Test baselines by reconstituting into a vector we can test
         //
-        let item: Vec<Baseline> =
+        let item: Vec<baseline::ffi::Baseline> =
             ffi_boxed_slice_to_array(metafits_metadata.baselines, metafits_metadata.num_baselines);
 
         // Test specific values
@@ -2395,7 +2396,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         //
         // Test rf inputs
         //
-        let item: Vec<Rfinput> =
+        let item: Vec<rfinput::ffi::Rfinput> =
             ffi_boxed_slice_to_array(metafits_metadata.rf_inputs, metafits_metadata.num_rf_inputs);
 
         assert_eq!(item.len(), 256, "Array length is not correct");
@@ -2446,7 +2447,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         //
         // Test metafits_coarse_channels
         //
-        let item: Vec<CoarseChannel> = ffi_boxed_slice_to_array(
+        let item: Vec<coarse_channel::ffi::CoarseChannel> = ffi_boxed_slice_to_array(
             metafits_metadata.metafits_coarse_chans,
             metafits_metadata.num_metafits_coarse_chans,
         );
@@ -2456,7 +2457,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         //
         // Test metafits_timesteps
         //
-        let item: Vec<TimeStep> = ffi_boxed_slice_to_array(
+        let item: Vec<timestep::ffi::TimeStep> = ffi_boxed_slice_to_array(
             metafits_metadata.metafits_timesteps,
             metafits_metadata.num_metafits_timesteps,
         );
