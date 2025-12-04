@@ -5,7 +5,7 @@
 //! This module exists purely for other languages to interface with mwalib.
 
 use crate::*;
-use libc::{c_char, c_double, c_float, c_schar, c_uint, c_ulong, size_t};
+use libc::{c_char, c_double, c_float, c_schar, c_uint, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
@@ -40,35 +40,39 @@ pub const MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN: i32 = -1;
 /// - Allocate `error_buffer_len` bytes as a `char*` on the heap
 /// - Free `error_buffer_ptr` once finished with the buffer
 ///
-fn set_c_string(in_message: &str, error_buffer_ptr: *mut u8, error_buffer_len: size_t) {
+pub(crate) fn set_c_string(
+    in_message: &str,
+    error_buffer_ptr: *mut c_char,
+    error_buffer_len: size_t,
+) {
     // Don't do anything if the pointer is null.
     if error_buffer_ptr.is_null() {
         return;
     }
     // Check that error buffer, minus 1 for nul terminator is still >=1
-    if error_buffer_len as i32 - 1 < 1 {
+    if error_buffer_len < 2 {
         return;
-    }
+    } // need at least 1 char + NUL
+
     // Trim it to error_buffer_len - 1 (must include room for null terminator)
-    let in_buffer_len = in_message.len();
-    let message = if in_buffer_len > error_buffer_len {
-        &in_message[..error_buffer_len - 1]
+    let max_bytes = error_buffer_len - 1;
+    // Strip interior NULs to avoid CString failure
+    let sanitized = in_message.replace('\0', "");
+    let message = if sanitized.len() > max_bytes {
+        &sanitized[..max_bytes]
     } else {
-        in_message
+        &sanitized
     };
 
     // Convert to C string- panic if it can't.
-    let error_message = CString::new(message).unwrap();
+    let error_message = CString::new(message).unwrap_or_else(|_| CString::new("").unwrap());
 
     // Add null terminator
     let error_message_bytes = error_message.as_bytes_with_nul();
 
     unsafe {
-        // Reconstruct a string to write into
-        let error_message_slice = slice::from_raw_parts_mut(error_buffer_ptr, error_buffer_len);
-
-        // Copy in the bytes
-        error_message_slice[..error_message_bytes.len()].copy_from_slice(error_message_bytes);
+        let buf = slice::from_raw_parts_mut(error_buffer_ptr as *mut u8, error_buffer_len);
+        buf[..error_message_bytes.len()].copy_from_slice(error_message_bytes);
     }
 }
 
@@ -164,7 +168,7 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
 ///
 /// * a raw pointer to the array of T's
 ///
-fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
+pub(crate) fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
     if !v.is_empty() {
         let mut boxed_slice: Box<[T]> = v.into_boxed_slice();
         let array_ptr: *mut T = boxed_slice.as_mut_ptr();
@@ -209,17 +213,27 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
     metafits_filename: *const c_char,
     mwa_version: MWAVersion,
     out_metafits_context_ptr: &mut *mut MetafitsContext,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
-    let m = CStr::from_ptr(metafits_filename).to_str().unwrap();
+    let m = match CStr::from_ptr(metafits_filename).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_c_string(
+                "invalid UTF-8 in metafits_filename",
+                error_message as *mut c_char,
+                error_message_length,
+            );
+            return MWALIB_FAILURE;
+        }
+    };
 
     let context = match MetafitsContext::new(m, Some(mwa_version)) {
         Ok(c) => c,
         Err(e) => {
             set_c_string(
                 &format!("{}", e),
-                error_message as *mut u8,
+                error_message as *mut c_char,
                 error_message_length,
             );
             // Return failure
@@ -258,17 +272,27 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
 pub unsafe extern "C" fn mwalib_metafits_context_new2(
     metafits_filename: *const c_char,
     out_metafits_context_ptr: &mut *mut MetafitsContext,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
-    let m = CStr::from_ptr(metafits_filename).to_str().unwrap();
+    let m = match CStr::from_ptr(metafits_filename).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_c_string(
+                "invalid UTF-8 in metafits_filename",
+                error_message as *mut c_char,
+                error_message_length,
+            );
+            return MWALIB_FAILURE;
+        }
+    };
 
     let context = match MetafitsContext::new(m, None) {
         Ok(c) => c,
         Err(e) => {
             set_c_string(
                 &format!("{}", e),
-                error_message as *mut u8,
+                error_message as *mut c_char,
                 error_message_length,
             );
             // Return failure
@@ -321,13 +345,13 @@ pub unsafe extern "C" fn mwalib_metafits_get_expected_volt_filename(
     metafits_coarse_chan_index: usize,
     out_filename_ptr: *const c_char,
     out_filename_len: size_t,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     if metafits_context_ptr.is_null() {
         set_c_string(
             "mwalib_metafits_get_expected_voltage_filename() ERROR: null pointer for metafits_context_ptr passed in",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -341,13 +365,13 @@ pub unsafe extern "C" fn mwalib_metafits_get_expected_volt_filename(
         Err(e) => {
             set_c_string(
                 &e.to_string(),
-                error_message as *mut u8,
+                error_message as *mut c_char,
                 error_message_length,
             );
             MWALIB_FAILURE
         }
         Ok(s) => {
-            set_c_string(&s, out_filename_ptr as *mut u8, out_filename_len);
+            set_c_string(&s, out_filename_ptr as *mut c_char, out_filename_len);
 
             // Return success
             MWALIB_SUCCESS
@@ -378,13 +402,13 @@ pub unsafe extern "C" fn mwalib_metafits_get_expected_volt_filename(
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_metafits_context_display(
     metafits_context_ptr: *const MetafitsContext,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     if metafits_context_ptr.is_null() {
         set_c_string(
             "mwalib_metafits_context_display() ERROR: null pointer for metafits_context_ptr passed in",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -461,14 +485,35 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
     gpubox_filenames: *mut *const c_char,
     gpubox_count: size_t,
     out_correlator_context_ptr: &mut *mut CorrelatorContext,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
-    let m = CStr::from_ptr(metafits_filename).to_str().unwrap();
+    let m = match CStr::from_ptr(metafits_filename).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_c_string(
+                "invalid UTF-8 in metafits_filename",
+                error_message as *mut c_char,
+                error_message_length,
+            );
+            return MWALIB_FAILURE;
+        }
+    };
+
     let gpubox_slice = slice::from_raw_parts(gpubox_filenames, gpubox_count);
     let mut gpubox_files = Vec::with_capacity(gpubox_count);
     for g in gpubox_slice {
-        let s = CStr::from_ptr(*g).to_str().unwrap();
+        let s = match CStr::from_ptr(*g).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                set_c_string(
+                    "invalid UTF-8 in gpubox_filename",
+                    error_message as *mut c_char,
+                    error_message_length,
+                );
+                return MWALIB_FAILURE;
+            }
+        };
         gpubox_files.push(s.to_string())
     }
     let context = match CorrelatorContext::new(m, &gpubox_files) {
@@ -476,7 +521,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
         Err(e) => {
             set_c_string(
                 &format!("{}", e),
-                error_message as *mut u8,
+                error_message as *mut c_char,
                 error_message_length,
             );
             // Return failure
@@ -511,13 +556,13 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_correlator_context_display(
     correlator_context_ptr: *const CorrelatorContext,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     if correlator_context_ptr.is_null() {
         set_c_string(
             "mwalib_correlator_context() ERROR: null pointer for correlator_context_ptr passed in",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -569,7 +614,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
     corr_coarse_chan_index: size_t,
     buffer_ptr: *mut c_float,
     buffer_len: size_t,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     // Load the previously-initialised context and buffer structs. Exit if
@@ -577,7 +622,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
     let corr_context = if correlator_context_ptr.is_null() {
         set_c_string(
             "mwalib_correlator_context_read_by_baseline() ERROR: null pointer for correlator_context_ptr passed in",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -606,7 +651,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
             } => {
                 set_c_string(
                     &format!("{}", e),
-                    error_message as *mut u8,
+                    error_message as *mut c_char,
                     error_message_length,
                 );
                 MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
@@ -614,7 +659,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
             _ => {
                 set_c_string(
                     &format!("{}", e),
-                    error_message as *mut u8,
+                    error_message as *mut c_char,
                     error_message_length,
                 );
                 MWALIB_FAILURE
@@ -663,7 +708,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
     corr_coarse_chan_index: size_t,
     buffer_ptr: *mut c_float,
     buffer_len: size_t,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     // Load the previously-initialised context and buffer structs. Exit if
@@ -671,7 +716,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
     let corr_context = if correlator_context_ptr.is_null() {
         set_c_string(
             "mwalib_correlator_context_read_by_frequency() ERROR: null pointer for correlator_context_ptr passed in",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -699,7 +744,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
             } => {
                 set_c_string(
                     &format!("{}", e),
-                    error_message as *mut u8,
+                    error_message as *mut c_char,
                     error_message_length,
                 );
                 MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
@@ -707,7 +752,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
             _ => {
                 set_c_string(
                     &format!("{}", e),
-                    error_message as *mut u8,
+                    error_message as *mut c_char,
                     error_message_length,
                 );
                 MWALIB_FAILURE
@@ -754,7 +799,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_weights_by_baseline(
     corr_coarse_chan_index: size_t,
     buffer_ptr: *mut c_float,
     buffer_len: size_t,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     // Load the previously-initialised context and buffer structs. Exit if
@@ -762,7 +807,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_weights_by_baseline(
     let corr_context = if correlator_context_ptr.is_null() {
         set_c_string(
             "mwalib_correlator_context_read_weights_by_baseline() ERROR: null pointer for correlator_context_ptr passed in",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -791,7 +836,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_weights_by_baseline(
             } => {
                 set_c_string(
                     &format!("{}", e),
-                    error_message as *mut u8,
+                    error_message as *mut c_char,
                     error_message_length,
                 );
                 MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
@@ -799,7 +844,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_weights_by_baseline(
             _ => {
                 set_c_string(
                     &format!("{}", e),
-                    error_message as *mut u8,
+                    error_message as *mut c_char,
                     error_message_length,
                 );
                 MWALIB_FAILURE
@@ -841,7 +886,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
     corr_coarse_chan_indices_array_len: size_t,
     out_fine_chan_freq_array_ptr: *mut c_double,
     out_fine_chan_freq_array_len: size_t,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     // Load the previously-initialised context and buffer structs. Exit if
@@ -849,7 +894,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
     let corr_context = if correlator_context_ptr.is_null() {
         set_c_string(
             "mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for correlator_context_ptr passed in",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -861,7 +906,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
     if corr_coarse_chan_indices_array_ptr.is_null() {
         set_c_string(
             "mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for corr_coarse_chan_indices_array_ptr passed in",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -877,7 +922,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
     if out_fine_chan_freq_array_ptr.is_null() {
         set_c_string(
             "mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for out_fine_chan_freq_array_ptr passed in",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -893,7 +938,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
     if output_slice.len() != expected_output_len {
         set_c_string(
             &format!("mwalib_correlator_context_get_fine_chan_freqs_hz_array() ERROR: number of elements in out_fine_chan_freq_array_ptr does not match expected value {}", expected_output_len),
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -901,105 +946,6 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
 
     // Read data into provided buffer
     let fine_chans = corr_context.get_fine_chan_freqs_hz_array(input_coarse_chan_indices);
-
-    // Write the fine chans back into the provided array
-    output_slice.clone_from_slice(&fine_chans);
-
-    MWALIB_SUCCESS
-}
-
-/// For a given slice of voltage coarse channel indices, return a vector of the center
-/// frequencies for all the fine channels in the given coarse channels
-///
-/// # Arguments
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
-///
-/// * `corr_coarse_chan_indices_array_ptr` - a pointer to an array containing correlator coarse channel indices
-///   for which you want fine channels for. Does not need to be contiguous.
-///
-/// * `corr_coarse_chan_indices_array_len` - length of `corr_coarse_chan_indices_array_ptr`.
-///
-/// * `out_fine_chan_freq_array_ptr` - pointer to caller-owned and allocated array of doubles to write frequencies into.
-///
-/// * `out_fine_chan_freq_array_len` - length of `out_fine_chan_freq_array_ptr`.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `correlator_context_ptr` must point to a populated object from the `mwalib_correlator_context_new` function.
-/// * Caller *must* call `mwalib_correlator_context_free_read_buffer` function to release the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
-    voltage_context_ptr: *mut VoltageContext,
-    volt_coarse_chan_indices_array_ptr: *mut size_t,
-    volt_coarse_chan_indices_array_len: size_t,
-    out_fine_chan_freq_array_ptr: *mut c_double,
-    out_fine_chan_freq_array_len: size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Load the previously-initialised context and buffer structs. Exit if
-    // either of these are null.
-    let volt_context = if voltage_context_ptr.is_null() {
-        set_c_string(
-            "mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for voltage_context_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    } else {
-        &mut *voltage_context_ptr
-    };
-
-    // Don't do anything if the input pointer is null.
-    if volt_coarse_chan_indices_array_ptr.is_null() {
-        set_c_string(
-            "mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for volt_coarse_chan_indices_array_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-
-    // Get input buffer ready to be passed into rust method
-    let input_coarse_chan_indices = slice::from_raw_parts_mut(
-        volt_coarse_chan_indices_array_ptr,
-        volt_coarse_chan_indices_array_len,
-    );
-
-    // Don't do anything if the buffer pointer is null.
-    if out_fine_chan_freq_array_ptr.is_null() {
-        set_c_string(
-            "mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: null pointer for out_fine_chan_freq_array_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-
-    // Get output buffer ready
-    let output_slice =
-        slice::from_raw_parts_mut(out_fine_chan_freq_array_ptr, out_fine_chan_freq_array_len);
-
-    // Sanity check the length
-    let expected_output_len = volt_coarse_chan_indices_array_len
-        * volt_context.metafits_context.num_corr_fine_chans_per_coarse;
-    if output_slice.len() != expected_output_len {
-        set_c_string(
-            &format!("mwalib_voltage_context_get_fine_chan_freqs_hz_array() ERROR: number of elements in out_fine_chan_freq_array_ptr does not match expected value {}", expected_output_len),
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-
-    // Read data into provided buffer
-    let fine_chans = volt_context.get_fine_chan_freqs_hz_array(input_coarse_chan_indices);
 
     // Write the fine chans back into the provided array
     output_slice.clone_from_slice(&fine_chans);
@@ -1033,676 +979,6 @@ pub unsafe extern "C" fn mwalib_correlator_context_free(
     }
     // Release correlator context if applicable
     drop(Box::from_raw(correlator_context_ptr));
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
-/// Create and return a pointer to an `VoltageContext` struct based on metafits and voltage files
-///
-/// # Arguments
-///
-/// * `metafits_filename` - pointer to char* buffer containing the full path and filename of a metafits file.
-///
-/// * `voltage_filenames` - pointer to array of char* buffers containing the full path and filename of the voltage files.
-///
-/// * `voltage_file_count` - length of the voltage char* array.
-///
-/// * `out_voltage_context_ptr` - A Rust-owned populated `VoltageContext` pointer. Free with `mwalib_voltage_context_free`.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated `char*` buffer for any error messages.
-/// * Caller *must* call function `mwalib_voltage_context_free` to release the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_context_new(
-    metafits_filename: *const c_char,
-    voltage_filenames: *mut *const c_char,
-    voltage_file_count: size_t,
-    out_voltage_context_ptr: &mut *mut VoltageContext,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    let m = CStr::from_ptr(metafits_filename).to_str().unwrap();
-    let voltage_slice = slice::from_raw_parts(voltage_filenames, voltage_file_count);
-    let mut voltage_files = Vec::with_capacity(voltage_file_count);
-    for v in voltage_slice {
-        let s = CStr::from_ptr(*v).to_str().unwrap();
-        voltage_files.push(s.to_string())
-    }
-    let context = match VoltageContext::new(m, &voltage_files) {
-        Ok(c) => c,
-        Err(e) => {
-            set_c_string(
-                &format!("{}", e),
-                error_message as *mut u8,
-                error_message_length,
-            );
-            // Return failure
-            return MWALIB_FAILURE;
-        }
-    };
-    *out_voltage_context_ptr = Box::into_raw(Box::new(context));
-    // Return success
-    MWALIB_SUCCESS
-}
-
-/// Display a `VoltageContext` struct.
-///
-///
-/// # Arguments
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `voltage_context_ptr` must contain an `VoltageContext` object already populated via `mwalib_voltage_context_new`
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_context_display(
-    voltage_context_ptr: *const VoltageContext,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    if voltage_context_ptr.is_null() {
-        set_c_string(
-            "mwalib_voltage_context() ERROR: null pointer for voltage_context_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-
-    let context = &*voltage_context_ptr;
-
-    println!("{}", context);
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
-/// Read a single timestep / coarse channel of MWA voltage data.
-///
-/// This method takes as input a timestep_index and a coarse_chan_index to return one
-/// file-worth of voltage data.
-///
-/// The output data are in the format:
-///
-/// MWA Recombined VCS:
-///
-/// NOTE: antennas are in tile_id order for recombined VCS...
-///
-/// sample[0]|finechan[0]|antenna[0]|X|sample
-/// sample[0]|finechan[0]|antenna[0]|Y|sample    
-/// ...
-/// sample[0]|finechan[0]|antenna[127]|X|sample
-/// sample[0]|finechan[0]|antenna[127]|Y|sample
-/// ...
-/// sample[0]|finechan[1]|antenna[0]|X|sample
-/// sample[0]|finechan[1]|antenna[0]|Y|sample
-/// ...
-/// sample[0]|finechan[127]|antenna[127]|X|sample
-/// sample[0]|finechan[127]|antenna[127]|Y|sample
-/// ...
-/// sample[1]|finechan[0]|antenna[0]|X|sample
-/// sample[1]|finechan[0]|antenna[0]|Y|sample        
-///
-/// MWAX:
-/// block[0]antenna[0]|pol[0]|sample[0]...sample[63999]
-/// block[0]antenna[0]|pol[1]|sample[0]...sample[63999]
-/// block[0]antenna[1]|pol[0]|sample[0]...sample[63999]
-/// block[0]antenna[1]|pol[1]|sample[0]...sample[63999]
-/// ...
-/// block[0]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]    
-/// block[1]antenna[0]|pol[0]|sample[0]...sample[63999]
-/// ...
-/// block[19]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]
-///
-/// File format information:
-/// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
-/// =====================================================================================================================================================
-/// Lgeacy  128     2       128     1           10000           327680000   1       0       0           327680000   327680000   1               327680000
-/// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
-/// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
-///
-///
-/// # Arguments
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
-///
-/// * `voltage_timestep_index` - index within the voltage timestep array for the desired timestep.
-///
-/// * `voltage_coarse_chan_index` - index within the voltage coarse_chan array for the desired coarse channel.
-///
-/// * `buffer_ptr` - pointer to caller-owned and allocated buffer of signed bytes to write data into. Buffer must be large enough
-///   for all of the data. Calculate the buffer size in bytes using:
-///   vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_timestep
-///
-/// * `buffer_len` - length of `buffer_ptr`.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, MWALIB_NO_DATA_FOR_TIMESTEP_COARSE_CHAN if the combination of timestep and coarse channel has no associated data file (no data), any other non-zero code on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `voltage_context_ptr` must point to a populated object from the `mwalib_voltage_context_new` function.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_context_read_file2(
-    voltage_context_ptr: *mut VoltageContext,
-    voltage_timestep_index: size_t,
-    voltage_coarse_chan_index: size_t,
-    buffer_ptr: *mut c_schar,
-    buffer_len: size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Load the previously-initialised context and buffer structs. Exit if
-    // either of these are null.
-    let voltage_context = if voltage_context_ptr.is_null() {
-        set_c_string(
-            "mwalib_voltage_context_read_by_file() ERROR: null pointer for voltage_context_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    } else {
-        &mut *voltage_context_ptr
-    };
-
-    // Don't do anything if the buffer pointer is null.
-    if buffer_ptr.is_null() {
-        return MWALIB_FAILURE;
-    }
-
-    let output_slice: &mut [i8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
-
-    // Read data in.
-    match voltage_context.read_file2(
-        voltage_timestep_index,
-        voltage_coarse_chan_index,
-        output_slice,
-    ) {
-        Ok(_) => MWALIB_SUCCESS,
-        Err(e) => match e {
-            VoltageFileError::NoDataForTimeStepCoarseChannel {
-                timestep_index: _,
-                coarse_chan_index: _,
-            } => {
-                set_c_string(
-                    &format!("{}", e),
-                    error_message as *mut u8,
-                    error_message_length,
-                );
-                MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
-            }
-            _ => {
-                set_c_string(
-                    &format!("{}", e),
-                    error_message as *mut u8,
-                    error_message_length,
-                );
-                MWALIB_FAILURE
-            }
-        },
-    }
-}
-
-/// Read a single timestep / coarse channel of MWA voltage data.
-///
-/// This method takes as input a timestep_index and a coarse_chan_index to return one
-/// file-worth of voltage data.
-///
-/// The output data are in the format:
-///
-/// MWA Recombined VCS:
-///
-/// NOTE: antennas are in tile_id order for recombined VCS...
-///
-/// sample[0]|finechan[0]|antenna[0]|X|sample
-/// sample[0]|finechan[0]|antenna[0]|Y|sample    
-/// ...
-/// sample[0]|finechan[0]|antenna[127]|X|sample
-/// sample[0]|finechan[0]|antenna[127]|Y|sample
-/// ...
-/// sample[0]|finechan[1]|antenna[0]|X|sample
-/// sample[0]|finechan[1]|antenna[0]|Y|sample
-/// ...
-/// sample[0]|finechan[127]|antenna[127]|X|sample
-/// sample[0]|finechan[127]|antenna[127]|Y|sample
-/// ...
-/// sample[1]|finechan[0]|antenna[0]|X|sample
-/// sample[1]|finechan[0]|antenna[0]|Y|sample        
-///
-/// MWAX:
-/// block[0]antenna[0]|pol[0]|sample[0]...sample[63999]
-/// block[0]antenna[0]|pol[1]|sample[0]...sample[63999]
-/// block[0]antenna[1]|pol[0]|sample[0]...sample[63999]
-/// block[0]antenna[1]|pol[1]|sample[0]...sample[63999]
-/// ...
-/// block[0]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]    
-/// block[1]antenna[0]|pol[0]|sample[0]...sample[63999]
-/// ...
-/// block[19]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]
-///
-/// File format information:
-/// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
-/// =====================================================================================================================================================
-/// Lgeacy  128     2       128     1           10000           327680000   1       0       0           327680000   327680000   1               327680000
-/// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
-/// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
-///
-///
-/// # Arguments
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
-///
-/// * `voltage_timestep_index` - index within the voltage timestep array for the desired timestep.
-///
-/// * `voltage_coarse_chan_index` - index within the voltage coarse_chan array for the desired coarse channel.
-///
-/// * `buffer_ptr` - pointer to caller-owned and allocated buffer of signed bytes to write data into. Buffer must be large enough
-///   for all of the data. Calculate the buffer size in bytes using:
-///   vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_timestep
-///
-/// * `buffer_len` - length of `buffer_ptr`.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, MWALIB_NO_DATA_FOR_TIMESTEP_COARSE_CHAN if the combination of timestep and coarse channel has no associated data file (no data), any other non-zero code on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `voltage_context_ptr` must point to a populated object from the `mwalib_voltage_context_new` function.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_context_read_file(
-    voltage_context_ptr: *mut VoltageContext,
-    voltage_timestep_index: size_t,
-    voltage_coarse_chan_index: size_t,
-    buffer_ptr: *mut c_schar,
-    buffer_len: size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Load the previously-initialised context and buffer structs. Exit if
-    // either of these are null.
-    let voltage_context = if voltage_context_ptr.is_null() {
-        set_c_string(
-            "mwalib_voltage_context_read_by_file() ERROR: null pointer for voltage_context_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    } else {
-        &mut *voltage_context_ptr
-    };
-
-    // Don't do anything if the buffer pointer is null.
-    if buffer_ptr.is_null() {
-        return MWALIB_FAILURE;
-    }
-
-    let output_slice: &mut [i8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
-
-    // Read data in.
-    match voltage_context.read_file(
-        voltage_timestep_index,
-        voltage_coarse_chan_index,
-        output_slice,
-    ) {
-        Ok(_) => MWALIB_SUCCESS,
-        Err(e) => match e {
-            VoltageFileError::NoDataForTimeStepCoarseChannel {
-                timestep_index: _,
-                coarse_chan_index: _,
-            } => {
-                set_c_string(
-                    &format!("{}", e),
-                    error_message as *mut u8,
-                    error_message_length,
-                );
-                MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
-            }
-            _ => {
-                set_c_string(
-                    &format!("{}", e),
-                    error_message as *mut u8,
-                    error_message_length,
-                );
-                MWALIB_FAILURE
-            }
-        },
-    }
-}
-
-/// Read a single second / coarse channel of MWA voltage data.
-///
-/// This method takes as input a gps_time (in seconds) and a coarse_chan_index to return one
-/// second-worth of voltage data.
-///
-/// The output data are in the format:
-///
-/// MWA Recombined VCS:
-///
-/// NOTE: antennas are in tile_id order for recombined VCS...
-///
-/// sample[0]|finechan[0]|antenna[0]|X|sample
-/// sample[0]|finechan[0]|antenna[0]|Y|sample    
-/// ...
-/// sample[0]|finechan[0]|antenna[127]|X|sample
-/// sample[0]|finechan[0]|antenna[127]|Y|sample
-/// ...
-/// sample[0]|finechan[1]|antenna[0]|X|sample
-/// sample[0]|finechan[1]|antenna[0]|Y|sample
-/// ...
-/// sample[0]|finechan[127]|antenna[127]|X|sample
-/// sample[0]|finechan[127]|antenna[127]|Y|sample
-/// ...
-/// sample[1]|finechan[0]|antenna[0]|X|sample
-/// sample[1]|finechan[0]|antenna[0]|Y|sample        
-///
-/// MWAX:
-/// block[0]antenna[0]|pol[0]|sample[0]...sample[63999]
-/// block[0]antenna[0]|pol[1]|sample[0]...sample[63999]
-/// block[0]antenna[1]|pol[0]|sample[0]...sample[63999]
-/// block[0]antenna[1]|pol[1]|sample[0]...sample[63999]
-/// ...
-/// block[0]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]    
-/// block[1]antenna[0]|pol[0]|sample[0]...sample[63999]
-/// ...
-/// block[19]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]
-///
-/// File format information:
-/// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
-/// =====================================================================================================================================================
-/// Lgeacy  128     2       128     1           10000           327680000   1       0       0           327680000   327680000   1               327680000
-/// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
-/// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
-///
-/// # Arguments
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
-///
-/// * `gps_second_start` - GPS second which to start getting data at.
-///
-/// * `gps_second_count` - How many GPS seconds of data to get (inclusive).
-///
-/// * `voltage_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel.
-///
-/// * `buffer_ptr` - pointer to caller-owned and allocated buffer of signed bytes to write data into. Buffer must be large enough
-///   for all of the data. Calculate the buffer size in bytes using:
-///   (vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_second) * gps_second_count
-///
-/// * `buffer_len` - length of `buffer_ptr`.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, MWALIB_NO_DATA_FOR_TIMESTEP_COARSE_CHAN if the combination of timestep and coarse channel has no associated data file (no data), any other non-zero code on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `voltage_context_ptr` must point to a populated object from the `mwalib_voltage_context_new` function.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_context_read_second(
-    voltage_context_ptr: *mut VoltageContext,
-    gps_second_start: c_ulong,
-    gps_second_count: size_t,
-    voltage_coarse_chan_index: size_t,
-    buffer_ptr: *mut c_schar,
-    buffer_len: size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Load the previously-initialised context and buffer structs. Exit if
-    // either of these are null.
-    let voltage_context = if voltage_context_ptr.is_null() {
-        set_c_string(
-            "mwalib_voltage_context_read_by_file() ERROR: null pointer for voltage_context_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    } else {
-        &mut *voltage_context_ptr
-    };
-
-    // Don't do anything if the buffer pointer is null.
-    if buffer_ptr.is_null() {
-        return MWALIB_FAILURE;
-    }
-
-    let output_slice: &mut [i8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
-
-    // Read data in.
-    match voltage_context.read_second(
-        gps_second_start,
-        gps_second_count,
-        voltage_coarse_chan_index,
-        output_slice,
-    ) {
-        Ok(_) => MWALIB_SUCCESS,
-        Err(e) => match e {
-            VoltageFileError::NoDataForTimeStepCoarseChannel {
-                timestep_index: _,
-                coarse_chan_index: _,
-            } => {
-                set_c_string(
-                    &format!("{}", e),
-                    error_message as *mut u8,
-                    error_message_length,
-                );
-                MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
-            }
-            _ => {
-                set_c_string(
-                    &format!("{}", e),
-                    error_message as *mut u8,
-                    error_message_length,
-                );
-                MWALIB_FAILURE
-            }
-        },
-    }
-}
-
-/// Read a single second / coarse channel of MWA voltage data.
-///
-/// This method takes as input a gps_time (in seconds) and a coarse_chan_index to return one
-/// second-worth of voltage data.
-///
-/// The output data are in the format:
-///
-/// MWA Recombined VCS:
-///
-/// NOTE: antennas are in tile_id order for recombined VCS...
-///
-/// sample[0]|finechan[0]|antenna[0]|X|sample
-/// sample[0]|finechan[0]|antenna[0]|Y|sample    
-/// ...
-/// sample[0]|finechan[0]|antenna[127]|X|sample
-/// sample[0]|finechan[0]|antenna[127]|Y|sample
-/// ...
-/// sample[0]|finechan[1]|antenna[0]|X|sample
-/// sample[0]|finechan[1]|antenna[0]|Y|sample
-/// ...
-/// sample[0]|finechan[127]|antenna[127]|X|sample
-/// sample[0]|finechan[127]|antenna[127]|Y|sample
-/// ...
-/// sample[1]|finechan[0]|antenna[0]|X|sample
-/// sample[1]|finechan[0]|antenna[0]|Y|sample        
-///
-/// MWAX:
-/// block[0]antenna[0]|pol[0]|sample[0]...sample[63999]
-/// block[0]antenna[0]|pol[1]|sample[0]...sample[63999]
-/// block[0]antenna[1]|pol[0]|sample[0]...sample[63999]
-/// block[0]antenna[1]|pol[1]|sample[0]...sample[63999]
-/// ...
-/// block[0]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]    
-/// block[1]antenna[0]|pol[0]|sample[0]...sample[63999]
-/// ...
-/// block[19]antenna[ntiles-1]|pol[1]|sample[0]...sample[63999]
-///
-/// File format information:
-/// type    tiles   pols    fine ch bytes/samp  samples/block   block size  blocks  header  delay size  data size   file size   seconds/file    size/sec
-/// =====================================================================================================================================================
-/// Lgeacy  128     2       128     1           10000           327680000   1       0       0           327680000   327680000   1               327680000
-/// MWAX    128     2       1       2           64000           32768000    160     4096    32768000    5242880000  5275652096  8               659456512
-/// NOTE: 'sample' refers to a complex value per tile/pol/chan/time. So legacy stores r/i as a byte (4bits r + 4bits i), mwax as 1 byte real, 1 byte imag.
-///
-/// # Arguments
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
-///
-/// * `gps_second_start` - GPS second which to start getting data at.
-///
-/// * `gps_second_count` - How many GPS seconds of data to get (inclusive).
-///
-/// * `voltage_coarse_chan_index` - index within the coarse_chan array for the desired coarse channel.
-///
-/// * `buffer_ptr` - pointer to caller-owned and allocated buffer of signed bytes to write data into. Buffer must be large enough
-///   for all of the data. Calculate the buffer size in bytes using:
-///   (vcontext.voltage_block_size_bytes * vcontext.num_voltage_blocks_per_second) * gps_second_count
-///
-/// * `buffer_len` - length of `buffer_ptr`.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, MWALIB_NO_DATA_FOR_TIMESTEP_COARSE_CHAN if the combination of timestep and coarse channel has no associated data file (no data), any other non-zero code on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `voltage_context_ptr` must point to a populated object from the `mwalib_voltage_context_new` function.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_context_read_second2(
-    voltage_context_ptr: *mut VoltageContext,
-    gps_second_start: c_ulong,
-    gps_second_count: size_t,
-    voltage_coarse_chan_index: size_t,
-    buffer_ptr: *mut c_schar,
-    buffer_len: size_t,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    // Load the previously-initialised context and buffer structs. Exit if
-    // either of these are null.
-    let voltage_context = if voltage_context_ptr.is_null() {
-        set_c_string(
-            "mwalib_voltage_context_read_by_file() ERROR: null pointer for voltage_context_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    } else {
-        &mut *voltage_context_ptr
-    };
-
-    // Don't do anything if the buffer pointer is null.
-    if buffer_ptr.is_null() {
-        return MWALIB_FAILURE;
-    }
-
-    let output_slice: &mut [i8] = slice::from_raw_parts_mut(buffer_ptr, buffer_len);
-
-    // Read data in.
-    match voltage_context.read_second2(
-        gps_second_start,
-        gps_second_count,
-        voltage_coarse_chan_index,
-        output_slice,
-    ) {
-        Ok(_) => MWALIB_SUCCESS,
-        Err(e) => match e {
-            VoltageFileError::NoDataForTimeStepCoarseChannel {
-                timestep_index: _,
-                coarse_chan_index: _,
-            } => {
-                set_c_string(
-                    &format!("{}", e),
-                    error_message as *mut u8,
-                    error_message_length,
-                );
-                MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN
-            }
-            _ => {
-                set_c_string(
-                    &format!("{}", e),
-                    error_message as *mut u8,
-                    error_message_length,
-                );
-                MWALIB_FAILURE
-            }
-        },
-    }
-}
-
-/// Free a previously-allocated `VoltageContext` struct (and it's members).
-///
-/// # Arguments
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * This must be called once caller is finished with the `VoltageContext` object
-/// * `voltage_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_voltage_context_new` function.
-/// * `voltage_context_ptr` must not have already been freed.
-#[no_mangle]
-#[allow(unused_must_use)]
-pub unsafe extern "C" fn mwalib_voltage_context_free(
-    voltage_context_ptr: *mut VoltageContext,
-) -> i32 {
-    if voltage_context_ptr.is_null() {
-        return MWALIB_SUCCESS;
-    }
-    // Release voltage context if applicable
-    drop(Box::from_raw(voltage_context_ptr));
 
     // Return success
     MWALIB_SUCCESS
@@ -1923,17 +1199,17 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     correlator_context_ptr: *mut CorrelatorContext,
     voltage_context_ptr: *mut VoltageContext,
     out_metafits_metadata_ptr: &mut *mut MetafitsMetadata,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     // Ensure only either metafits XOR correlator XOR voltage context is passed in
-    if !(!metafits_context_ptr.is_null()
-        ^ !correlator_context_ptr.is_null()
-        ^ !voltage_context_ptr.is_null())
-    {
+    let provided = usize::from(!metafits_context_ptr.is_null())
+        + usize::from(!correlator_context_ptr.is_null())
+        + usize::from(!voltage_context_ptr.is_null());
+    if provided != 1 {
         set_c_string(
             "mwalib_metafits_metadata_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -1986,7 +1262,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             antenna::ffi::Antenna {
                 ant: *ant,
                 tile_id: *tile_id,
-                tile_name: CString::new(tile_name.as_str()).unwrap().into_raw(),
+                tile_name: CString::new(tile_name.replace('\0', ""))
+                    .unwrap_or_else(|_| CString::new("").unwrap())
+                    .into_raw(),
                 rfinput_x: metafits_context
                     .rf_inputs
                     .iter()
@@ -2047,7 +1325,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 input: *input,
                 ant: *ant,
                 tile_id: *tile_id,
-                tile_name: CString::new(String::from(tile_name)).unwrap().into_raw(),
+                tile_name: CString::new(tile_name.replace('\0', ""))
+                    .unwrap_or_else(|_| CString::new("").unwrap())
+                    .into_raw(),
                 pol: CString::new(pol.to_string()).unwrap().into_raw(),
                 electrical_length_m: *electrical_length_m,
                 north_m: *north_m,
@@ -2065,7 +1345,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 rec_number: *rec_number,
                 rec_slot_number: *rec_slot_number,
                 rec_type: *rec_type,
-                flavour: CString::new(String::from(flavour)).unwrap().into_raw(),
+                flavour: CString::new(flavour.replace('\0', ""))
+                    .unwrap_or_else(|_| CString::new("").unwrap())
+                    .into_raw(),
                 has_whitening_filter: *has_whitening_filter,
                 calib_delay,
                 calib_gains: ffi_array_to_boxed_slice(calib_gains_vec),
@@ -2293,14 +1575,22 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             jupiter_distance_deg: (*jupiter_distance_deg).unwrap_or(f64::NAN),
             lst_deg: *lst_degrees,
             lst_rad: *lst_radians,
-            hour_angle_string: CString::new(String::from(hour_angle_string))
-                .unwrap()
+            hour_angle_string: CString::new(hour_angle_string.replace('\0', ""))
+                .unwrap_or_else(|_| CString::new("").unwrap())
                 .into_raw(),
-            grid_name: CString::new(String::from(grid_name)).unwrap().into_raw(),
+            grid_name: CString::new(grid_name.replace('\0', ""))
+                .unwrap_or_else(|_| CString::new("").unwrap())
+                .into_raw(),
             grid_number: *grid_number,
-            creator: CString::new(String::from(creator)).unwrap().into_raw(),
-            project_id: CString::new(String::from(project_id)).unwrap().into_raw(),
-            obs_name: CString::new(String::from(obs_name)).unwrap().into_raw(),
+            creator: CString::new(creator.replace('\0', ""))
+                .unwrap_or_else(|_| CString::new("").unwrap())
+                .into_raw(),
+            project_id: CString::new(project_id.replace('\0', ""))
+                .unwrap_or_else(|_| CString::new("").unwrap())
+                .into_raw(),
+            obs_name: CString::new(obs_name.replace('\0', ""))
+                .unwrap_or_else(|_| CString::new("").unwrap())
+                .into_raw(),
             mode: *mode,
             geometric_delays_applied: *geometric_delays_applied,
             cable_delays_applied: *cable_delays_applied,
@@ -2316,8 +1606,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             delays: ffi_array_to_boxed_slice(delays.clone()),
             num_delays: *num_delays,
             calibrator: *calibrator,
-            calibrator_source: CString::new(String::from(calibrator_source))
-                .unwrap()
+            calibrator_source: CString::new(calibrator_source.replace('\0', ""))
+                .unwrap_or_else(|_| CString::new("").unwrap())
                 .into_raw(),
             sched_start_utc: sched_start_utc.timestamp(),
             sched_end_utc: sched_end_utc.timestamp(),
@@ -2351,32 +1641,39 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             obs_bandwidth_hz: *obs_bandwidth_hz,
             coarse_chan_width_hz: *coarse_chan_width_hz,
             centre_freq_hz: *centre_freq_hz,
-            metafits_filename: CString::new(String::from(metafits_filename))
-                .unwrap()
+            metafits_filename: CString::new(metafits_filename.replace('\0', ""))
+                .unwrap_or_else(|_| CString::new("").unwrap())
                 .into_raw(),
             oversampled: *oversampled,
             deripple_applied: *deripple_applied,
-            deripple_param: CString::new(String::from(deripple_param))
-                .unwrap()
+            deripple_param: CString::new(deripple_param.replace('\0', ""))
+                .unwrap_or_else(|_| CString::new("").unwrap())
                 .into_raw(),
             best_cal_fit_id: best_cal_fit_id.unwrap_or_else(|| 0),
             best_cal_obs_id: best_cal_obs_id.unwrap_or_else(|| 0),
             best_cal_code_ver: CString::new(
-                best_cal_code_ver.clone().unwrap_or_else(|| "".to_string()),
+                best_cal_code_ver
+                    .clone()
+                    .unwrap_or_default()
+                    .replace('\0', ""),
             )
-            .unwrap()
+            .unwrap_or_else(|_| CString::new("").unwrap())
             .into_raw(),
             best_cal_fit_timestamp: CString::new(
                 best_cal_fit_timestamp
                     .clone()
-                    .unwrap_or_else(|| "".to_string()),
+                    .unwrap_or_default()
+                    .replace('\0', ""),
             )
-            .unwrap()
+            .unwrap_or_else(|_| CString::new("").unwrap())
             .into_raw(),
             best_cal_creator: CString::new(
-                best_cal_creator.clone().unwrap_or_else(|| "".to_string()),
+                best_cal_creator
+                    .clone()
+                    .unwrap_or_default()
+                    .replace('\0', ""),
             )
-            .unwrap()
+            .unwrap_or_else(|_| CString::new("").unwrap())
             .into_raw(),
             best_cal_fit_iters: best_cal_fit_iters.unwrap_or_else(|| 0),
             best_cal_fit_iter_limit: best_cal_fit_iter_limit.unwrap_or_else(|| 0),
@@ -2424,19 +1721,24 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     //
     // baselines
     if !(*metafits_metadata_ptr).baselines.is_null() {
-        drop(Box::from_raw((*metafits_metadata_ptr).baselines));
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [baseline::ffi::Baseline] = slice::from_raw_parts_mut(
+            (*metafits_metadata_ptr).baselines,
+            (*metafits_metadata_ptr).num_baselines,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // antennas
     if !(*metafits_metadata_ptr).antennas.is_null() {
-        // Extract a slice from the pointer
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
         let slice: &mut [antenna::ffi::Antenna] = slice::from_raw_parts_mut(
             (*metafits_metadata_ptr).antennas,
             (*metafits_metadata_ptr).num_ants,
         );
         // Now for each item we need to free anything on the heap
         for i in slice.iter_mut() {
-            drop(Box::from_raw(i.tile_name));
+            drop(CString::from_raw(i.tile_name));
         }
 
         // Free the memory for the slice
@@ -2445,15 +1747,15 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
 
     // rf inputs
     if !(*metafits_metadata_ptr).rf_inputs.is_null() {
-        // Extract a slice from the pointer
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
         let slice: &mut [rfinput::ffi::Rfinput] = slice::from_raw_parts_mut(
             (*metafits_metadata_ptr).rf_inputs,
             (*metafits_metadata_ptr).num_rf_inputs,
         );
         // Now for each item we need to free anything on the heap
         for i in slice.iter_mut() {
-            drop(Box::from_raw(i.tile_name));
-            drop(Box::from_raw(i.pol));
+            drop(CString::from_raw(i.tile_name));
+            drop(CString::from_raw(i.pol));
 
             if !i.digital_gains.is_null() {
                 drop(Box::from_raw(i.digital_gains));
@@ -2464,7 +1766,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
             if !i.dipole_delays.is_null() {
                 drop(Box::from_raw(i.dipole_delays));
             }
-            drop(Box::from_raw(i.flavour));
+            drop(CString::from_raw(i.flavour));
         }
 
         // Free the memory for the slice
@@ -2473,24 +1775,42 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
 
     // coarse_channels
     if !(*metafits_metadata_ptr).metafits_coarse_chans.is_null() {
-        drop(Box::from_raw(
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [coarse_channel::ffi::CoarseChannel] = slice::from_raw_parts_mut(
             (*metafits_metadata_ptr).metafits_coarse_chans,
-        ));
+            (*metafits_metadata_ptr).num_metafits_coarse_chans,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // timesteps
     if !(*metafits_metadata_ptr).metafits_timesteps.is_null() {
-        drop(Box::from_raw((*metafits_metadata_ptr).metafits_timesteps));
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [timestep::ffi::TimeStep] = slice::from_raw_parts_mut(
+            (*metafits_metadata_ptr).metafits_timesteps,
+            (*metafits_metadata_ptr).num_metafits_timesteps,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // receivers
     if !(*metafits_metadata_ptr).receivers.is_null() {
-        drop(Box::from_raw((*metafits_metadata_ptr).receivers));
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [usize] = slice::from_raw_parts_mut(
+            (*metafits_metadata_ptr).receivers,
+            (*metafits_metadata_ptr).num_receivers,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // delays
     if !(*metafits_metadata_ptr).delays.is_null() {
-        drop(Box::from_raw((*metafits_metadata_ptr).delays));
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [u32] = slice::from_raw_parts_mut(
+            (*metafits_metadata_ptr).delays,
+            (*metafits_metadata_ptr).num_delays,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // fine channel freqs
@@ -2498,14 +1818,17 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
         .metafits_fine_chan_freqs_hz
         .is_null()
     {
-        drop(Box::from_raw(
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [f64] = slice::from_raw_parts_mut(
             (*metafits_metadata_ptr).metafits_fine_chan_freqs_hz,
-        ));
+            (*metafits_metadata_ptr).num_metafits_fine_chan_freqs_hz,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // signal chain corrections
     if !(*metafits_metadata_ptr).signal_chain_corrections.is_null() {
-        // Extract a slice from the pointer
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
         let slice: &mut [signal_chain_correction::ffi::SignalChainCorrection] =
             slice::from_raw_parts_mut(
                 (*metafits_metadata_ptr).signal_chain_corrections,
@@ -2524,9 +1847,9 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
         ));
     }
 
-    // signal chain corrections
+    // calibration fits
     if !(*metafits_metadata_ptr).calibration_fits.is_null() {
-        // Extract a slice from the pointer
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
         let slice: &mut [calibration_fit::ffi::CalibrationFit] = slice::from_raw_parts_mut(
             (*metafits_metadata_ptr).calibration_fits,
             (*metafits_metadata_ptr).num_calibration_fits,
@@ -2550,6 +1873,58 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
         drop(Box::from_raw((*metafits_metadata_ptr).calibration_fits));
     }
 
+    // Free top level string fields
+
+    if !(*metafits_metadata_ptr).hour_angle_string.is_null() {
+        drop(CString::from_raw(
+            (*metafits_metadata_ptr).hour_angle_string,
+        ));
+    }
+
+    if !(*metafits_metadata_ptr).grid_name.is_null() {
+        drop(CString::from_raw((*metafits_metadata_ptr).grid_name));
+    }
+
+    if !(*metafits_metadata_ptr).creator.is_null() {
+        drop(CString::from_raw((*metafits_metadata_ptr).creator));
+    }
+
+    if !(*metafits_metadata_ptr).project_id.is_null() {
+        drop(CString::from_raw((*metafits_metadata_ptr).project_id));
+    }
+
+    if !(*metafits_metadata_ptr).calibrator_source.is_null() {
+        drop(CString::from_raw(
+            (*metafits_metadata_ptr).calibrator_source,
+        ));
+    }
+
+    if !(*metafits_metadata_ptr).metafits_filename.is_null() {
+        drop(CString::from_raw(
+            (*metafits_metadata_ptr).metafits_filename,
+        ));
+    }
+
+    if !(*metafits_metadata_ptr).deripple_param.is_null() {
+        drop(CString::from_raw((*metafits_metadata_ptr).deripple_param));
+    }
+
+    if !(*metafits_metadata_ptr).best_cal_code_ver.is_null() {
+        drop(CString::from_raw(
+            (*metafits_metadata_ptr).best_cal_code_ver,
+        ));
+    }
+
+    if !(*metafits_metadata_ptr).best_cal_fit_timestamp.is_null() {
+        drop(CString::from_raw(
+            (*metafits_metadata_ptr).best_cal_fit_timestamp,
+        ));
+    }
+
+    if !(*metafits_metadata_ptr).best_cal_creator.is_null() {
+        drop(CString::from_raw((*metafits_metadata_ptr).best_cal_creator));
+    }
+
     // Free main metadata struct
     drop(Box::from_raw(metafits_metadata_ptr));
 
@@ -2566,11 +1941,11 @@ pub struct CorrelatorMetadata {
     pub mwa_version: MWAVersion,
     /// This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
     /// offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
-    pub timesteps: *mut TimeStep,
+    pub timesteps: *mut timestep::ffi::TimeStep,
     /// Number of timesteps in the timestep array
     pub num_timesteps: usize,
     /// Vector of coarse channels which is the effectively the same as the metafits provided coarse channels
-    pub coarse_chans: *mut CoarseChannel,
+    pub coarse_chans: *mut coarse_channel::ffi::CoarseChannel,
     /// Count of coarse channels (same as metafits coarse channel count)
     pub num_coarse_chans: usize,
     /// Count of common timesteps
@@ -2663,13 +2038,13 @@ pub struct CorrelatorMetadata {
 pub unsafe extern "C" fn mwalib_correlator_metadata_get(
     correlator_context_ptr: *mut CorrelatorContext,
     out_correlator_metadata_ptr: &mut *mut CorrelatorMetadata,
-    error_message: *const c_char,
+    error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     if correlator_context_ptr.is_null() {
         set_c_string(
             "mwalib_correlator_metadata_get() ERROR: Warning: null pointer for correlator_context_ptr passed in",
-            error_message as *mut u8,
+            error_message as *mut c_char,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -2678,7 +2053,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
     let context = &*correlator_context_ptr;
 
     // Populate correlator coarse channels
-    let mut coarse_chan_vec: Vec<CoarseChannel> = Vec::new();
+    let mut coarse_chan_vec: Vec<coarse_channel::ffi::CoarseChannel> = Vec::new();
 
     for item in context.coarse_chans.iter() {
         let out_item = {
@@ -2691,7 +2066,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
                 chan_centre_hz,
                 chan_end_hz,
             } = item;
-            CoarseChannel {
+            coarse_channel::ffi::CoarseChannel {
                 corr_chan_number: *corr_chan_number,
                 rec_chan_number: *rec_chan_number,
                 gpubox_number: *gpubox_number,
@@ -2706,7 +2081,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
     }
 
     // Populate correlator timesteps
-    let mut timestep_vec: Vec<TimeStep> = Vec::new();
+    let mut timestep_vec: Vec<timestep::ffi::TimeStep> = Vec::new();
 
     for item in context.timesteps.iter() {
         let out_item = {
@@ -2714,7 +2089,7 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
                 unix_time_ms,
                 gps_time_ms,
             } = item;
-            TimeStep {
+            timestep::ffi::TimeStep {
                 unix_time_ms: *unix_time_ms,
                 gps_time_ms: *gps_time_ms,
             }
@@ -2852,19 +2227,32 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
 
     // coarse_channels
     if !(*correlator_metadata_ptr).coarse_chans.is_null() {
-        drop(Box::from_raw((*correlator_metadata_ptr).coarse_chans));
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [coarse_channel::ffi::CoarseChannel] = slice::from_raw_parts_mut(
+            (*correlator_metadata_ptr).coarse_chans,
+            (*correlator_metadata_ptr).num_coarse_chans,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // timesteps
     if !(*correlator_metadata_ptr).timesteps.is_null() {
-        drop(Box::from_raw((*correlator_metadata_ptr).timesteps));
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [timestep::ffi::TimeStep] = slice::from_raw_parts_mut(
+            (*correlator_metadata_ptr).timesteps,
+            (*correlator_metadata_ptr).num_timesteps,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // common timestep indices
     if !(*correlator_metadata_ptr).common_timestep_indices.is_null() {
-        drop(Box::from_raw(
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [usize] = slice::from_raw_parts_mut(
             (*correlator_metadata_ptr).common_timestep_indices,
-        ));
+            (*correlator_metadata_ptr).num_common_timesteps,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // common coarse chan indices
@@ -2872,9 +2260,12 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
         .common_coarse_chan_indices
         .is_null()
     {
-        drop(Box::from_raw(
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [usize] = slice::from_raw_parts_mut(
             (*correlator_metadata_ptr).common_coarse_chan_indices,
-        ));
+            (*correlator_metadata_ptr).num_common_coarse_chans,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // common good timestep indices
@@ -2882,9 +2273,12 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
         .common_good_timestep_indices
         .is_null()
     {
-        drop(Box::from_raw(
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [usize] = slice::from_raw_parts_mut(
             (*correlator_metadata_ptr).common_good_timestep_indices,
-        ));
+            (*correlator_metadata_ptr).num_common_good_timesteps,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // common good coarse chan indices
@@ -2892,9 +2286,12 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
         .common_good_coarse_chan_indices
         .is_null()
     {
-        drop(Box::from_raw(
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [usize] = slice::from_raw_parts_mut(
             (*correlator_metadata_ptr).common_good_coarse_chan_indices,
-        ));
+            (*correlator_metadata_ptr).num_common_good_coarse_chans,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // provided timestep indices
@@ -2902,9 +2299,12 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
         .provided_timestep_indices
         .is_null()
     {
-        drop(Box::from_raw(
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [usize] = slice::from_raw_parts_mut(
             (*correlator_metadata_ptr).provided_timestep_indices,
-        ));
+            (*correlator_metadata_ptr).num_provided_timesteps,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // provided coarse channel indices
@@ -2912,399 +2312,16 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
         .provided_coarse_chan_indices
         .is_null()
     {
-        drop(Box::from_raw(
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [usize] = slice::from_raw_parts_mut(
             (*correlator_metadata_ptr).provided_coarse_chan_indices,
-        ));
+            (*correlator_metadata_ptr).num_provided_coarse_chans,
+        );
+        drop(Box::from_raw(slice));
     }
 
     // Free main metadata struct
     drop(Box::from_raw(correlator_metadata_ptr));
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
-///
-/// C Representation of the `VoltageContext` metadata
-///
-#[repr(C)]
-pub struct VoltageMetadata {
-    /// Version of the correlator format
-    pub mwa_version: MWAVersion,
-    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
-    /// offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
-    pub timesteps: *mut TimeStep,
-    /// Number of timesteps in the timestep array
-    pub num_timesteps: usize,
-    /// The number of millseconds interval between timestep indices
-    pub timestep_duration_ms: u64,
-    /// Vector of coarse channels which is the effectively the same as the metafits provided coarse channels
-    pub coarse_chans: *mut CoarseChannel,
-    /// Number of coarse channels after we've validated the input voltage files
-    pub num_coarse_chans: usize,
-    /// Number of common timesteps
-    pub num_common_timesteps: usize,
-    /// Vector of (in)common timestep indices
-    pub common_timestep_indices: *mut usize,
-    /// Number of common coarse chans
-    pub num_common_coarse_chans: usize,
-    /// Vector of (in)common coarse channel indices
-    pub common_coarse_chan_indices: *mut usize,
-    /// The start of the observation (the time that is common to all
-    /// provided data files).
-    pub common_start_unix_time_ms: u64,
-    /// `end_unix_time_ms` is the common end time of the observation
-    /// i.e. start time of last common timestep plus integration time.
-    pub common_end_unix_time_ms: u64,
-    /// `start_unix_time_ms` but in GPS milliseconds
-    pub common_start_gps_time_ms: u64,
-    /// `end_unix_time_ms` but in GPS milliseconds
-    pub common_end_gps_time_ms: u64,
-    /// Total duration of common timesteps
-    pub common_duration_ms: u64,
-    /// Total bandwidth of the common coarse channels
-    pub common_bandwidth_hz: u32,
-    /// Number of common timesteps only including timesteps after the quack time
-    pub num_common_good_timesteps: usize,
-    /// Vector of (in)common timestep indices only including timesteps after the quack time
-    pub common_good_timestep_indices: *mut usize,
-    /// Number of common coarse channels only including timesteps after the quack time
-    pub num_common_good_coarse_chans: usize,
-    /// Vector of (in)common coarse channel indices only including timesteps after the quack time
-    pub common_good_coarse_chan_indices: *mut usize,
-    /// The start of the observation (the time that is common to all
-    /// provided data files) only including timesteps after the quack time
-    pub common_good_start_unix_time_ms: u64,
-    /// `end_unix_time_ms` is the common end time of the observation only including timesteps after the quack time
-    /// i.e. start time of last common timestep plus integration time.
-    pub common_good_end_unix_time_ms: u64,
-    /// `common_good_start_unix_time_ms` but in GPS milliseconds
-    pub common_good_start_gps_time_ms: u64,
-    /// `common_good_end_unix_time_ms` but in GPS milliseconds
-    pub common_good_end_gps_time_ms: u64,
-    /// Total duration of common_good timesteps
-    pub common_good_duration_ms: u64,
-    /// Total bandwidth of the common coarse channels only including timesteps after the quack time
-    pub common_good_bandwidth_hz: u32,
-    /// Number of provided timestep indices we have at least *some* data for
-    pub num_provided_timesteps: usize,
-    /// The indices of any timesteps which we have *some* data for
-    pub provided_timestep_indices: *mut usize,
-    /// Number of provided coarse channel indices we have at least *some* data for
-    pub num_provided_coarse_chans: usize,
-    /// The indices of any coarse channels which we have *some* data for
-    pub provided_coarse_chan_indices: *mut usize,
-    /// Bandwidth of each coarse channel
-    pub coarse_chan_width_hz: u32,
-    /// Volatge fine_chan_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
-    pub fine_chan_width_hz: u32,
-    /// Number of fine channels in each coarse channel
-    pub num_fine_chans_per_coarse: usize,
-    /// Number of bytes in each sample (a sample is a complex, thus includes r and i)
-    pub sample_size_bytes: u64,
-    /// Number of voltage blocks per timestep
-    pub num_voltage_blocks_per_timestep: usize,
-    /// Number of voltage blocks of samples in each second of data    
-    pub num_voltage_blocks_per_second: usize,
-    /// Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
-    pub num_samples_per_voltage_block: usize,
-    /// The size of each voltage block    
-    pub voltage_block_size_bytes: u64,
-    /// Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
-    pub delay_block_size_bytes: u64,
-    /// The amount of bytes to skip before getting into real data within the voltage files
-    pub data_file_header_size_bytes: u64,
-    /// Expected voltage file size
-    pub expected_voltage_data_file_size_bytes: u64,
-}
-
-/// This returns a struct containing the `VoltageContext` metadata
-///
-/// # Arguments
-///
-/// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object.
-///
-/// * `out_voltage_metadata_ptr` - A Rust-owned populated `VoltageMetadata` struct. Free with `mwalib_voltage_metadata_free`.
-///
-/// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
-///
-/// * `error_message_length` - length of error_message char* buffer.
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * `error_message` *must* point to an already allocated char* buffer for any error messages.
-/// * `voltage_context_ptr` must point to a populated `VoltageContext` object from the `mwalib_voltage_context_new` function.
-/// * Caller must call `mwalib_voltage_metadata_free` once finished, to free the rust memory.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_metadata_get(
-    voltage_context_ptr: *mut VoltageContext,
-    out_voltage_metadata_ptr: &mut *mut VoltageMetadata,
-    error_message: *const c_char,
-    error_message_length: size_t,
-) -> i32 {
-    if voltage_context_ptr.is_null() {
-        set_c_string(
-            "mwalib_voltage_metadata_get() ERROR: Warning: null pointer for voltage_context_ptr passed in",
-            error_message as *mut u8,
-            error_message_length,
-        );
-        return MWALIB_FAILURE;
-    }
-    // Get the voltage context object from the raw pointer passed in
-    let context = &*voltage_context_ptr;
-
-    // Populate voltage coarse channels
-    let mut coarse_chan_vec: Vec<CoarseChannel> = Vec::new();
-
-    for item in context.coarse_chans.iter() {
-        let out_item = {
-            let coarse_channel::CoarseChannel {
-                corr_chan_number,
-                rec_chan_number,
-                gpubox_number,
-                chan_width_hz,
-                chan_start_hz,
-                chan_centre_hz,
-                chan_end_hz,
-            } = item;
-            CoarseChannel {
-                corr_chan_number: *corr_chan_number,
-                rec_chan_number: *rec_chan_number,
-                gpubox_number: *gpubox_number,
-                chan_width_hz: *chan_width_hz,
-                chan_start_hz: *chan_start_hz,
-                chan_centre_hz: *chan_centre_hz,
-                chan_end_hz: *chan_end_hz,
-            }
-        };
-
-        coarse_chan_vec.push(out_item);
-    }
-
-    // Populate voltage timesteps
-    let mut timestep_vec: Vec<TimeStep> = Vec::new();
-
-    for item in context.timesteps.iter() {
-        let out_item = {
-            let timestep::TimeStep {
-                unix_time_ms,
-                gps_time_ms,
-            } = item;
-            TimeStep {
-                unix_time_ms: *unix_time_ms,
-                gps_time_ms: *gps_time_ms,
-            }
-        };
-        timestep_vec.push(out_item);
-    }
-
-    // Populate the rust owned data structure with data from the voltage context
-    // We explicitly break out the attributes so at compile time it will let us know
-    // if there have been new fields added to the rust struct, then we can choose to
-    // ignore them (with _) or add that field to the FFI struct.
-    let out_context = {
-        let VoltageContext {
-            metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
-            mwa_version,
-            num_timesteps,
-            timesteps: _, // This is populated seperately
-            timestep_duration_ms,
-            num_coarse_chans,
-            coarse_chans: _, // This is populated seperately
-            common_timestep_indices,
-            num_common_timesteps,
-            common_coarse_chan_indices,
-            num_common_coarse_chans,
-            common_start_unix_time_ms,
-            common_end_unix_time_ms,
-            common_start_gps_time_ms,
-            common_end_gps_time_ms,
-            common_duration_ms,
-            common_bandwidth_hz,
-            common_good_timestep_indices,
-            num_common_good_timesteps,
-            common_good_coarse_chan_indices,
-            num_common_good_coarse_chans,
-            common_good_start_unix_time_ms,
-            common_good_end_unix_time_ms,
-            common_good_start_gps_time_ms,
-            common_good_end_gps_time_ms,
-            common_good_duration_ms,
-            common_good_bandwidth_hz,
-            provided_timestep_indices,
-            num_provided_timesteps: num_provided_timestep_indices,
-            provided_coarse_chan_indices,
-            num_provided_coarse_chans: num_provided_coarse_chan_indices,
-            coarse_chan_width_hz,
-            fine_chan_width_hz,
-            num_fine_chans_per_coarse,
-            sample_size_bytes,
-            num_voltage_blocks_per_timestep,
-            num_voltage_blocks_per_second,
-            num_samples_per_voltage_block,
-            voltage_block_size_bytes,
-            delay_block_size_bytes,
-            data_file_header_size_bytes,
-            expected_voltage_data_file_size_bytes,
-            voltage_batches: _, // This is currently not provided to FFI as it is private
-            voltage_time_map: _, // This is currently not provided to FFI as it is private
-        } = context;
-        VoltageMetadata {
-            mwa_version: *mwa_version,
-            timesteps: ffi_array_to_boxed_slice(timestep_vec),
-            num_timesteps: *num_timesteps,
-            timestep_duration_ms: *timestep_duration_ms,
-            coarse_chans: ffi_array_to_boxed_slice(coarse_chan_vec),
-            num_coarse_chans: *num_coarse_chans,
-            num_common_timesteps: *num_common_timesteps,
-            common_timestep_indices: ffi_array_to_boxed_slice(common_timestep_indices.clone()),
-            num_common_coarse_chans: *num_common_coarse_chans,
-            common_coarse_chan_indices: ffi_array_to_boxed_slice(
-                common_coarse_chan_indices.clone(),
-            ),
-            common_start_unix_time_ms: *common_start_unix_time_ms,
-            common_end_unix_time_ms: *common_end_unix_time_ms,
-            common_start_gps_time_ms: *common_start_gps_time_ms,
-            common_end_gps_time_ms: *common_end_gps_time_ms,
-            common_duration_ms: *common_duration_ms,
-            common_bandwidth_hz: *common_bandwidth_hz,
-            num_common_good_timesteps: *num_common_good_timesteps,
-            common_good_timestep_indices: ffi_array_to_boxed_slice(
-                common_good_timestep_indices.clone(),
-            ),
-            num_common_good_coarse_chans: *num_common_good_coarse_chans,
-            common_good_coarse_chan_indices: ffi_array_to_boxed_slice(
-                common_good_coarse_chan_indices.clone(),
-            ),
-            common_good_start_unix_time_ms: *common_good_start_unix_time_ms,
-            common_good_end_unix_time_ms: *common_good_end_unix_time_ms,
-            common_good_start_gps_time_ms: *common_good_start_gps_time_ms,
-            common_good_end_gps_time_ms: *common_good_end_gps_time_ms,
-            common_good_duration_ms: *common_good_duration_ms,
-            common_good_bandwidth_hz: *common_good_bandwidth_hz,
-            num_provided_timesteps: *num_provided_timestep_indices,
-            provided_timestep_indices: ffi_array_to_boxed_slice(provided_timestep_indices.clone()),
-            num_provided_coarse_chans: *num_provided_coarse_chan_indices,
-            provided_coarse_chan_indices: ffi_array_to_boxed_slice(
-                provided_coarse_chan_indices.clone(),
-            ),
-            coarse_chan_width_hz: *coarse_chan_width_hz,
-            fine_chan_width_hz: *fine_chan_width_hz,
-            num_fine_chans_per_coarse: *num_fine_chans_per_coarse,
-            sample_size_bytes: *sample_size_bytes,
-            num_voltage_blocks_per_timestep: *num_voltage_blocks_per_timestep,
-            num_voltage_blocks_per_second: *num_voltage_blocks_per_second,
-            num_samples_per_voltage_block: *num_samples_per_voltage_block,
-            voltage_block_size_bytes: *voltage_block_size_bytes,
-            delay_block_size_bytes: *delay_block_size_bytes,
-            data_file_header_size_bytes: *data_file_header_size_bytes,
-            expected_voltage_data_file_size_bytes: *expected_voltage_data_file_size_bytes,
-        }
-    };
-
-    // Pass out the pointer to the rust owned data structure
-    *out_voltage_metadata_ptr = Box::into_raw(Box::new(out_context));
-
-    // Return success
-    MWALIB_SUCCESS
-}
-
-/// Free a previously-allocated `VoltageMetadata` struct.
-///
-/// # Arguments
-///
-/// * `voltage_metadata_ptr` - pointer to an already populated `VoltageMetadata` object
-///
-///
-/// # Returns
-///
-/// * MWALIB_SUCCESS on success, non-zero on failure
-///
-///
-/// # Safety
-/// * This must be called once caller is finished with the `VoltageMetadata` object
-/// * `voltage_metadata_ptr` must point to a populated `VoltageMetadata` object from the `mwalib_voltage_metadata_get` function.
-/// * `voltage_metadata_ptr` must not have already been freed.
-#[no_mangle]
-pub unsafe extern "C" fn mwalib_voltage_metadata_free(
-    voltage_metadata_ptr: *mut VoltageMetadata,
-) -> i32 {
-    if voltage_metadata_ptr.is_null() {
-        return MWALIB_SUCCESS;
-    }
-
-    //
-    // free any other members first
-    //
-
-    // coarse_channels
-    if !(*voltage_metadata_ptr).coarse_chans.is_null() {
-        drop(Box::from_raw((*voltage_metadata_ptr).coarse_chans));
-    }
-
-    // timesteps
-    if !(*voltage_metadata_ptr).timesteps.is_null() {
-        drop(Box::from_raw((*voltage_metadata_ptr).timesteps));
-    }
-
-    // common timestep indices
-    if !(*voltage_metadata_ptr).common_timestep_indices.is_null() {
-        drop(Box::from_raw(
-            (*voltage_metadata_ptr).common_timestep_indices,
-        ));
-    }
-
-    // common coarse chan indices
-    if !(*voltage_metadata_ptr).common_coarse_chan_indices.is_null() {
-        drop(Box::from_raw(
-            (*voltage_metadata_ptr).common_coarse_chan_indices,
-        ));
-    }
-
-    // common good timestep indices
-    if !(*voltage_metadata_ptr)
-        .common_good_timestep_indices
-        .is_null()
-    {
-        drop(Box::from_raw(
-            (*voltage_metadata_ptr).common_good_timestep_indices,
-        ));
-    }
-
-    // common good coarse chan indices
-    if !(*voltage_metadata_ptr)
-        .common_good_coarse_chan_indices
-        .is_null()
-    {
-        drop(Box::from_raw(
-            (*voltage_metadata_ptr).common_good_coarse_chan_indices,
-        ));
-    }
-
-    // provided timestep indices
-    if !(*voltage_metadata_ptr).provided_timestep_indices.is_null() {
-        drop(Box::from_raw(
-            (*voltage_metadata_ptr).provided_timestep_indices,
-        ));
-    }
-
-    // provided coarse channel indices
-    if !(*voltage_metadata_ptr)
-        .provided_coarse_chan_indices
-        .is_null()
-    {
-        drop(Box::from_raw(
-            (*voltage_metadata_ptr).provided_coarse_chan_indices,
-        ));
-    }
-
-    // Free main metadata struct
-    drop(Box::from_raw(voltage_metadata_ptr));
 
     // Return success
     MWALIB_SUCCESS

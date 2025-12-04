@@ -39,7 +39,7 @@ fn get_test_ffi_metafits_context_ext(
 ) -> *mut MetafitsContext {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let metafits_file = CString::new(metafits_filename).unwrap();
     let metafits_file_ptr = metafits_file.as_ptr();
@@ -103,7 +103,7 @@ fn get_test_ffi_correlator_context_legacy() -> *mut CorrelatorContext {
     // This tests for a valid correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
@@ -156,7 +156,7 @@ fn get_test_ffi_correlator_context_mwax() -> *mut CorrelatorContext {
     // This tests for a valid correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let metafits_file =
         CString::new("test_files/1244973688_1_timestep/1244973688.metafits").unwrap();
@@ -266,7 +266,7 @@ pub fn test_mwalib_version_patch() {
 #[test]
 fn test_set_error_message() {
     let buffer = CString::new("HELLO WORLD").unwrap();
-    let buffer_ptr = buffer.as_ptr() as *mut u8;
+    let buffer_ptr = buffer.as_ptr() as *mut c_char;
 
     set_c_string("hello world", buffer_ptr, 12);
 
@@ -275,7 +275,7 @@ fn test_set_error_message() {
 
 #[test]
 fn test_set_error_message_null_ptr() {
-    let buffer_ptr: *mut u8 = std::ptr::null_mut();
+    let buffer_ptr: *mut c_char = std::ptr::null_mut();
 
     set_c_string("hello world", buffer_ptr, 12);
 }
@@ -283,7 +283,7 @@ fn test_set_error_message_null_ptr() {
 #[test]
 fn test_set_error_message_buffer_len_too_small() {
     let buffer = CString::new("H").unwrap();
-    let buffer_ptr = buffer.as_ptr() as *mut u8;
+    let buffer_ptr = buffer.as_ptr() as *mut c_char;
 
     set_c_string("hello world", buffer_ptr, 1);
 }
@@ -316,7 +316,7 @@ fn test_mwalib_metafits_context_new_valid() {
     // This tests for a valid metafitscontext
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
@@ -353,7 +353,7 @@ fn test_mwalib_metafits_context_new_invalid() {
     // This tests for an invalid metafitscontext (missing file)
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/missing_file.metafits").unwrap();
@@ -394,7 +394,7 @@ fn test_mwalib_metafits_context_display() {
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         let retval =
@@ -408,7 +408,7 @@ fn test_mwalib_metafits_context_display() {
 fn test_mwalib_metafits_context_new_guess_mwa_version() {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
@@ -446,7 +446,7 @@ fn test_mwalib_metafits_context_display_null_ptr() {
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         let retval =
@@ -464,7 +464,7 @@ fn test_mwalib_correlator_context_new_valid() {
     // This tests for a valid correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
@@ -509,7 +509,7 @@ fn test_mwalib_correlator_context_new_valid_free() {
     // This tests for a valid correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
@@ -554,7 +554,7 @@ fn test_mwalib_correlator_context_new_invalid() {
     // This tests for a invalid correlator context (missing file)
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/invalid_filename.metafits").unwrap();
@@ -602,7 +602,7 @@ fn test_mwalib_correlator_context_display() {
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         let retval =
@@ -618,7 +618,7 @@ fn test_mwalib_correlator_context_display_null_ptr() {
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         let retval =
@@ -634,7 +634,7 @@ fn test_mwalib_correlator_context_legacy_read_by_baseline_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -691,7 +691,7 @@ fn test_mwalib_correlator_context_legacy_read_by_baseline_null_context() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -722,7 +722,7 @@ fn test_mwalib_correlator_context_legacy_read_by_baseline_null_buffer() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -752,7 +752,7 @@ fn test_mwalib_correlator_context_legacy_read_by_frequency_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -809,7 +809,7 @@ fn test_mwalib_correlator_context_legacy_read_by_frequency_null_context() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -840,7 +840,7 @@ fn test_mwalib_correlator_context_legacy_read_by_frequency_null_buffer() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -870,7 +870,7 @@ fn test_mwalib_correlator_context_read_weights_by_baseline_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let timestep_index = 0;
     let coarse_chan_index = 10;
@@ -927,7 +927,7 @@ fn test_mwalib_correlator_context_read_weights_by_baseline_null_context() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let timestep_index = 0;
     let coarse_chan_index = 10;
@@ -958,7 +958,7 @@ fn test_mwalib_correlator_context_read_weights_by_baseline_null_buffer() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let timestep_index = 0;
     let coarse_chan_index = 10;
@@ -988,7 +988,7 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         let chan_indices_len: usize = 1;
@@ -1033,7 +1033,7 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_invalid_buffer_le
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         let chan_indices_len: usize = 1;
@@ -1086,7 +1086,7 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_context() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         // Null context
@@ -1119,7 +1119,7 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_coarse_chans
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         // Null coarse chans
@@ -1151,7 +1151,7 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_buffer() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         let chan_indices_len: usize = 1;
@@ -1178,1097 +1178,6 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_buffer() {
 }
 
 //
-// VoltageContext Tests
-//
-#[test]
-fn test_mwalib_voltage_context_new_valid_mwaxv2() {
-    // This tests for a valid voltage context
-    let error_len: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let metafits_file = CString::new("test_files/1101503312_mwax_vcs/1101503312.metafits").unwrap();
-    let metafits_file_ptr = metafits_file.as_ptr();
-
-    // Setup files
-    let created_voltage_files = get_test_voltage_files(MWAVersion::VCSMWAXv2, false);
-    let voltage_file = CString::new(created_voltage_files[0].clone()).unwrap();
-
-    let voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
-
-    let voltage_files_ptr = voltage_files.as_ptr() as *mut *const c_char;
-
-    unsafe {
-        // Create a VoltageContext
-        let mut voltage_context_ptr: *mut VoltageContext = std::ptr::null_mut();
-        let retval = mwalib_voltage_context_new(
-            metafits_file_ptr,
-            voltage_files_ptr,
-            1,
-            &mut voltage_context_ptr,
-            error_message_ptr,
-            error_len,
-        );
-
-        // Check return value of mwalib_voltage_context_new
-        let mut ret_error_message: String = String::new();
-
-        if retval != 0 {
-            let c_str: &CStr = CStr::from_ptr(error_message_ptr);
-            let str_slice: &str = c_str.to_str().unwrap();
-            str_slice.clone_into(&mut ret_error_message);
-        }
-        assert_eq!(
-            retval, 0,
-            "mwalib_voltage_context_new failure {}",
-            ret_error_message
-        );
-
-        // Check we got valid VoltageContext pointer
-        let context_ptr = voltage_context_ptr.as_mut();
-        assert!(context_ptr.is_some());
-
-        // Now ensure we can free the rust memory
-        assert_eq!(mwalib_voltage_context_free(context_ptr.unwrap()), 0);
-
-        // Now ensure we don't panic if we try to free a null pointer
-        assert_eq!(mwalib_voltage_context_free(std::ptr::null_mut()), 0);
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_new_invalid() {
-    // This tests for a invalid voltage context (missing file)
-    let error_len: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let metafits_file =
-        CString::new("test_files/1101503312_mwax_vcs/invalid_filename.metafits").unwrap();
-    let metafits_file_ptr = metafits_file.as_ptr();
-
-    // Setup files
-    let created_voltage_files = get_test_voltage_files(MWAVersion::VCSMWAXv2, false);
-    let voltage_file = CString::new(created_voltage_files[0].clone()).unwrap();
-
-    let voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
-
-    let voltage_files_ptr = voltage_files.as_ptr() as *mut *const c_char;
-
-    unsafe {
-        // Create a VoltageContext
-        let mut voltage_context_ptr: *mut VoltageContext = std::ptr::null_mut();
-        let retval = mwalib_voltage_context_new(
-            metafits_file_ptr,
-            voltage_files_ptr,
-            1,
-            &mut voltage_context_ptr,
-            error_message_ptr,
-            error_len,
-        );
-
-        // Check return val
-        assert_ne!(retval, 0);
-
-        // Get Error message
-        let mut ret_error_message: String = String::new();
-
-        if retval != 0 {
-            let c_str: &CStr = CStr::from_ptr(error_message_ptr);
-            let str_slice: &str = c_str.to_str().unwrap();
-            str_slice.clone_into(&mut ret_error_message);
-        }
-
-        // Check error message
-        assert!(!ret_error_message.is_empty());
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_display() {
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
-
-    let error_len: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    unsafe {
-        let retval =
-            mwalib_voltage_context_display(voltage_context_ptr, error_message_ptr, error_len);
-
-        assert_eq!(retval, 0);
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_display_null_ptr() {
-    let voltage_context_ptr: *mut VoltageContext = std::ptr::null_mut();
-
-    let error_len: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    unsafe {
-        let retval =
-            mwalib_voltage_context_display(voltage_context_ptr, error_message_ptr, error_len);
-
-        assert_ne!(retval, 0);
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_legacy_read_file2_valid() {
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let timestep_index = 0;
-    let coarse_chan_index = 14;
-
-    // 2 pols x 128 fine chans x 1 tile * 10000 samples
-    let buffer_len = 2 * 128 * 10000;
-
-    unsafe {
-        let in_buffer: Vec<i8> = vec![0; buffer_len];
-        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
-
-        let retval = mwalib_voltage_context_read_file2(
-            voltage_context_ptr,
-            timestep_index,
-            coarse_chan_index,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        assert_eq!(retval, 0);
-
-        // Reconstitute the buffer
-        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-
-        // Check contents
-        // Check for various values
-        // sample: 0, fine_chan: 0, rfinput: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 0, 0)],
-            0
-        );
-
-        // sample: 0, fine_chan: 0, rfinput: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 0, 1)],
-            2
-        );
-
-        // sample: 0, fine_chan: 1, rfinput: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 1, 1)],
-            5
-        );
-
-        // sample: 0, fine_chan: 127, rfinput: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 127, 0)],
-            125
-        );
-
-        // sample: 10, fine_chan: 32, rfinput: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(10, 32, 1)],
-            -118
-        );
-
-        // sample: 9999, fine_chan: 127, rfinput: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(9999, 127, 1)],
-            -69
-        );
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_mwaxv2_read_file2_valid() {
-    // Read data from a critically sampled MWAXv2 VCS obs
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, false);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let timestep_index = 0;
-    let coarse_chan_index = 14;
-
-    // 2 pols x 1 fine chans x 1 tile * 64000 samples * 160 blocks * 2 bytes per sample
-    let buffer_len = 2 * 64000 * 160 * 2;
-
-    unsafe {
-        let in_buffer: Vec<i8> = vec![0; buffer_len];
-        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
-
-        let retval = mwalib_voltage_context_read_file2(
-            voltage_context_ptr,
-            timestep_index,
-            coarse_chan_index,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        assert_eq!(retval, 0);
-
-        // Reconstitute the buffer
-        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-
-        // Check for various values
-        // block: 0, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
-            0
-        );
-
-        // block: 0, rfinput: 0, sample: 1, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 1, 1)],
-            -3
-        );
-
-        // block: 0, rfinput: 0, sample: 255, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 255, 0)],
-            -2
-        );
-
-        // block: 0, rfinput: 0, sample: 256, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 256, 1)],
-            -1
-        );
-
-        // block: 1, rfinput: 0, sample: 2, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(1, 0, 2, 0)],
-            9
-        );
-
-        // block: 159, rfinput: 1, sample: 63999, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(159, 1, 63999, 1)],
-            -30
-        );
-
-        // block: 120, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(120, 0, 0, 0)],
-            88
-        );
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_mwaxv2_read_os_file2_valid() {
-    // Read data from a oversampled MWAXv2 VCS obs
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, true);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let timestep_index = 0;
-    let coarse_chan_index = 14;
-
-    // 2 pols x 1 fine chans x 1 tile * 81920 samples * 160 blocks * 2 bytes per sample
-    let buffer_len = 2 * 81920 * 160 * 2;
-
-    unsafe {
-        let in_buffer: Vec<i8> = vec![0; buffer_len];
-        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
-
-        let retval = mwalib_voltage_context_read_file2(
-            voltage_context_ptr,
-            timestep_index,
-            coarse_chan_index,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        assert_eq!(retval, 0);
-
-        // Reconstitute the buffer
-        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-
-        // Check for various values
-        // block: 0, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
-            0
-        );
-
-        // block: 0, rfinput: 0, sample: 1, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
-            -3
-        );
-
-        // block: 0, rfinput: 0, sample: 255, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
-            -2
-        );
-
-        // block: 0, rfinput: 0, sample: 256, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
-            -1
-        );
-
-        // block: 1, rfinput: 0, sample: 2, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
-            9
-        );
-
-        // block: 159, rfinput: 1, sample: 63999, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
-            -30
-        );
-
-        // block: 159, rfinput: 1, sample: 81919, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
-            -30
-        );
-
-        // block: 120, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(120, 0, 0, 0)],
-            88
-        );
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_legacy_read_file_valid() {
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let timestep_index = 0;
-    let coarse_chan_index = 14;
-
-    // 2 pols x 128 fine chans x 1 tile * 10000 samples
-    let buffer_len = 2 * 128 * 10000;
-
-    unsafe {
-        let in_buffer: Vec<i8> = vec![0; buffer_len];
-        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
-
-        let retval = mwalib_voltage_context_read_file(
-            voltage_context_ptr,
-            timestep_index,
-            coarse_chan_index,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        assert_eq!(retval, 0);
-
-        // Reconstitute the buffer
-        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-
-        // Check contents
-        // Check for various values
-        // sample: 0, fine_chan: 0, rfinput: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 0, 0)],
-            0
-        );
-
-        // sample: 0, fine_chan: 0, rfinput: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 0, 1)],
-            2
-        );
-
-        // sample: 0, fine_chan: 1, rfinput: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 1, 1)],
-            5
-        );
-
-        // sample: 0, fine_chan: 127, rfinput: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(0, 127, 0)],
-            125
-        );
-
-        // sample: 10, fine_chan: 32, rfinput: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(10, 32, 1)],
-            -118
-        );
-
-        // sample: 9999, fine_chan: 127, rfinput: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_legacy(9999, 127, 1)],
-            -69
-        );
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
-    // Read data from a critically sampled MWAXv2 VCS obs
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, false);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let timestep_index = 0;
-    let coarse_chan_index = 14;
-
-    // 2 pols x 1 fine chans x 1 tile * 64000 samples * 160 blocks * 2 bytes per sample
-    let buffer_len = 2 * 64000 * 160 * 2;
-
-    unsafe {
-        let in_buffer: Vec<i8> = vec![0; buffer_len];
-        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
-
-        let retval = mwalib_voltage_context_read_file(
-            voltage_context_ptr,
-            timestep_index,
-            coarse_chan_index,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        assert_eq!(retval, 0);
-
-        // Reconstitute the buffer
-        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-
-        // Check for various values
-        // block: 0, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
-            0
-        );
-
-        // block: 0, rfinput: 0, sample: 1, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 1, 1)],
-            -3
-        );
-
-        // block: 0, rfinput: 0, sample: 255, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 255, 0)],
-            -2
-        );
-
-        // block: 0, rfinput: 0, sample: 256, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 256, 1)],
-            -1
-        );
-
-        // block: 1, rfinput: 0, sample: 2, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(1, 0, 2, 0)],
-            9
-        );
-
-        // block: 159, rfinput: 1, sample: 63999, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(159, 1, 63999, 1)],
-            -30
-        );
-
-        // block: 120, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(120, 0, 0, 0)],
-            88
-        );
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_mwaxv2_read_os_file_valid() {
-    // Read data from a oversampled MWAXv2 VCS obs
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, true);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let timestep_index = 0;
-    let coarse_chan_index = 14;
-
-    // 2 pols x 1 fine chans x 1 tile * 81920 samples * 160 blocks * 2 bytes per sample
-    let buffer_len = 2 * 81920 * 160 * 2;
-
-    unsafe {
-        let in_buffer: Vec<i8> = vec![0; buffer_len];
-        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
-
-        let retval = mwalib_voltage_context_read_file(
-            voltage_context_ptr,
-            timestep_index,
-            coarse_chan_index,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        assert_eq!(retval, 0);
-
-        // Reconstitute the buffer
-        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-
-        // Check for various values
-        // block: 0, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 0, 0)],
-            0
-        );
-
-        // block: 0, rfinput: 0, sample: 1, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 1, 1)],
-            -3
-        );
-
-        // block: 0, rfinput: 0, sample: 255, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 255, 0)],
-            -2
-        );
-
-        // block: 0, rfinput: 0, sample: 256, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(0, 0, 256, 1)],
-            -1
-        );
-
-        // block: 1, rfinput: 0, sample: 2, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(1, 0, 2, 0)],
-            9
-        );
-
-        // block: 159, rfinput: 1, sample: 63999, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 63999, 1)],
-            -30
-        );
-
-        // block: 159, rfinput: 1, sample: 81919, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(159, 1, 81919, 1)],
-            -30
-        );
-
-        // block: 120, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2_os(120, 0, 0, 0)],
-            88
-        );
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_mwaxv2_read_second_valid() {
-    // Read data from a oversampled MWAXv2 VCS obs
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, false);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let gps_second_start: u64 = 1_101_503_318;
-    let gps_second_count: usize = 4;
-    let coarse_chan_index: usize = 14;
-
-    // Get voltage metadata
-    let mut voltage_metadata_ptr: *mut VoltageMetadata = std::ptr::null_mut();
-
-    unsafe {
-        let retval = mwalib_voltage_metadata_get(
-            voltage_context_ptr,
-            &mut voltage_metadata_ptr,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        assert_eq!(retval, 0);
-    }
-
-    unsafe {
-        // 2 pols x 1 fine chans x 1 tile * 81920 samples * 160 blocks * 2 bytes per sample
-        let buffer_len = ((*voltage_metadata_ptr).voltage_block_size_bytes
-            * (*voltage_metadata_ptr).num_voltage_blocks_per_second as u64
-            * gps_second_count as u64) as usize;
-
-        let in_buffer: Vec<i8> = vec![0; buffer_len];
-        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
-
-        let retval = mwalib_voltage_context_read_second(
-            voltage_context_ptr,
-            gps_second_start,
-            gps_second_count,
-            coarse_chan_index,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        assert_eq!(retval, 0);
-
-        // Reconstitute the buffer
-        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-
-        // Check values
-        //
-        // Second 1_101_503_318
-        //
-        // location in buffer: block: 0, rfinput: 0, sample: 0, value: 0
-        // location in file0:  block: 120, rfinput: 0, sample: 0, value: 0
-        //
-        // (this is the 120th block / 7th second of the 8 second block in the FILE, but the first block of the buffer)
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
-            88
-        );
-
-        // Second 1_101_503_319
-        // location in buffer: block: 20, rfinput: 0, sample: 0, value: 0
-        // location in file0:  block: 140, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(20, 0, 0, 0)],
-            -68
-        );
-
-        // Second 1_101_503_320 (now we are in a new data file so the values are incrememented by 2 from the first file)
-        // location in buffer: block: 40+0, rfinput: 0, sample: 0, value: 0
-        // location in file1:  block: 0, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
-                + get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
-            2
-        );
-
-        // Second 1_101_503_321 (now we are in a new data file so the values are incrememented by 2 from the first file)
-        // location in buffer: block: 40+20, rfinput: 0, sample: 0, value: 0
-        // location in file1:  block: 20, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
-                + get_index_for_location_in_test_voltage_file_mwaxv2(20, 0, 0, 0)],
-            102
-        );
-
-        // Second 1_101_503_318 (this is the 7th block / 7th second of the 8 second block in the FILE, but the first block of the buffer)
-        // location in buffer: block: 0, rfinput: 1, sample: 16750, value: 1
-        // location in file0:  block: 120, rfinput: 1, sample: 16750, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 1, 16750, 1)],
-            -57,
-        );
-
-        // Second 1_101_503_319
-        // location in buffer: block: 20, rfinput: 1, sample: 16750, value: 1
-        // location in file0:  block: 140, rfinput: 1, sample: 16750, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(20, 1, 16750, 1)],
-            99
-        );
-
-        // Second 1_101_503_320 (now we are in a new data file so the values are incrememented by 2 from the first file)
-        // location in buffer: block: 40+0, rfinput: 1, sample: 16750, value: 1
-        // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
-        assert_eq!(
-            buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
-                + get_index_for_location_in_test_voltage_file_mwaxv2(0, 1, 16750, 1)],
-            29
-        );
-
-        // Second 1_101_503_321 (now we are in a new data file so the values are incrememented by 2 from the first file)
-        // location in buffer: block: 40+0, rfinput: 1, sample: 16750, value: 1
-        // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
-        assert_eq!(
-            buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
-                + get_index_for_location_in_test_voltage_file_mwaxv2(20, 1, 16750, 1)],
-            -71
-        );
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_mwaxv2_read_second2_valid() {
-    // Read data from a oversampled MWAXv2 VCS obs
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, false);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    let gps_second_start: u64 = 1_101_503_318;
-    let gps_second_count: usize = 4;
-    let coarse_chan_index: usize = 14;
-
-    // Get voltage metadata
-    let mut voltage_metadata_ptr: *mut VoltageMetadata = std::ptr::null_mut();
-
-    unsafe {
-        let retval = mwalib_voltage_metadata_get(
-            voltage_context_ptr,
-            &mut voltage_metadata_ptr,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        assert_eq!(retval, 0);
-    }
-
-    unsafe {
-        // 2 pols x 1 fine chans x 1 tile * 81920 samples * 160 blocks * 2 bytes per sample
-        let buffer_len = ((*voltage_metadata_ptr).voltage_block_size_bytes
-            * (*voltage_metadata_ptr).num_voltage_blocks_per_second as u64
-            * gps_second_count as u64) as usize;
-
-        let in_buffer: Vec<i8> = vec![0; buffer_len];
-        let buffer_ptr: *mut i8 = ffi_array_to_boxed_slice(in_buffer);
-
-        let retval = mwalib_voltage_context_read_second2(
-            voltage_context_ptr,
-            gps_second_start,
-            gps_second_count,
-            coarse_chan_index,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        assert_eq!(retval, 0);
-
-        // Reconstitute the buffer
-        let buffer: Vec<i8> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-
-        // Check values
-        //
-        // Second 1_101_503_318
-        //
-        // location in buffer: block: 0, rfinput: 0, sample: 0, value: 0
-        // location in file0:  block: 120, rfinput: 0, sample: 0, value: 0
-        //
-        // (this is the 120th block / 7th second of the 8 second block in the FILE, but the first block of the buffer)
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
-            88
-        );
-
-        // Second 1_101_503_319
-        // location in buffer: block: 20, rfinput: 0, sample: 0, value: 0
-        // location in file0:  block: 140, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(20, 0, 0, 0)],
-            -68
-        );
-
-        // Second 1_101_503_320 (now we are in a new data file so the values are incrememented by 2 from the first file)
-        // location in buffer: block: 40+0, rfinput: 0, sample: 0, value: 0
-        // location in file1:  block: 0, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
-                + get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
-            2
-        );
-
-        // Second 1_101_503_321 (now we are in a new data file so the values are incrememented by 2 from the first file)
-        // location in buffer: block: 40+20, rfinput: 0, sample: 0, value: 0
-        // location in file1:  block: 20, rfinput: 0, sample: 0, value: 0
-        assert_eq!(
-            buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
-                + get_index_for_location_in_test_voltage_file_mwaxv2(20, 0, 0, 0)],
-            102
-        );
-
-        // Second 1_101_503_318 (this is the 7th block / 7th second of the 8 second block in the FILE, but the first block of the buffer)
-        // location in buffer: block: 0, rfinput: 1, sample: 16750, value: 1
-        // location in file0:  block: 120, rfinput: 1, sample: 16750, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(0, 1, 16750, 1)],
-            -57,
-        );
-
-        // Second 1_101_503_319
-        // location in buffer: block: 20, rfinput: 1, sample: 16750, value: 1
-        // location in file0:  block: 140, rfinput: 1, sample: 16750, value: 1
-        assert_eq!(
-            buffer[get_index_for_location_in_test_voltage_file_mwaxv2(20, 1, 16750, 1)],
-            99
-        );
-
-        // Second 1_101_503_320 (now we are in a new data file so the values are incrememented by 2 from the first file)
-        // location in buffer: block: 40+0, rfinput: 1, sample: 16750, value: 1
-        // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
-        assert_eq!(
-            buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
-                + get_index_for_location_in_test_voltage_file_mwaxv2(0, 1, 16750, 1)],
-            29
-        );
-
-        // Second 1_101_503_321 (now we are in a new data file so the values are incrememented by 2 from the first file)
-        // location in buffer: block: 40+0, rfinput: 1, sample: 16750, value: 1
-        // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
-        assert_eq!(
-            buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
-                + get_index_for_location_in_test_voltage_file_mwaxv2(20, 1, 16750, 1)],
-            -71
-        );
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_valid() {
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    unsafe {
-        let chan_indices_len: usize = 1;
-        let chan_indicies: Vec<usize> = vec![0];
-        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
-
-        let buffer_len = 128;
-        let buffer: Vec<f64> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
-
-        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
-            voltage_context_ptr,
-            chan_indicies_ptr,
-            chan_indices_len,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        // Should get zero return code
-        assert_eq!(retval, 0);
-
-        // Reconstitute the buffer
-        let ret_buffer: Vec<f64> = ffi_boxed_slice_to_array(buffer_ptr, buffer_len);
-
-        // Check values
-        assert_eq!(ret_buffer.len(), buffer_len);
-
-        assert!(approx_eq!(
-            f64,
-            ret_buffer[0],
-            138_880_000.0,
-            F64Margin::default()
-        ));
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_invalid_buffer_len() {
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    unsafe {
-        let chan_indices_len: usize = 1;
-        let chan_indicies: Vec<usize> = vec![0];
-        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
-
-        // Invalid buffer - too big
-        let buffer_len = 129;
-        let buffer: Vec<f64> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
-
-        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
-            voltage_context_ptr,
-            chan_indicies_ptr,
-            chan_indices_len,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        // Should get non-zero return code
-        assert_ne!(retval, 0);
-
-        //
-        // Invalid buffer - too small
-        //
-        let buffer_len = 127;
-        let buffer: Vec<f64> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
-
-        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
-            voltage_context_ptr,
-            chan_indicies_ptr,
-            chan_indices_len,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        // Should get non-zero return code
-        assert_ne!(retval, 0);
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_context() {
-    let voltage_context_ptr: *mut VoltageContext = std::ptr::null_mut();
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    unsafe {
-        // Null context
-        let chan_indices_len: usize = 1;
-        let chan_indicies: Vec<usize> = vec![0];
-        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
-
-        let buffer_len = 128;
-        let buffer: Vec<f64> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
-
-        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
-            voltage_context_ptr,
-            chan_indicies_ptr,
-            chan_indices_len,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        // Should get non-zero return code
-        assert_ne!(retval, 0);
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_coarse_chans() {
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    unsafe {
-        // Null coarse chans
-        let chan_indices_len: usize = 1;
-        let chan_indicies_ptr: *mut usize = std::ptr::null_mut();
-
-        let buffer_len = 128;
-        let buffer: Vec<f64> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
-
-        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
-            voltage_context_ptr,
-            chan_indicies_ptr,
-            chan_indices_len,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        // Should get non-zero return code
-        assert_ne!(retval, 0);
-    }
-}
-
-#[test]
-fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_buffer() {
-    let voltage_context_ptr: *mut VoltageContext =
-        get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
-
-    let error_message_length: size_t = 128;
-    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
-
-    unsafe {
-        let chan_indices_len: usize = 1;
-        let chan_indicies: Vec<usize> = vec![0];
-        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
-
-        // Null buffer ptr
-        let buffer_len = 128;
-        let buffer_ptr: *mut f64 = std::ptr::null_mut();
-
-        let retval = mwalib_voltage_context_get_fine_chan_freqs_hz_array(
-            voltage_context_ptr,
-            chan_indicies_ptr,
-            chan_indices_len,
-            buffer_ptr,
-            buffer_len,
-            error_message_ptr,
-            error_message_length,
-        );
-
-        // Should get non-zero return code
-        assert_ne!(retval, 0);
-    }
-}
-
-//
 // Metafits Metadata Tests
 //
 #[test]
@@ -2276,7 +1185,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_get_and_free() {
     // This tests for a valid metafits context and metadata returned
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext =
         get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
@@ -2329,7 +1238,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
     // This tests for a valid metafits context and metadata returned
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext =
         get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
@@ -2496,7 +1405,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_legacy_vcs_valid() {
     // This tests for a valid metafits context and metadata returned
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext =
         get_test_ffi_metafits_context(MWAVersion::VCSLegacyRecombined);
@@ -2556,7 +1465,7 @@ fn test_mwalib_metafits_metadata_get_null_contexts() {
     // This tests for a null context passed to mwalib_metafits_metadata_get
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
@@ -2579,7 +1488,7 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
     // This tests for a valid metafits metadata returned given a correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         // Create a CorrelatorContext
@@ -2629,7 +1538,7 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
     // This tests for a valid metafits metadata returned given a voltage context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         // Create a VoltageContext
@@ -2687,7 +1596,7 @@ fn test_mwalib_metafits_get_expected_volt_filename() {
 
     let error_message_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let filename_len: size_t = 32; // 31 + null terminator
     let filename = CString::new(" ".repeat(filename_len)).unwrap();
@@ -2722,7 +1631,7 @@ fn test_mwalib_correlator_metadata_get_valid() {
     // This tests for a valid correlator metadata struct being instantiated
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         // Create a CorrelatorContext
@@ -2755,7 +1664,7 @@ fn test_mwalib_correlator_metadata_get_valid() {
         assert_eq!(correlator_metadata.num_coarse_chans, 24);
 
         // reconstitute into a vector
-        let item: Vec<TimeStep> = ffi_boxed_slice_to_array(
+        let item: Vec<timestep::ffi::TimeStep> = ffi_boxed_slice_to_array(
             correlator_metadata.timesteps,
             correlator_metadata.num_timesteps,
         );
@@ -2789,7 +1698,7 @@ fn test_mwalib_correlator_metadata_get_null_context() {
     // This tests for passing a null context to the mwalib_correlator_metadata_get() method
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         let mut correlator_metadata_ptr: *mut CorrelatorMetadata = std::ptr::null_mut();
@@ -2812,7 +1721,7 @@ fn test_mwalib_voltage_metadata_get_valid() {
     // This tests for a valid voltage metadata struct being instantiated
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         // Create a VoltageContext
@@ -2845,7 +1754,7 @@ fn test_mwalib_voltage_metadata_get_valid() {
         assert_eq!(voltage_metadata.num_coarse_chans, 24);
 
         // reconstitute into a vector
-        let item: Vec<CoarseChannel> = ffi_boxed_slice_to_array(
+        let item: Vec<coarse_channel::ffi::CoarseChannel> = ffi_boxed_slice_to_array(
             voltage_metadata.coarse_chans,
             voltage_metadata.num_coarse_chans,
         );
@@ -2873,7 +1782,7 @@ fn test_mwalib_voltage_metadata_get_null_context() {
     // This tests for passing a null context to the mwalib_voltage_metadata_get() method
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     unsafe {
         let mut voltage_metadata_ptr: *mut VoltageMetadata = std::ptr::null_mut();
@@ -2896,7 +1805,7 @@ fn test_calibration_hdu_in_metafits() {
     // This tests for a valid metafits context and metadata returned
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context_ext(
         MWAVersion::CorrLegacy,
@@ -2969,7 +1878,7 @@ fn test_calibration_hdu_in_metafits() {
 fn test_calibration_hdu_not_in_metafits() {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext =
@@ -3034,7 +1943,7 @@ fn test_signal_chain_hdu_in_metafits() {
     // This tests for a valid metafits context and metadata returned
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context_ext(
         MWAVersion::CorrLegacy,
@@ -3113,7 +2022,7 @@ fn test_signal_chain_hdu_in_metafits() {
 fn test_signal_chain_hdu_not_in_metafits() {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *const c_char;
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext =

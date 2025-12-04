@@ -23,6 +23,10 @@ use pyo3_stub_gen_derive::gen_stub_pyclass;
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 mod python;
 
+mod ffi;
+
+#[cfg(test)]
+pub mod ffi_test;
 #[cfg(test)]
 pub mod test; // It's pub crate because I reuse some test code in the ffi tests.
 
