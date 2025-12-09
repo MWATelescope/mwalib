@@ -4,13 +4,10 @@
 
 #[cfg(test)]
 use crate::{CorrelatorContext, MWAVersion, MetafitsContext, VoltageContext};
-#[cfg(test)]
-use crate::ffi::{mwalib_metafits_context_new,mwalib_correlator_context_new};
-#[cfg(test)]
+use crate::correlator_context::ffi::mwalib_correlator_context_new;
+use crate::metafits_context::ffi::mwalib_metafits_context_new;
 use crate::voltage_context::test::get_test_voltage_context;
-#[cfg(test)]
 use libc::size_t;
-#[cfg(test)]
 use std::ffi::{c_char, CString};
 
 //

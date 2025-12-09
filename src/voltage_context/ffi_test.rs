@@ -1,23 +1,19 @@
-use std::ffi::{c_char, CStr, CString};
-
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
 use super::*;
-
 use crate::{
-    antenna::ffi::Antenna,
-    ffi::{MetafitsMetadata, ffi_array_to_boxed_slice, ffi_test_helpers::{ffi_boxed_slice_to_array, get_test_ffi_metafits_context, get_test_ffi_voltage_context}, mwalib_metafits_get_expected_volt_filename, mwalib_metafits_metadata_get},
-    voltage_context::{
+    antenna::ffi::Antenna, ffi::{ffi_array_to_boxed_slice, ffi_test_helpers::{ffi_boxed_slice_to_array, get_test_ffi_metafits_context, get_test_ffi_voltage_context}}, metafits_context::ffi::{MetafitsMetadata, mwalib_metafits_get_expected_volt_filename, mwalib_metafits_metadata_get}, voltage_context::{
         ffi::{
-            VoltageMetadata, mwalib_voltage_context_display, mwalib_voltage_context_free, mwalib_voltage_context_get_fine_chan_freqs_hz_array, mwalib_voltage_context_new, mwalib_voltage_context_read_file, mwalib_voltage_context_read_file2, mwalib_voltage_context_read_second, mwalib_voltage_context_read_second2, mwalib_voltage_metadata_get
+            VoltageMetadata, mwalib_voltage_context_display, mwalib_voltage_context_free, mwalib_voltage_context_get_fine_chan_freqs_hz_array, mwalib_voltage_context_new, mwalib_voltage_context_read_file, mwalib_voltage_context_read_file2, mwalib_voltage_context_read_second, mwalib_voltage_context_read_second2, mwalib_voltage_metadata_free, mwalib_voltage_metadata_get
         },
         test::{get_index_for_location_in_test_voltage_file_legacy, get_index_for_location_in_test_voltage_file_mwaxv2, get_index_for_location_in_test_voltage_file_mwaxv2_os, get_test_voltage_files},
         
-    },
+    }
 };
-
+use std::ffi::{c_char, CStr, CString};
 use float_cmp::{F64Margin, approx_eq};
 use libc::size_t;
-
-
 
 //
 // VoltageContext Tests
@@ -1200,5 +1196,89 @@ fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_buffer() {
 
         // Should get non-zero return code
         assert_ne!(retval, 0);
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_metadata_get_valid() {
+    // This tests for a valid voltage metadata struct being instantiated
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+
+    unsafe {
+        // Create a VoltageContext
+        let voltage_context_ptr: *mut VoltageContext =
+            get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+
+        // Check we got valid MetafitsContext pointer
+        let context_ptr = voltage_context_ptr.as_mut();
+        assert!(context_ptr.is_some());
+
+        // Populate a VoltageMetadata struct
+        let mut voltage_metadata_ptr: *mut VoltageMetadata = std::ptr::null_mut();
+        let retval = mwalib_voltage_metadata_get(
+            voltage_context_ptr,
+            &mut voltage_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // Check return value
+        assert_eq!(
+            retval, 0,
+            "mwalib_voltage_metadata_get did not return success"
+        );
+
+        // Get the voltage metadata struct from the pointer
+        let mut voltage_metadata = Box::from_raw(voltage_metadata_ptr);
+
+        // We should get a valid number of coarse channels and no error message
+        assert_eq!(voltage_metadata.num_coarse_chans, 24);
+
+        // reconstitute into a vector
+        let item: Vec<coarse_channel::ffi::CoarseChannel> = ffi_boxed_slice_to_array(
+            voltage_metadata.coarse_chans,
+            voltage_metadata.num_coarse_chans,
+        );
+
+        // We should have a valid, populated array
+        assert_eq!(item[0].rec_chan_number, 109);
+        assert_eq!(item[23].rec_chan_number, 132);
+
+        // So that the next free works, we set the pointer to null (the ffi_boxed_slice_to_array effectively freed the coarse_chan array memory - as far as C/FFI is concerned)
+        voltage_metadata.coarse_chans = std::ptr::null_mut();
+
+        // Now ensure we can free the rust memory
+        assert_eq!(
+            mwalib_voltage_metadata_free(Box::into_raw(voltage_metadata)),
+            0
+        );
+
+        // Now ensure we don't panic if we try to free a null pointer
+        assert_eq!(mwalib_voltage_metadata_free(std::ptr::null_mut()), 0);
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_metadata_get_null_context() {
+    // This tests for passing a null context to the mwalib_voltage_metadata_get() method
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+
+    unsafe {
+        let mut voltage_metadata_ptr: *mut VoltageMetadata = std::ptr::null_mut();
+
+        let context_ptr = std::ptr::null_mut();
+        let ret_val = mwalib_voltage_metadata_get(
+            context_ptr,
+            &mut voltage_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // We should get a non-zero return code
+        assert_ne!(ret_val, 0);
     }
 }

@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! The main interface to MWA data.
-
 use fitsio::FitsFile;
 use log::warn;
 use std::collections::BTreeMap;
@@ -25,8 +24,12 @@ mod python;
 #[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
+pub(crate) mod ffi;
+
 #[cfg(test)]
 mod test;
+#[cfg(test)]
+pub mod ffi_test;
 
 ///
 /// This represents the basic metadata and methods for an MWA correlator observation.
