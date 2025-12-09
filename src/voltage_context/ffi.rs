@@ -2,17 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use std::ffi::c_char;
+use std::{ffi::{CStr, c_char, c_double, c_schar}, slice};
 
 use libc::size_t;
 
 use crate::{
-    coarse_channel,
-    ffi::{
-        ffi_array_to_boxed_slice, set_c_string, MWALIB_FAILURE,
-        MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN, MWALIB_SUCCESS,
-    },
-    timestep, voltage_context, MWAVersion, VoltageFileError,
+    MWAVersion, VoltageContext, VoltageFileError, coarse_channel, ffi::{
+        MWALIB_FAILURE, MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN, MWALIB_SUCCESS, ffi_array_to_boxed_slice, set_c_string
+    }, timestep, voltage_context
 };
 
 ///

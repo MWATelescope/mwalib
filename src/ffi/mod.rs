@@ -5,10 +5,13 @@
 //! This module exists purely for other languages to interface with mwalib.
 
 use crate::*;
-use libc::{c_char, c_double, c_float, c_schar, c_uint, size_t};
+use libc::{c_char, c_double, c_float, c_uint, size_t};
 use std::ffi::*;
 use std::mem;
 use std::slice;
+
+#[cfg(test)]
+pub(crate) mod ffi_test_helpers;
 
 #[cfg(test)]
 mod test;

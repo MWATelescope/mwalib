@@ -1,17 +1,23 @@
 use std::ffi::{c_char, CStr, CString};
 
 use super::*;
+
 use crate::{
-    ffi,
+    antenna::ffi::Antenna,
+    ffi::{MetafitsMetadata, ffi_array_to_boxed_slice, ffi_test_helpers::{ffi_boxed_slice_to_array, get_test_ffi_metafits_context, get_test_ffi_voltage_context}, mwalib_metafits_get_expected_volt_filename, mwalib_metafits_metadata_get},
     voltage_context::{
         ffi::{
-            mwalib_voltage_context_display, mwalib_voltage_context_free, mwalib_voltage_context_new,
+            VoltageMetadata, mwalib_voltage_context_display, mwalib_voltage_context_free, mwalib_voltage_context_get_fine_chan_freqs_hz_array, mwalib_voltage_context_new, mwalib_voltage_context_read_file, mwalib_voltage_context_read_file2, mwalib_voltage_context_read_second, mwalib_voltage_context_read_second2, mwalib_voltage_metadata_get
         },
-        test::get_test_voltage_files,
+        test::{get_index_for_location_in_test_voltage_file_legacy, get_index_for_location_in_test_voltage_file_mwaxv2, get_index_for_location_in_test_voltage_file_mwaxv2_os, get_test_voltage_files},
+        
     },
 };
-use float_cmp::approx_eq;
+
+use float_cmp::{F64Margin, approx_eq};
 use libc::size_t;
+
+
 
 //
 // VoltageContext Tests
@@ -117,6 +123,99 @@ fn test_mwalib_voltage_context_new_invalid() {
 
         // Check error message
         assert!(!ret_error_message.is_empty());
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
+    // This tests for a valid metafits metadata returned given a voltage context
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+
+    unsafe {
+        // Create a VoltageContext
+        let voltage_context_ptr: *mut VoltageContext =
+            get_test_ffi_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+
+        // Check we got valid MetafitsContext pointer
+        let context_ptr = voltage_context_ptr.as_mut();
+        assert!(context_ptr.is_some());
+
+        // Populate a mwalibMetafitsMetadata struct
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
+        let retval = mwalib_metafits_metadata_get(
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            voltage_context_ptr,
+            &mut metafits_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+
+        // Check return value
+        assert_eq!(
+            retval, 0,
+            "mwalib_metafits_metadata_get did not return success"
+        );
+
+        // Get the metafits metadata struct from the pointer
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
+
+        // We should get a valid obsid and no error message
+        assert_eq!(metafits_metadata.obs_id, 1_101_503_312);
+
+        //
+        // Test antennas
+        //
+        let items: Vec<Antenna> =
+            ffi_boxed_slice_to_array(metafits_metadata.antennas, metafits_metadata.num_ants);
+
+        assert_eq!(items.len(), 1, "Array length is not correct");
+
+        assert_eq!(items[0].tile_id, 11);
+        assert_eq!(items[0].rfinput_y, 0);
+        assert_eq!(items[0].rfinput_x, 1);
+
+        // Note- don't try to do any free's here since, in order to test, we have had to reconstituded some of the arrays which will result in a double free
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_get_expected_volt_filename() {
+    // Create a MetafitsContext
+    let mwa_version = MWAVersion::VCSLegacyRecombined;
+    let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context(mwa_version);
+
+    let error_message_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+
+    let filename_len: size_t = 32; // 31 + null terminator
+    let filename = CString::new(" ".repeat(filename_len)).unwrap();
+    let filename_ptr = filename.as_ptr() as *const c_char;
+
+    unsafe {
+        let retval = mwalib_metafits_get_expected_volt_filename(
+            metafits_context_ptr,
+            3,
+            1,
+            filename_ptr,
+            filename_len,
+            error_message_ptr,
+            error_message_len,
+        );
+
+        // Should be success
+        assert_eq!(retval, 0);
+
+        // Check the filename (NOTE it already has a nul terminator)
+        assert_eq!(
+            filename.as_bytes(),
+            CString::new("1101503312_1101503315_ch110.dat")
+                .unwrap()
+                .as_bytes_with_nul()
+        );
     }
 }
 
