@@ -17,7 +17,7 @@ void do_sum(int mode, CorrelatorContext *context, long num_floats, int num_times
     float *buffer_ptr = data_buffer; // Keep data_buffer pointing to the start of the buffer so we can free it later
     double sum = 0;
 
-    int32_t (*sum_func)(CorrelatorContext *, uintptr_t, uintptr_t, float *, size_t, const char *, size_t);
+    int32_t (*sum_func)(CorrelatorContext *, uintptr_t, uintptr_t, float *, size_t, char *, size_t);
 
     switch (mode)
     {
@@ -118,9 +118,6 @@ int main(int argc, char *argv[])
 
     int num_timesteps = corr_metadata->num_timesteps;
     int num_coarse_chans = corr_metadata->num_coarse_chans;
-    int num_vis_pols = metafits_metadata->num_visibility_pols;
-    int num_fine_chans = metafits_metadata->num_corr_fine_chans_per_coarse;
-    int num_baselines = metafits_metadata->num_baselines;
     long num_floats = corr_metadata->num_timestep_coarse_chan_floats;
 
     // Now sum by baseline

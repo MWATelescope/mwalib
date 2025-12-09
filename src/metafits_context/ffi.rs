@@ -2,9 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use std::{ffi::{CStr, CString, c_char}, slice};
+use crate::{
+    antenna, baseline, calibration_fit, coarse_channel,
+    ffi::{ffi_array_to_boxed_slice, set_c_string, MWALIB_FAILURE, MWALIB_SUCCESS},
+    rfinput, signal_chain_correction, timestep, CableDelaysApplied, CorrelatorContext,
+    GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, VoltageContext,
+    MAX_RECEIVER_CHANNELS,
+};
 use libc::size_t;
-use crate::{CableDelaysApplied, CorrelatorContext, GeometricDelaysApplied, MAX_RECEIVER_CHANNELS, MWAMode, MWAVersion, MetafitsContext, VoltageContext, antenna, baseline, calibration_fit, coarse_channel, ffi::{MWALIB_FAILURE, MWALIB_SUCCESS, ffi_array_to_boxed_slice, set_c_string}, rfinput, signal_chain_correction, timestep};
+use std::{
+    ffi::{c_char, CStr, CString},
+    slice,
+};
 
 ///
 /// This a C struct to allow the caller to consume the metafits metadata

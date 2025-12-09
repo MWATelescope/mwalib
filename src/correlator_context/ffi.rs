@@ -2,10 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use std::{ffi::{CStr, c_char, c_double, c_float}, slice};
+use crate::{
+    coarse_channel,
+    ffi::{
+        ffi_array_to_boxed_slice, set_c_string, MWALIB_FAILURE,
+        MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN, MWALIB_SUCCESS,
+    },
+    timestep, CorrelatorContext, GpuboxError, MWAVersion,
+};
 use libc::size_t;
-use crate::{CorrelatorContext, GpuboxError, MWAVersion, coarse_channel, ffi::{MWALIB_FAILURE, MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN, MWALIB_SUCCESS, ffi_array_to_boxed_slice, set_c_string}, timestep};
-
+use std::{
+    ffi::{c_char, c_double, c_float, CStr},
+    slice,
+};
 
 ///
 /// C Representation of the `CorrelatorContext` metadata
@@ -401,7 +410,6 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_free(
     // Return success
     MWALIB_SUCCESS
 }
-
 
 /// Create and return a pointer to an `CorrelatorContext` struct based on metafits and gpubox files
 ///

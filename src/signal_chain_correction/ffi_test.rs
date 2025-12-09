@@ -3,9 +3,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 use super::*;
 use crate::{
-    MWAVersion, MetafitsContext, ffi::ffi_test_helpers::{ffi_boxed_slice_to_array, get_test_ffi_metafits_context, get_test_ffi_metafits_context_ext}, metafits_context::ffi::{MetafitsMetadata, mwalib_metafits_metadata_get}};
-use std::ffi::{c_char, CStr, CString};
+    ffi::ffi_test_helpers::{
+        ffi_boxed_slice_to_array, get_test_ffi_metafits_context, get_test_ffi_metafits_context_ext,
+    },
+    metafits_context::ffi::{mwalib_metafits_metadata_get, MetafitsMetadata},
+    MWAVersion, MetafitsContext,
+};
 use libc::size_t;
+use std::ffi::{c_char, CStr, CString};
 
 #[test]
 fn test_signal_chain_hdu_in_metafits() {

@@ -3,10 +3,19 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 use super::*;
 use crate::{
-    ffi::ffi_test_helpers::{ffi_boxed_slice_to_array, get_test_ffi_correlator_context_legacy, get_test_ffi_metafits_context}, metafits_context::ffi::{MetafitsMetadata, mwalib_metafits_context_display, mwalib_metafits_context_free, mwalib_metafits_context_new, mwalib_metafits_context_new2, mwalib_metafits_metadata_free, mwalib_metafits_metadata_get}};
-use std::ffi::{c_char, CStr, CString};
-use float_cmp::{F64Margin, approx_eq};
+    ffi::ffi_test_helpers::{
+        ffi_boxed_slice_to_array, get_test_ffi_correlator_context_legacy,
+        get_test_ffi_metafits_context,
+    },
+    metafits_context::ffi::{
+        mwalib_metafits_context_display, mwalib_metafits_context_free, mwalib_metafits_context_new,
+        mwalib_metafits_context_new2, mwalib_metafits_metadata_free, mwalib_metafits_metadata_get,
+        MetafitsMetadata,
+    },
+};
+use float_cmp::{approx_eq, F64Margin};
 use libc::size_t;
+use std::ffi::{c_char, CStr, CString};
 
 //
 // Metafits context Tests

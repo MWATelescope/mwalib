@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#[cfg(test)]
-use crate::{CorrelatorContext, MWAVersion, MetafitsContext, VoltageContext};
 use crate::correlator_context::ffi::mwalib_correlator_context_new;
 use crate::metafits_context::ffi::mwalib_metafits_context_new;
 use crate::voltage_context::test::get_test_voltage_context;
+#[cfg(test)]
+use crate::{CorrelatorContext, MWAVersion, MetafitsContext, VoltageContext};
 use libc::size_t;
 use std::ffi::{c_char, CString};
 
@@ -49,7 +49,7 @@ pub(crate) fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut Met
 pub(crate) fn get_test_ffi_metafits_context_ext(
     mwa_version: MWAVersion,
     metafits_filename: String,
-) -> *mut MetafitsContext {           
+) -> *mut MetafitsContext {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *mut c_char;
@@ -58,7 +58,7 @@ pub(crate) fn get_test_ffi_metafits_context_ext(
     let metafits_file_ptr = metafits_file.as_ptr();
 
     unsafe {
-        // Create a MetafitsContext                
+        // Create a MetafitsContext
         let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
         let retval = mwalib_metafits_context_new(
             metafits_file_ptr,
@@ -93,7 +93,7 @@ pub(crate) fn get_test_ffi_metafits_context_ext(
 ///
 #[cfg(test)]
 pub(crate) fn get_test_ffi_correlator_context_legacy() -> *mut CorrelatorContext {
-    // This tests for a valid correlator context    
+    // This tests for a valid correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *mut c_char;
@@ -110,7 +110,7 @@ pub(crate) fn get_test_ffi_correlator_context_legacy() -> *mut CorrelatorContext
     let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
 
     unsafe {
-        // Create a CorrelatorContext        
+        // Create a CorrelatorContext
         let mut correlator_context_ptr: *mut CorrelatorContext = std::ptr::null_mut();
         let retval = mwalib_correlator_context_new(
             metafits_file_ptr,
@@ -199,8 +199,11 @@ pub(crate) fn get_test_ffi_correlator_context_mwax() -> *mut CorrelatorContext {
 /// * a raw pointer to an instantiated VoltageContext for the test metafits and voltage file
 ///
 #[cfg(test)]
-pub(crate) fn get_test_ffi_voltage_context(mwa_version: MWAVersion, oversampled: bool) -> *mut VoltageContext {
-    // This returns a a valid voltage context        
+pub(crate) fn get_test_ffi_voltage_context(
+    mwa_version: MWAVersion,
+    oversampled: bool,
+) -> *mut VoltageContext {
+    // This returns a a valid voltage context
     let context = get_test_voltage_context(mwa_version, oversampled);
 
     Box::into_raw(Box::new(context))

@@ -3,10 +3,24 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 use super::*;
 use crate::{
-    correlator_context::ffi::{CorrelatorMetadata, mwalib_correlator_context_display, mwalib_correlator_context_free, mwalib_correlator_context_get_fine_chan_freqs_hz_array, mwalib_correlator_context_new, mwalib_correlator_context_read_by_baseline, mwalib_correlator_context_read_by_frequency, mwalib_correlator_context_read_weights_by_baseline, mwalib_correlator_metadata_free, mwalib_correlator_metadata_get}, ffi::{ffi_array_to_boxed_slice, ffi_test_helpers::{ffi_boxed_slice_to_array, get_test_ffi_correlator_context_legacy, get_test_ffi_correlator_context_mwax}}};
-use std::ffi::{c_char, CStr, CString};
-use float_cmp::{F32Margin, F64Margin, approx_eq};
+    correlator_context::ffi::{
+        mwalib_correlator_context_display, mwalib_correlator_context_free,
+        mwalib_correlator_context_get_fine_chan_freqs_hz_array, mwalib_correlator_context_new,
+        mwalib_correlator_context_read_by_baseline, mwalib_correlator_context_read_by_frequency,
+        mwalib_correlator_context_read_weights_by_baseline, mwalib_correlator_metadata_free,
+        mwalib_correlator_metadata_get, CorrelatorMetadata,
+    },
+    ffi::{
+        ffi_array_to_boxed_slice,
+        ffi_test_helpers::{
+            ffi_boxed_slice_to_array, get_test_ffi_correlator_context_legacy,
+            get_test_ffi_correlator_context_mwax,
+        },
+    },
+};
+use float_cmp::{approx_eq, F32Margin, F64Margin};
 use libc::size_t;
+use std::ffi::{c_char, CStr, CString};
 
 //
 // CorrelatorContext Tests

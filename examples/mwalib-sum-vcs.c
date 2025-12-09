@@ -169,19 +169,36 @@ void do_sum_parallel_pthreads_read_file(VoltageContext *context,
                                         unsigned int first_chan_index,
                                         unsigned int last_chan_index, int version)
 {
-    char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
     int num_coarse_chans = last_chan_index - first_chan_index + 1;
+    int num_timesteps = last_timestep_index - first_timestep_index + 1;
     long total_sum = 0;
 
+    if (num_coarse_chans < 1)
+    {
+        printf("No coarse channels to process.\n");
+        return;
+    }
+
+    if (num_timesteps < 1)
+    {
+        printf("No timesteps to process.\n");
+        return;
+    }
+
+    char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
+    int num_threads = num_coarse_chans * num_timesteps;
+    pthread_t threads[num_threads];
+    ThreadArgs_read_file args[num_threads];
+
+    int t_index = 0;
     for (unsigned int timestep_index = first_timestep_index; timestep_index <= last_timestep_index; timestep_index++)
     {
-        pthread_t threads[num_coarse_chans];
-        ThreadArgs_read_file args[num_coarse_chans];
-
         // Create threads — one per coarse channel
+        int c_index = 0;
         for (unsigned int coarse_chan_index = first_chan_index; coarse_chan_index <= last_chan_index; coarse_chan_index++)
         {
-            int arg_index = coarse_chan_index - first_chan_index;
+            int arg_index = (t_index * num_coarse_chans) + c_index;
+
             args[arg_index].context = context;
             args[arg_index].error_message = error_message;
             args[arg_index].num_bytes_per_cc_per_timestep = num_bytes_per_cc_per_timestep;
@@ -199,17 +216,16 @@ void do_sum_parallel_pthreads_read_file(VoltageContext *context,
                 perror("pthread_create");
                 exit(EXIT_FAILURE);
             }
+            c_index++;
         }
+        t_index++;
+    }
 
-        // Join threads and accumulate timestep sum
-        long timestep_sum = 0;
-        for (int thread_index = 0; thread_index < num_coarse_chans; thread_index++)
-        {
-            pthread_join(threads[thread_index], NULL);
-            timestep_sum += args[thread_index].local_sum;
-        }
-
-        total_sum += timestep_sum;
+    // Join threads and accumulate sum
+    for (int thread_index = 0; thread_index < num_threads; thread_index++)
+    {
+        pthread_join(threads[thread_index], NULL);
+        total_sum += args[thread_index].local_sum;
     }
 
     printf("Total sum: %ld\n", total_sum);
@@ -225,22 +241,37 @@ void do_sum_parallel_pthreads_read_second(VoltageContext *context,
                                           unsigned int first_chan_index,
                                           unsigned int last_chan_index, int version)
 {
-    char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
     int num_coarse_chans = last_chan_index - first_chan_index + 1;
     int num_timesteps = last_timestep_index - first_timestep_index + 1;
     long total_sum = 0;
 
-    for (int timestep_index = 0; timestep_index < num_timesteps; timestep_index++)
+    if (num_coarse_chans < 1)
     {
-        pthread_t threads[num_coarse_chans];
-        ThreadArgs_read_second args[num_coarse_chans];
+        printf("No coarse channels to process.\n");
+        return;
+    }
 
-        unsigned long gps_second_start = first_gps_second + (timestep_index * timestep_duration_seconds);
+    if (num_timesteps < 1)
+    {
+        printf("No timesteps to process.\n");
+        return;
+    }
+
+    char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
+    int num_threads = num_coarse_chans * num_timesteps;
+    pthread_t threads[num_threads];
+    ThreadArgs_read_second args[num_threads];
+
+    for (int t_index = 0; t_index < num_timesteps; t_index++)
+    {
+        unsigned long gps_second_start = first_gps_second + (t_index * timestep_duration_seconds);
 
         // Create threads — one per coarse channel
+        int c_index = 0;
         for (unsigned int coarse_chan_index = first_chan_index; coarse_chan_index <= last_chan_index; coarse_chan_index++)
         {
-            int arg_index = coarse_chan_index - first_chan_index;
+            int arg_index = (t_index * num_coarse_chans) + c_index;
+
             args[arg_index].context = context;
             args[arg_index].error_message = error_message;
             args[arg_index].num_bytes_per_cc_per_timestep = num_bytes_per_cc_per_timestep;
@@ -262,7 +293,7 @@ void do_sum_parallel_pthreads_read_second(VoltageContext *context,
 
         // Join threads and accumulate timestep sum
         long timestep_sum = 0;
-        for (int thread_index = 0; thread_index < num_coarse_chans; thread_index++)
+        for (int thread_index = 0; thread_index < num_threads; thread_index++)
         {
             pthread_join(threads[thread_index], NULL);
             timestep_sum += args[thread_index].local_sum;

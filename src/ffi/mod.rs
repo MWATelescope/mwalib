@@ -187,4 +187,3 @@ pub(crate) fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
         std::ptr::null_mut()
     }
 }
-

@@ -3,11 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! The main interface to MWA data.
-use std::fmt;
-use std::path::Path;
 use chrono::{DateTime, Duration, FixedOffset};
 use num_derive::FromPrimitive;
 use num_traits::ToPrimitive;
+use std::fmt;
+use std::path::Path;
 
 use self::error::MetafitsError;
 use crate::antenna::*;
@@ -23,9 +23,9 @@ pub mod error;
 pub(crate) mod ffi;
 
 #[cfg(test)]
-mod test;
-#[cfg(test)]
 pub(crate) mod ffi_test;
+#[cfg(test)]
+mod test;
 
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
