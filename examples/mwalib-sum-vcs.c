@@ -1,5 +1,5 @@
 // Given voltage files, add their entire contents and report the sum.
-
+#include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,27 +9,27 @@
 
 #define ERROR_MESSAGE_LEN 1024
 
-typedef struct
+typedef struct ThreadArgs_read_file
 {
     VoltageContext *context;
     char *error_message;
-    long num_bytes_per_cc_per_timestep;
-    int timestep_index;
-    int coarse_chan_index;
+    unsigned long num_bytes_per_cc_per_timestep;
+    unsigned int timestep_index;
+    unsigned int coarse_chan_index;
     long local_sum;
-    int version;
+    unsigned int version;
 } ThreadArgs_read_file;
 
-typedef struct
+typedef struct ThreadArgs_read_second
 {
     VoltageContext *context;
     char *error_message;
-    long num_bytes_per_cc_per_timestep;
+    unsigned long num_bytes_per_cc_per_timestep;
     unsigned long gps_second_start;
     size_t gps_second_count;
-    int coarse_chan_index;
+    unsigned int coarse_chan_index;
     long local_sum;
-    int version;
+    unsigned int version;
 } ThreadArgs_read_second;
 
 void *process_coarse_channel_read_second(void *arg)
@@ -77,7 +77,7 @@ void *process_coarse_channel_read_second(void *arg)
     if (ret == MWALIB_SUCCESS)
     {
         long sum = 0;
-        for (long i = 0; i < args->num_bytes_per_cc_per_timestep; i++)
+        for (unsigned long i = 0; i < args->num_bytes_per_cc_per_timestep; i++)
         {
             sum += buffer[i];
         }
@@ -141,7 +141,7 @@ void *process_coarse_channel_read_file(void *arg)
     if (ret == MWALIB_SUCCESS)
     {
         long sum = 0;
-        for (long i = 0; i < args->num_bytes_per_cc_per_timestep; i++)
+        for (unsigned long i = 0; i < args->num_bytes_per_cc_per_timestep; i++)
         {
             sum += buffer[i];
         }
@@ -167,143 +167,199 @@ void do_sum_parallel_pthreads_read_file(VoltageContext *context,
                                         unsigned int first_timestep_index,
                                         unsigned int last_timestep_index,
                                         unsigned int first_chan_index,
-                                        unsigned int last_chan_index, int version)
+                                        unsigned int last_chan_index,
+                                        unsigned int version)
 {
-    int num_coarse_chans = last_chan_index - first_chan_index + 1;
-    int num_timesteps = last_timestep_index - first_timestep_index + 1;
+    unsigned int num_coarse_chans = last_chan_index - first_chan_index + 1;
+    unsigned int num_timesteps = last_timestep_index - first_timestep_index + 1;
     long total_sum = 0;
 
     if (num_coarse_chans < 1)
     {
-        printf("No coarse channels to process.\n");
-        return;
+        fputs("No coarse channels to process\n", stderr);
+        exit(EXIT_FAILURE);
     }
 
     if (num_timesteps < 1)
     {
-        printf("No timesteps to process.\n");
-        return;
+        fputs("No timesteps to process\n", stderr);
+        exit(EXIT_FAILURE);
     }
 
-    char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
-    int num_threads = num_coarse_chans * num_timesteps;
-    pthread_t threads[num_threads];
-    ThreadArgs_read_file args[num_threads];
+    unsigned int num_threads = num_coarse_chans * num_timesteps;
 
-    int t_index = 0;
-    for (unsigned int timestep_index = first_timestep_index; timestep_index <= last_timestep_index; timestep_index++)
+    pthread_t *threads = (pthread_t *)calloc(num_threads, sizeof(pthread_t));
+    ThreadArgs_read_file *args = (ThreadArgs_read_file *)calloc(num_threads, sizeof(ThreadArgs_read_file));
+
+    // check for malloc failure
+    if (threads == NULL || args == NULL)
     {
-        // Create threads — one per coarse channel
-        int c_index = 0;
-        for (unsigned int coarse_chan_index = first_chan_index; coarse_chan_index <= last_chan_index; coarse_chan_index++)
-        {
-            int arg_index = (t_index * num_coarse_chans) + c_index;
+        fputs("Memory allocation failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
 
-            args[arg_index].context = context;
-            args[arg_index].error_message = error_message;
-            args[arg_index].num_bytes_per_cc_per_timestep = num_bytes_per_cc_per_timestep;
-            args[arg_index].timestep_index = timestep_index;
-            args[arg_index].coarse_chan_index = coarse_chan_index;
-            args[arg_index].local_sum = 0;
-            args[arg_index].version = version;
+    // Initialise args
+    for (unsigned int a = 0; a < num_threads; a++)
+    {
+        // Common values for all calls
+        args[a].error_message = calloc(ERROR_MESSAGE_LEN, sizeof(char));
+        if (!args[a].error_message)
+        {
+            perror("Error failed to allocate memory for error message");
+            exit(EXIT_FAILURE);
+        }
+        args[a].context = context;
+        args[a].num_bytes_per_cc_per_timestep = num_bytes_per_cc_per_timestep;
+        args[a].version = version;
+    }
+
+    unsigned int arg_index = 0;
+    for (unsigned int t_index = first_timestep_index; t_index <= last_timestep_index; t_index++)
+    {
+        // Create threads — one per coarse channel and timestep
+        for (unsigned int cc_index = first_chan_index; cc_index <= last_chan_index; cc_index++)
+        {
+            assert(arg_index < num_threads);
+            args[arg_index].timestep_index = t_index;
+            args[arg_index].coarse_chan_index = cc_index;
 
             printf("Timestep index: %d, Coarse channel index: %d\n",
-                   timestep_index, coarse_chan_index);
+                   t_index, cc_index);
 
             if (pthread_create(&threads[arg_index], NULL,
                                process_coarse_channel_read_file, &args[arg_index]) != 0)
             {
-                perror("pthread_create");
+                perror("pthread_create error");
                 exit(EXIT_FAILURE);
             }
-            c_index++;
+
+            arg_index++;
         }
-        t_index++;
     }
 
     // Join threads and accumulate sum
-    for (int thread_index = 0; thread_index < num_threads; thread_index++)
+    for (unsigned int thread_index = 0; thread_index < num_threads; thread_index++)
     {
-        pthread_join(threads[thread_index], NULL);
-        total_sum += args[thread_index].local_sum;
+        if (pthread_join(threads[thread_index], NULL) == 0)
+        {
+            total_sum += args[thread_index].local_sum;
+        }
+        else
+        {
+            perror("pthread_join error");
+            exit(EXIT_FAILURE);
+        }
     }
 
     printf("Total sum: %ld\n", total_sum);
-    free(error_message);
+    for (unsigned int i = 0; i < num_threads; i++)
+    {
+        free(args[i].error_message);
+    }
+    free(args);
+    free(threads);
 }
 
 void do_sum_parallel_pthreads_read_second(VoltageContext *context,
-                                          long num_bytes_per_cc_per_timestep,
+                                          unsigned long num_bytes_per_cc_per_timestep,
                                           unsigned int first_timestep_index,
                                           unsigned int last_timestep_index,
                                           unsigned int first_gps_second,
                                           unsigned int timestep_duration_seconds,
                                           unsigned int first_chan_index,
-                                          unsigned int last_chan_index, int version)
+                                          unsigned int last_chan_index,
+                                          unsigned int version)
 {
-    int num_coarse_chans = last_chan_index - first_chan_index + 1;
-    int num_timesteps = last_timestep_index - first_timestep_index + 1;
+    unsigned int num_coarse_chans = last_chan_index - first_chan_index + 1;
+    unsigned int num_timesteps = last_timestep_index - first_timestep_index + 1;
     long total_sum = 0;
 
     if (num_coarse_chans < 1)
     {
-        printf("No coarse channels to process.\n");
-        return;
+        fputs("No coarse channels to process\n", stderr);
+        exit(EXIT_FAILURE);
     }
 
     if (num_timesteps < 1)
     {
-        printf("No timesteps to process.\n");
-        return;
+        fputs("No timesteps to process\n", stderr);
+        exit(EXIT_FAILURE);
     }
 
-    char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
-    int num_threads = num_coarse_chans * num_timesteps;
-    pthread_t threads[num_threads];
-    ThreadArgs_read_second args[num_threads];
+    unsigned int num_threads = num_coarse_chans * num_timesteps;
 
-    for (int t_index = 0; t_index < num_timesteps; t_index++)
+    pthread_t *threads = (pthread_t *)calloc(num_threads, sizeof(pthread_t));
+    ThreadArgs_read_second *args = (ThreadArgs_read_second *)calloc(num_threads, sizeof(ThreadArgs_read_second));
+
+    // check for malloc failure
+    if (threads == NULL || args == NULL)
+    {
+        fputs("Memory allocation failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialise args
+    for (unsigned int a = 0; a < num_threads; a++)
+    {
+        // Common values for all calls
+        args[a].error_message = calloc(ERROR_MESSAGE_LEN, sizeof(char));
+        if (!args[a].error_message)
+        {
+            perror("Error failed to allocate memory for error message");
+            exit(EXIT_FAILURE);
+        }
+        args[a].context = context;
+        args[a].num_bytes_per_cc_per_timestep = num_bytes_per_cc_per_timestep;
+        args[a].gps_second_count = timestep_duration_seconds;
+        args[a].version = version;
+    }
+
+    unsigned int arg_index = 0;
+    for (unsigned int t_index = 0; t_index < num_timesteps; t_index++)
     {
         unsigned long gps_second_start = first_gps_second + (t_index * timestep_duration_seconds);
 
-        // Create threads — one per coarse channel
-        int c_index = 0;
-        for (unsigned int coarse_chan_index = first_chan_index; coarse_chan_index <= last_chan_index; coarse_chan_index++)
+        // Create threads — one per coarse channel and timestep
+        for (unsigned int cc_index = first_chan_index; cc_index <= last_chan_index; cc_index++)
         {
-            int arg_index = (t_index * num_coarse_chans) + c_index;
-
-            args[arg_index].context = context;
-            args[arg_index].error_message = error_message;
-            args[arg_index].num_bytes_per_cc_per_timestep = num_bytes_per_cc_per_timestep;
+            assert(arg_index < num_threads);
             args[arg_index].gps_second_start = gps_second_start;
-            args[arg_index].gps_second_count = timestep_duration_seconds;
-            args[arg_index].coarse_chan_index = coarse_chan_index;
-            args[arg_index].local_sum = 0;
-            args[arg_index].version = version;
+            args[arg_index].coarse_chan_index = cc_index;
 
             printf("GPS second start: %lu, Coarse channel index: %d\n",
-                   gps_second_start, coarse_chan_index);
+                   gps_second_start, cc_index);
             if (pthread_create(&threads[arg_index], NULL,
                                process_coarse_channel_read_second, &args[arg_index]) != 0)
             {
-                perror("pthread_create");
+                perror("pthread_create error");
                 exit(EXIT_FAILURE);
             }
-        }
 
-        // Join threads and accumulate timestep sum
-        long timestep_sum = 0;
-        for (int thread_index = 0; thread_index < num_threads; thread_index++)
+            arg_index++;
+        }
+    }
+
+    // Join threads and accumulate timestep sum
+    for (unsigned int thread_index = 0; thread_index < num_threads; thread_index++)
+    {
+        if (pthread_join(threads[thread_index], NULL) == 0)
         {
-            pthread_join(threads[thread_index], NULL);
-            timestep_sum += args[thread_index].local_sum;
+            total_sum += args[thread_index].local_sum;
         }
-
-        total_sum += timestep_sum;
+        else
+        {
+            perror("pthread_join error");
+            exit(EXIT_FAILURE);
+        }
     }
 
     printf("Total sum: %ld\n", total_sum);
-    free(error_message);
+    for (unsigned int i = 0; i < num_threads; i++)
+    {
+        free(args[i].error_message);
+    }
+    free(args);
+    free(threads);
 }
 
 int main(int argc, char *argv[])

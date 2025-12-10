@@ -17,6 +17,9 @@ Changes in each release are listed below.
 * FFI: Ensure conversions to C strings get validated for null terminator, correct buffer length and unicode.
 * FFI: Internally changed `c_ulong` with `u64` to be consistent with other definitions of GPS seconds.
 * FFI: Fixed some incorrect uses of `mut* u8` to be `mut* c_char`.
+* FFI: moved FFI code and tests into their respective modules for greater readability.
+* FFI: mwalib.h now generated with a cbindgen.toml configuration file.
+* C Examples: Refactored mwalib-sum-vcs.
 
 ## 1.9.0 27-Oct-2025
 

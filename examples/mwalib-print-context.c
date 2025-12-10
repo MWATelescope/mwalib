@@ -218,9 +218,9 @@ int main(int argc, char *argv[])
         // Print any signal chain corrections
         printf("Num signal chain corrections: %ld\n", metafits_metadata->num_signal_chain_corrections);
 
-        for (int s = 0; s < metafits_metadata->num_signal_chain_corrections; s++)
+        for (size_t s = 0; s < metafits_metadata->num_signal_chain_corrections; s++)
         {
-            printf("...[%d] Receiver Type: %d Whitening filter: %d Correction[0]: %f, Correction[255]: %f\n", s,
+            printf("...[%ld] Receiver Type: %d Whitening filter: %d Correction[0]: %f, Correction[255]: %f\n", s,
                    metafits_metadata->signal_chain_corrections[s].receiver_type,
                    metafits_metadata->signal_chain_corrections[s].whitening_filter,
                    metafits_metadata->signal_chain_corrections[s].corrections[0],

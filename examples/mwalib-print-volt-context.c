@@ -16,17 +16,17 @@ void do_sum(VoltageContext *context, long bytes_per_timestep, size_t num_timeste
     signed char *buffer_ptr = data_buffer; // Keep data_buffer pointing to the start of the buffer so we can free it later
     double sum = 0;
 
-    for (int timestep_index = 0; timestep_index < num_timesteps; timestep_index++)
+    for (size_t timestep_index = 0; timestep_index < num_timesteps; timestep_index++)
     {
         double ts_sum = 0;
 
-        for (int coarse_chan_index = 0; coarse_chan_index < num_coarse_chans; coarse_chan_index++)
+        for (size_t coarse_chan_index = 0; coarse_chan_index < num_coarse_chans; coarse_chan_index++)
         {
             double ts_cc_sum = 0;
 
             if (mwalib_voltage_context_read_file(context, timestep_index, coarse_chan_index, buffer_ptr, bytes_per_timestep, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
             {
-                printf("Reading data from timestep: %d, Coarse Channel: %d...\n", timestep_index, coarse_chan_index);
+                printf("Reading data from timestep: %ld, Coarse Channel: %ld...\n", timestep_index, coarse_chan_index);
                 for (long i = 0; i < bytes_per_timestep; i++)
                 {
                     ts_cc_sum += buffer_ptr[i];

@@ -4,31 +4,29 @@ description = "A library to work with raw data and metadata from the Murchison W
 dynamic = ["version"]
 readme = "README.md"
 requires-python = ">=3.10"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 keywords = ["MWA", "radioastronomy"]
 authors = [
-  {name = "Greg Sleap", email = "greg.sleap@curtin.edu.au"},
-  {name = "Christopher H. Jordan", email = "christopherjordan87@gmail.com"},
-  {name = "Dev Null", email = "dev.null@curtin.edu.au"}
+  { name = "Greg Sleap", email = "greg.sleap@curtin.edu.au" },
+  { name = "Christopher H. Jordan", email = "christopherjordan87@gmail.com" },
+  { name = "Dev Null", email = "dev.null@curtin.edu.au" },
 ]
-maintainers = [
-  {name = "Greg Sleap", email = "greg.sleap@curtin.edu.au"},  
-]
+maintainers = [{ name = "Greg Sleap", email = "greg.sleap@curtin.edu.au" }]
 classifiers = [
-"Development Status :: 5 - Production/Stable",
-"Intended Audience :: Science/Research",
-"Topic :: Scientific/Engineering :: Astronomy",
-"License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
-"Programming Language :: Python :: 3.10",
-"Programming Language :: Python :: 3.11",
-"Programming Language :: Python :: 3.12",
-"Programming Language :: Python :: 3.13",
-"Programming Language :: Python :: 3.14",
-"Programming Language :: Python :: 3 :: Only"
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Astronomy",
+  "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = ["numpy"]
 
-[project.urls]  # Optional
+[project.urls] # Optional
 "Homepage" = "https://github.com/MWATelescope/mwalib"
 "Bug Reports" = "https://github.com/MWATelescope/mwalib/issues"
 "Source" = "https://github.com/MWATelescope/mwalib"

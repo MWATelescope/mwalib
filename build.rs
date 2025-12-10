@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, path::PathBuf};
 
 // This code is adapted from pkg-config-rs
 // (https://github.com/rust-lang/pkg-config-rs).
@@ -40,19 +40,37 @@ fn main() {
     match env::var("DOCS_RS").as_deref() {
         Ok("1") => (),
         _ => {
-            let config: cbindgen::Config = cbindgen::Config {
-                cpp_compat: true,
-                pragma_once: true,
-                ..Default::default()
-            };
+            // Re-run if source changes that affect the header
+            println!("cargo:rerun-if-changed=src");
+            println!("cargo:rerun-if-changed=cbindgen.toml");
 
-            cbindgen::Builder::new()
+            let crate_dir =
+                env::var("CARGO_MANIFEST_DIR").expect("build.rs: CARGO_MANIFEST_DIR not set");
+
+            // Emit header to OUT_DIR and (optionally) mirror into ./include for IDEs
+            let out_dir = PathBuf::from(env::var("OUT_DIR").expect("build.rs: OUT_DIR not set"));
+
+            let out_header = out_dir.join("mwalib.h");
+            let mirror_header = PathBuf::from(&crate_dir).join("include").join("mwalib.h");
+
+            // Prefer cbindgen.toml; only set deltas here if truly dynamic.
+            // Example delta: force pragma_once at build time for a specific target.
+            let config = cbindgen::Config::from_root_or_default(&crate_dir);
+
+            let bindings = cbindgen::Builder::new()
+                .with_crate(&crate_dir)
                 .with_config(config)
-                .with_crate(env::var("CARGO_MANIFEST_DIR").unwrap())
-                .with_language(cbindgen::Language::C)
                 .generate()
-                .expect("Unable to generate bindings")
-                .write_to_file("include/mwalib.h");
+                .expect("build.rs: Unable to generate C bindings via cbindgen");
+
+            // Write to OUT_DIR
+            bindings.write_to_file(&out_header);
+
+            // Mirror into ./include (optional convenience)
+            std::fs::create_dir_all(mirror_header.parent().unwrap())
+                .expect("build.rs: failed to create include/ directory");
+            std::fs::copy(&out_header, &mirror_header)
+                .expect("build.rs: failed to copy header into include/");
         }
     }
 }

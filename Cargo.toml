@@ -4,16 +4,18 @@ version = "1.10.0"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
-authors = ["Greg Sleap <greg.sleap@curtin.edu.au>",
-           "Christopher H. Jordan <christopherjordan87@gmail.com>"]
+authors = [
+    "Greg Sleap <greg.sleap@curtin.edu.au>",
+    "Christopher H. Jordan <christopherjordan87@gmail.com>",
+]
 edition = "2021"
 rust-version = "1.81"
 resolver = "2"
 description = "A library to simplify reading Murchison Widefield Array (MWA) raw visibilities, voltages and metadata."
 license = "MPL-2.0"
 keywords = ["radioastronomy", "mwa", "astronomy"]
-categories = ["science","parsing"]
-exclude = ["test_files/*", "tools/*",".github/*"]
+categories = ["science", "parsing"]
+exclude = ["test_files/*", "tools/*", ".github/*"]
 
 [[bin]]
 name = "stub_gen"
@@ -34,7 +36,17 @@ examples = ["anyhow", "clap", "env_logger"]
 # Enable python
 python = ["anyhow", "env_logger", "ndarray", "numpy", "pyo3"]
 # Enable python-stubgen
-python-stubgen = ["ndarray", "numpy", "pyo3", "pyo3-stub-gen", "pyo3-stub-gen-derive", "malachite", "malachite-base", "malachite-nz", "malachite-q"]
+python-stubgen = [
+    "ndarray",
+    "numpy",
+    "pyo3",
+    "pyo3-stub-gen",
+    "pyo3-stub-gen-derive",
+    "malachite",
+    "malachite-base",
+    "malachite-nz",
+    "malachite-q",
+]
 
 [[bench]]
 name = "voltage_context_benches"
@@ -63,14 +75,18 @@ anyhow = { version = "1.0", optional = true }
 env_logger = { version = "0.11", optional = true }
 
 # "python" feature
-ndarray = { version = "=0.16.1", optional = true }
+ndarray = { version = "=0.17.1", optional = true }
 numpy = { version = "=0.27", optional = true }
-pyo3 = { version = "=0.27.1", features = ["chrono", "extension-module", "macros"], optional = true }
+pyo3 = { version = "=0.27.1", features = [
+    "chrono",
+    "extension-module",
+    "macros",
+], optional = true }
 
 # "python-stubgen" feature
-pyo3-stub-gen = { version = "=0.17.1", optional = true }
+pyo3-stub-gen = { version = "=0.17.2", optional = true }
 # Transitive due to latest versions using higher MSRV than mwalib
-pyo3-stub-gen-derive = { version = "=0.17.1", optional = true }
+pyo3-stub-gen-derive = { version = "=0.17.2", optional = true }
 malachite = { version = "=0.4.16", optional = true }
 malachite-base = { version = "=0.4.16", optional = true }
 malachite-nz = { version = "=0.4.16", optional = true }

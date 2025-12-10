@@ -21,34 +21,15 @@ use crate::{
 ///
 /// C Representation of the `VoltageContext` metadata
 ///
+
 #[repr(C)]
 pub struct VoltageMetadata {
-    /// Version of the correlator format
-    pub mwa_version: MWAVersion,
-    /// This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
-    /// offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
-    pub timesteps: *mut timestep::ffi::TimeStep,
-    /// Number of timesteps in the timestep array
-    pub num_timesteps: usize,
+    // ---- 8-byte aligned fields first (u64) ----
     /// The number of millseconds interval between timestep indices
     pub timestep_duration_ms: u64,
-    /// Vector of coarse channels which is the effectively the same as the metafits provided coarse channels
-    pub coarse_chans: *mut coarse_channel::ffi::CoarseChannel,
-    /// Number of coarse channels after we've validated the input voltage files
-    pub num_coarse_chans: usize,
-    /// Number of common timesteps
-    pub num_common_timesteps: usize,
-    /// Vector of (in)common timestep indices
-    pub common_timestep_indices: *mut usize,
-    /// Number of common coarse chans
-    pub num_common_coarse_chans: usize,
-    /// Vector of (in)common coarse channel indices
-    pub common_coarse_chan_indices: *mut usize,
-    /// The start of the observation (the time that is common to all
-    /// provided data files).
+    /// The start of the observation (the time that is common to all provided data files).
     pub common_start_unix_time_ms: u64,
     /// `end_unix_time_ms` is the common end time of the observation
-    /// i.e. start time of last common timestep plus integration time.
     pub common_end_unix_time_ms: u64,
     /// `start_unix_time_ms` but in GPS milliseconds
     pub common_start_gps_time_ms: u64,
@@ -56,21 +37,9 @@ pub struct VoltageMetadata {
     pub common_end_gps_time_ms: u64,
     /// Total duration of common timesteps
     pub common_duration_ms: u64,
-    /// Total bandwidth of the common coarse channels
-    pub common_bandwidth_hz: u32,
-    /// Number of common timesteps only including timesteps after the quack time
-    pub num_common_good_timesteps: usize,
-    /// Vector of (in)common timestep indices only including timesteps after the quack time
-    pub common_good_timestep_indices: *mut usize,
-    /// Number of common coarse channels only including timesteps after the quack time
-    pub num_common_good_coarse_chans: usize,
-    /// Vector of (in)common coarse channel indices only including timesteps after the quack time
-    pub common_good_coarse_chan_indices: *mut usize,
-    /// The start of the observation (the time that is common to all
-    /// provided data files) only including timesteps after the quack time
+    /// The start of the observation only including timesteps after the quack time
     pub common_good_start_unix_time_ms: u64,
-    /// `end_unix_time_ms` is the common end time of the observation only including timesteps after the quack time
-    /// i.e. start time of last common timestep plus integration time.
+    /// Common end time only including timesteps after the quack time
     pub common_good_end_unix_time_ms: u64,
     /// `common_good_start_unix_time_ms` but in GPS milliseconds
     pub common_good_start_gps_time_ms: u64,
@@ -78,38 +47,74 @@ pub struct VoltageMetadata {
     pub common_good_end_gps_time_ms: u64,
     /// Total duration of common_good timesteps
     pub common_good_duration_ms: u64,
-    /// Total bandwidth of the common coarse channels only including timesteps after the quack time
-    pub common_good_bandwidth_hz: u32,
-    /// Number of provided timestep indices we have at least *some* data for
-    pub num_provided_timesteps: usize,
-    /// The indices of any timesteps which we have *some* data for
-    pub provided_timestep_indices: *mut usize,
-    /// Number of provided coarse channel indices we have at least *some* data for
-    pub num_provided_coarse_chans: usize,
-    /// The indices of any coarse channels which we have *some* data for
-    pub provided_coarse_chan_indices: *mut usize,
-    /// Bandwidth of each coarse channel
-    pub coarse_chan_width_hz: u32,
-    /// Volatge fine_chan_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
-    pub fine_chan_width_hz: u32,
-    /// Number of fine channels in each coarse channel
-    pub num_fine_chans_per_coarse: usize,
     /// Number of bytes in each sample (a sample is a complex, thus includes r and i)
     pub sample_size_bytes: u64,
-    /// Number of voltage blocks per timestep
-    pub num_voltage_blocks_per_timestep: usize,
-    /// Number of voltage blocks of samples in each second of data    
-    pub num_voltage_blocks_per_second: usize,
-    /// Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
-    pub num_samples_per_voltage_block: usize,
-    /// The size of each voltage block    
+    /// The size of each voltage block
     pub voltage_block_size_bytes: u64,
-    /// Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
+    /// Number of bytes used to store delays
     pub delay_block_size_bytes: u64,
     /// The amount of bytes to skip before getting into real data within the voltage files
     pub data_file_header_size_bytes: u64,
     /// Expected voltage file size
     pub expected_voltage_data_file_size_bytes: u64,
+
+    // ---- Pointers (also 8 bytes on 64-bit) ----
+    /// This is an array of all known timesteps
+    pub timesteps: *mut timestep::ffi::TimeStep,
+    /// Vector of coarse channels
+    pub coarse_chans: *mut coarse_channel::ffi::CoarseChannel,
+    /// Vector of (in)common timestep indices
+    pub common_timestep_indices: *mut usize,
+    /// Vector of (in)common coarse channel indices
+    pub common_coarse_chan_indices: *mut usize,
+    /// Vector of (in)common timestep indices only including timesteps after the quack time
+    pub common_good_timestep_indices: *mut usize,
+    /// Vector of (in)common coarse channel indices only including timesteps after the quack time
+    pub common_good_coarse_chan_indices: *mut usize,
+    /// The indices of any timesteps which we have *some* data for
+    pub provided_timestep_indices: *mut usize,
+    /// The indices of any coarse channels which we have *some* data for
+    pub provided_coarse_chan_indices: *mut usize,
+
+    // ---- usize counters ----
+    /// Number of timesteps in the timestep array
+    pub num_timesteps: usize,
+    /// Number of coarse channels after we've validated the input voltage files
+    pub num_coarse_chans: usize,
+    /// Number of common timesteps
+    pub num_common_timesteps: usize,
+    /// Number of common coarse chans
+    pub num_common_coarse_chans: usize,
+    /// Number of common timesteps only including timesteps after the quack time
+    pub num_common_good_timesteps: usize,
+    /// Number of common coarse channels only including timesteps after the quack time
+    pub num_common_good_coarse_chans: usize,
+    /// Number of provided timestep indices we have at least *some* data for
+    pub num_provided_timesteps: usize,
+    /// Number of provided coarse channel indices we have at least *some* data for
+    pub num_provided_coarse_chans: usize,
+    /// Number of fine channels in each coarse channel
+    pub num_fine_chans_per_coarse: usize,
+    /// Number of voltage blocks per timestep
+    pub num_voltage_blocks_per_timestep: usize,
+    /// Number of voltage blocks of samples in each second of data
+    pub num_voltage_blocks_per_second: usize,
+    /// Number of samples in each voltage block
+    pub num_samples_per_voltage_block: usize,
+
+    // ---- 32-bit integers ----
+    /// Total bandwidth of the common coarse channels
+    pub common_bandwidth_hz: u32,
+    /// Total bandwidth of the common coarse channels only including timesteps after the quack time
+    pub common_good_bandwidth_hz: u32,
+    /// Bandwidth of each coarse channel
+    pub coarse_chan_width_hz: u32,
+    /// Voltage fine_chan_resolution
+    pub fine_chan_width_hz: u32,
+
+    // ---- Enums ----
+    /// Version of the correlator format
+    pub mwa_version: MWAVersion,
 }
 
 /// This returns a struct containing the `VoltageContext` metadata

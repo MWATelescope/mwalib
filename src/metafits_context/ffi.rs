@@ -20,10 +20,7 @@ use std::{
 ///
 #[repr(C)]
 pub struct MetafitsMetadata {
-    /// mwa version
-    pub mwa_version: MWAVersion,
-    /// Observation id
-    pub obs_id: u32,
+    // ---- 8-byte aligned fields (f64 first) ----
     /// ATTEN_DB  // global analogue attenuation, in dB
     pub global_analogue_attenuation_db: f64,
     /// RA tile pointing
@@ -56,60 +53,18 @@ pub struct MetafitsMetadata {
     pub jupiter_distance_deg: f64,
     /// Local Sidereal Time in degrees (at the midpoint of the observation)
     pub lst_deg: f64,
-    /// Local Sidereal Time in radians (at the midpoint of the observation)        
+    /// Local Sidereal Time in radians (at the midpoint of the observation)
     pub lst_rad: f64,
-    /// Hour Angle of pointing center (as a string)
-    pub hour_angle_string: *mut c_char,
-    /// GRIDNAME
-    pub grid_name: *mut c_char,
-    /// GRIDNUM
-    pub grid_number: i32,
-    /// CREATOR
-    pub creator: *mut c_char,
-    /// PROJECT
-    pub project_id: *mut c_char,
-    /// Observation name
-    pub obs_name: *mut c_char,
-    /// MWA observation mode
-    pub mode: MWAMode,
-    /// Which Geometric delays have been applied to the data
-    pub geometric_delays_applied: GeometricDelaysApplied,
-    /// Have cable delays been applied to the data?    
-    pub cable_delays_applied: CableDelaysApplied,
-    /// Have calibration delays and gains been applied to the data?
-    pub calibration_delays_and_gains_applied: bool,
-    /// Correlator fine_chan_resolution
-    pub corr_fine_chan_width_hz: u32,
-    /// Correlator mode dump time
-    pub corr_int_time_ms: u64,
-    /// Correlator visibility scaling factor used to get the visibilities in Jansky-like units
-    pub corr_raw_scale_factor: f32,
-    /// Number of fine channels in each coarse channel for a correlator observation
-    pub num_corr_fine_chans_per_coarse: usize,
-    /// Voltage fine_chan_resolution
-    pub volt_fine_chan_width_hz: u32,
-    /// Number of fine channels in each coarse channel for a voltage observation
-    pub num_volt_fine_chans_per_coarse: usize,
-    /// Array of receiver numbers (this tells us how many receivers too)
-    pub receivers: *mut usize,
-    /// Number of receivers
-    pub num_receivers: usize,
-    /// Array of beamformer delays
-    pub delays: *mut u32,
-    /// Number of beamformer delays
-    pub num_delays: usize,
-    /// Intended for calibration
-    pub calibrator: bool,
-    /// Calibrator source
-    pub calibrator_source: *mut c_char,
-    /// Scheduled start (UTC) of observation as a time_t (unix timestamp)
-    pub sched_start_utc: libc::time_t,
-    /// Scheduled end (UTC) of observation as a time_t (unix timestamp)
-    pub sched_end_utc: libc::time_t,
     /// Scheduled start (MJD) of observation
     pub sched_start_mjd: f64,
     /// Scheduled end (MJD) of observation
     pub sched_end_mjd: f64,
+    /// DUT1 (i.e. UTC-UT1)
+    pub dut1: f64,
+
+    // ---- 64-bit integers ----
+    /// Correlator mode dump time
+    pub corr_int_time_ms: u64,
     /// Scheduled start (UNIX time) of observation
     pub sched_start_unix_time_ms: u64,
     /// Scheduled end (UNIX time) of observation
@@ -120,80 +75,128 @@ pub struct MetafitsMetadata {
     pub sched_end_gps_time_ms: u64,
     /// Scheduled duration of observation
     pub sched_duration_ms: u64,
-    /// DUT1 (i.e. UTC-UT1). The UTC of the obsid is used to determine this
-    /// value. Calculated by astropy. Made optional for compatibility.
-    pub dut1: f64,
     /// Seconds of bad data after observation starts
     pub quack_time_duration_ms: u64,
     /// OBSID+QUACKTIM as Unix timestamp (first good timestep)
     pub good_time_unix_ms: u64,
     /// Good time expressed as GPS seconds
     pub good_time_gps_ms: u64,
-    /// Total number of antennas (tiles) in the array
-    pub num_ants: usize,
-    /// Array of antennas
-    pub antennas: *mut antenna::ffi::Antenna,
-    /// The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
-    pub num_rf_inputs: usize,
-    /// Array of rf inputs
-    pub rf_inputs: *mut rfinput::ffi::Rfinput,
-    /// Number of antenna pols. e.g. X and Y
-    pub num_ant_pols: usize,
-    /// Number of baselines
-    pub num_baselines: usize,
-    /// Baseline array
-    pub baselines: *mut baseline::ffi::Baseline,
-    /// Number of visibility_pols
-    pub num_visibility_pols: usize,
-    /// Number of coarse channels based on the metafits
-    pub num_metafits_coarse_chans: usize,
-    /// metafits_coarse_chans array
-    pub metafits_coarse_chans: *mut coarse_channel::ffi::CoarseChannel,
-    /// Number of fine channels for the whole observation
-    pub num_metafits_fine_chan_freqs_hz: usize,
-    /// Vector of fine channel frequencies for the whole observation
-    pub metafits_fine_chan_freqs_hz: *mut f64,
-    /// Number of timesteps based on the metafits
-    pub num_metafits_timesteps: usize,
-    /// metafits_timesteps array
-    pub metafits_timesteps: *mut timestep::ffi::TimeStep,
-    /// Total bandwidth of observation assuming we have all coarse channels
-    pub obs_bandwidth_hz: u32,
-    /// Bandwidth of each coarse channel
-    pub coarse_chan_width_hz: u32,
-    /// Centre frequency of observation
-    pub centre_freq_hz: u32,
+
+    // ---- Pointers (8 bytes on 64-bit) ----
+    /// Hour Angle of pointing center (as a string)
+    pub hour_angle_string: *mut c_char,
+    /// GRIDNAME
+    pub grid_name: *mut c_char,
+    /// CREATOR
+    pub creator: *mut c_char,
+    /// PROJECT
+    pub project_id: *mut c_char,
+    /// Observation name
+    pub obs_name: *mut c_char,
+    /// Calibrator source
+    pub calibrator_source: *mut c_char,
     /// filename of metafits file used
     pub metafits_filename: *mut c_char,
-    /// Was this observation using oversampled coarse channels?
-    pub oversampled: bool,
-    /// Was deripple applied to this observation?
-    pub deripple_applied: bool,
     /// What was the configured deripple_param?
-    /// If deripple_applied is False then this deripple param was not applied
     pub deripple_param: *mut c_char,
-    /// Best calibration fit ID
-    pub best_cal_fit_id: u32,
-    /// Best calibration observation ID
-    pub best_cal_obs_id: u32,
     /// Best calibration fit code version
     pub best_cal_code_ver: *mut c_char,
     /// Best calibration fit timestamp
     pub best_cal_fit_timestamp: *mut c_char,
     /// Best calibration fit creator
     pub best_cal_creator: *mut c_char,
+    /// Array of receiver numbers
+    pub receivers: *mut usize,
+    /// Array of beamformer delays
+    pub delays: *mut u32,
+    /// Array of antennas
+    pub antennas: *mut antenna::ffi::Antenna,
+    /// Array of rf inputs
+    pub rf_inputs: *mut rfinput::ffi::Rfinput,
+    /// Baseline array
+    pub baselines: *mut baseline::ffi::Baseline,
+    /// metafits_coarse_chans array
+    pub metafits_coarse_chans: *mut coarse_channel::ffi::CoarseChannel,
+    /// Vector of fine channel frequencies for the whole observation
+    pub metafits_fine_chan_freqs_hz: *mut f64,
+    /// metafits_timesteps array
+    pub metafits_timesteps: *mut timestep::ffi::TimeStep,
+    /// Signal Chain corrections array
+    pub signal_chain_corrections: *mut signal_chain_correction::ffi::SignalChainCorrection,
+    /// Calibration fits
+    pub calibration_fits: *mut calibration_fit::ffi::CalibrationFit,
+
+    // ---- 32-bit integers ----
+    /// Observation id
+    pub obs_id: u32,
+    /// Correlator fine_chan_resolution
+    pub corr_fine_chan_width_hz: u32,
+    /// Voltage fine_chan_resolution
+    pub volt_fine_chan_width_hz: u32,
+    /// Total bandwidth of observation
+    pub obs_bandwidth_hz: u32,
+    /// Bandwidth of each coarse channel
+    pub coarse_chan_width_hz: u32,
+    /// Centre frequency of observation
+    pub centre_freq_hz: u32,
+    /// Best calibration fit ID
+    pub best_cal_fit_id: u32,
+    /// Best calibration observation ID
+    pub best_cal_obs_id: u32,
+    /// GRIDNUM
+    pub grid_number: i32,
+
+    // ---- 16-bit integers ----
     /// Best calibration fit iterations
     pub best_cal_fit_iters: u16,
     /// Best calibration fit iteration limit
     pub best_cal_fit_iter_limit: u16,
-    /// Signal Chain corrections array
-    pub signal_chain_corrections: *mut signal_chain_correction::ffi::SignalChainCorrection,
-    /// Number of signal chain corrections in the array
+
+    // ---- Floats smaller than f64 ----
+    /// Correlator visibility scaling factor
+    pub corr_raw_scale_factor: f32,
+
+    // ---- usize counts ----
+    pub num_corr_fine_chans_per_coarse: usize,
+    pub num_volt_fine_chans_per_coarse: usize,
+    pub num_receivers: usize,
+    pub num_delays: usize,
+    pub num_ants: usize,
+    pub num_rf_inputs: usize,
+    pub num_ant_pols: usize,
+    pub num_baselines: usize,
+    pub num_visibility_pols: usize,
+    pub num_metafits_coarse_chans: usize,
+    pub num_metafits_fine_chan_freqs_hz: usize,
+    pub num_metafits_timesteps: usize,
     pub num_signal_chain_corrections: usize,
-    /// Calibration fits
-    pub calibration_fits: *mut calibration_fit::ffi::CalibrationFit,
-    /// Number of calibration fits in the array
     pub num_calibration_fits: usize,
+
+    // ---- Enums ----
+    /// mwa version
+    pub mwa_version: MWAVersion,
+    /// MWA observation mode
+    pub mode: MWAMode,
+    /// Which Geometric delays have been applied to the data
+    pub geometric_delays_applied: GeometricDelaysApplied,
+    /// Have cable delays been applied to the data?
+    pub cable_delays_applied: CableDelaysApplied,
+
+    // ---- Booleans ----
+    /// Have calibration delays and gains been applied to the data?
+    pub calibration_delays_and_gains_applied: bool,
+    /// Intended for calibration
+    pub calibrator: bool,
+    /// Was this observation using oversampled coarse channels?
+    pub oversampled: bool,
+    /// Was deripple applied to this observation?
+    pub deripple_applied: bool,
+
+    // ---- time_t fields (usually 8 bytes on 64-bit) ----
+    /// Scheduled start (UTC) of observation as a time_t
+    pub sched_start_utc: libc::time_t,
+    /// Scheduled end (UTC) of observation as a time_t
+    pub sched_end_utc: libc::time_t,
 }
 
 /// This passed back a struct containing the `MetafitsContext` metadata, given a MetafitsContext, CorrelatorContext or VoltageContext
