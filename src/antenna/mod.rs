@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Structs and helper methods for antenna metadata
-use crate::rfinput::*;
+use crate::{rfinput::*, types::Pol};
 pub(crate) mod ffi;
 use std::fmt;
 

@@ -7,18 +7,19 @@
 pub mod error;
 use crate::misc::{has_whitening_filter, vec_compare_f32, vec_compare_f64};
 use crate::signal_chain_correction::SignalChainCorrection;
+use crate::types::{Pol, ReceiverType};
 use crate::{fits_open_hdu_by_name, fits_read::*};
 use core::f32;
 use error::RfinputError;
 use fitsio::FitsFile;
 use std::fmt;
 
+pub mod ffi;
+
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
 #[cfg(feature = "python-stubgen")]
-use pyo3_stub_gen_derive::{gen_stub_pyclass, gen_stub_pyclass_enum};
-
-pub mod ffi;
+use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 #[cfg(test)]
 mod test;
@@ -91,43 +92,6 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
     }
 }
 
-/// Instrument polarisation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
-)]
-#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
-pub enum Pol {
-    X,
-    Y,
-}
-
-/// Implements fmt::Display for Pol
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for Pol {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Pol::X => "X",
-                Pol::Y => "Y",
-            }
-        )
-    }
-}
-
 /// Structure to hold one row of the metafits tiledata table
 struct RfInputMetafitsTableRow {
     /// This is the ordinal index of the rf_input in the metafits file
@@ -177,81 +141,6 @@ struct RfInputMetafitsTableRow {
     flavour: String,
     /// whitening filter
     whitening_filter: i32,
-}
-
-/// ReceiverType enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(C)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
-)]
-#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
-#[allow(clippy::upper_case_acronyms)]
-pub enum ReceiverType {
-    Unknown,
-    RRI,
-    NI,
-    Pseudo,
-    SHAO,
-    EDA2,
-}
-
-/// Implements fmt::Display for ReceiverType
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for ReceiverType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                ReceiverType::Unknown => "Unknown",
-                ReceiverType::RRI => "RRI",
-                ReceiverType::NI => "NI",
-                ReceiverType::Pseudo => "Pseudo",
-                ReceiverType::SHAO => "SHAO",
-                ReceiverType::EDA2 => "EDA2",
-            }
-        )
-    }
-}
-
-/// Implements str::FromStr for ReceiverType enum.
-/// Non uppercase values are coverted to uppercase for comparision.
-///
-/// # Arguments
-///
-/// * `input` - A &str which we want to convert to an enum
-///
-///
-/// # Returns
-///
-/// * `Result<ReceiverType, Err>` - Result of this method
-///
-///
-impl std::str::FromStr for ReceiverType {
-    type Err = ();
-
-    fn from_str(input: &str) -> Result<ReceiverType, Self::Err> {
-        match input.to_uppercase().as_str() {
-            "RRI" => Ok(ReceiverType::RRI),
-            "NI" => Ok(ReceiverType::NI),
-            "PSEUDO" => Ok(ReceiverType::Pseudo),
-            "SHAO" => Ok(ReceiverType::SHAO),
-            "EDA2" => Ok(ReceiverType::EDA2),
-            _ => Ok(ReceiverType::Unknown),
-        }
-    }
 }
 
 /// Structure to hold one row of the metafits calibdata table

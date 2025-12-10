@@ -19,7 +19,7 @@ use pyo3_stub_gen::define_stub_info_gatherer;
 
 use crate::{
     gpubox_files::error::*,
-    rfinput::{Pol, ReceiverType},
+    types::{Pol, ReceiverType},
     voltage_files::error::*,
     Antenna, CableDelaysApplied, CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion,
     MetafitsContext, Rfinput, SignalChainCorrection, VoltageContext,

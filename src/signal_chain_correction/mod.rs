@@ -1,4 +1,4 @@
-use crate::rfinput::ReceiverType;
+use crate::types::ReceiverType;
 use crate::{read_cell_array_f64, read_cell_value, FitsError, MAX_RECEIVER_CHANNELS};
 use std::fmt;
 

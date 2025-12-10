@@ -28,7 +28,7 @@ mod test;
     any(feature = "python", feature = "python-stubgen"),
     pyclass(get_all, set_all)
 )]
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct CoarseChannel {
     /// Correlator channel is 0 indexed (0..N-1)
     pub corr_chan_number: usize,
@@ -174,7 +174,7 @@ impl CoarseChannel {
     ///   The width in Hz of each coarse channel
     ///
     pub(crate) fn populate_coarse_channels(
-        mwa_version: metafits_context::MWAVersion,
+        mwa_version: types::MWAVersion,
         metafits_coarse_chan_vec: &[usize],
         metafits_coarse_chan_width_hz: u32,
         gpubox_time_map: Option<&GpuboxTimeMap>,

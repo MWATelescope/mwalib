@@ -8,6 +8,7 @@
 // Public items will be exposed as mwalib::module.
 mod antenna;
 mod baseline;
+mod beam;
 mod calibration_fit;
 mod coarse_channel;
 mod convert;
@@ -21,6 +22,7 @@ pub mod misc;
 mod rfinput;
 mod signal_chain_correction;
 mod timestep;
+mod types;
 mod voltage_context;
 mod voltage_files;
 
@@ -57,6 +59,7 @@ pub mod built_info {
 // Re-exports (public to other crates and in a flat structure)
 pub use antenna::Antenna;
 pub use baseline::Baseline;
+pub use beam::Beam;
 pub use calibration_fit::error::CalibrationFitError;
 pub use calibration_fit::CalibrationFit;
 pub use coarse_channel::error::CoarseChannelError;
@@ -66,13 +69,14 @@ pub use error::MwalibError;
 pub use fits_read::*;
 pub use gpubox_files::GpuboxError;
 pub use metafits_context::error::MetafitsError;
-pub use metafits_context::{
-    CableDelaysApplied, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, VisPol,
-};
+pub use metafits_context::MetafitsContext;
 pub use misc::*;
-pub use rfinput::{error::RfinputError, Pol, ReceiverType, Rfinput};
+pub use rfinput::{error::RfinputError, Rfinput};
 pub use signal_chain_correction::*;
 pub use timestep::TimeStep;
+pub use types::{
+    CableDelaysApplied, GeometricDelaysApplied, MWAMode, MWAVersion, Pol, ReceiverType, VisPol,
+};
 pub use voltage_context::VoltageContext;
 pub use voltage_files::error::VoltageFileError;
 

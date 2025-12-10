@@ -1,0 +1,169 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+use crate::{
+    read_cell_value, read_optional_cell_array_u32, read_optional_cell_value, MAX_RECEIVER_CHANNELS,
+};
+use crate::{types::DataFileType, CoarseChannel};
+use chrono::{DateTime, FixedOffset};
+use fitsio::hdu::{FitsHdu, HduInfo};
+use fitsio::FitsFile;
+use num_traits::FromPrimitive;
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+use pyo3::prelude::*;
+#[cfg(feature = "python-stubgen")]
+use pyo3_stub_gen_derive::gen_stub_pyclass;
+
+pub mod error;
+pub mod ffi;
+
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyclass(get_all, set_all)
+)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct Beam {
+    /// Arbitrary integer identifying this beam
+    pub number: usize,
+    /// True if the beam is coherent (has a defined position on the sky), False if incoherent (indicating that all tiles should be summed without phase correction)
+    pub coherent: bool,
+    /// azimuth, elevation - for coherent beams, these describe a fixed position relative to the telescope centre (eg, a geosynchronous satellite or ground-based RFI source)
+    pub az_deg: Option<f64>,
+    pub alt_deg: Option<f64>,
+    /// ra, dec - for coherent beams, a fixed source on the sky to track as the Earth rotates.
+    pub ra_deg: Option<f64>,
+    pub dec_deg: Option<f64>,
+    /// tle - for coherent beams, a ‘Two Line Elements’ ephemeris description string for an Earth orbiting satellite.
+    pub tle: Option<String>,
+    /// nsample_avg - number of time samples to average in the output date.
+    pub num_time_samples_to_average: usize,
+    /// fres_hz - Output frequency resolution, in Hz.
+    pub frequency_resolution_hz: u32,
+    /// channel_set - list of up to 24 coarse channels to include in the output data. If not present, include all 24 coarse channels.
+    pub coarse_channels: Vec<CoarseChannel>,
+    /// Number of coarse channels included in this beam
+    pub num_coarse_chans: usize,
+    /// tileset - string containing the name of a predefined set of tiles to include in the voltage beam summation. Must be the same as, or a subset of, the main observation tileset.
+    pub tileset: String,
+    /// polarisation - string describing the polarisation format in the output data.
+    pub polarisation: Option<String>,
+    /// data_file_type - integer index into the ‘data_file_types’ database table describing the output format for this beam.
+    pub data_file_type: DataFileType,
+    /// creator - arbitrary string describing the person or script that scheduled this voltage beam.
+    pub creator: String,
+    /// modtime - ISO format timestamp for this voltage beam record.
+    pub modtime: DateTime<FixedOffset>,
+    /// beam_index - Starts at zero for the first coherent beam in this observation, and increments by one for each coherent beam. Used to index into the BeamAltAz
+    pub beam_index: Option<usize>,
+}
+
+/// Read the voltagebeam FitsHdu and return a populated vector of `Beam`s
+///
+/// # Arguments
+///
+/// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
+///
+/// * `voltagebeams_hdu` - The FitsHdu containing valid voltagebeams data.
+///
+/// * `num_coarse_channels` - The number of coarse channels in the observation (usually 24).
+///
+/// # Returns
+///
+/// * Result containing a vector of voltage beams read from the voltagebeams HDU.
+///
+pub(crate) fn populate_beams(
+    metafits_fptr: &mut FitsFile,
+    voltagebeams_hdu: &FitsHdu,
+    coarse_channels: &[CoarseChannel],
+) -> Result<Vec<Beam>, error::BeamError> {
+    // Find out how many beams there are in the table
+    let rows = match &voltagebeams_hdu.info {
+        HduInfo::TableInfo {
+            column_descriptions: _,
+            num_rows,
+        } => *num_rows,
+        _ => 0,
+    };
+
+    let mut beam_vec: Vec<Beam> = Vec::new();
+
+    for row in 0..rows {
+        let number: u64 = read_cell_value(metafits_fptr, voltagebeams_hdu, "number", row)?;
+        let coherent: bool = read_cell_value(metafits_fptr, voltagebeams_hdu, "coherent", row)?;
+        let az_deg: Option<f64> =
+            read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "azimuth", row)?;
+        let alt_deg: Option<f64> =
+            read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "elevation", row)?;
+        let ra_deg: Option<f64> =
+            read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "ra", row)?;
+        let dec_deg: Option<f64> =
+            read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "dec", row)?;
+        let tle: Option<String> =
+            read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "tle", row)?;
+        let num_time_samples_to_average: u64 =
+            read_cell_value(metafits_fptr, voltagebeams_hdu, "nsample_avg", row)?;
+        let frequency_resolution_hz: u32 =
+            read_cell_value(metafits_fptr, voltagebeams_hdu, "fres_hz", row)?;
+        let coarse_channel_set: Option<Vec<u32>> = read_optional_cell_array_u32(
+            metafits_fptr,
+            voltagebeams_hdu,
+            "channel_set",
+            row as i64,
+            MAX_RECEIVER_CHANNELS,
+        )?;
+        let tileset: String = read_cell_value(metafits_fptr, voltagebeams_hdu, "tileset", row)?;
+        let polarisation: Option<String> =
+            read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "polarisation", row)?;
+        let data_file_type_index: u32 =
+            read_cell_value(metafits_fptr, voltagebeams_hdu, "data_file_type", row)?;
+        let creator: String = read_cell_value(metafits_fptr, voltagebeams_hdu, "creator", row)?;
+        let modtime_string: String =
+            read_cell_value(metafits_fptr, voltagebeams_hdu, "modtime", row)?;
+        let modtime = DateTime::parse_from_rfc3339(&modtime_string).unwrap();
+        let beam_index: Option<u64> =
+            read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "beam_index", row)?;
+        let data_file_type = match DataFileType::from_u32(data_file_type_index) {
+            Some(dft) => dft,
+            None => DataFileType::Unknown,
+        };
+
+        // Determine which coarse channels to include in this beam
+        let beam_coarse_channels: Vec<CoarseChannel> = match coarse_channel_set {
+            Some(chan_set) => chan_set
+                .iter()
+                .filter_map(|chan_num| {
+                    coarse_channels
+                        .iter()
+                        .find(|cc| cc.rec_chan_number as u32 == *chan_num)
+                })
+                .cloned()
+                .collect(),
+            // No channel set specified - include a copy of all coarse channels
+            None => coarse_channels.to_vec(),
+        };
+        let num_coarse_channels = beam_coarse_channels.len();
+
+        beam_vec.push(Beam {
+            number: number as usize,
+            coherent,
+            az_deg,
+            alt_deg,
+            ra_deg,
+            dec_deg,
+            tle,
+            num_time_samples_to_average: num_time_samples_to_average as usize,
+            frequency_resolution_hz,
+            coarse_channels: beam_coarse_channels,
+            num_coarse_chans: num_coarse_channels,
+            tileset,
+            polarisation,
+            data_file_type,
+            creator,
+            modtime,
+            beam_index: beam_index.map(|bi| bi as usize),
+        });
+    }
+
+    Ok(beam_vec)
+}

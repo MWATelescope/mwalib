@@ -4,6 +4,8 @@
 
 //! Unit tests for antenna metadata
 
+use crate::types::ReceiverType;
+
 #[cfg(test)]
 use super::*;
 use float_cmp::*;

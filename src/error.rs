@@ -16,6 +16,10 @@ pub enum MwalibError {
     #[error("{0}")]
     Fits(#[from] crate::fits_read::error::FitsError),
 
+    /// An error derived from `BeamError`.
+    #[error("{0}")]
+    Beam(#[from] crate::beam::error::BeamError),
+
     /// An error derived from `CalibrationFitError`.
     #[error("{0}")]
     CalibrationFit(#[from] crate::calibration_fit::error::CalibrationFitError),

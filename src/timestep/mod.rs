@@ -6,7 +6,7 @@
 use crate::gpubox_files::GpuboxTimeMap;
 use crate::misc;
 use crate::voltage_files::VoltageFileTimeMap;
-use crate::{metafits_context, MWAVersion, MetafitsContext};
+use crate::{MWAVersion, MetafitsContext};
 use crate::{MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS, MWA_VCS_MWAXV2_SUBFILE_SECONDS};
 use std::fmt;
 
@@ -300,7 +300,7 @@ impl TimeStep {
     ///
     pub(crate) fn populate_timesteps(
         metafits_context: &MetafitsContext,
-        mwa_version: metafits_context::MWAVersion,
+        mwa_version: MWAVersion,
         start_gps_time_ms: u64,
         duration_ms: u64,
         scheduled_starttime_gps_ms: u64,

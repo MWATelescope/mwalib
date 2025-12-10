@@ -3,11 +3,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use crate::{
-    antenna, baseline, calibration_fit, coarse_channel,
+    antenna, baseline, beam, calibration_fit, coarse_channel,
     ffi::{ffi_array_to_boxed_slice, set_c_string, MWALIB_FAILURE, MWALIB_SUCCESS},
-    rfinput, signal_chain_correction, timestep, CableDelaysApplied, CorrelatorContext,
-    GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, VoltageContext,
-    MAX_RECEIVER_CHANNELS,
+    rfinput, signal_chain_correction, timestep,
+    types::DataFileType,
+    CableDelaysApplied, CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion,
+    MetafitsContext, VoltageContext, MAX_RECEIVER_CHANNELS,
 };
 use libc::size_t;
 use std::{
@@ -125,6 +126,8 @@ pub struct MetafitsMetadata {
     pub signal_chain_corrections: *mut signal_chain_correction::ffi::SignalChainCorrection,
     /// Calibration fits
     pub calibration_fits: *mut calibration_fit::ffi::CalibrationFit,
+    /// Beamformer beams array
+    pub metafits_beams: *mut beam::ffi::Beam,
 
     // ---- 32-bit integers ----
     /// Observation id
@@ -166,6 +169,7 @@ pub struct MetafitsMetadata {
     pub num_ant_pols: usize,
     pub num_baselines: usize,
     pub num_visibility_pols: usize,
+    pub num_metafits_beams: usize,
     pub num_metafits_coarse_chans: usize,
     pub num_metafits_fine_chan_freqs_hz: usize,
     pub num_metafits_timesteps: usize,
@@ -496,6 +500,69 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
         }
     }
 
+    // Populate beams
+    let mut beams_vec: Vec<beam::ffi::Beam> = Vec::new();
+    if let Some(v) = &metafits_context.beams {
+        for item in v.iter() {
+            let out_item = {
+                let beam::Beam {
+                    number,
+                    coherent,
+                    az_deg,
+                    alt_deg,
+                    ra_deg,
+                    dec_deg,
+                    tle,
+                    num_time_samples_to_average,
+                    frequency_resolution_hz,
+                    coarse_channels,
+                    num_coarse_chans,
+                    tileset,
+                    polarisation,
+                    data_file_type,
+                    creator,
+                    modtime,
+                    beam_index,
+                } = item;
+                beam::ffi::Beam {
+                    number: *number,
+                    coherent: *coherent,
+                    az_deg: az_deg.unwrap_or_default(),
+                    alt_deg: alt_deg.unwrap_or_default(),
+                    ra_deg: ra_deg.unwrap_or_default(),
+                    dec_deg: dec_deg.unwrap_or_default(),
+                    tle: CString::new(tle.clone().unwrap_or_default().replace('\0', ""))
+                        .unwrap_or_else(|_| CString::new("").unwrap())
+                        .into_raw(),
+                    num_time_samples_to_average: *num_time_samples_to_average,
+                    frequency_resolution_hz: *frequency_resolution_hz,
+                    coarse_channels: ffi_array_to_boxed_slice(
+                        coarse_channels.iter().map(|x| x.rec_chan_number).collect(),
+                    ),
+                    num_coarse_chans: *num_coarse_chans,
+                    tileset: CString::new(tileset.replace('\0', ""))
+                        .unwrap_or_else(|_| CString::new("").unwrap())
+                        .into_raw(),
+                    polarisation: CString::new(
+                        polarisation.clone().unwrap_or_default().replace('\0', ""),
+                    )
+                    .unwrap_or_else(|_| CString::new("").unwrap())
+                    .into_raw(),
+                    data_file_type: *data_file_type as DataFileType,
+                    creator: CString::new(creator.replace('\0', ""))
+                        .unwrap_or_else(|_| CString::new("").unwrap())
+                        .into_raw(),
+                    modtime: chrono::DateTime::<chrono::Utc>::from(*modtime).timestamp(),
+                    beam_index: match beam_index {
+                        Some(idx) => *idx as i32,
+                        None => -1,
+                    },
+                }
+            };
+            beams_vec.push(out_item);
+        }
+    }
+
     // Populate the outgoing structure with data from the metafits context
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
@@ -588,6 +655,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_signal_chain_corrections,
             calibration_fits: _, // This is populated seperately
             num_calibration_fits,
+            beams: _, // This is populated seperately
+            num_beams,
         } = metafits_context;
         MetafitsMetadata {
             mwa_version: mwa_version.unwrap(),
@@ -715,6 +784,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_signal_chain_corrections: *num_signal_chain_corrections,
             calibration_fits: ffi_array_to_boxed_slice(calibration_fits_vec),
             num_calibration_fits: *num_calibration_fits,
+            metafits_beams: ffi_array_to_boxed_slice(beams_vec),
+            num_metafits_beams: *num_beams,
         }
     };
 

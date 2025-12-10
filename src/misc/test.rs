@@ -10,6 +10,8 @@ use core::f32;
 use super::*;
 use crate::antenna::*;
 use crate::rfinput::*;
+use crate::Pol;
+use crate::ReceiverType;
 use float_cmp::*;
 
 /// Function to allow access to a temporary FITS file. Temp directory and File is dropped once out of scope.

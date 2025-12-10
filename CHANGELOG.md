@@ -2,19 +2,26 @@
 
 Changes in each release are listed below.
 
-## 1.10.0 XX-Nov-2025
+## 2.0.0 XX-Dec-2025
 
 * Bumped MSRV to 1.81 due to dependency hell.
+* Added support for beamforming observations:
+  * Two new `MWAVersion`s: `BF` (6) and `CorrBF` (7).
+  * Two new `MWAMode`s: `MWAX_BEAMFORMER` (33) and `MWAX_BF_CORR` (34).
+  * New struct `Beam` which handles beamformer neam metadata.
+  * new `MetafitsContext` attributes: `metafits_beams`, `num_metafits_beams`, `num_incoherent_beams`, `num_coherent_beams`
 * Created test read_second2 function which is much more efficient when reading MWAX Subfiles (7x less open, seek, read and close calls).
 * Created test read_file2 function which is also slightly more efficient than read_file.
 * Added `VoltageContext` read_file, read_file2, read_second and read_second2 benchmark.
 * FFI: Added tests for `VoltageContext` read_second, read_second2, read_file and read_file2.
 * Fixed bug in `VoltageContext::Display()` which had the fine channel width units as "Hz" when they should have been "kHz".
 * Moved `SignalChainCorrections` population code into the signal_chain_correction module.
+* Moved various enum types (and their tests) into a `types` module.
 * Added support for reading old and new versions of the CALIBDATA HDU (calibration_fit/mod.rs = CalibrationFit) from the metafits files - providing the client with info on the best calibration solution found at the time the metafits file was generated.
 * FFI: Moved `antenna`, `baseline`, `calibration_fit`, `coarse_channel`, `rfinput`, `signal_chain_correction` and `timestep` FFI code from the monolithic ffi.rs source file into their own ffi.rs under the respective module folders.
 * FFI: Fixed free functions: `mwalib_metafits_metadata_free`, `mwalib_correlator_metadata_free`, `mwalib_voltage_metadata_free` to correctly free all Rust unsafely allocated memory.
 * FFI: Ensure conversions to C strings get validated for null terminator, correct buffer length and unicode.
+* FFI: Fixed the type of `error_message` pointer to buffers to be `char*` instead of `const char*`
 * FFI: Internally changed `c_ulong` with `u64` to be consistent with other definitions of GPS seconds.
 * FFI: Fixed some incorrect uses of `mut* u8` to be `mut* c_char`.
 * FFI: moved FFI code and tests into their respective modules for greater readability.

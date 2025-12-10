@@ -725,6 +725,37 @@ pub fn read_cell_value<T: fitsio::tables::ReadsCol>(
     }
 }
 
+pub fn read_optional_cell_value<T: fitsio::tables::ReadsCol>(
+    fits_fptr: &mut FitsFile,
+    fits_tile_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: usize,
+) -> Result<Option<T>, FitsError> {
+    match fits_tile_table_hdu.read_cell_value(fits_fptr, col_name, row) {
+        Ok(c) => {
+            trace!(
+                "read_cell_value() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                fits_fptr.file_path().display(),
+                fits_tile_table_hdu.number,
+                col_name,
+                row
+            );
+            Ok(Some(c))
+        }
+        Err(e) => match e {
+            // When the cell is null, return None.
+            fitsio::errors::Error::Null(_) => Ok(None),
+            // Otherwise, return the error.
+            _ => Err(FitsError::ReadCell {
+                fits_filename: fits_fptr.file_path().to_path_buf(),
+                hdu_num: fits_tile_table_hdu.number + 1,
+                row_num: row,
+                col_name: col_name.to_string(),
+            }),
+        },
+    }
+}
+
 /// Pull out the array-in-a-cell values. T
 pub fn read_cell_array_u32(
     fits_fptr: &mut FitsFile,
@@ -788,6 +819,83 @@ pub fn read_cell_array_u32(
             _ => {
                 println!(
                     "ERROR {} read_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    status,
+                    fits_fptr.file_path().display(),
+                    fits_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                Err(FitsError::CellArray {
+                    fits_filename: fits_fptr.file_path().to_path_buf(),
+                    hdu_num: fits_table_hdu.number + 1,
+                    row_num: row,
+                    col_name: col_name.to_string(),
+                })
+            }
+        }
+    }
+}
+
+/// Pull out the array-in-a-cell values. T
+pub fn read_optional_cell_array_u32(
+    fits_fptr: &mut FitsFile,
+    fits_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: i64,
+    n_elem: usize,
+) -> Result<Option<Vec<u32>>, FitsError> {
+    unsafe {
+        // With the column name, get the column number.
+        let mut status = 0;
+        let mut col_num = -1;
+        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
+        fitsio_sys::ffgcno(fits_fptr.as_raw(), 0, keyword, &mut col_num, &mut status);
+        // Check the status.
+        if status != 0 {
+            // column not found
+            return Ok(None);
+        }
+        drop(std::ffi::CString::from_raw(keyword));
+
+        // Now get the specified row from that column.
+        // cfitsio is stupid. The data we want fits in i16, but we're forced to
+        // unpack it into i32. Demote the data at the end.
+        let mut array: Vec<u32> = vec![0; n_elem];
+        array.shrink_to_fit();
+        let array_ptr = array.as_mut_ptr();
+        fitsio_sys::ffgcv(
+            fits_fptr.as_raw(),
+            31,
+            col_num,
+            row + 1,
+            1,
+            n_elem as i64,
+            std::ptr::null_mut(),
+            array_ptr as *mut core::ffi::c_void,
+            &mut 0,
+            &mut status,
+        );
+
+        // Check the status.
+        match status {
+            0 => {
+                // Re-assemble the raw array into a Rust Vector.
+                let v = std::slice::from_raw_parts(array_ptr, n_elem);
+
+                trace!(
+                    "read_optional_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    fits_fptr.file_path().display(),
+                    fits_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                Ok(Some(v.iter().map(|v| *v as _).collect()))
+            }
+            _ => {
+                println!(
+                    "ERROR {} read_optional_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
                     status,
                     fits_fptr.file_path().display(),
                     fits_table_hdu.number,
