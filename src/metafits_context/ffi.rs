@@ -4,7 +4,10 @@
 
 use crate::{
     antenna, baseline, beam, calibration_fit, coarse_channel,
-    ffi::{ffi_array_to_boxed_slice, set_c_string, MWALIB_FAILURE, MWALIB_SUCCESS},
+    ffi::{
+        ffi_array_to_boxed_slice, ffi_free_c_boxed_slice, free_c_string, rust_string_to_buf,
+        set_c_string, MWALIB_FAILURE, MWALIB_SUCCESS,
+    },
     rfinput, signal_chain_correction, timestep,
     types::DataFileType,
     CableDelaysApplied, CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion,
@@ -170,6 +173,8 @@ pub struct MetafitsMetadata {
     pub num_baselines: usize,
     pub num_visibility_pols: usize,
     pub num_metafits_beams: usize,
+    pub num_metafits_coherent_beams: usize,
+    pub num_metafits_incoherent_beams: usize,
     pub num_metafits_coarse_chans: usize,
     pub num_metafits_fine_chan_freqs_hz: usize,
     pub num_metafits_timesteps: usize,
@@ -289,7 +294,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             let antenna::Antenna {
                 ant,
                 tile_id,
-                tile_name,
+                tile_name: _,
                 rfinput_x,
                 rfinput_y,
                 electrical_length_m,
@@ -297,12 +302,13 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                 east_m,
                 height_m,
             } = item;
+
+            let tile_name_c_str = rust_string_to_buf(item.tile_name.clone());
+
             antenna::ffi::Antenna {
                 ant: *ant,
                 tile_id: *tile_id,
-                tile_name: CString::new(tile_name.replace('\0', ""))
-                    .unwrap_or_else(|_| CString::new("").unwrap())
-                    .into_raw(),
+                tile_name: tile_name_c_str,
                 rfinput_x: metafits_context
                     .rf_inputs
                     .iter()
@@ -502,8 +508,27 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
 
     // Populate beams
     let mut beams_vec: Vec<beam::ffi::Beam> = Vec::new();
-    if let Some(v) = &metafits_context.beams {
+    if let Some(v) = &metafits_context.metafits_beams {
         for item in v.iter() {
+            // Get a list of antenna indicies for this beam
+            let tileset_antenna_indices = item
+                .antennas
+                .iter()
+                .filter_map(|sel| metafits_context.antennas.iter().position(|a| a == sel))
+                .collect();
+
+            // Get a list of coarse channel indices for this beam
+            let coarse_channel_indices = item
+                .coarse_channels
+                .iter()
+                .filter_map(|sel| {
+                    metafits_context
+                        .metafits_coarse_chans
+                        .iter()
+                        .position(|c| c == sel)
+                })
+                .collect();
+
             let out_item = {
                 let beam::Beam {
                     number,
@@ -515,9 +540,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                     tle,
                     num_time_samples_to_average,
                     frequency_resolution_hz,
-                    coarse_channels,
+                    coarse_channels: _,
                     num_coarse_chans,
-                    tileset,
+                    antennas: _,
+                    num_ants: num_antennas,
                     polarisation,
                     data_file_type,
                     creator,
@@ -536,13 +562,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                         .into_raw(),
                     num_time_samples_to_average: *num_time_samples_to_average,
                     frequency_resolution_hz: *frequency_resolution_hz,
-                    coarse_channels: ffi_array_to_boxed_slice(
-                        coarse_channels.iter().map(|x| x.rec_chan_number).collect(),
-                    ),
+                    coarse_channels: ffi_array_to_boxed_slice(coarse_channel_indices),
                     num_coarse_chans: *num_coarse_chans,
-                    tileset: CString::new(tileset.replace('\0', ""))
-                        .unwrap_or_else(|_| CString::new("").unwrap())
-                        .into_raw(),
+                    antennas: ffi_array_to_boxed_slice(tileset_antenna_indices),
+                    num_ants: *num_antennas,
                     polarisation: CString::new(
                         polarisation.clone().unwrap_or_default().replace('\0', ""),
                     )
@@ -655,8 +678,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_signal_chain_corrections,
             calibration_fits: _, // This is populated seperately
             num_calibration_fits,
-            beams: _, // This is populated seperately
-            num_beams,
+            metafits_beams: _, // This is populated seperately
+            num_metafits_beams: num_beams,
+            num_metafits_coherent_beams,
+            num_metafits_incoherent_beams,
         } = metafits_context;
         MetafitsMetadata {
             mwa_version: mwa_version.unwrap(),
@@ -786,6 +811,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_calibration_fits: *num_calibration_fits,
             metafits_beams: ffi_array_to_boxed_slice(beams_vec),
             num_metafits_beams: *num_beams,
+            num_metafits_coherent_beams: *num_metafits_coherent_beams,
+            num_metafits_incoherent_beams: *num_metafits_incoherent_beams,
         }
     };
 
@@ -825,14 +852,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     // Free members first
     //
     // baselines
-    if !(*metafits_metadata_ptr).baselines.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [baseline::ffi::Baseline] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).baselines,
-            (*metafits_metadata_ptr).num_baselines,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_boxed_slice(
+        (*metafits_metadata_ptr).baselines,
+        (*metafits_metadata_ptr).num_baselines,
+    );
 
     // antennas
     if !(*metafits_metadata_ptr).antennas.is_null() {
@@ -843,7 +866,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
         );
         // Now for each item we need to free anything on the heap
         for i in slice.iter_mut() {
-            drop(CString::from_raw(i.tile_name));
+            //drop(CString::from_raw(i.tile_name));
+            free_c_string(i.tile_name);
         }
 
         // Free the memory for the slice
@@ -862,15 +886,11 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
             drop(CString::from_raw(i.tile_name));
             drop(CString::from_raw(i.pol));
 
-            if !i.digital_gains.is_null() {
-                drop(Box::from_raw(i.digital_gains));
-            }
-            if !i.dipole_gains.is_null() {
-                drop(Box::from_raw(i.dipole_gains));
-            }
-            if !i.dipole_delays.is_null() {
-                drop(Box::from_raw(i.dipole_delays));
-            }
+            ffi_free_c_boxed_slice(i.digital_gains, i.num_digital_gains);
+            ffi_free_c_boxed_slice(i.dipole_gains, i.num_dipole_gains);
+            ffi_free_c_boxed_slice(i.dipole_delays, i.num_dipole_delays);
+            ffi_free_c_boxed_slice(i.calib_gains, i.num_calib_gains);
+
             drop(CString::from_raw(i.flavour));
         }
 
@@ -879,57 +899,34 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     }
 
     // coarse_channels
-    if !(*metafits_metadata_ptr).metafits_coarse_chans.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [coarse_channel::ffi::CoarseChannel] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).metafits_coarse_chans,
-            (*metafits_metadata_ptr).num_metafits_coarse_chans,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_boxed_slice(
+        (*metafits_metadata_ptr).metafits_coarse_chans,
+        (*metafits_metadata_ptr).num_metafits_coarse_chans,
+    );
 
     // timesteps
-    if !(*metafits_metadata_ptr).metafits_timesteps.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [timestep::ffi::TimeStep] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).metafits_timesteps,
-            (*metafits_metadata_ptr).num_metafits_timesteps,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_boxed_slice(
+        (*metafits_metadata_ptr).metafits_timesteps,
+        (*metafits_metadata_ptr).num_metafits_timesteps,
+    );
 
     // receivers
-    if !(*metafits_metadata_ptr).receivers.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [usize] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).receivers,
-            (*metafits_metadata_ptr).num_receivers,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_boxed_slice(
+        (*metafits_metadata_ptr).receivers,
+        (*metafits_metadata_ptr).num_receivers,
+    );
 
     // delays
-    if !(*metafits_metadata_ptr).delays.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [u32] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).delays,
-            (*metafits_metadata_ptr).num_delays,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_boxed_slice(
+        (*metafits_metadata_ptr).delays,
+        (*metafits_metadata_ptr).num_delays,
+    );
 
     // fine channel freqs
-    if !(*metafits_metadata_ptr)
-        .metafits_fine_chan_freqs_hz
-        .is_null()
-    {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [f64] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).metafits_fine_chan_freqs_hz,
-            (*metafits_metadata_ptr).num_metafits_fine_chan_freqs_hz,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_boxed_slice(
+        (*metafits_metadata_ptr).metafits_fine_chan_freqs_hz,
+        (*metafits_metadata_ptr).num_metafits_fine_chan_freqs_hz,
+    );
 
     // signal chain corrections
     if !(*metafits_metadata_ptr).signal_chain_corrections.is_null() {
@@ -978,8 +975,33 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
         drop(Box::from_raw((*metafits_metadata_ptr).calibration_fits));
     }
 
-    // Free top level string fields
+    // beams
+    if !(*metafits_metadata_ptr).metafits_beams.is_null() {
+        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
+        let slice: &mut [beam::ffi::Beam] = slice::from_raw_parts_mut(
+            (*metafits_metadata_ptr).metafits_beams,
+            (*metafits_metadata_ptr).num_metafits_beams,
+        );
 
+        // Now for each item we need to free anything on the heap
+        for i in slice.iter_mut() {
+            if !i.antennas.is_null() {
+                drop(Box::from_raw(i.antennas));
+            }
+
+            if !i.coarse_channels.is_null() {
+                drop(Box::from_raw(i.coarse_channels));
+            }
+
+            drop(CString::from_raw(i.creator));
+            drop(CString::from_raw(i.tle));
+            drop(CString::from_raw(i.polarisation));
+        }
+
+        drop(Box::from_raw((*metafits_metadata_ptr).metafits_beams));
+    }
+
+    // Free top level string fields
     if !(*metafits_metadata_ptr).hour_angle_string.is_null() {
         drop(CString::from_raw(
             (*metafits_metadata_ptr).hour_angle_string,

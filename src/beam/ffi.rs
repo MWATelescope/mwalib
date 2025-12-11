@@ -34,12 +34,14 @@ pub struct Beam {
     pub num_time_samples_to_average: usize,
     /// fres_hz - Output frequency resolution, in Hz.
     pub frequency_resolution_hz: u32,
-    /// channel_set - list of up to 24 coarse channels to include in the output data. If not present, include all 24 coarse channels.
+    /// channel_set - array of coarse channel indicies of up to 24 coarse channels to include in the output data.
     pub coarse_channels: *mut usize,
     /// Number of coarse channels included in this beam
     pub num_coarse_chans: usize,
-    /// tileset - string containing the name of a predefined set of tiles to include in the voltage beam summation. Must be the same as, or a subset of, the main observation tileset.
-    pub tileset: *mut c_char,
+    /// Array of antenna indices. Must be the same as, or a subset of, the main observation tileset.
+    pub antennas: *mut usize,
+    /// Number of antennas included in this beam
+    pub num_ants: usize,
     /// polarisation - string describing the polarisation format in the output data.
     pub polarisation: *mut c_char,
     /// data_file_type - integer index into the ‘data_file_types’ database table describing the output format for this beam.

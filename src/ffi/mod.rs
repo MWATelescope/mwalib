@@ -8,6 +8,7 @@ use crate::*;
 use libc::{c_char, c_uint, size_t};
 use std::ffi::*;
 use std::mem;
+use std::ptr;
 use std::slice;
 
 #[cfg(test)]
@@ -160,7 +161,8 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
 }
 
 /// Boxes for FFI a rust-allocated vector of T. If the vector is 0 length, returns a null pointer.
-///
+/// This leaks the array of T to C.
+/// At the end of use, you MUST call ffi_free_c_boxed_slice()
 ///
 /// # Arguments
 ///
@@ -173,17 +175,50 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
 ///
 pub(crate) fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
     if !v.is_empty() {
-        let mut boxed_slice: Box<[T]> = v.into_boxed_slice();
-        let array_ptr: *mut T = boxed_slice.as_mut_ptr();
-        let array_ptr_len: usize = boxed_slice.len();
-        assert_eq!(boxed_slice.len(), array_ptr_len);
-
         // Prevent the slice from being destroyed (Leak the memory).
         // This is because we are using our ffi code to free the memory
-        mem::forget(boxed_slice);
+        let mut boxed = v.into_boxed_slice();
+        let ptr = boxed.as_mut_ptr();
+        let _len = boxed.len();
+        std::mem::forget(boxed);
 
-        array_ptr
+        ptr
     } else {
         std::ptr::null_mut()
+    }
+}
+
+/// Reconstitutes a pointer and number of elements into a slice
+/// so it can be dropped/forgotten
+/// Use this to free an object leaked to C via ffi_array_to_boxed_slice()
+///
+pub(crate) fn ffi_free_c_boxed_slice<T>(ptr_to_array: *mut T, len: usize) {
+    if ptr_to_array.is_null() {
+        return;
+    }
+    unsafe {
+        // Rebuild a *mut [T] fat pointer, then drop the Box<[T]>
+        let _ = Box::from_raw(ptr::slice_from_raw_parts_mut(ptr_to_array, len));
+    }
+}
+
+pub(crate) fn rust_string_to_buf(rust_str: String) -> *mut c_char {
+    let mut boxed: Box<[u8]> = rust_str.into_bytes().into_boxed_slice();
+    let ptr_u8 = boxed.as_mut_ptr();
+    //let len = boxed.len();
+
+    // Leak ownership to C
+    mem::forget(boxed);
+
+    ptr_u8.cast::<c_char>()
+}
+
+pub(crate) fn free_c_string(ptr: *mut c_char) {
+    if ptr.is_null() {
+        return;
+    }
+
+    unsafe {
+        let _ = CString::from_raw(ptr);
     }
 }

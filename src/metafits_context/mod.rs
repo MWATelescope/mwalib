@@ -219,9 +219,13 @@ pub struct MetafitsContext {
     /// Number of calibration fits
     pub num_calibration_fits: usize,
     /// Beamformer beams
-    pub beams: Option<Vec<Beam>>,
+    pub metafits_beams: Option<Vec<Beam>>,
     /// Number of beamformer beams defined in this observation
-    pub num_beams: usize,
+    pub num_metafits_beams: usize,
+    /// Number of coherent beamformer beams defined in this observation
+    pub num_metafits_coherent_beams: usize,
+    /// Number of incoherent beamformer beams defined in this observation
+    pub num_metafits_incoherent_beams: usize,
 }
 
 impl MetafitsContext {
@@ -297,17 +301,21 @@ impl MetafitsContext {
                 MWAVersion::VCSLegacyRecombined | MWAVersion::VCSMWAXv2 => {
                     new_context.volt_fine_chan_width_hz
                 }
-                MWAVersion::CorrLegacy | MWAVersion::CorrOldLegacy | MWAVersion::CorrMWAXv2 => {
-                    new_context.corr_fine_chan_width_hz
-                }
+                MWAVersion::CorrLegacy
+                | MWAVersion::CorrOldLegacy
+                | MWAVersion::CorrMWAXv2
+                | MWAVersion::CorrBeamformerMWAXv2
+                | MWAVersion::BeamformerMWAXv2 => new_context.corr_fine_chan_width_hz,
             },
             match new_context.mwa_version.unwrap() {
                 MWAVersion::VCSLegacyRecombined | MWAVersion::VCSMWAXv2 => {
                     new_context.num_volt_fine_chans_per_coarse
                 }
-                MWAVersion::CorrLegacy | MWAVersion::CorrOldLegacy | MWAVersion::CorrMWAXv2 => {
-                    new_context.num_corr_fine_chans_per_coarse
-                }
+                MWAVersion::CorrLegacy
+                | MWAVersion::CorrOldLegacy
+                | MWAVersion::CorrMWAXv2
+                | MWAVersion::CorrBeamformerMWAXv2
+                | MWAVersion::BeamformerMWAXv2 => new_context.num_corr_fine_chans_per_coarse,
             },
         );
         new_context.num_metafits_fine_chan_freqs = new_context.metafits_fine_chan_freqs_hz.len();
@@ -728,6 +736,8 @@ impl MetafitsContext {
         // beams
         let beams: Option<Vec<Beam>>;
         let num_beams: usize;
+        let num_coherent_beams: usize;
+        let num_incoherent_beams: usize;
 
         match &metafits_beams_hdu_result {
             Ok(metafits_beams_hdu) => {
@@ -735,14 +745,29 @@ impl MetafitsContext {
                     &mut metafits_fptr,
                     metafits_beams_hdu,
                     &metafits_coarse_chans,
+                    &antennas,
                 )?;
 
                 num_beams = beams_vec.len();
                 beams = Some(beams_vec);
+                num_coherent_beams = beams
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .filter(|b| b.coherent == true)
+                    .count();
+                num_incoherent_beams = beams
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .filter(|b| b.coherent == false)
+                    .count();
             }
             Err(_) => {
                 // This will occur if the HDU does not exist (old / or metafits without this)
                 num_beams = 0;
+                num_coherent_beams = 0;
+                num_incoherent_beams = 0;
                 beams = None;
             }
         }
@@ -834,8 +859,10 @@ impl MetafitsContext {
             num_signal_chain_corrections,
             calibration_fits,
             num_calibration_fits,
-            beams,
-            num_beams,
+            metafits_beams: beams,
+            num_metafits_beams: num_beams,
+            num_metafits_coherent_beams: num_coherent_beams,
+            num_metafits_incoherent_beams: num_incoherent_beams,
         })
     }
 

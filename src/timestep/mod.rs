@@ -308,11 +308,15 @@ impl TimeStep {
     ) -> Vec<Self> {
         // Determine the interval between timesteps
         let interval_ms: u64 = match mwa_version {
-            MWAVersion::CorrOldLegacy | MWAVersion::CorrLegacy | MWAVersion::CorrMWAXv2 => {
-                metafits_context.corr_int_time_ms
-            }
+            MWAVersion::CorrOldLegacy
+            | MWAVersion::CorrLegacy
+            | MWAVersion::CorrMWAXv2
+            | MWAVersion::CorrBeamformerMWAXv2 => metafits_context.corr_int_time_ms,
             MWAVersion::VCSLegacyRecombined => MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS * 1000,
             MWAVersion::VCSMWAXv2 => MWA_VCS_MWAXV2_SUBFILE_SECONDS * 1000,
+            MWAVersion::BeamformerMWAXv2 => {
+                panic!("BeamformerMWAXv2 timestep population not yet implemented")
+            }
         };
 
         // Init our vector

@@ -2,7 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 use crate::{
-    read_cell_value, read_optional_cell_array_u32, read_optional_cell_value, MAX_RECEIVER_CHANNELS,
+    read_cell_array_u32, read_cell_value, read_optional_cell_array_u32, read_optional_cell_value,
+    Antenna, MAX_ANTENNAS, MAX_RECEIVER_CHANNELS,
 };
 use crate::{types::DataFileType, CoarseChannel};
 use chrono::{DateTime, FixedOffset};
@@ -44,8 +45,10 @@ pub struct Beam {
     pub coarse_channels: Vec<CoarseChannel>,
     /// Number of coarse channels included in this beam
     pub num_coarse_chans: usize,
-    /// tileset - string containing the name of a predefined set of tiles to include in the voltage beam summation. Must be the same as, or a subset of, the main observation tileset.
-    pub tileset: String,
+    /// tileset - Array of antennas which are the tiles used for this beam. Must be the same as, or a subset of, the main observation tileset.
+    pub antennas: Vec<Antenna>,
+    /// num_antennas - number of antennas / tiles used for this beam
+    pub num_ants: usize,
     /// polarisation - string describing the polarisation format in the output data.
     pub polarisation: Option<String>,
     /// data_file_type - integer index into the ‘data_file_types’ database table describing the output format for this beam.
@@ -76,6 +79,7 @@ pub(crate) fn populate_beams(
     metafits_fptr: &mut FitsFile,
     voltagebeams_hdu: &FitsHdu,
     coarse_channels: &[CoarseChannel],
+    antennas: &[Antenna],
 ) -> Result<Vec<Beam>, error::BeamError> {
     // Find out how many beams there are in the table
     let rows = match &voltagebeams_hdu.info {
@@ -112,7 +116,13 @@ pub(crate) fn populate_beams(
             row as i64,
             MAX_RECEIVER_CHANNELS,
         )?;
-        let tileset: String = read_cell_value(metafits_fptr, voltagebeams_hdu, "tileset", row)?;
+        let tileset: Vec<u32> = read_cell_array_u32(
+            metafits_fptr,
+            voltagebeams_hdu,
+            "tileset",
+            row as i64,
+            MAX_ANTENNAS,
+        )?;
         let polarisation: Option<String> =
             read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "polarisation", row)?;
         let data_file_type_index: u32 =
@@ -125,8 +135,17 @@ pub(crate) fn populate_beams(
             read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "beam_index", row)?;
         let data_file_type = match DataFileType::from_u32(data_file_type_index) {
             Some(dft) => dft,
-            None => DataFileType::Unknown,
+            None => DataFileType::UnknownType,
         };
+
+        // Determine which antennas are in this beam's tileset
+        let mut beam_antennas: Vec<Antenna> = Vec::new();
+        for tile_id in tileset.iter() {
+            if let Some(ant) = antennas.iter().find(|a| a.tile_id == *tile_id) {
+                beam_antennas.push(ant.clone());
+            }
+        }
+        let num_beam_antennas = beam_antennas.len();
 
         // Determine which coarse channels to include in this beam
         let beam_coarse_channels: Vec<CoarseChannel> = match coarse_channel_set {
@@ -142,7 +161,7 @@ pub(crate) fn populate_beams(
             // No channel set specified - include a copy of all coarse channels
             None => coarse_channels.to_vec(),
         };
-        let num_coarse_channels = beam_coarse_channels.len();
+        let num_beam_coarse_channels = beam_coarse_channels.len();
 
         beam_vec.push(Beam {
             number: number as usize,
@@ -155,8 +174,9 @@ pub(crate) fn populate_beams(
             num_time_samples_to_average: num_time_samples_to_average as usize,
             frequency_resolution_hz,
             coarse_channels: beam_coarse_channels,
-            num_coarse_chans: num_coarse_channels,
-            tileset,
+            num_coarse_chans: num_beam_coarse_channels,
+            antennas: beam_antennas,
+            num_ants: num_beam_antennas,
             polarisation,
             data_file_type,
             creator,

@@ -49,6 +49,8 @@ pub(crate) const MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS: u64 = 1;
 pub(crate) const MWA_VCS_MWAXV2_SUBFILE_SECONDS: u64 = 8;
 /// Total number of MWA Receiver coarse channels
 pub(crate) const MAX_RECEIVER_CHANNELS: usize = 256;
+/// Maximum number of antennas (tiles) in the MWA
+pub(crate) const MAX_ANTENNAS: usize = 256;
 
 // Include the generated built.rs code into our library
 pub mod built_info {

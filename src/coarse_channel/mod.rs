@@ -235,7 +235,7 @@ impl CoarseChannel {
                                 }
                             }
                         }
-                        _ => match voltage_time_map {
+                        None => match voltage_time_map {
                             Some(v) => {
                                 if let Some((_, channel_map)) = v.iter().next() {
                                     if channel_map.contains_key(rec_chan_number) {
@@ -250,7 +250,7 @@ impl CoarseChannel {
                             }
                             // If no timemap has been passed in, we are populating based on metafits only.
                             // Need to do different behaviour for coarse channels for LegacyVCS vs CorrLegacy and CorrOldLegacy
-                            _ => match mwa_version {
+                            None => match mwa_version {
                                 MWAVersion::CorrLegacy | MWAVersion::CorrOldLegacy => coarse_chans
                                     .push(CoarseChannel::new(
                                         correlator_chan_number,
@@ -271,7 +271,10 @@ impl CoarseChannel {
                         },
                     }
                 }
-                MWAVersion::CorrMWAXv2 | MWAVersion::VCSMWAXv2 => {
+                MWAVersion::CorrMWAXv2
+                | MWAVersion::VCSMWAXv2
+                | MWAVersion::CorrBeamformerMWAXv2
+                | MWAVersion::BeamformerMWAXv2 => {
                     // If we have the correlator channel number, then add it to
                     // the output vector.
                     match gpubox_time_map {
@@ -287,7 +290,7 @@ impl CoarseChannel {
                                 }
                             }
                         }
-                        _ => match voltage_time_map {
+                        None => match voltage_time_map {
                             Some(v) => {
                                 if let Some((_, channel_map)) = v.iter().next() {
                                     if channel_map.contains_key(rec_chan_number) {
@@ -300,7 +303,7 @@ impl CoarseChannel {
                                     }
                                 }
                             }
-                            _ => coarse_chans.push(CoarseChannel::new(
+                            None => coarse_chans.push(CoarseChannel::new(
                                 correlator_chan_number,
                                 *rec_chan_number,
                                 *rec_chan_number,
@@ -401,7 +404,10 @@ impl CoarseChannel {
                 32 => 15_000.0, // 40 kHz corr mode needs a 15 kHz offset applied
                 _ => 0.0,       // other modes (10kHz) does not need any offset applied
             },
-            MWAVersion::CorrMWAXv2 | MWAVersion::VCSMWAXv2 => 0.0,
+            MWAVersion::CorrMWAXv2
+            | MWAVersion::VCSMWAXv2
+            | MWAVersion::BeamformerMWAXv2
+            | MWAVersion::CorrBeamformerMWAXv2 => 0.0,
         };
 
         // We need a factor based on whether the number of fine channels per coarse is even or odd

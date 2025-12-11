@@ -19,10 +19,11 @@ use pyo3_stub_gen::define_stub_info_gatherer;
 
 use crate::{
     gpubox_files::error::*,
-    types::{Pol, ReceiverType},
+    types::{DataFileType, Pol, ReceiverType},
     voltage_files::error::*,
-    Antenna, CableDelaysApplied, CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion,
-    MetafitsContext, Rfinput, SignalChainCorrection, VoltageContext,
+    Antenna, Baseline, Beam, CableDelaysApplied, CalibrationFit, CoarseChannel, CorrelatorContext,
+    GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, Rfinput, SignalChainCorrection,
+    VisPol, VoltageContext,
 };
 
 // Add a python exception for MmwalibError.
@@ -87,18 +88,29 @@ create_exception!(
 
 #[cfg_attr(any(feature = "python", feature = "python-stubgen"), pymodule)]
 fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Classes
     m.add_class::<MetafitsContext>()?;
     m.add_class::<CorrelatorContext>()?;
     m.add_class::<VoltageContext>()?;
-    m.add_class::<SignalChainCorrection>()?;
     m.add_class::<Antenna>()?;
+    m.add_class::<Baseline>()?;
+    m.add_class::<Beam>()?;
+    m.add_class::<CoarseChannel>()?;
+    m.add_class::<CalibrationFit>()?;
     m.add_class::<Rfinput>()?;
+    m.add_class::<SignalChainCorrection>()?;
+
+    // Enums
     m.add_class::<CableDelaysApplied>()?;
+    m.add_class::<DataFileType>()?;
     m.add_class::<GeometricDelaysApplied>()?;
     m.add_class::<MWAVersion>()?;
     m.add_class::<MWAMode>()?;
     m.add_class::<Pol>()?;
     m.add_class::<ReceiverType>()?;
+    m.add_class::<VisPol>()?;
+
+    // Exceptions
     m.add("MwalibError", py.get_type::<MwalibError>())?;
     m.add(
         "GpuboxErrorBatchMissing",

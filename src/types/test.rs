@@ -165,31 +165,27 @@ fn test_mode_enum() {
 fn test_data_file_type_enum() {
     let vdif = DataFileType::Vdif;
     let filterbank = DataFileType::Filterbank;
-    let unknown: DataFileType = DataFileType::Unknown;
+    let unknown: DataFileType = DataFileType::UnknownType;
 
     assert_eq!(format!("{}", vdif), "VDIF");
     assert_eq!(format!("{}", filterbank), "Filterbank");
     assert_eq!(format!("{}", unknown), "Unknown");
 
-    assert!(DataFileType::from_str("VDIF").is_ok());
-    assert!(DataFileType::from_str("Filterbank").is_ok());
-    assert!(DataFileType::from_str("something invalid").is_ok());
-
-    let i32_vdif: DataFileType = num_traits::FromPrimitive::from_i32(1).unwrap();
-    let i32_filterbank: DataFileType = num_traits::FromPrimitive::from_i32(2).unwrap();
+    let i32_vdif: DataFileType = num_traits::FromPrimitive::from_i32(19).unwrap();
+    let i32_filterbank: DataFileType = num_traits::FromPrimitive::from_i32(20).unwrap();
 
     assert_eq!(i32_vdif, DataFileType::Vdif);
     assert_eq!(i32_filterbank, DataFileType::Filterbank);
 
-    let dft: DataFileType = match Some(1) {
+    let dft: DataFileType = match Some(19) {
         Some(d) => num_traits::FromPrimitive::from_i32(d).unwrap(),
-        None => DataFileType::Unknown,
+        None => DataFileType::UnknownType,
     };
     assert_eq!(dft, DataFileType::Vdif);
 
-    let dft: DataFileType = match Some(2) {
+    let dft: DataFileType = match Some(20) {
         Some(d) => num_traits::FromPrimitive::from_i32(d).unwrap(),
-        None => DataFileType::Unknown,
+        None => DataFileType::UnknownType,
     };
     assert_eq!(dft, DataFileType::Filterbank);
 }

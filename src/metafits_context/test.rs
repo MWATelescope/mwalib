@@ -342,7 +342,10 @@ fn test_populate_expected_timesteps() {
         assert_eq!(
             context.metafits_timesteps.len(),
             match mwa_version {
-                MWAVersion::CorrOldLegacy | MWAVersion::CorrLegacy | MWAVersion::CorrMWAXv2 => {
+                MWAVersion::CorrOldLegacy
+                | MWAVersion::CorrLegacy
+                | MWAVersion::CorrMWAXv2
+                | MWAVersion::CorrBeamformerMWAXv2 => {
                     56
                 }
                 MWAVersion::VCSLegacyRecombined => {
@@ -350,6 +353,9 @@ fn test_populate_expected_timesteps() {
                 }
                 MWAVersion::VCSMWAXv2 => {
                     14
+                }
+                MWAVersion::BeamformerMWAXv2 => {
+                    0 // Beamformer metafits timesteps not yet implemented
                 }
             }
         );

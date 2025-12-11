@@ -1,32 +1,52 @@
 # Change Log
 
-Changes in each release are listed below.
+All notable changes to this project will be documented in this file.
+
+The format (from Dec 2025 onwards) is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+Notes:
+* Changes which have the *potential* to break existing code are tagged with "**BREAKING**".
+* Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
+* Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
 ## 2.0.0 XX-Dec-2025
 
-* Bumped MSRV to 1.81 due to dependency hell.
-* Added support for beamforming observations:
-  * Two new `MWAVersion`s: `BF` (6) and `CorrBF` (7).
-  * Two new `MWAMode`s: `MWAX_BEAMFORMER` (33) and `MWAX_BF_CORR` (34).
+### Added
+* Added support for upcoming MWA beamforming observations:
+  * ***BREAKING**: Two new values added to `MWAVersion` enum: `BeamformerMWAXv2` (6) and `CorrBeamformerMWAXv2` (7).
+  * ***BREAKING**: Two new values added to `MWAMode` enum: `MWAX_BEAMFORMER` (33) and `MWAX_BF_CORR` (34).
+  * A new enum `DataFileType`.
   * New struct `Beam` which handles beamformer neam metadata.
-  * new `MetafitsContext` attributes: `metafits_beams`, `num_metafits_beams`, `num_incoherent_beams`, `num_coherent_beams`
-* Created test read_second2 function which is much more efficient when reading MWAX Subfiles (7x less open, seek, read and close calls).
-* Created test read_file2 function which is also slightly more efficient than read_file.
-* Added `VoltageContext` read_file, read_file2, read_second and read_second2 benchmark.
-* FFI: Added tests for `VoltageContext` read_second, read_second2, read_file and read_file2.
-* Fixed bug in `VoltageContext::Display()` which had the fine channel width units as "Hz" when they should have been "kHz".
-* Moved `SignalChainCorrections` population code into the signal_chain_correction module.
-* Moved various enum types (and their tests) into a `types` module.
+  * New `MetafitsContext` attributes: `metafits_beams`, `num_metafits_beams`, `num_metafits_incoherent_beams`, `num_metafits_coherent_beams`
+* Added new functions in `fits_read`: `read_optional_cell_value()` and `read_optional_cell_array_u32()` to read FITS table values which may or may not be present in a FITS bintable.
+* Added benchmarks for `VoltageContext::read_file()` and `read_second()`.
 * Added support for reading old and new versions of the CALIBDATA HDU (calibration_fit/mod.rs = CalibrationFit) from the metafits files - providing the client with info on the best calibration solution found at the time the metafits file was generated.
-* FFI: Moved `antenna`, `baseline`, `calibration_fit`, `coarse_channel`, `rfinput`, `signal_chain_correction` and `timestep` FFI code from the monolithic ffi.rs source file into their own ffi.rs under the respective module folders.
-* FFI: Fixed free functions: `mwalib_metafits_metadata_free`, `mwalib_correlator_metadata_free`, `mwalib_voltage_metadata_free` to correctly free all Rust unsafely allocated memory.
-* FFI: Ensure conversions to C strings get validated for null terminator, correct buffer length and unicode.
-* FFI: Fixed the type of `error_message` pointer to buffers to be `char*` instead of `const char*`
-* FFI: Internally changed `c_ulong` with `u64` to be consistent with other definitions of GPS seconds.
-* FFI: Fixed some incorrect uses of `mut* u8` to be `mut* c_char`.
-* FFI: moved FFI code and tests into their respective modules for greater readability.
-* FFI: mwalib.h now generated with a cbindgen.toml configuration file.
-* C Examples: Refactored mwalib-sum-vcs.
+* FFI/C: Added tests for `mwalib_voltage_context_read_second()` and `mwalib_voltage_context_read_file()` functions.
+* FFI/C: Added `Makefile` for building the C examples.
+* Added new feature `python-stubgen` and moved `pyo3-stubgen` related code behind it. This feature is only used by the mwalib maintainers to update the Python types stub when doing a release, allowing users of the pip package to have intellisense and documentation for all classes and methods.
+
+### Changed
+* **BREAKING**: Bumped MSRV to 1.81** due to dependency hell.
+* **BREAKING**: Moved all enum types (and their tests) into their own `types` module. This includes `MWAVersion`, `VisPol`, `GeometricDelaysApplied`, `CableDelaysApplied`, `MWAMode`, `Pol` and `ReceiverType`. 
+* **BREAKING**: FFI/C: Fixed the datatype of `error_message` pointer to buffers in functions to be `char*` instead of `const char*`, since the functions modify the contents of the buffer.
+* **BREAKING**: FFI/C: Fixed some incorrect uses of `mut* u8`. They are now `mut* c_char` for better compatibility.
+* **BREAKING**: FFI/C: Re-ordered members of `MetafitsMetadata`, `CorrelatorMetadata` and `VoltageMetadata` structs to optimise packing and reduce wasted memory. 
+* Updated dependencies
+* Moved `SignalChainCorrections` population code into the signal_chain_correction module.
+* FFI/C: Moved `antenna`, `baseline`, `calibration_fit`, `coarse_channel`, `rfinput`, `signal_chain_correction` and `timestep` FFI code and their tests from the monolithic ffi.rs source file into their own ffi.rs under the respective module folders for shorter, easier to read code.
+* FFI/C: Internally changed `c_ulong` to `u64` to be consistent with other definitions of GPS seconds.
+* FFI/C: mwalib.h now generated with a cbindgen.toml configuration file.
+* FFI/C: Examples: Refactored `mwalib-sum-vcs.c`; minor datatype changes for `mwalib-print-context.c`, `mwalib-print-volt-context.c`, `mwalib-sum-all-hdus.c`.
+* CI: Changed `macos-13` in github CI runners, and replaced it with `macos-15-intel`.
+
+### Secuirty
+* FFI/C: Fixed memory leak in C free functions: `mwalib_metafits_metadata_free()`, `mwalib_correlator_metadata_free()`, `mwalib_voltage_metadata_free()` to correctly free all Rust unsafely allocated memory.
+* FFI/C: Fix to ensure conversions of Rust to C strings get validated for null terminator, correct buffer length and unicode.
+
+### Fixed
+* Fixed `VoltageContext::read_second()` function which is much more efficient now when reading MWAX Subfiles (up to 7x less open, seek, read and close calls).
+* Fixed `VoltageContext::read_file()` function which is also slightly more efficient than the previous implementation of read_file.
+* Fixed bug in `VoltageContext::Display()` which had the fine channel width units as "Hz" when they should have been "kHz".
 
 ## 1.9.0 27-Oct-2025
 

@@ -31,6 +31,10 @@ pub enum MWAVersion {
     VCSLegacyRecombined = 4,
     /// MWAX VCS
     VCSMWAXv2 = 5,
+    /// MWAX Beamformer
+    BeamformerMWAXv2 = 6,
+    /// MWAX Corr+Beamformer
+    CorrBeamformerMWAXv2 = 7,
 }
 
 /// Implements fmt::Display for MWAVersion enum
@@ -56,6 +60,8 @@ impl fmt::Display for MWAVersion {
                 MWAVersion::CorrMWAXv2 => "Correlator v2 MWAX",
                 MWAVersion::VCSLegacyRecombined => "VCS Legacy Recombined",
                 MWAVersion::VCSMWAXv2 => "VCS MWAX v2",
+                MWAVersion::CorrBeamformerMWAXv2 => "Correlator and Beamformer v2 MWAX",
+                MWAVersion::BeamformerMWAXv2 => "Beamformer MWAX v2",
             }
         )
     }
@@ -468,9 +474,27 @@ impl std::str::FromStr for ReceiverType {
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum DataFileType {
-    Unknown = 0,
-    Vdif = 1,
-    Filterbank = 2,
+    UnknownType = 0,        // Unknown file type
+    RawVsib = 1,            // Raw VSIB burst mode
+    AvgVsib = 2,            // Averaged VSIB burst mode
+    InstCfgTxt = 3,         // Instrument configuration text file
+    HdrTxt = 4,             // header.txt file for uvfits converter
+    InstCfgHdr = 5,         // Instrument configration text header
+    Lacspc = 6,             // Averaged autocorrelation spectra (lacspc)
+    Lccspc = 7,             // Averaged crosscorrelation spectra (lccspc)
+    HwLfilesFits = 8,       // Raw Correlator Products
+    AntCfg = 9,             // Antenna configuration header
+    Flag = 10,              // MWA Flag File
+    RawVolt = 11,           // Raw Voltage
+    RawVoltRecombined = 12, // Raw Voltage Recombined
+    Uvfits = 13,            // UVFITS File
+    Ppd = 14,               // MWA PPD File
+    Ics = 15,               // Voltage ICS
+    Tar = 16,               // Voltage Recombined Archive
+    Subfile = 17,           // MWAX voltages
+    MwaxFits = 18,          // MWAX visibilities
+    Vdif = 19,              // VDIF
+    Filterbank = 20,        // Filterbank
 }
 
 /// Implements fmt::Display for DataFileType
@@ -491,35 +515,28 @@ impl fmt::Display for DataFileType {
             f,
             "{}",
             match self {
-                DataFileType::Unknown => "Unknown",
+                DataFileType::UnknownType => "Unknown",
+                DataFileType::RawVsib => "RawVsib",
+                DataFileType::AvgVsib => "AvgVsib",
+                DataFileType::InstCfgTxt => "InstCfgTxt",
+                DataFileType::HdrTxt => "HdrTxt",
+                DataFileType::InstCfgHdr => "InstCfgHdr",
+                DataFileType::Lacspc => "Lacspc",
+                DataFileType::Lccspc => "Lccspc",
+                DataFileType::HwLfilesFits => "HwLfilesFits",
+                DataFileType::AntCfg => "AntCfg",
+                DataFileType::Flag => "Flag",
+                DataFileType::RawVolt => "RawVolt",
+                DataFileType::RawVoltRecombined => "RawVoltRecombined",
+                DataFileType::Uvfits => "Uvfits",
+                DataFileType::Ppd => "Ppd",
+                DataFileType::Ics => "Ics",
+                DataFileType::Tar => "Tar",
+                DataFileType::Subfile => "Subfile",
+                DataFileType::MwaxFits => "MwaxFits",
                 DataFileType::Vdif => "VDIF",
                 DataFileType::Filterbank => "Filterbank",
             }
         )
-    }
-}
-
-/// Implements str::FromStr for DataFileType enum.
-/// Non uppercase values are coverted to uppercase for comparision.
-///
-/// # Arguments
-///
-/// * `input` - A &str which we want to convert to an enum
-///
-///
-/// # Returns
-///
-/// * `Result<DataFileType, Err>` - Result of this method
-///
-///
-impl std::str::FromStr for DataFileType {
-    type Err = ();
-
-    fn from_str(input: &str) -> Result<DataFileType, Self::Err> {
-        match input.to_uppercase().as_str() {
-            "VDIF" => Ok(DataFileType::Vdif),
-            "Filterbank" => Ok(DataFileType::Filterbank),
-            _ => Ok(DataFileType::Unknown),
-        }
     }
 }
