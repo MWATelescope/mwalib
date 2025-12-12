@@ -3,10 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use crate::{
-    antenna, baseline, beam, calibration_fit, coarse_channel,
+    antenna::{self},
+    baseline, beam, calibration_fit, coarse_channel,
     ffi::{
-        ffi_array_to_boxed_slice, ffi_free_c_boxed_slice, free_c_string, rust_string_to_buf,
-        set_c_string, MWALIB_FAILURE, MWALIB_SUCCESS,
+        ffi_array_to_boxed_slice, ffi_free_c_boxed_slice, ffi_free_rust_struct, set_c_string,
+        MWALIB_FAILURE, MWALIB_SUCCESS,
     },
     rfinput, signal_chain_correction, timestep,
     types::DataFileType,
@@ -271,63 +272,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     };
 
     // Populate baselines
-    let mut baseline_vec: Vec<baseline::ffi::Baseline> = Vec::new();
-    for item in metafits_context.baselines.iter() {
-        let out_item = {
-            let baseline::Baseline {
-                ant1_index,
-                ant2_index,
-            } = item;
-            baseline::ffi::Baseline {
-                ant1_index: *ant1_index,
-                ant2_index: *ant2_index,
-            }
-        };
-
-        baseline_vec.push(out_item);
-    }
+    let (baselines_ptr, baselines_len) = baseline::ffi::Baseline::ffi_populate(&metafits_context);
 
     // Populate antennas
-    let mut antenna_vec: Vec<antenna::ffi::Antenna> = Vec::new();
-    for item in metafits_context.antennas.iter() {
-        let out_item = {
-            let antenna::Antenna {
-                ant,
-                tile_id,
-                tile_name: _,
-                rfinput_x,
-                rfinput_y,
-                electrical_length_m,
-                north_m,
-                east_m,
-                height_m,
-            } = item;
-
-            let tile_name_c_str = rust_string_to_buf(item.tile_name.clone());
-
-            antenna::ffi::Antenna {
-                ant: *ant,
-                tile_id: *tile_id,
-                tile_name: tile_name_c_str,
-                rfinput_x: metafits_context
-                    .rf_inputs
-                    .iter()
-                    .position(|x| x == rfinput_x)
-                    .unwrap(),
-                rfinput_y: metafits_context
-                    .rf_inputs
-                    .iter()
-                    .position(|y| y == rfinput_y)
-                    .unwrap(),
-                electrical_length_m: *electrical_length_m,
-                north_m: *north_m,
-                east_m: *east_m,
-                height_m: *height_m,
-            }
-        };
-
-        antenna_vec.push(out_item);
-    }
+    let (antennas_ptr, antennas_len) = antenna::ffi::Antenna::ffi_populate(&metafits_context);
 
     // Populate rf_inputs
     let mut rfinput_vec: Vec<rfinput::ffi::Rfinput> = Vec::new();
@@ -511,7 +459,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     if let Some(v) = &metafits_context.metafits_beams {
         for item in v.iter() {
             // Get a list of antenna indicies for this beam
-            let tileset_antenna_indices = item
+            let tileset_antenna_indices: Vec<usize> = item
                 .antennas
                 .iter()
                 .filter_map(|sel| metafits_context.antennas.iter().position(|a| a == sel))
@@ -543,7 +491,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                     coarse_channels: _,
                     num_coarse_chans,
                     antennas: _,
-                    num_ants: num_antennas,
+                    num_ants: _,
                     polarisation,
                     data_file_type,
                     creator,
@@ -564,8 +512,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
                     frequency_resolution_hz: *frequency_resolution_hz,
                     coarse_channels: ffi_array_to_boxed_slice(coarse_channel_indices),
                     num_coarse_chans: *num_coarse_chans,
+                    num_ants: tileset_antenna_indices.len(),
                     antennas: ffi_array_to_boxed_slice(tileset_antenna_indices),
-                    num_ants: *num_antennas,
                     polarisation: CString::new(
                         polarisation.clone().unwrap_or_default().replace('\0', ""),
                     )
@@ -646,7 +594,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             quack_time_duration_ms,
             good_time_unix_ms,
             good_time_gps_ms,
-            num_ants,
+            num_ants: _,
             antennas: _, // This is populated seperately
             num_rf_inputs,
             rf_inputs: _, // This is populated seperately
@@ -660,7 +608,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             obs_bandwidth_hz,
             coarse_chan_width_hz,
             centre_freq_hz,
-            num_baselines,
+            num_baselines: _,
             baselines: _, // This is populated seperately
             num_visibility_pols,
             metafits_filename,
@@ -750,13 +698,13 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             quack_time_duration_ms: *quack_time_duration_ms,
             good_time_unix_ms: *good_time_unix_ms,
             good_time_gps_ms: *good_time_gps_ms,
-            num_ants: *num_ants,
-            antennas: ffi_array_to_boxed_slice(antenna_vec),
+            num_ants: antennas_len,
+            antennas: antennas_ptr,
             num_rf_inputs: *num_rf_inputs,
             rf_inputs: ffi_array_to_boxed_slice(rfinput_vec),
             num_ant_pols: *num_ant_pols,
-            num_baselines: *num_baselines,
-            baselines: ffi_array_to_boxed_slice(baseline_vec),
+            num_baselines: baselines_len,
+            baselines: baselines_ptr,
             num_visibility_pols: *num_visibility_pols,
             num_metafits_coarse_chans: *num_metafits_coarse_chans,
             metafits_coarse_chans: ffi_array_to_boxed_slice(coarse_chan_vec),
@@ -848,31 +796,16 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
         return MWALIB_SUCCESS;
     }
 
+    let m = metafits_metadata_ptr;
+
     //
     // Free members first
     //
     // baselines
-    ffi_free_c_boxed_slice(
-        (*metafits_metadata_ptr).baselines,
-        (*metafits_metadata_ptr).num_baselines,
-    );
+    ffi_free_rust_struct((*m).baselines, (*m).num_baselines);
 
     // antennas
-    if !(*metafits_metadata_ptr).antennas.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [antenna::ffi::Antenna] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).antennas,
-            (*metafits_metadata_ptr).num_ants,
-        );
-        // Now for each item we need to free anything on the heap
-        for i in slice.iter_mut() {
-            //drop(CString::from_raw(i.tile_name));
-            free_c_string(i.tile_name);
-        }
-
-        // Free the memory for the slice
-        drop(Box::from_raw(slice));
-    }
+    antenna::ffi::Antenna::ffi_destroy_array((*m).antennas, (*m).num_ants);
 
     // rf inputs
     if !(*metafits_metadata_ptr).rf_inputs.is_null() {

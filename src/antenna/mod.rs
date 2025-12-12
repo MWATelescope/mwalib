@@ -4,7 +4,7 @@
 
 //! Structs and helper methods for antenna metadata
 use crate::{rfinput::*, types::Pol};
-pub(crate) mod ffi;
+pub mod ffi;
 use std::fmt;
 
 #[cfg(any(feature = "python", feature = "python-stubgen"))]

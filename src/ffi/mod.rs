@@ -6,10 +6,7 @@
 
 use crate::*;
 use libc::{c_char, c_uint, size_t};
-use std::ffi::*;
-use std::mem;
-use std::ptr;
-use std::slice;
+use std::{ffi::CString, ptr, slice};
 
 #[cfg(test)]
 pub(crate) mod ffi_test_helpers;
@@ -202,23 +199,45 @@ pub(crate) fn ffi_free_c_boxed_slice<T>(ptr_to_array: *mut T, len: usize) {
     }
 }
 
-pub(crate) fn rust_string_to_buf(rust_str: String) -> *mut c_char {
-    let mut boxed: Box<[u8]> = rust_str.into_bytes().into_boxed_slice();
-    let ptr_u8 = boxed.as_mut_ptr();
-    //let len = boxed.len();
-
-    // Leak ownership to C
-    mem::forget(boxed);
-
-    ptr_u8.cast::<c_char>()
+/// Utility: Create a C String from a Rust string
+#[inline]
+pub fn ffi_create_c_string(rust_str: &str) -> *mut c_char {
+    return match CString::new(rust_str) {
+        Ok(s) => s.into_raw(),
+        Err(_) => {
+            // If the string name contains an interior NUL, skip it (or handle differently)
+            // Here we substitute an empty string to keep the example simple.
+            CString::new("").unwrap().into_raw()
+        }
+    };
 }
 
-pub(crate) fn free_c_string(ptr: *mut c_char) {
-    if ptr.is_null() {
-        return;
-    }
+/// Utility: Create a C Array from a Rust Vector
+#[inline]
+pub fn ffi_create_c_array<T>(mut rust_vec: Vec<T>) -> (*mut T, usize) {
+    let ptr = rust_vec.as_mut_ptr();
+    let len = rust_vec.len();
+    std::mem::forget(rust_vec); // Prevent Rust from freeing the Vec
+    (ptr, len)
+}
 
-    unsafe {
-        let _ = CString::from_raw(ptr);
+/// Utility: free a Rust-allocated C string returned by this API.
+#[inline]
+pub fn ffi_free_rust_c_string(ptr: *mut *mut c_char) {
+    if !ptr.is_null() {
+        unsafe {
+            let _ = CString::from_raw(*ptr); // drop to free
+            *ptr = ptr::null_mut();
+        }
+    }
+}
+
+/// Utility: free a Rust-allocated C struct returned by this API
+#[inline]
+pub fn ffi_free_rust_struct<T>(ptr: *mut T, len: usize) {
+    if !ptr.is_null() {
+        let _ = unsafe {
+            Vec::from_raw_parts(ptr, len, len);
+        };
     }
 }
