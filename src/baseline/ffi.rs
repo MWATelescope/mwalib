@@ -4,7 +4,7 @@
 
 use crate::{
     baseline::{self, ffi},
-    ffi::ffi_create_c_array,
+    ffi::{ffi_create_c_array, ffi_free_rust_struct},
     MetafitsContext,
 };
 
@@ -32,9 +32,9 @@ impl Baseline {
     ///
     ///
     /// # Safety
-    /// * The corresponding `ffi_destroy` function for this class must be called to free the memory
+    /// * The corresponding `destroy_array` function for this class must be called to free the memory
     ///
-    pub fn ffi_populate(metafits_context: &MetafitsContext) -> (*mut ffi::Baseline, usize) {
+    pub fn populate_array(metafits_context: &MetafitsContext) -> (*mut ffi::Baseline, usize) {
         let mut item_vec: Vec<ffi::Baseline> = Vec::new();
 
         for item in metafits_context.baselines.iter() {
@@ -54,21 +54,21 @@ impl Baseline {
 
         ffi_create_c_array(item_vec)
     }
-}
 
-/// This function frees an individual instance (owned by Rust) of this class
-///
-/// # Arguments
-///
-/// * `item` - the pointer to the instance of this class
-///    
-/// # Returns
-///
-/// * Nothing
-///
-pub fn ffi_destroy(item: *mut ffi::Baseline) {
-    if item.is_null() {
-        return;
+    /// This function frees all array items (owned by Rust) of this class
+    ///
+    /// # Arguments
+    ///
+    /// * `items_ptr` - the pointer to the array
+    ///
+    /// * `items_len` - elements in the array
+    ///    
+    /// # Returns
+    ///
+    /// * Nothing
+    ///
+    pub fn destroy_array(items_ptr: *mut ffi::Baseline, items_len: usize) {
+        // Now free the array itself by reconstructing the Vec and letting it drop
+        ffi_free_rust_struct(items_ptr, items_len);
     }
-    // No other heap allocations to remove
 }

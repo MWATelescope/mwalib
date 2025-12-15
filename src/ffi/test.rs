@@ -3,6 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for ffi module
+use std::ffi::CStr;
+
 #[cfg(test)]
 use super::*;
 
@@ -35,28 +37,47 @@ pub fn test_mwalib_version_patch() {
 // Simple test of the error message helper
 //
 #[test]
-fn test_set_error_message() {
-    let buffer = CString::new("HELLO WORLD").unwrap();
+fn test_set_error_message_ok() {
+    let buffer = CString::new("123456789AB").unwrap();
     let buffer_ptr = buffer.as_ptr() as *mut c_char;
 
-    set_c_string("hello world", buffer_ptr, 12);
-
-    assert_eq!(buffer, CString::new("hello world").unwrap());
+    let written = set_c_string("hello world", buffer_ptr, 12);
+    let expected = CString::new("hello world").unwrap();
+    let expected_w_nul = expected.as_bytes_with_nul();
+    assert_eq!(buffer.as_bytes_with_nul(), expected_w_nul);
+    assert_eq!(written, 12); // 11 characters + NUL terminator
 }
 
 #[test]
 fn test_set_error_message_null_ptr() {
     let buffer_ptr: *mut c_char = std::ptr::null_mut();
 
-    set_c_string("hello world", buffer_ptr, 12);
+    let written = set_c_string("hello world", buffer_ptr, 12);
+    assert_eq!(written, 0); // buffer is null
 }
 
 #[test]
-fn test_set_error_message_buffer_len_too_small() {
+fn test_set_error_message_buffer_len_too_small1() {
     let buffer = CString::new("H").unwrap();
     let buffer_ptr = buffer.as_ptr() as *mut c_char;
 
-    set_c_string("hello world", buffer_ptr, 1);
+    let written = set_c_string("hello world", buffer_ptr, 1);
+    assert_eq!(buffer.to_bytes_with_nul()[0], 0u8);
+    assert_eq!(written, 1); // just the NUL terminator
+}
+
+#[test]
+fn test_set_error_message_buffer_len_too_small2() {
+    let buffer = CString::new("HE").unwrap();
+    let buffer_ptr = buffer.as_ptr() as *mut c_char;
+
+    let written = set_c_string("hello world", buffer_ptr, 2);
+
+    let expected = CString::new("h").unwrap();
+    let expected_w_nul = expected.as_bytes_with_nul();
+    assert_eq!(buffer.as_bytes(), expected_w_nul);
+
+    assert_eq!(written, 2); // 1 character plus the NUL terminator
 }
 
 #[test]

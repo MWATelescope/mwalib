@@ -55,9 +55,9 @@ impl Antenna {
     ///
     ///
     /// # Safety
-    /// * The corresponding `ffi_destroy` function for this class must be called to free the memory
+    /// * The corresponding `destroy_array` function for this class must be called to free the memory
     ///
-    pub fn ffi_populate(metafits_context: &MetafitsContext) -> (*mut ffi::Antenna, usize) {
+    pub fn populate_array(metafits_context: &MetafitsContext) -> (*mut ffi::Antenna, usize) {
         let mut item_vec: Vec<ffi::Antenna> = Vec::new();
 
         for item in metafits_context.antennas.iter() {
@@ -113,7 +113,7 @@ impl Antenna {
     ///
     /// * Nothing
     ///
-    fn ffi_destroy(item: *mut ffi::Antenna) {
+    fn destroy_item(item: *mut ffi::Antenna) {
         if item.is_null() {
             return;
         }
@@ -125,6 +125,7 @@ impl Antenna {
             ffi_free_rust_c_string(&mut a.tile_name);
         }
     }
+
     /// This function frees all array items (owned by Rust) of this class
     ///
     /// # Arguments
@@ -137,10 +138,10 @@ impl Antenna {
     ///
     /// * Nothing
     ///
-    pub fn ffi_destroy_array(items_ptr: *mut Antenna, items_len: usize) {
+    pub fn destroy_array(items_ptr: *mut ffi::Antenna, items_len: usize) {
         let items_slice = unsafe { std::slice::from_raw_parts_mut(items_ptr, items_len) };
         for item in items_slice {
-            Self::ffi_destroy(item);
+            Self::destroy_item(item);
         }
         // Now free the array itself by reconstructing the Vec and letting it drop
         ffi_free_rust_struct(items_ptr, items_len);

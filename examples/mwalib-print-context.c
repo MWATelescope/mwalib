@@ -42,6 +42,7 @@ int main(int argc, char *argv[])
         if (mwalib_metafits_context_new2(argv[1], &metafits_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
         {
             printf("Error getting metafits context: %s\n", error_message);
+            free(error_message);
             exit(-1);
         }
 
@@ -49,6 +50,7 @@ int main(int argc, char *argv[])
         if (mwalib_metafits_context_display(metafits_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
         {
             printf("Error displaying metafits context info: %s\n", error_message);
+            free(error_message);
             exit(-1);
         }
     }
@@ -68,6 +70,8 @@ int main(int argc, char *argv[])
             if (mwalib_correlator_context_new(argv[1], files, file_count - 1, &correlator_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error getting correlator context: %s\n", error_message);
+                free(error_message);
+                free(files);
                 exit(-1);
             }
 
@@ -76,6 +80,8 @@ int main(int argc, char *argv[])
             if (mwalib_correlator_metadata_get(correlator_context, &corr_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error retrieving correlator metadata info: %s\n", error_message);
+                free(error_message);
+                free(files);
                 exit(-1);
             }
 
@@ -83,6 +89,8 @@ int main(int argc, char *argv[])
             if (mwalib_correlator_context_display(correlator_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error displaying context info: %s\n", error_message);
+                free(error_message);
+                free(files);
                 exit(-1);
             }
 
@@ -107,7 +115,6 @@ int main(int argc, char *argv[])
 
             // Clean up metadata
             mwalib_correlator_metadata_free(corr_metadata);
-
             free(files);
         }
         else if (strcmp(strrchr(argv[2], '\0') - 4, ".sub") == 0 || strcmp(strrchr(argv[2], '\0') - 4, ".dat") == 0)
@@ -163,13 +170,13 @@ int main(int argc, char *argv[])
 
             // Clean up metadata
             mwalib_voltage_metadata_free(volt_metadata);
-
             free(files);
         }
         else
         {
             // Unknown files!
             printf("Error- provided data files must be .fits, .dat or .sub!\n");
+            free(error_message);
             exit(-1);
         }
     }
@@ -182,19 +189,24 @@ int main(int argc, char *argv[])
     if (mwalib_metafits_metadata_get(metafits_context, correlator_context, voltage_context, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
         // print a baseline
-        printf("Baseline index 1: %ld vs %ld\n", metafits_metadata->baselines[1].ant1_index, metafits_metadata->baselines[1].ant2_index);
+        size_t index = 0 ? metafits_metadata->num_baselines == 0 : metafits_metadata->num_baselines - 1;
+        printf("Baseline index %ld: %ld vs %ld\n", index, metafits_metadata->baselines[index].ant1_index, metafits_metadata->baselines[index].ant2_index);
 
         // print an rfinput
-        printf("RF Input index 1: ant index: %d, tile_id: %d name: %s pol: %s\n", metafits_metadata->rf_inputs[1].ant, metafits_metadata->rf_inputs[1].tile_id, metafits_metadata->rf_inputs[1].tile_name, metafits_metadata->rf_inputs[1].pol);
+        index = 0 ? metafits_metadata->num_rf_inputs == 0 : metafits_metadata->num_rf_inputs - 1;
+        printf("RF Input index %ld: ant index: %d, tile_id: %d name: %s pol: %s\n", index, metafits_metadata->rf_inputs[index].ant, metafits_metadata->rf_inputs[index].tile_id, metafits_metadata->rf_inputs[index].tile_name, metafits_metadata->rf_inputs[index].pol);
 
         // print a antenna
-        printf("Ant index 1: %d name: %s elec len (m): %f\n", metafits_metadata->antennas[1].tile_id, metafits_metadata->antennas[1].tile_name, metafits_metadata->antennas[1].electrical_length_m);
+        index = 0 ? metafits_metadata->num_ants == 0 : metafits_metadata->num_ants - 1;
+        printf("Ant index %ld: %d name: %s elec len (m): %f\n", index, metafits_metadata->antennas[index].tile_id, metafits_metadata->antennas[index].tile_name, metafits_metadata->antennas[index].electrical_length_m);
 
         // print a coarse channel
-        printf("Metafits Coarse channel index 1: receiver channel: %ld (centre = %f MHz)\n", metafits_metadata->metafits_coarse_chans[1].rec_chan_number, (float)metafits_metadata->metafits_coarse_chans[1].chan_centre_hz / 1000000.);
+        index = 0 ? metafits_metadata->num_metafits_coarse_chans == 0 : metafits_metadata->num_metafits_coarse_chans - 1;
+        printf("Metafits Coarse channel index %ld: receiver channel: %ld (centre = %f MHz)\n", index, metafits_metadata->metafits_coarse_chans[index].rec_chan_number, (float)metafits_metadata->metafits_coarse_chans[index].chan_centre_hz / 1000000.);
 
         // print a timestep
-        printf("Metafits Timestep index 2: GPS Time = %f  (UNIX time: %f)\n", (double)metafits_metadata->metafits_timesteps[2].gps_time_ms / 1000., (double)metafits_metadata->metafits_timesteps[2].unix_time_ms / 1000.);
+        index = 0 ? metafits_metadata->num_metafits_timesteps == 0 : metafits_metadata->num_metafits_timesteps - 1;
+        printf("Metafits Timestep index %ld: GPS Time = %f  (UNIX time: %f)\n", index, (double)metafits_metadata->metafits_timesteps[index].gps_time_ms / 1000., (double)metafits_metadata->metafits_timesteps[index].unix_time_ms / 1000.);
 
         // print the start time UTC and sched start unix time
         printf("Scheduled start time (UNIX): %f\n", metafits_metadata->sched_start_unix_time_ms / 1000.0);

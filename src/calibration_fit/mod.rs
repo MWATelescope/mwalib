@@ -46,10 +46,15 @@ pub struct CalibrationFit {
     /// for this input. Derived from the most recently processed calibrator observation with the same coarse
     /// channels. May be missing or all ones in some metafits files.
     pub gains: Vec<f32>,
+    pub num_gains: usize,
     /// polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
     pub gain_polynomial_fit0: Vec<f32>,
+    /// number of gain_polynomial_fit0 elements
+    pub num_gain_polynomial_fit0: usize,
     /// polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
     pub gain_polynomial_fit1: Vec<f32>,
+    /// number of gain_polynomial_fit1 elements
+    pub num_gain_polynomial_fit1: usize,
     /// dimensionless quality parameter (0-1.0) for the phase fit
     pub phase_fit_quality: f32,
     /// dimensionless quality parameter (0-1.0) for the gain fit
@@ -214,8 +219,11 @@ pub(crate) fn populate_calibration_fits(
             rf_input,
             delay_metres,
             intercept_metres,
+            num_gains: gains.len(),
             gains,
+            num_gain_polynomial_fit0: gain_polynomial_fit0.len(),
             gain_polynomial_fit0,
+            num_gain_polynomial_fit1: gain_polynomial_fit1.len(),
             gain_polynomial_fit1,
             phase_fit_quality,
             gain_fit_quality,

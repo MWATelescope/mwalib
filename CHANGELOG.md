@@ -14,10 +14,12 @@ Notes:
 ### Added
 * Added support for upcoming MWA beamforming observations:
   * ***BREAKING**: Two new values added to `MWAVersion` enum: `BeamformerMWAXv2` (6) and `CorrBeamformerMWAXv2` (7).
-  * ***BREAKING**: Two new values added to `MWAMode` enum: `MWAX_BEAMFORMER` (33) and `MWAX_BF_CORR` (34).
+  * ***BREAKING**: Two new values added to `MWAMode` enum: `MWAX_BEAMFORMER` (33) and `MWAX_BF_CORR` (34).  
   * A new enum `DataFileType`.
   * New struct `Beam` which handles beamformer neam metadata.
   * New `MetafitsContext` attributes: `metafits_beams`, `num_metafits_beams`, `num_metafits_incoherent_beams`, `num_metafits_coherent_beams`
+  * Added `num_corrections` attribute to the `SignalChainCorrection`struct.
+  * FFI/C: Added `num_corrections` attribute to the FFI `SignalChainCorrection`struct.
 * Added new functions in `fits_read`: `read_optional_cell_value()` and `read_optional_cell_array_u32()` to read FITS table values which may or may not be present in a FITS bintable.
 * Added benchmarks for `VoltageContext::read_file()` and `read_second()`.
 * Added support for reading old and new versions of the CALIBDATA HDU (calibration_fit/mod.rs = CalibrationFit) from the metafits files - providing the client with info on the best calibration solution found at the time the metafits file was generated.

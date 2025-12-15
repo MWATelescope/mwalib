@@ -32,6 +32,9 @@ pub struct SignalChainCorrection {
 
     /// Corrections    
     pub corrections: Vec<f64>,
+
+    /// Number of corrections
+    pub num_corrections: usize,
 }
 
 /// Implements fmt::Display for SignalChainCorrection
@@ -113,6 +116,7 @@ pub(crate) fn populate_signal_chain_corrections(
         sig_chain_vec.push(SignalChainCorrection {
             receiver_type,
             whitening_filter,
+            num_corrections: corrections.len(),
             corrections,
         });
     }

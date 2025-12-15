@@ -1,3 +1,9 @@
+use crate::{
+    ffi::{ffi_create_c_array, ffi_create_c_string, ffi_free_rust_c_string, ffi_free_rust_struct},
+    rfinput::{self, ffi},
+    MetafitsContext, MAX_RECEIVER_CHANNELS,
+};
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -75,4 +81,174 @@ pub struct Rfinput {
     /// This is the index into the MetafitsContext.signal_chain_corrections vector, or MAX_RECEIVER_CHANNELS if not applicable/not found for the
     /// receiver type and whitening filter combination
     pub signal_chain_corrections_index: usize,
+}
+
+impl Rfinput {
+    /// This function populates a C array (owned by Rust) of this class
+    ///
+    /// # Arguments
+    ///
+    /// * `metafits_context` - Reference to the populated Rust MetafitsContext
+    ///    
+    /// # Returns
+    ///
+    /// * Noting
+    ///
+    ///
+    /// # Safety
+    /// * The corresponding `destroy_array` function for this class must be called to free the memory
+    ///
+    pub fn populate_array(metafits_context: &MetafitsContext) -> (*mut ffi::Rfinput, usize) {
+        let mut item_vec: Vec<ffi::Rfinput> = Vec::new();
+
+        for item in metafits_context.rf_inputs.iter() {
+            let out_item = {
+                let rfinput::Rfinput {
+                    input,
+                    ant,
+                    tile_id,
+                    tile_name,
+                    pol,
+                    electrical_length_m,
+                    north_m,
+                    east_m,
+                    height_m,
+                    vcs_order,
+                    subfile_order,
+                    flagged,
+                    digital_gains,
+                    dipole_gains,
+                    dipole_delays,
+                    rec_number,
+                    rec_slot_number,
+                    rec_type,
+                    flavour,
+                    has_whitening_filter,
+                    calib_delay,
+                    calib_gains,
+                    signal_chain_corrections_index,
+                } = item;
+
+                // Handle vectors
+                let (calib_gains_ptr, calib_gains_len) = match calib_gains {
+                    Some(gains) => ffi_create_c_array(gains.clone()),
+                    None => ffi_create_c_array(vec![
+                        f32::NAN;
+                        metafits_context.num_metafits_coarse_chans
+                    ]),
+                };
+
+                let (digital_gains_ptr, digital_gains_len) =
+                    ffi_create_c_array(digital_gains.clone());
+
+                let (dipole_gains_ptr, dipole_gains_len) = ffi_create_c_array(dipole_gains.clone());
+
+                let (dipole_delays_ptr, dipole_delays_len) =
+                    ffi_create_c_array(dipole_delays.clone());
+
+                rfinput::ffi::Rfinput {
+                    input: *input,
+                    ant: *ant,
+                    tile_id: *tile_id,
+                    tile_name: ffi_create_c_string(tile_name),
+                    pol: ffi_create_c_string(&pol.to_string()),
+                    electrical_length_m: *electrical_length_m,
+                    north_m: *north_m,
+                    east_m: *east_m,
+                    height_m: *height_m,
+                    vcs_order: *vcs_order,
+                    subfile_order: *subfile_order,
+                    flagged: *flagged,
+                    digital_gains: digital_gains_ptr,
+                    num_digital_gains: digital_gains_len,
+                    dipole_gains: dipole_gains_ptr,
+                    num_dipole_gains: dipole_gains_len,
+                    dipole_delays: dipole_delays_ptr,
+                    num_dipole_delays: dipole_delays_len,
+                    rec_number: *rec_number,
+                    rec_slot_number: *rec_slot_number,
+                    rec_type: *rec_type,
+                    flavour: ffi_create_c_string(flavour),
+                    has_whitening_filter: *has_whitening_filter,
+                    calib_delay: calib_delay.unwrap_or(f32::NAN),
+                    calib_gains: calib_gains_ptr,
+                    num_calib_gains: calib_gains_len,
+                    signal_chain_corrections_index: signal_chain_corrections_index
+                        .unwrap_or(MAX_RECEIVER_CHANNELS),
+                }
+            };
+            item_vec.push(out_item);
+        }
+
+        ffi_create_c_array(item_vec)
+    }
+
+    /// This function frees an individual instance (owned by Rust) of this class
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - the pointer to the instance of this class
+    ///    
+    /// # Returns
+    ///
+    /// * Nothing
+    ///
+    fn destroy_item(item: *mut ffi::Rfinput) {
+        if item.is_null() {
+            return;
+        }
+
+        let a = unsafe { &mut *item };
+
+        // Free strings if present
+        if !a.tile_name.is_null() {
+            ffi_free_rust_c_string(&mut a.tile_name);
+        }
+
+        if !a.pol.is_null() {
+            ffi_free_rust_c_string(&mut a.pol);
+        }
+
+        if !a.flavour.is_null() {
+            ffi_free_rust_c_string(&mut a.flavour);
+        }
+
+        // Free arrays
+        if !a.calib_gains.is_null() {
+            ffi_free_rust_struct(a.calib_gains, a.num_calib_gains);
+        }
+
+        if !a.digital_gains.is_null() {
+            ffi_free_rust_struct(a.digital_gains, a.num_digital_gains);
+        }
+
+        if !a.dipole_gains.is_null() {
+            ffi_free_rust_struct(a.dipole_gains, a.num_dipole_gains);
+        }
+
+        if !a.dipole_delays.is_null() {
+            ffi_free_rust_struct(a.dipole_delays, a.num_dipole_delays);
+        }
+    }
+
+    /// This function frees all array items (owned by Rust) of this class
+    ///
+    /// # Arguments
+    ///
+    /// * `items_ptr` - the pointer to the array
+    ///
+    /// * `items_len` - elements in the array
+    ///    
+    /// # Returns
+    ///
+    /// * Nothing
+    ///
+    pub fn destroy_array(items_ptr: *mut ffi::Rfinput, items_len: usize) {
+        let items_slice = unsafe { std::slice::from_raw_parts_mut(items_ptr, items_len) };
+        for item in items_slice {
+            Self::destroy_item(item);
+        }
+        // Now free the array itself by reconstructing the Vec and letting it drop
+        ffi_free_rust_struct(items_ptr, items_len);
+    }
 }

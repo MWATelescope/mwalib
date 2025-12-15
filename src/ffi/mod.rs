@@ -33,48 +33,39 @@ pub const MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN: i32 = -1;
 ///
 /// # Returns
 ///
-/// * Nothing
+/// * Number of bytes written including the NUL terminator
 ///
 ///
 /// # Safety
 /// It is up to the caller to:
 /// - Allocate `error_buffer_len` bytes as a `char*` on the heap
-/// - Free `error_buffer_ptr` once finished with the buffer
+/// - Free `error_buffer_ptr` (in C) once finished with the buffer
 ///
 pub(crate) fn set_c_string(
     in_message: &str,
     error_buffer_ptr: *mut c_char,
     error_buffer_len: size_t,
-) {
-    // Don't do anything if the pointer is null.
-    if error_buffer_ptr.is_null() {
-        return;
+) -> usize {
+    if error_buffer_ptr.is_null() || error_buffer_len == 0 {
+        return 0;
     }
-    // Check that error buffer, minus 1 for nul terminator is still >=1
-    if error_buffer_len < 2 {
-        return;
-    } // need at least 1 char + NUL
 
-    // Trim it to error_buffer_len - 1 (must include room for null terminator)
+    // Reserve space for NUL terminator
     let max_bytes = error_buffer_len - 1;
-    // Strip interior NULs to avoid CString failure
-    let sanitized = in_message.replace('\0', "");
-    let message = if sanitized.len() > max_bytes {
-        &sanitized[..max_bytes]
-    } else {
-        &sanitized
-    };
-
-    // Convert to C string- panic if it can't.
-    let error_message = CString::new(message).unwrap_or_else(|_| CString::new("").unwrap());
-
-    // Add null terminator
-    let error_message_bytes = error_message.as_bytes_with_nul();
+    let bytes = in_message.as_bytes();
+    let write_len = bytes.len().min(max_bytes);
 
     unsafe {
         let buf = slice::from_raw_parts_mut(error_buffer_ptr as *mut u8, error_buffer_len);
-        buf[..error_message_bytes.len()].copy_from_slice(error_message_bytes);
+
+        // Copy the string bytes
+        buf[..write_len].copy_from_slice(&bytes[..write_len]);
+
+        // Add NUL terminator
+        buf[write_len] = 0u8;
     }
+
+    write_len + 1
 }
 
 /// Return the MAJOR version number of mwalib
@@ -170,6 +161,7 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
 ///
 /// * a raw pointer to the array of T's
 ///
+#[deprecated]
 pub(crate) fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
     if !v.is_empty() {
         // Prevent the slice from being destroyed (Leak the memory).
@@ -185,28 +177,14 @@ pub(crate) fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
     }
 }
 
-/// Reconstitutes a pointer and number of elements into a slice
-/// so it can be dropped/forgotten
-/// Use this to free an object leaked to C via ffi_array_to_boxed_slice()
-///
-pub(crate) fn ffi_free_c_boxed_slice<T>(ptr_to_array: *mut T, len: usize) {
-    if ptr_to_array.is_null() {
-        return;
-    }
-    unsafe {
-        // Rebuild a *mut [T] fat pointer, then drop the Box<[T]>
-        let _ = Box::from_raw(ptr::slice_from_raw_parts_mut(ptr_to_array, len));
-    }
-}
-
 /// Utility: Create a C String from a Rust string
 #[inline]
 pub fn ffi_create_c_string(rust_str: &str) -> *mut c_char {
+    // Convert to CString (adds null terminator)
     return match CString::new(rust_str) {
         Ok(s) => s.into_raw(),
         Err(_) => {
             // If the string name contains an interior NUL, skip it (or handle differently)
-            // Here we substitute an empty string to keep the example simple.
             CString::new("").unwrap().into_raw()
         }
     };

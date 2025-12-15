@@ -6,19 +6,14 @@ use crate::{
     antenna::{self},
     baseline, beam, calibration_fit, coarse_channel,
     ffi::{
-        ffi_array_to_boxed_slice, ffi_free_c_boxed_slice, ffi_free_rust_struct, set_c_string,
-        MWALIB_FAILURE, MWALIB_SUCCESS,
+        ffi_create_c_array, ffi_create_c_string, ffi_free_rust_c_string, ffi_free_rust_struct,
+        set_c_string, MWALIB_FAILURE, MWALIB_SUCCESS,
     },
-    rfinput, signal_chain_correction, timestep,
-    types::DataFileType,
-    CableDelaysApplied, CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion,
-    MetafitsContext, VoltageContext, MAX_RECEIVER_CHANNELS,
+    rfinput, signal_chain_correction, timestep, CableDelaysApplied, CorrelatorContext,
+    GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, VoltageContext,
 };
 use libc::size_t;
-use std::{
-    ffi::{c_char, CStr, CString},
-    slice,
-};
+use std::ffi::{c_char, CStr};
 
 ///
 /// This a C struct to allow the caller to consume the metafits metadata
@@ -271,268 +266,50 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
         &(*voltage_context_ptr).metafits_context
     };
 
-    // Populate baselines
-    let (baselines_ptr, baselines_len) = baseline::ffi::Baseline::ffi_populate(&metafits_context);
+    //
+    // Populate members
+    //
 
     // Populate antennas
-    let (antennas_ptr, antennas_len) = antenna::ffi::Antenna::ffi_populate(&metafits_context);
+    let (antennas_ptr, antennas_len) = antenna::ffi::Antenna::populate_array(&metafits_context);
 
-    // Populate rf_inputs
-    let mut rfinput_vec: Vec<rfinput::ffi::Rfinput> = Vec::new();
-    for item in metafits_context.rf_inputs.iter() {
-        let out_item = {
-            let rfinput::Rfinput {
-                input,
-                ant,
-                tile_id,
-                tile_name,
-                pol,
-                electrical_length_m,
-                north_m,
-                east_m,
-                height_m,
-                vcs_order,
-                subfile_order,
-                flagged,
-                digital_gains,
-                dipole_gains,
-                dipole_delays,
-                rec_number,
-                rec_slot_number,
-                rec_type,
-                flavour,
-                has_whitening_filter,
-                calib_delay,
-                calib_gains,
-                signal_chain_corrections_index,
-            } = item;
-
-            let calib_delay = calib_delay.unwrap_or(f32::NAN);
-            let calib_gains_vec: Vec<f32> = calib_gains
-                .clone()
-                .unwrap_or(vec![f32::NAN; metafits_context.num_metafits_coarse_chans]);
-            let num_calib_gains = calib_gains_vec.len();
-
-            rfinput::ffi::Rfinput {
-                input: *input,
-                ant: *ant,
-                tile_id: *tile_id,
-                tile_name: CString::new(tile_name.replace('\0', ""))
-                    .unwrap_or_else(|_| CString::new("").unwrap())
-                    .into_raw(),
-                pol: CString::new(pol.to_string()).unwrap().into_raw(),
-                electrical_length_m: *electrical_length_m,
-                north_m: *north_m,
-                east_m: *east_m,
-                height_m: *height_m,
-                vcs_order: *vcs_order,
-                subfile_order: *subfile_order,
-                flagged: *flagged,
-                digital_gains: ffi_array_to_boxed_slice(digital_gains.clone()),
-                num_digital_gains: digital_gains.len(),
-                dipole_gains: ffi_array_to_boxed_slice(dipole_gains.clone()),
-                num_dipole_gains: dipole_gains.len(),
-                dipole_delays: ffi_array_to_boxed_slice(dipole_delays.clone()),
-                num_dipole_delays: dipole_delays.len(),
-                rec_number: *rec_number,
-                rec_slot_number: *rec_slot_number,
-                rec_type: *rec_type,
-                flavour: CString::new(flavour.replace('\0', ""))
-                    .unwrap_or_else(|_| CString::new("").unwrap())
-                    .into_raw(),
-                has_whitening_filter: *has_whitening_filter,
-                calib_delay,
-                calib_gains: ffi_array_to_boxed_slice(calib_gains_vec),
-                num_calib_gains,
-                signal_chain_corrections_index: signal_chain_corrections_index
-                    .unwrap_or(MAX_RECEIVER_CHANNELS),
-            }
-        };
-        rfinput_vec.push(out_item);
-    }
-
-    // Populate metafits coarse channels
-    let mut coarse_chan_vec: Vec<coarse_channel::ffi::CoarseChannel> = Vec::new();
-
-    for item in metafits_context.metafits_coarse_chans.iter() {
-        let out_item = {
-            let coarse_channel::CoarseChannel {
-                corr_chan_number,
-                rec_chan_number,
-                gpubox_number,
-                chan_width_hz,
-                chan_start_hz,
-                chan_centre_hz,
-                chan_end_hz,
-            } = item;
-            coarse_channel::ffi::CoarseChannel {
-                corr_chan_number: *corr_chan_number,
-                rec_chan_number: *rec_chan_number,
-                gpubox_number: *gpubox_number,
-                chan_width_hz: *chan_width_hz,
-                chan_start_hz: *chan_start_hz,
-                chan_centre_hz: *chan_centre_hz,
-                chan_end_hz: *chan_end_hz,
-            }
-        };
-
-        coarse_chan_vec.push(out_item);
-    }
-
-    // Populate metafits timesteps
-    let mut timestep_vec: Vec<timestep::ffi::TimeStep> = Vec::new();
-
-    for item in metafits_context.metafits_timesteps.iter() {
-        let out_item = {
-            let timestep::TimeStep {
-                unix_time_ms,
-                gps_time_ms,
-            } = item;
-            timestep::ffi::TimeStep {
-                unix_time_ms: *unix_time_ms,
-                gps_time_ms: *gps_time_ms,
-            }
-        };
-        timestep_vec.push(out_item);
-    }
-
-    // Populate signal chain corrections
-    let mut signal_chain_corrections_vec: Vec<signal_chain_correction::ffi::SignalChainCorrection> =
-        Vec::new();
-
-    if let Some(v) = &metafits_context.signal_chain_corrections {
-        for item in v.iter() {
-            let out_item = {
-                let signal_chain_correction::SignalChainCorrection {
-                    receiver_type,
-                    whitening_filter,
-                    corrections,
-                } = item;
-                signal_chain_correction::ffi::SignalChainCorrection {
-                    receiver_type: *receiver_type,
-                    whitening_filter: *whitening_filter,
-                    corrections: ffi_array_to_boxed_slice(corrections.clone()),
-                }
-            };
-            signal_chain_corrections_vec.push(out_item);
-        }
-    }
-
-    // Populate calibration fits
-    let mut calibration_fits_vec: Vec<calibration_fit::ffi::CalibrationFit> = Vec::new();
-
-    if let Some(v) = &metafits_context.calibration_fits {
-        for item in v.iter() {
-            let out_item = {
-                let calibration_fit::CalibrationFit {
-                    rf_input: _,
-                    delay_metres,
-                    intercept_metres,
-                    gains,
-                    gain_polynomial_fit0,
-                    gain_polynomial_fit1,
-                    phase_fit_quality,
-                    gain_fit_quality,
-                } = item;
-
-                calibration_fit::ffi::CalibrationFit {
-                    rf_input: metafits_context
-                        .rf_inputs
-                        .iter()
-                        .position(|x| x.ant == item.rf_input.ant && x.pol == item.rf_input.pol)
-                        .unwrap(),
-                    delay_metres: *delay_metres,
-                    intercept_metres: *intercept_metres,
-                    gains: ffi_array_to_boxed_slice(gains.clone()),
-                    gain_polynomial_fit0: ffi_array_to_boxed_slice(gain_polynomial_fit0.clone()),
-                    gain_polynomial_fit1: ffi_array_to_boxed_slice(gain_polynomial_fit1.clone()),
-                    phase_fit_quality: *phase_fit_quality,
-                    gain_fit_quality: *gain_fit_quality,
-                }
-            };
-            calibration_fits_vec.push(out_item);
-        }
-    }
+    // Populate baselines
+    let (baselines_ptr, baselines_len) = baseline::ffi::Baseline::populate_array(&metafits_context);
 
     // Populate beams
-    let mut beams_vec: Vec<beam::ffi::Beam> = Vec::new();
-    if let Some(v) = &metafits_context.metafits_beams {
-        for item in v.iter() {
-            // Get a list of antenna indicies for this beam
-            let tileset_antenna_indices: Vec<usize> = item
-                .antennas
-                .iter()
-                .filter_map(|sel| metafits_context.antennas.iter().position(|a| a == sel))
-                .collect();
+    let (beams_ptr, beams_len) = beam::ffi::Beam::populate_array(metafits_context);
 
-            // Get a list of coarse channel indices for this beam
-            let coarse_channel_indices = item
-                .coarse_channels
-                .iter()
-                .filter_map(|sel| {
-                    metafits_context
-                        .metafits_coarse_chans
-                        .iter()
-                        .position(|c| c == sel)
-                })
-                .collect();
+    // Populate calibration fits
+    let (calibration_fits_ptr, calibration_fits_len) =
+        calibration_fit::ffi::CalibrationFit::populate_array(metafits_context);
 
-            let out_item = {
-                let beam::Beam {
-                    number,
-                    coherent,
-                    az_deg,
-                    alt_deg,
-                    ra_deg,
-                    dec_deg,
-                    tle,
-                    num_time_samples_to_average,
-                    frequency_resolution_hz,
-                    coarse_channels: _,
-                    num_coarse_chans,
-                    antennas: _,
-                    num_ants: _,
-                    polarisation,
-                    data_file_type,
-                    creator,
-                    modtime,
-                    beam_index,
-                } = item;
-                beam::ffi::Beam {
-                    number: *number,
-                    coherent: *coherent,
-                    az_deg: az_deg.unwrap_or_default(),
-                    alt_deg: alt_deg.unwrap_or_default(),
-                    ra_deg: ra_deg.unwrap_or_default(),
-                    dec_deg: dec_deg.unwrap_or_default(),
-                    tle: CString::new(tle.clone().unwrap_or_default().replace('\0', ""))
-                        .unwrap_or_else(|_| CString::new("").unwrap())
-                        .into_raw(),
-                    num_time_samples_to_average: *num_time_samples_to_average,
-                    frequency_resolution_hz: *frequency_resolution_hz,
-                    coarse_channels: ffi_array_to_boxed_slice(coarse_channel_indices),
-                    num_coarse_chans: *num_coarse_chans,
-                    num_ants: tileset_antenna_indices.len(),
-                    antennas: ffi_array_to_boxed_slice(tileset_antenna_indices),
-                    polarisation: CString::new(
-                        polarisation.clone().unwrap_or_default().replace('\0', ""),
-                    )
-                    .unwrap_or_else(|_| CString::new("").unwrap())
-                    .into_raw(),
-                    data_file_type: *data_file_type as DataFileType,
-                    creator: CString::new(creator.replace('\0', ""))
-                        .unwrap_or_else(|_| CString::new("").unwrap())
-                        .into_raw(),
-                    modtime: chrono::DateTime::<chrono::Utc>::from(*modtime).timestamp(),
-                    beam_index: match beam_index {
-                        Some(idx) => *idx as i32,
-                        None => -1,
-                    },
-                }
-            };
-            beams_vec.push(out_item);
-        }
-    }
+    // Populate metafits coarse channels
+    let (coarse_channels_ptr, coarse_channels_len) =
+        coarse_channel::ffi::CoarseChannel::populate_array(metafits_context);
+
+    // Populate metafits timesteps
+    let (timesteps_ptr, timesteps_len) = timestep::ffi::TimeStep::populate_array(metafits_context);
+
+    // Populate rf_inputs
+    let (rfinputs_ptr, rfinputs_len) = rfinput::ffi::Rfinput::populate_array(metafits_context);
+
+    // Populate signal chain corrections
+    let (signal_chain_corrections_ptr, signal_chain_corrections_len) =
+        signal_chain_correction::ffi::SignalChainCorrection::populate_array(metafits_context);
+
+    //
+    // Populate primitive arrays
+    //
+
+    // Populate receivers
+    let (receivers_ptr, receivers_len) = ffi_create_c_array(metafits_context.receivers.clone());
+
+    // populate beamformer delays
+    let (delays_ptr, delays_len) = ffi_create_c_array(metafits_context.delays.clone());
+
+    // populate metafits_fine_chan_freqs_hz
+    let (metafits_fine_chan_freqs_hz_ptr, metafits_fine_chan_freqs_hz_len) =
+        ffi_create_c_array(metafits_context.metafits_fine_chan_freqs_hz.clone());
 
     // Populate the outgoing structure with data from the metafits context
     // We explicitly break out the attributes so at compile time it will let us know
@@ -584,10 +361,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_corr_fine_chans_per_coarse,
             volt_fine_chan_width_hz,
             num_volt_fine_chans_per_coarse,
-            receivers,
-            num_receivers,
-            delays,
-            num_delays,
+            receivers: _,
+            num_receivers: _,
+            delays: _,
+            num_delays: _,
             calibrator,
             calibrator_source,
             global_analogue_attenuation_db,
@@ -596,15 +373,15 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             good_time_gps_ms,
             num_ants: _,
             antennas: _, // This is populated seperately
-            num_rf_inputs,
+            num_rf_inputs: _,
             rf_inputs: _, // This is populated seperately
             num_ant_pols,
-            num_metafits_timesteps,
+            num_metafits_timesteps: _,
             metafits_timesteps: _, // This is populated seperately
-            num_metafits_coarse_chans,
+            num_metafits_coarse_chans: _,
             metafits_coarse_chans: _, // This is populated seperately
-            num_metafits_fine_chan_freqs,
-            metafits_fine_chan_freqs_hz,
+            num_metafits_fine_chan_freqs: _,
+            metafits_fine_chan_freqs_hz: _,
             obs_bandwidth_hz,
             coarse_chan_width_hz,
             centre_freq_hz,
@@ -623,14 +400,15 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             best_cal_fit_iters,
             best_cal_fit_iter_limit,
             signal_chain_corrections: _, // This is populated seperately
-            num_signal_chain_corrections,
+            num_signal_chain_corrections: _,
             calibration_fits: _, // This is populated seperately
-            num_calibration_fits,
+            num_calibration_fits: _,
             metafits_beams: _, // This is populated seperately
-            num_metafits_beams: num_beams,
+            num_metafits_beams: _,
             num_metafits_coherent_beams,
             num_metafits_incoherent_beams,
         } = metafits_context;
+
         MetafitsMetadata {
             mwa_version: mwa_version.unwrap(),
             obs_id: *obs_id,
@@ -651,22 +429,12 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             jupiter_distance_deg: (*jupiter_distance_deg).unwrap_or(f64::NAN),
             lst_deg: *lst_degrees,
             lst_rad: *lst_radians,
-            hour_angle_string: CString::new(hour_angle_string.replace('\0', ""))
-                .unwrap_or_else(|_| CString::new("").unwrap())
-                .into_raw(),
-            grid_name: CString::new(grid_name.replace('\0', ""))
-                .unwrap_or_else(|_| CString::new("").unwrap())
-                .into_raw(),
+            hour_angle_string: ffi_create_c_string(hour_angle_string),
+            grid_name: ffi_create_c_string(grid_name),
             grid_number: *grid_number,
-            creator: CString::new(creator.replace('\0', ""))
-                .unwrap_or_else(|_| CString::new("").unwrap())
-                .into_raw(),
-            project_id: CString::new(project_id.replace('\0', ""))
-                .unwrap_or_else(|_| CString::new("").unwrap())
-                .into_raw(),
-            obs_name: CString::new(obs_name.replace('\0', ""))
-                .unwrap_or_else(|_| CString::new("").unwrap())
-                .into_raw(),
+            creator: ffi_create_c_string(creator),
+            project_id: ffi_create_c_string(project_id),
+            obs_name: ffi_create_c_string(obs_name),
             mode: *mode,
             geometric_delays_applied: *geometric_delays_applied,
             cable_delays_applied: *cable_delays_applied,
@@ -677,14 +445,12 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_corr_fine_chans_per_coarse: *num_corr_fine_chans_per_coarse,
             volt_fine_chan_width_hz: *volt_fine_chan_width_hz,
             num_volt_fine_chans_per_coarse: *num_volt_fine_chans_per_coarse,
-            receivers: ffi_array_to_boxed_slice(receivers.clone()),
-            num_receivers: *num_receivers,
-            delays: ffi_array_to_boxed_slice(delays.clone()),
-            num_delays: *num_delays,
+            receivers: receivers_ptr,
+            num_receivers: receivers_len,
+            delays: delays_ptr,
+            num_delays: delays_len,
             calibrator: *calibrator,
-            calibrator_source: CString::new(calibrator_source.replace('\0', ""))
-                .unwrap_or_else(|_| CString::new("").unwrap())
-                .into_raw(),
+            calibrator_source: ffi_create_c_string(calibrator_source),
             sched_start_utc: sched_start_utc.timestamp(),
             sched_end_utc: sched_end_utc.timestamp(),
             sched_start_mjd: *sched_start_mjd,
@@ -700,65 +466,42 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             good_time_gps_ms: *good_time_gps_ms,
             num_ants: antennas_len,
             antennas: antennas_ptr,
-            num_rf_inputs: *num_rf_inputs,
-            rf_inputs: ffi_array_to_boxed_slice(rfinput_vec),
+            num_rf_inputs: rfinputs_len,
+            rf_inputs: rfinputs_ptr,
             num_ant_pols: *num_ant_pols,
             num_baselines: baselines_len,
             baselines: baselines_ptr,
             num_visibility_pols: *num_visibility_pols,
-            num_metafits_coarse_chans: *num_metafits_coarse_chans,
-            metafits_coarse_chans: ffi_array_to_boxed_slice(coarse_chan_vec),
-            num_metafits_fine_chan_freqs_hz: *num_metafits_fine_chan_freqs,
-            metafits_fine_chan_freqs_hz: ffi_array_to_boxed_slice(
-                metafits_fine_chan_freqs_hz.clone(),
-            ),
-            num_metafits_timesteps: *num_metafits_timesteps,
-            metafits_timesteps: ffi_array_to_boxed_slice(timestep_vec),
+            num_metafits_coarse_chans: coarse_channels_len,
+            metafits_coarse_chans: coarse_channels_ptr,
+            num_metafits_fine_chan_freqs_hz: metafits_fine_chan_freqs_hz_len,
+            metafits_fine_chan_freqs_hz: metafits_fine_chan_freqs_hz_ptr,
+            num_metafits_timesteps: timesteps_len,
+            metafits_timesteps: timesteps_ptr,
             obs_bandwidth_hz: *obs_bandwidth_hz,
             coarse_chan_width_hz: *coarse_chan_width_hz,
             centre_freq_hz: *centre_freq_hz,
-            metafits_filename: CString::new(metafits_filename.replace('\0', ""))
-                .unwrap_or_else(|_| CString::new("").unwrap())
-                .into_raw(),
+            metafits_filename: ffi_create_c_string(metafits_filename),
             oversampled: *oversampled,
             deripple_applied: *deripple_applied,
-            deripple_param: CString::new(deripple_param.replace('\0', ""))
-                .unwrap_or_else(|_| CString::new("").unwrap())
-                .into_raw(),
-            best_cal_fit_id: best_cal_fit_id.unwrap_or_else(|| 0),
-            best_cal_obs_id: best_cal_obs_id.unwrap_or_else(|| 0),
-            best_cal_code_ver: CString::new(
-                best_cal_code_ver
-                    .clone()
-                    .unwrap_or_default()
-                    .replace('\0', ""),
-            )
-            .unwrap_or_else(|_| CString::new("").unwrap())
-            .into_raw(),
-            best_cal_fit_timestamp: CString::new(
-                best_cal_fit_timestamp
-                    .clone()
-                    .unwrap_or_default()
-                    .replace('\0', ""),
-            )
-            .unwrap_or_else(|_| CString::new("").unwrap())
-            .into_raw(),
-            best_cal_creator: CString::new(
-                best_cal_creator
-                    .clone()
-                    .unwrap_or_default()
-                    .replace('\0', ""),
-            )
-            .unwrap_or_else(|_| CString::new("").unwrap())
-            .into_raw(),
-            best_cal_fit_iters: best_cal_fit_iters.unwrap_or_else(|| 0),
-            best_cal_fit_iter_limit: best_cal_fit_iter_limit.unwrap_or_else(|| 0),
-            signal_chain_corrections: ffi_array_to_boxed_slice(signal_chain_corrections_vec),
-            num_signal_chain_corrections: *num_signal_chain_corrections,
-            calibration_fits: ffi_array_to_boxed_slice(calibration_fits_vec),
-            num_calibration_fits: *num_calibration_fits,
-            metafits_beams: ffi_array_to_boxed_slice(beams_vec),
-            num_metafits_beams: *num_beams,
+            deripple_param: ffi_create_c_string(deripple_param),
+            best_cal_fit_id: best_cal_fit_id.unwrap_or_default(),
+            best_cal_obs_id: best_cal_obs_id.unwrap_or_default(),
+            best_cal_code_ver: ffi_create_c_string(
+                best_cal_code_ver.as_deref().unwrap_or_default(),
+            ),
+            best_cal_fit_timestamp: ffi_create_c_string(
+                best_cal_fit_timestamp.as_deref().unwrap_or_default(),
+            ),
+            best_cal_creator: ffi_create_c_string(best_cal_creator.as_deref().unwrap_or_default()),
+            best_cal_fit_iters: best_cal_fit_iters.unwrap_or_default(),
+            best_cal_fit_iter_limit: best_cal_fit_iter_limit.unwrap_or_default(),
+            signal_chain_corrections: signal_chain_corrections_ptr,
+            num_signal_chain_corrections: signal_chain_corrections_len,
+            calibration_fits: calibration_fits_ptr,
+            num_calibration_fits: calibration_fits_len,
+            num_metafits_beams: beams_len,
+            metafits_beams: beams_ptr,
             num_metafits_coherent_beams: *num_metafits_coherent_beams,
             num_metafits_incoherent_beams: *num_metafits_incoherent_beams,
         }
@@ -801,189 +544,80 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(
     //
     // Free members first
     //
-    // baselines
-    ffi_free_rust_struct((*m).baselines, (*m).num_baselines);
-
     // antennas
-    antenna::ffi::Antenna::ffi_destroy_array((*m).antennas, (*m).num_ants);
+    antenna::ffi::Antenna::destroy_array((*m).antennas, (*m).num_ants);
 
-    // rf inputs
-    if !(*metafits_metadata_ptr).rf_inputs.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [rfinput::ffi::Rfinput] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).rf_inputs,
-            (*metafits_metadata_ptr).num_rf_inputs,
-        );
-        // Now for each item we need to free anything on the heap
-        for i in slice.iter_mut() {
-            drop(CString::from_raw(i.tile_name));
-            drop(CString::from_raw(i.pol));
+    // baselines
+    baseline::ffi::Baseline::destroy_array((*m).baselines, (*m).num_baselines);
 
-            ffi_free_c_boxed_slice(i.digital_gains, i.num_digital_gains);
-            ffi_free_c_boxed_slice(i.dipole_gains, i.num_dipole_gains);
-            ffi_free_c_boxed_slice(i.dipole_delays, i.num_dipole_delays);
-            ffi_free_c_boxed_slice(i.calib_gains, i.num_calib_gains);
+    // beams
+    beam::ffi::Beam::destroy_array(
+        (*metafits_metadata_ptr).metafits_beams,
+        (*metafits_metadata_ptr).num_metafits_beams,
+    );
 
-            drop(CString::from_raw(i.flavour));
-        }
-
-        // Free the memory for the slice
-        drop(Box::from_raw(slice));
-    }
+    // calibration fits
+    calibration_fit::ffi::CalibrationFit::destroy_array(
+        (*metafits_metadata_ptr).calibration_fits,
+        (*metafits_metadata_ptr).num_calibration_fits,
+    );
 
     // coarse_channels
-    ffi_free_c_boxed_slice(
+    coarse_channel::ffi::CoarseChannel::destroy_array(
         (*metafits_metadata_ptr).metafits_coarse_chans,
         (*metafits_metadata_ptr).num_metafits_coarse_chans,
     );
 
+    // rf inputs
+    rfinput::ffi::Rfinput::destroy_array((*m).rf_inputs, (*m).num_rf_inputs);
+
+    // signal chain corrections
+    signal_chain_correction::ffi::SignalChainCorrection::destroy_array(
+        (*metafits_metadata_ptr).signal_chain_corrections,
+        (*metafits_metadata_ptr).num_signal_chain_corrections,
+    );
+
     // timesteps
-    ffi_free_c_boxed_slice(
+    timestep::ffi::TimeStep::destroy_array(
         (*metafits_metadata_ptr).metafits_timesteps,
         (*metafits_metadata_ptr).num_metafits_timesteps,
     );
 
-    // receivers
-    ffi_free_c_boxed_slice(
-        (*metafits_metadata_ptr).receivers,
-        (*metafits_metadata_ptr).num_receivers,
-    );
-
+    //
+    // Free top level primitive arrays
+    //
     // delays
-    ffi_free_c_boxed_slice(
+    ffi_free_rust_struct(
         (*metafits_metadata_ptr).delays,
         (*metafits_metadata_ptr).num_delays,
     );
 
     // fine channel freqs
-    ffi_free_c_boxed_slice(
+    ffi_free_rust_struct(
         (*metafits_metadata_ptr).metafits_fine_chan_freqs_hz,
         (*metafits_metadata_ptr).num_metafits_fine_chan_freqs_hz,
     );
 
-    // signal chain corrections
-    if !(*metafits_metadata_ptr).signal_chain_corrections.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [signal_chain_correction::ffi::SignalChainCorrection] =
-            slice::from_raw_parts_mut(
-                (*metafits_metadata_ptr).signal_chain_corrections,
-                (*metafits_metadata_ptr).num_signal_chain_corrections,
-            );
+    // receivers
+    ffi_free_rust_struct(
+        (*metafits_metadata_ptr).receivers,
+        (*metafits_metadata_ptr).num_receivers,
+    );
 
-        // Now for each item we need to free anything on the heap
-        for i in slice.iter_mut() {
-            if !i.corrections.is_null() {
-                drop(Box::from_raw(i.corrections));
-            }
-        }
-
-        drop(Box::from_raw(
-            (*metafits_metadata_ptr).signal_chain_corrections,
-        ));
-    }
-
-    // calibration fits
-    if !(*metafits_metadata_ptr).calibration_fits.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [calibration_fit::ffi::CalibrationFit] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).calibration_fits,
-            (*metafits_metadata_ptr).num_calibration_fits,
-        );
-
-        // Now for each item we need to free anything on the heap
-        for i in slice.iter_mut() {
-            if !i.gains.is_null() {
-                drop(Box::from_raw(i.gains));
-            }
-
-            if !i.gains.is_null() {
-                drop(Box::from_raw(i.gain_polynomial_fit0));
-            }
-
-            if !i.gains.is_null() {
-                drop(Box::from_raw(i.gain_polynomial_fit1));
-            }
-        }
-
-        drop(Box::from_raw((*metafits_metadata_ptr).calibration_fits));
-    }
-
-    // beams
-    if !(*metafits_metadata_ptr).metafits_beams.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [beam::ffi::Beam] = slice::from_raw_parts_mut(
-            (*metafits_metadata_ptr).metafits_beams,
-            (*metafits_metadata_ptr).num_metafits_beams,
-        );
-
-        // Now for each item we need to free anything on the heap
-        for i in slice.iter_mut() {
-            if !i.antennas.is_null() {
-                drop(Box::from_raw(i.antennas));
-            }
-
-            if !i.coarse_channels.is_null() {
-                drop(Box::from_raw(i.coarse_channels));
-            }
-
-            drop(CString::from_raw(i.creator));
-            drop(CString::from_raw(i.tle));
-            drop(CString::from_raw(i.polarisation));
-        }
-
-        drop(Box::from_raw((*metafits_metadata_ptr).metafits_beams));
-    }
-
+    //
     // Free top level string fields
-    if !(*metafits_metadata_ptr).hour_angle_string.is_null() {
-        drop(CString::from_raw(
-            (*metafits_metadata_ptr).hour_angle_string,
-        ));
-    }
-
-    if !(*metafits_metadata_ptr).grid_name.is_null() {
-        drop(CString::from_raw((*metafits_metadata_ptr).grid_name));
-    }
-
-    if !(*metafits_metadata_ptr).creator.is_null() {
-        drop(CString::from_raw((*metafits_metadata_ptr).creator));
-    }
-
-    if !(*metafits_metadata_ptr).project_id.is_null() {
-        drop(CString::from_raw((*metafits_metadata_ptr).project_id));
-    }
-
-    if !(*metafits_metadata_ptr).calibrator_source.is_null() {
-        drop(CString::from_raw(
-            (*metafits_metadata_ptr).calibrator_source,
-        ));
-    }
-
-    if !(*metafits_metadata_ptr).metafits_filename.is_null() {
-        drop(CString::from_raw(
-            (*metafits_metadata_ptr).metafits_filename,
-        ));
-    }
-
-    if !(*metafits_metadata_ptr).deripple_param.is_null() {
-        drop(CString::from_raw((*metafits_metadata_ptr).deripple_param));
-    }
-
-    if !(*metafits_metadata_ptr).best_cal_code_ver.is_null() {
-        drop(CString::from_raw(
-            (*metafits_metadata_ptr).best_cal_code_ver,
-        ));
-    }
-
-    if !(*metafits_metadata_ptr).best_cal_fit_timestamp.is_null() {
-        drop(CString::from_raw(
-            (*metafits_metadata_ptr).best_cal_fit_timestamp,
-        ));
-    }
-
-    if !(*metafits_metadata_ptr).best_cal_creator.is_null() {
-        drop(CString::from_raw((*metafits_metadata_ptr).best_cal_creator));
-    }
+    //
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).hour_angle_string);
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).grid_name);
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).creator);
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).project_id);
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).obs_name);
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).calibrator_source);
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).metafits_filename);
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).deripple_param);
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).best_cal_code_ver);
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).best_cal_fit_timestamp);
+    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).best_cal_creator);
 
     // Free main metadata struct
     drop(Box::from_raw(metafits_metadata_ptr));

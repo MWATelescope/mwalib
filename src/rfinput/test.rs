@@ -407,11 +407,13 @@ fn test_populate_rf_inputs_sig_chain_in_metafits() {
         SignalChainCorrection {
             receiver_type: ReceiverType::RRI,
             whitening_filter: false,
+            num_corrections: all_ones.len(),
             corrections: all_ones,
         },
         SignalChainCorrection {
             receiver_type: ReceiverType::RRI,
             whitening_filter: true,
+            num_corrections: all_twos.len(),
             corrections: all_twos,
         },
     ];

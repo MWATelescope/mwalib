@@ -2,6 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+use crate::{
+    coarse_channel::{self, ffi},
+    ffi::{ffi_create_c_array, ffi_free_rust_struct},
+    MetafitsContext,
+};
+
 /// Representation in C of an `CoarseChannel` struct
 #[repr(C)]
 pub struct CoarseChannel {
@@ -22,4 +28,68 @@ pub struct CoarseChannel {
     pub chan_centre_hz: u32,
     /// Ending frequency of coarse channel in Hz
     pub chan_end_hz: u32,
+}
+
+impl CoarseChannel {
+    /// This function populates a C array (owned by Rust) of this class
+    ///
+    /// # Arguments
+    ///
+    /// * `metafits_context` - Reference to the populated Rust MetafitsContext
+    ///    
+    /// # Returns
+    ///
+    /// * Noting
+    ///
+    ///
+    /// # Safety
+    /// * The corresponding `ffi_destroy` function for this class must be called to free the memory
+    ///
+    pub fn populate_array(metafits_context: &MetafitsContext) -> (*mut ffi::CoarseChannel, usize) {
+        let mut item_vec: Vec<ffi::CoarseChannel> = Vec::new();
+
+        for item in metafits_context.metafits_coarse_chans.iter() {
+            let out_item = {
+                let coarse_channel::CoarseChannel {
+                    corr_chan_number,
+                    rec_chan_number,
+                    gpubox_number,
+                    chan_width_hz,
+                    chan_start_hz,
+                    chan_centre_hz,
+                    chan_end_hz,
+                } = item;
+                coarse_channel::ffi::CoarseChannel {
+                    corr_chan_number: *corr_chan_number,
+                    rec_chan_number: *rec_chan_number,
+                    gpubox_number: *gpubox_number,
+                    chan_width_hz: *chan_width_hz,
+                    chan_start_hz: *chan_start_hz,
+                    chan_centre_hz: *chan_centre_hz,
+                    chan_end_hz: *chan_end_hz,
+                }
+            };
+
+            item_vec.push(out_item);
+        }
+
+        ffi_create_c_array(item_vec)
+    }
+
+    /// This function frees all array items (owned by Rust) of this class
+    ///
+    /// # Arguments
+    ///
+    /// * `items_ptr` - the pointer to the array
+    ///
+    /// * `items_len` - elements in the array
+    ///    
+    /// # Returns
+    ///
+    /// * Nothing
+    ///
+    pub fn destroy_array(items_ptr: *mut ffi::CoarseChannel, items_len: usize) {
+        // Now free the array itself by reconstructing the Vec and letting it drop
+        ffi_free_rust_struct(items_ptr, items_len);
+    }
 }
