@@ -166,8 +166,7 @@ pub fn ffi_create_c_string(rust_str: &str) -> *mut c_char {
 pub fn ffi_free_rust_c_string(ptr: *mut c_char) {
     if !ptr.is_null() {
         unsafe {
-            let s = CString::from_raw(ptr); // drop to free
-            drop(s);
+            let _ = CString::from_raw(ptr); // drop to free
         }
     }
 }

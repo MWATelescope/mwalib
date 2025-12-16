@@ -389,7 +389,7 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
     metafits_filename: *const c_char,
     gpubox_filenames: *mut *const c_char,
     gpubox_count: size_t,
-    out_correlator_context_ptr: &mut *mut CorrelatorContext,
+    out_correlator_context_ptr: *mut *mut CorrelatorContext,
     error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
