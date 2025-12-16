@@ -12,8 +12,8 @@ use libc::size_t;
 use crate::{
     coarse_channel,
     ffi::{
-        ffi_array_to_boxed_slice, set_c_string, MWALIB_FAILURE,
-        MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN, MWALIB_SUCCESS,
+        ffi_create_c_array, set_c_string, MWALIB_FAILURE, MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN,
+        MWALIB_SUCCESS,
     },
     timestep, voltage_context, MWAVersion, VoltageContext, VoltageFileError,
 };
@@ -142,103 +142,71 @@ pub struct VoltageMetadata {
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_voltage_metadata_get(
     voltage_context_ptr: *mut voltage_context::VoltageContext,
-    out_voltage_metadata_ptr: &mut *mut VoltageMetadata,
+    out_voltage_metadata_ptr: *mut *mut VoltageMetadata,
     error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     if voltage_context_ptr.is_null() {
         set_c_string(
             "mwalib_voltage_metadata_get() ERROR: Warning: null pointer for voltage_context_ptr passed in",
-            error_message as *mut c_char,
+            error_message,
             error_message_length,
         );
+
+        if !out_voltage_metadata_ptr.is_null() {
+            *out_voltage_metadata_ptr = std::ptr::null_mut();
+        }
+
         return MWALIB_FAILURE;
     }
     // Get the voltage context object from the raw pointer passed in
     let context = &*voltage_context_ptr;
 
     // Populate voltage coarse channels
-    let mut coarse_chan_vec: Vec<coarse_channel::ffi::CoarseChannel> = Vec::new();
-
-    for item in context.coarse_chans.iter() {
-        let out_item = {
-            let coarse_channel::CoarseChannel {
-                corr_chan_number,
-                rec_chan_number,
-                gpubox_number,
-                chan_width_hz,
-                chan_start_hz,
-                chan_centre_hz,
-                chan_end_hz,
-            } = item;
-            coarse_channel::ffi::CoarseChannel {
-                corr_chan_number: *corr_chan_number,
-                rec_chan_number: *rec_chan_number,
-                gpubox_number: *gpubox_number,
-                chan_width_hz: *chan_width_hz,
-                chan_start_hz: *chan_start_hz,
-                chan_centre_hz: *chan_centre_hz,
-                chan_end_hz: *chan_end_hz,
-            }
-        };
-
-        coarse_chan_vec.push(out_item);
-    }
+    let (coarse_channels_ptr, coarse_channels_len) =
+        coarse_channel::ffi::CoarseChannel::populate_array(&context.coarse_chans);
 
     // Populate voltage timesteps
-    let mut timestep_vec: Vec<timestep::ffi::TimeStep> = Vec::new();
-
-    for item in context.timesteps.iter() {
-        let out_item = {
-            let timestep::TimeStep {
-                unix_time_ms,
-                gps_time_ms,
-            } = item;
-            timestep::ffi::TimeStep {
-                unix_time_ms: *unix_time_ms,
-                gps_time_ms: *gps_time_ms,
-            }
-        };
-        timestep_vec.push(out_item);
-    }
+    let (timesteps_ptr, timesteps_len) =
+        timestep::ffi::TimeStep::populate_array(&context.timesteps);
 
     // Populate the rust owned data structure with data from the voltage context
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    let out_context = {
+    let out_metadata = {
         let voltage_context::VoltageContext {
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
             mwa_version,
-            num_timesteps,
+            num_timesteps: _,
             timesteps: _, // This is populated seperately
             timestep_duration_ms,
-            num_coarse_chans,
+            num_coarse_chans: _,
             coarse_chans: _, // This is populated seperately
-            common_timestep_indices,
-            num_common_timesteps,
-            common_coarse_chan_indices,
-            num_common_coarse_chans,
+            common_timestep_indices: _,
+            num_common_timesteps: _,
+            common_coarse_chan_indices: _,
+            num_common_coarse_chans: _,
             common_start_unix_time_ms,
             common_end_unix_time_ms,
             common_start_gps_time_ms,
             common_end_gps_time_ms,
             common_duration_ms,
             common_bandwidth_hz,
-            common_good_timestep_indices,
-            num_common_good_timesteps,
-            common_good_coarse_chan_indices,
-            num_common_good_coarse_chans,
+            common_good_timestep_indices: _,
+            num_common_good_timesteps: _,
+            common_good_coarse_chan_indices: _,
+            num_common_good_coarse_chans: _,
             common_good_start_unix_time_ms,
             common_good_end_unix_time_ms,
             common_good_start_gps_time_ms,
             common_good_end_gps_time_ms,
             common_good_duration_ms,
             common_good_bandwidth_hz,
-            provided_timestep_indices,
-            num_provided_timesteps: num_provided_timestep_indices,
-            provided_coarse_chan_indices,
-            num_provided_coarse_chans: num_provided_coarse_chan_indices,
+            provided_timestep_indices: _,
+            num_provided_timesteps: _,
+            provided_coarse_chan_indices: _,
+            num_provided_coarse_chans: _,
             coarse_chan_width_hz,
             fine_chan_width_hz,
             num_fine_chans_per_coarse,
@@ -253,45 +221,56 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             voltage_batches: _, // This is currently not provided to FFI as it is private
             voltage_time_map: _, // This is currently not provided to FFI as it is private
         } = context;
+
+        let (common_timestep_indices_ptr, common_timestep_indices_len) =
+            ffi_create_c_array(context.common_timestep_indices.clone());
+
+        let (common_good_timestep_indices_ptr, common_good_timestep_indices_len) =
+            ffi_create_c_array(context.common_good_timestep_indices.clone());
+
+        let (provided_timestep_indices_ptr, provided_timestep_indices_len) =
+            ffi_create_c_array(context.provided_timestep_indices.clone());
+
+        let (common_coarse_chan_indices_ptr, common_coarse_chan_indices_len) =
+            ffi_create_c_array(context.common_coarse_chan_indices.clone());
+
+        let (common_good_coarse_chan_indices_ptr, common_good_coarse_chan_indices_len) =
+            ffi_create_c_array(context.common_good_coarse_chan_indices.clone());
+
+        let (provided_coarse_chan_indices_ptr, provided_coarse_chan_indices_len) =
+            ffi_create_c_array(context.provided_coarse_chan_indices.clone());
+
         VoltageMetadata {
             mwa_version: *mwa_version,
-            timesteps: ffi_array_to_boxed_slice(timestep_vec),
-            num_timesteps: *num_timesteps,
+            timesteps: timesteps_ptr,
+            num_timesteps: timesteps_len,
             timestep_duration_ms: *timestep_duration_ms,
-            coarse_chans: ffi_array_to_boxed_slice(coarse_chan_vec),
-            num_coarse_chans: *num_coarse_chans,
-            num_common_timesteps: *num_common_timesteps,
-            common_timestep_indices: ffi_array_to_boxed_slice(common_timestep_indices.clone()),
-            num_common_coarse_chans: *num_common_coarse_chans,
-            common_coarse_chan_indices: ffi_array_to_boxed_slice(
-                common_coarse_chan_indices.clone(),
-            ),
+            coarse_chans: coarse_channels_ptr,
+            num_coarse_chans: coarse_channels_len,
+            num_common_timesteps: common_timestep_indices_len,
+            common_timestep_indices: common_timestep_indices_ptr,
+            num_common_coarse_chans: common_coarse_chan_indices_len,
+            common_coarse_chan_indices: common_coarse_chan_indices_ptr,
             common_start_unix_time_ms: *common_start_unix_time_ms,
             common_end_unix_time_ms: *common_end_unix_time_ms,
             common_start_gps_time_ms: *common_start_gps_time_ms,
             common_end_gps_time_ms: *common_end_gps_time_ms,
             common_duration_ms: *common_duration_ms,
             common_bandwidth_hz: *common_bandwidth_hz,
-            num_common_good_timesteps: *num_common_good_timesteps,
-            common_good_timestep_indices: ffi_array_to_boxed_slice(
-                common_good_timestep_indices.clone(),
-            ),
-            num_common_good_coarse_chans: *num_common_good_coarse_chans,
-            common_good_coarse_chan_indices: ffi_array_to_boxed_slice(
-                common_good_coarse_chan_indices.clone(),
-            ),
+            num_common_good_timesteps: common_good_timestep_indices_len,
+            common_good_timestep_indices: common_good_timestep_indices_ptr,
+            num_common_good_coarse_chans: common_good_coarse_chan_indices_len,
+            common_good_coarse_chan_indices: common_good_coarse_chan_indices_ptr,
             common_good_start_unix_time_ms: *common_good_start_unix_time_ms,
             common_good_end_unix_time_ms: *common_good_end_unix_time_ms,
             common_good_start_gps_time_ms: *common_good_start_gps_time_ms,
             common_good_end_gps_time_ms: *common_good_end_gps_time_ms,
             common_good_duration_ms: *common_good_duration_ms,
             common_good_bandwidth_hz: *common_good_bandwidth_hz,
-            num_provided_timesteps: *num_provided_timestep_indices,
-            provided_timestep_indices: ffi_array_to_boxed_slice(provided_timestep_indices.clone()),
-            num_provided_coarse_chans: *num_provided_coarse_chan_indices,
-            provided_coarse_chan_indices: ffi_array_to_boxed_slice(
-                provided_coarse_chan_indices.clone(),
-            ),
+            num_provided_timesteps: provided_timestep_indices_len,
+            provided_timestep_indices: provided_timestep_indices_ptr,
+            num_provided_coarse_chans: provided_coarse_chan_indices_len,
+            provided_coarse_chan_indices: provided_coarse_chan_indices_ptr,
             coarse_chan_width_hz: *coarse_chan_width_hz,
             fine_chan_width_hz: *fine_chan_width_hz,
             num_fine_chans_per_coarse: *num_fine_chans_per_coarse,
@@ -306,11 +285,19 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
         }
     };
 
-    // Pass out the pointer to the rust owned data structure
-    *out_voltage_metadata_ptr = Box::into_raw(Box::new(out_context));
-
-    // Return success
-    MWALIB_SUCCESS
+    // Return ownership to C via raw pointer
+    if !out_voltage_metadata_ptr.is_null() {
+        *out_voltage_metadata_ptr = Box::into_raw(Box::new(out_metadata));
+        return MWALIB_SUCCESS;
+    } else {
+        // Cannot write the out pointer; report failure
+        set_c_string(
+            "mwalib_voltage_metadata_get() ERROR: out_voltage_metadata_ptr was NULL.",
+            error_message,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
 }
 
 /// Free a previously-allocated `VoltageMetadata` struct.

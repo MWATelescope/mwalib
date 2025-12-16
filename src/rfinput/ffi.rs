@@ -1,5 +1,5 @@
 use crate::{
-    ffi::{ffi_create_c_array, ffi_create_c_string, ffi_free_rust_c_string, ffi_free_rust_struct},
+    ffi::{ffi_create_c_array, ffi_create_c_string, ffi_free_c_array, ffi_free_rust_c_string},
     rfinput::{self, ffi},
     MetafitsContext, MAX_RECEIVER_CHANNELS,
 };
@@ -202,32 +202,32 @@ impl Rfinput {
 
         // Free strings if present
         if !a.tile_name.is_null() {
-            ffi_free_rust_c_string(&mut a.tile_name);
+            ffi_free_rust_c_string(a.tile_name);
         }
 
         if !a.pol.is_null() {
-            ffi_free_rust_c_string(&mut a.pol);
+            ffi_free_rust_c_string(a.pol);
         }
 
         if !a.flavour.is_null() {
-            ffi_free_rust_c_string(&mut a.flavour);
+            ffi_free_rust_c_string(a.flavour);
         }
 
         // Free arrays
         if !a.calib_gains.is_null() {
-            ffi_free_rust_struct(a.calib_gains, a.num_calib_gains);
+            ffi_free_c_array(a.calib_gains, a.num_calib_gains);
         }
 
         if !a.digital_gains.is_null() {
-            ffi_free_rust_struct(a.digital_gains, a.num_digital_gains);
+            ffi_free_c_array(a.digital_gains, a.num_digital_gains);
         }
 
         if !a.dipole_gains.is_null() {
-            ffi_free_rust_struct(a.dipole_gains, a.num_dipole_gains);
+            ffi_free_c_array(a.dipole_gains, a.num_dipole_gains);
         }
 
         if !a.dipole_delays.is_null() {
-            ffi_free_rust_struct(a.dipole_delays, a.num_dipole_delays);
+            ffi_free_c_array(a.dipole_delays, a.num_dipole_delays);
         }
     }
 
@@ -249,6 +249,6 @@ impl Rfinput {
             Self::destroy_item(item);
         }
         // Now free the array itself by reconstructing the Vec and letting it drop
-        ffi_free_rust_struct(items_ptr, items_len);
+        ffi_free_c_array(items_ptr, items_len);
     }
 }

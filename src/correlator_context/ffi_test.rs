@@ -11,7 +11,7 @@ use crate::{
         mwalib_correlator_metadata_get, CorrelatorMetadata,
     },
     ffi::{
-        ffi_array_to_boxed_slice,
+        ffi_create_c_array,
         ffi_test_helpers::{
             ffi_boxed_slice_to_array, get_test_ffi_correlator_context_legacy,
             get_test_ffi_correlator_context_mwax,
@@ -208,7 +208,7 @@ fn test_mwalib_correlator_context_legacy_read_by_baseline_valid() {
     let buffer_len = 8256 * 128 * 8;
     unsafe {
         let buffer: Vec<f32> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f32 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_read_by_baseline(
             correlator_context_ptr,
@@ -265,7 +265,7 @@ fn test_mwalib_correlator_context_legacy_read_by_baseline_null_context() {
     let buffer_len = 8256 * 128 * 8;
     unsafe {
         let buffer: Vec<f32> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f32 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_read_by_baseline(
             correlator_context_ptr,
@@ -326,7 +326,7 @@ fn test_mwalib_correlator_context_legacy_read_by_frequency_valid() {
     let buffer_len = 8256 * 128 * 8;
     unsafe {
         let buffer: Vec<f32> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f32 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_read_by_frequency(
             correlator_context_ptr,
@@ -383,7 +383,7 @@ fn test_mwalib_correlator_context_legacy_read_by_frequency_null_context() {
     let buffer_len = 8256 * 128 * 8;
     unsafe {
         let buffer: Vec<f32> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f32 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_read_by_frequency(
             correlator_context_ptr,
@@ -444,7 +444,7 @@ fn test_mwalib_correlator_context_read_weights_by_baseline_valid() {
     let buffer_len = 8256 * 4;
     unsafe {
         let buffer: Vec<f32> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f32 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_read_weights_by_baseline(
             correlator_context_ptr,
@@ -501,7 +501,7 @@ fn test_mwalib_correlator_context_read_weights_by_baseline_null_context() {
     let buffer_len = 8256 * 4;
     unsafe {
         let buffer: Vec<f32> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f32 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_read_weights_by_baseline(
             correlator_context_ptr,
@@ -559,11 +559,11 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_valid() {
     unsafe {
         let chan_indices_len: usize = 1;
         let chan_indicies: Vec<usize> = vec![0];
-        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+        let (chan_indicies_ptr, _) = ffi_create_c_array(chan_indicies);
 
         let buffer_len = 128;
         let buffer: Vec<f64> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
             correlator_context_ptr,
@@ -604,12 +604,12 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_invalid_buffer_le
     unsafe {
         let chan_indices_len: usize = 1;
         let chan_indicies: Vec<usize> = vec![0];
-        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+        let (chan_indicies_ptr, _) = ffi_create_c_array(chan_indicies);
 
         // Invalid buffer - too big
         let buffer_len = 129;
         let buffer: Vec<f64> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
             correlator_context_ptr,
@@ -629,7 +629,7 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_invalid_buffer_le
         //
         let buffer_len = 127;
         let buffer: Vec<f64> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
             correlator_context_ptr,
@@ -658,11 +658,11 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_context() {
         // Null context
         let chan_indices_len: usize = 1;
         let chan_indicies: Vec<usize> = vec![0];
-        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+        let (chan_indicies_ptr, _) = ffi_create_c_array(chan_indicies);
 
         let buffer_len = 128;
         let buffer: Vec<f64> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
             correlator_context_ptr,
@@ -694,7 +694,7 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_coarse_chans
 
         let buffer_len = 128;
         let buffer: Vec<f64> = vec![0.0; buffer_len];
-        let buffer_ptr: *mut f64 = ffi_array_to_boxed_slice(buffer);
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
 
         let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
             correlator_context_ptr,
@@ -722,7 +722,7 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_buffer() {
     unsafe {
         let chan_indices_len: usize = 1;
         let chan_indicies: Vec<usize> = vec![0];
-        let chan_indicies_ptr: *mut usize = ffi_array_to_boxed_slice(chan_indicies);
+        let (chan_indicies_ptr, _) = ffi_create_c_array(chan_indicies);
 
         // Null buffer ptr
         let buffer_len = 128;

@@ -5,7 +5,7 @@
 use super::ReceiverType;
 
 use crate::{
-    ffi::{ffi_create_c_array, ffi_free_rust_struct},
+    ffi::{ffi_create_c_array, ffi_free_c_array},
     signal_chain_correction::{self, ffi},
     MetafitsContext,
 };
@@ -95,7 +95,7 @@ impl SignalChainCorrection {
 
         // Free array if present
         if !a.corrections.is_null() {
-            ffi_free_rust_struct(a.corrections, a.num_corrections);
+            ffi_free_c_array(a.corrections, a.num_corrections);
         }
     }
 
@@ -117,6 +117,6 @@ impl SignalChainCorrection {
             Self::destroy_item(item);
         }
         // Now free the array itself by reconstructing the Vec and letting it drop
-        ffi_free_rust_struct(items_ptr, items_len);
+        ffi_free_c_array(items_ptr, items_len);
     }
 }

@@ -8,7 +8,7 @@ use libc::time_t;
 
 use crate::{
     beam::{self, ffi},
-    ffi::{ffi_create_c_array, ffi_create_c_string, ffi_free_rust_c_string, ffi_free_rust_struct},
+    ffi::{ffi_create_c_array, ffi_create_c_string, ffi_free_c_array, ffi_free_rust_c_string},
     types::DataFileType,
     MetafitsContext,
 };
@@ -176,24 +176,24 @@ impl Beam {
 
         // Free string if present
         if !a.tle.is_null() {
-            ffi_free_rust_c_string(&mut a.tle);
+            ffi_free_rust_c_string(a.tle);
         }
 
         if !a.polarisation.is_null() {
-            ffi_free_rust_c_string(&mut a.polarisation);
+            ffi_free_rust_c_string(a.polarisation);
         }
 
         if !a.creator.is_null() {
-            ffi_free_rust_c_string(&mut a.creator);
+            ffi_free_rust_c_string(a.creator);
         }
 
         // Free arrays
         if !a.coarse_channels.is_null() {
-            ffi_free_rust_struct(a.coarse_channels, a.num_coarse_chans);
+            ffi_free_c_array(a.coarse_channels, a.num_coarse_chans);
         }
 
         if !a.antennas.is_null() {
-            ffi_free_rust_struct(a.antennas, a.num_ants);
+            ffi_free_c_array(a.antennas, a.num_ants);
         }
     }
 
@@ -215,6 +215,6 @@ impl Beam {
             Self::destroy_item(item);
         }
         // Now free the array itself by reconstructing the Vec and letting it drop
-        ffi_free_rust_struct(items_ptr, items_len);
+        ffi_free_c_array(items_ptr, items_len);
     }
 }

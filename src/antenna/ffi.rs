@@ -6,7 +6,10 @@ use std::ffi::c_char;
 
 use crate::{
     antenna::{self, ffi},
-    ffi::{ffi_create_c_array, ffi_create_c_string, ffi_free_rust_c_string, ffi_free_rust_struct},
+    ffi::{
+        ffi_create_c_array, ffi_create_c_string, ffi_free_c_array,
+        ffi_free_rust_c_string,
+    },
     MetafitsContext,
 };
 
@@ -122,7 +125,7 @@ impl Antenna {
 
         // Free string if present
         if !a.tile_name.is_null() {
-            ffi_free_rust_c_string(&mut a.tile_name);
+            ffi_free_rust_c_string(a.tile_name);
         }
     }
 
@@ -144,6 +147,6 @@ impl Antenna {
             Self::destroy_item(item);
         }
         // Now free the array itself by reconstructing the Vec and letting it drop
-        ffi_free_rust_struct(items_ptr, items_len);
+        ffi_free_c_array(items_ptr, items_len);
     }
 }

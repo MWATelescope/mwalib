@@ -60,7 +60,7 @@ class ViewFITSArgs:
 
     def validate_params(self):  # noqa: C901
         # Read fits file
-        print("Opening with mwalib using metafits file " f"{self.metafits_filename} and data file {self.filename}...")
+        print(f"Opening with mwalib using metafits file {self.metafits_filename} and data file {self.filename}...")
         self.context = mwalib.CorrelatorContext(
             self.metafits_filename,
             [
@@ -175,6 +175,15 @@ class ViewFITSArgs:
                 f"ch={self.channel1}-{self.channel2} "
                 f"autosonly?={self.autos_only} "
                 f"{self.tile_count}t/{self.fits_tiles}t"
+            )
+        elif self.phase_plot_one:
+            self.param_string = (
+                f"[{self.grid_pol}] {self.filename} "
+                f"t={self.time_step1}-{self.time_step2} "
+                f"t_hdu={self.hdu_time1}-{self.hdu_time2} \n"
+                f"t_unix={self.unix_time1}-{self.unix_time2} "
+                f"baseline={self.tile1}-{self.tile2} "
+                f"chs={self.channel1}-{self.channel2} "
             )
         else:
             self.param_string = (
@@ -332,7 +341,7 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
             # print(f"Skipping timestep index {timestep_index} (out of range)")
             continue
         else:
-            print(f"Processing timestep: {timestep_index} " f"(time index: {time_index})...")
+            print(f"Processing timestep: {timestep_index} (time index: {time_index})...")
 
         # Read data
         data = program_args.context.read_by_baseline(
@@ -349,7 +358,7 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
 
         # Print all tile info but only for the first timestep we have
         if time_index == 0:
-            print(f"QUAKTIME:" f"{program_args.context.metafits_context.quack_time_duration_ms/1000.} s\n")
+            print(f"QUAKTIME:{program_args.context.metafits_context.quack_time_duration_ms / 1000.0} s\n")
 
             print("\nUnflagged tiles:")
             print("================")
@@ -395,7 +404,6 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
                         program_args.mode,
                     )
                 ):
-
                     for chan in range(program_args.channel1, program_args.channel2 + 1):
                         index = chan * (program_args.pols * program_args.values)
 
@@ -546,8 +554,16 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
     if program_args.grid_plot2:
         do_grid_plot2(program_args.param_string, program_args, plot_grid2_data)
 
-    if program_args.phase_plot_all or program_args.phase_plot_one:
+    if program_args.phase_plot_all:
         do_phase_plot(
+            program_args.param_string,
+            program_args,
+            plot_phase_data_x,
+            plot_phase_data_y,
+        )
+
+    if program_args.phase_plot_one:
+        do_phase_plot1(
             program_args.param_string,
             program_args,
             plot_phase_data_x,
@@ -790,7 +806,7 @@ def do_grid_plot(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C9
 
         plot.imshow(plot_grid_data[time_index], cmap="inferno", interpolation="None")
 
-        plot.set_title(f"t={time_index+program_args.time_step1}", size=6)
+        plot.set_title(f"t={time_index + program_args.time_step1}", size=6)
         plot.set_xticks(np.arange(program_args.tile_count, step=n_step))
         plot.set_yticks(np.arange(program_args.tile_count, step=n_step))
         plot.set_xticklabels(np.arange(program_args.tile1, program_args.tile2 + 1, step=n_step))
@@ -854,7 +870,7 @@ def do_grid_plot2(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C
                     else:
                         plot_grid_data[time_index][t2][t1] = math.log10(value * 10000000)
                 except Exception as e:
-                    print("Exception trying math.log10(" f"{value * 10000000} / {scaling_value})")
+                    print(f"Exception trying math.log10({value * 10000000} / {scaling_value})")
                     raise e
 
     # Now print some stats
@@ -890,7 +906,7 @@ def do_grid_plot2(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C
 
         plot.imshow(plot_grid_data[time_index], cmap="inferno", interpolation="None")
 
-        plot.set_title(f"t={time_index+program_args.time_step1}", size=6)
+        plot.set_title(f"t={time_index + program_args.time_step1}", size=6)
         plot.set_xticks(np.arange(program_args.tile_count, step=n_step))
         plot.set_yticks(np.arange(program_args.tile_count, step=n_step))
         plot.set_xticklabels(np.arange(program_args.tile1, program_args.tile2 + 1, step=n_step))
@@ -935,10 +951,7 @@ def do_phase_plot(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_pha
     print("Preparing phase plot...")
 
     # Work out layout of plots
-    if program_args.phase_plot_one:
-        plots = 1
-    else:
-        plots = program_args.baseline_count
+    plots = program_args.baseline_count
 
     print(
         f"Timesteps: {program_args.time_step_count}, "
@@ -968,7 +981,6 @@ def do_phase_plot(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_pha
 
     for i in range(0, program_args.tile_count):
         for j in range(i, program_args.tile_count):
-
             if program_args.phase_plot_one:
                 if not (i == 0 and j == (program_args.tile_count - 1)):
                     # skip this plot
@@ -1038,6 +1050,95 @@ def do_phase_plot(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_pha
         filename = "phase_plot_mwax.png"
     else:
         filename = "phase_plot_mwa.png"
+
+    plt.savefig(filename, bbox_inches="tight", dpi=dpi)
+    print(f"saved {filename}")
+    plt.show()
+
+
+def do_phase_plot1(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_phase_data_y):  # noqa: C901
+    print("Preparing phase plot1...")
+
+    plots = program_args.channel_count
+    sqrt_of_plots: int = math.floor(math.sqrt(plots))
+
+    plot_cols = sqrt_of_plots
+    plot_rows = program_args.channel_count // sqrt_of_plots
+
+    print(plot_rows, plot_cols)
+
+    # Work out layout of plots
+    print(
+        f"Timesteps: {program_args.time_step_count}, "
+        f"baselines: {program_args.baseline_count}, "
+        f"tiles: {program_args.tile_count}, "
+        f"channels: {program_args.channel_count}, "
+        f"plots: {plots}"
+    )
+
+    plot_row = 0
+    plot_col = 0
+    baseline = 0
+    fine_chan = 0
+
+    fig, ax = plt.subplots(
+        figsize=(11.6, 8.3),
+        nrows=plot_rows,
+        ncols=plot_cols,
+        squeeze=False,
+        sharex="all",
+        sharey="all",
+        dpi=dpi,
+    )
+    fig.suptitle(title)
+
+    print("Adding data points for plot...")
+    timestep_list = range(program_args.time_step1, program_args.time_step2 + 1)
+
+    for plot_row in range(0, plot_rows):
+        for plot_col in range(0, plot_cols):
+            plot_data_x = plot_phase_data_x[0 : program_args.time_step_count, baseline, fine_chan]
+            plot_data_y = plot_phase_data_y[0 : program_args.time_step_count, baseline, fine_chan]
+
+            # Get the current plot
+            plot = ax[plot_row][plot_col]
+
+            # Do plots
+            plot.plot(
+                timestep_list,
+                plot_data_x,
+                "o",
+                markersize=1,
+                color="blue",
+            )
+            plot.plot(
+                timestep_list,
+                plot_data_y,
+                "o",
+                markersize=1,
+                color="green",
+            )
+
+            # Set labels
+            plot.set_ylabel("phase (deg)", size=6)
+            plot.set_xlabel("timestep", size=6)
+
+            # Ensure Y axis goes from -180 to 180
+            plot.set_ylim([-180, 180])
+
+            plot.set_title(
+                f"Fine ch: {program_args.context.metafits_context.metafits_fine_chan_freqs_hz[fine_chan] / (1000 * 1000):.3f} MHz",
+                size=6,
+                pad=2,
+            )
+            fine_chan += 1
+
+    print("Saving figure...")
+    # Save final plot to disk
+    if program_args.correlator_version == mwalib.MWAVersion.CorrMWAXv2:
+        filename = "phase_plot1_mwax.png"
+    else:
+        filename = "phase_plot1_mwa.png"
 
     plt.savefig(filename, bbox_inches="tight", dpi=dpi)
     print(f"saved {filename}")
@@ -1114,7 +1215,7 @@ if __name__ == "__main__":
         "-p2",
         "--ppdplot2",
         required=False,
-        help="Create a ppd plot that does not sum across all " "baselines. ie it plots all baselines",
+        help="Create a ppd plot that does not sum across all baselines. ie it plots all baselines",
         action="store_true",
     )
     parser.add_argument(
@@ -1128,23 +1229,21 @@ if __name__ == "__main__":
         "-g2",
         "--gridplot2",
         required=False,
-        help="Create a grid / baseline plot but show a single "
-        "pol (XX,XY,YX,YY) for each tile. Use gridpol "
-        "to specify",
+        help="Create a grid / baseline plot but show a single pol (XX,XY,YX,YY) for each tile. Use gridpol to specify",
         action="store_true",
     )
     parser.add_argument(
         "-gp",
         "--gridpol",
         required=False,
-        help="If gridplot2 used, use this to specify the pol. " "Default is 'XX'",
+        help="If gridplot2 used, use this to specify the pol. Default is 'XX'",
         default="XX",
     )
     parser.add_argument(
         "-ph",
         "--phaseplot_all",
         required=False,
-        help="Will do a phase plot for all baselines for " "given antennas and timesteps",
+        help="Will do a phase plot for all baselines for given antennas and timesteps",
         action="store_true",
     )
 
@@ -1152,7 +1251,7 @@ if __name__ == "__main__":
         "-ph1",
         "--phaseplot_one",
         required=False,
-        help="Will do a phase plot for given baseline " "and timesteps",
+        help="Will do a phase plot for given baseline and timesteps",
         action="store_true",
     )
 

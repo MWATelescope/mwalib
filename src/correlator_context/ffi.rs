@@ -5,7 +5,7 @@
 use crate::{
     coarse_channel,
     ffi::{
-        ffi_array_to_boxed_slice, set_c_string, MWALIB_FAILURE,
+        ffi_create_c_array, ffi_free_c_array, set_c_string, MWALIB_FAILURE,
         MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN, MWALIB_SUCCESS,
     },
     timestep, CorrelatorContext, GpuboxError, MWAVersion,
@@ -130,102 +130,70 @@ pub struct CorrelatorMetadata {
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_correlator_metadata_get(
     correlator_context_ptr: *mut CorrelatorContext,
-    out_correlator_metadata_ptr: &mut *mut CorrelatorMetadata,
+    out_correlator_metadata_ptr: *mut *mut CorrelatorMetadata,
     error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     if correlator_context_ptr.is_null() {
         set_c_string(
             "mwalib_correlator_metadata_get() ERROR: Warning: null pointer for correlator_context_ptr passed in",
-            error_message as *mut c_char,
+            error_message,
             error_message_length,
         );
+
+        if !out_correlator_metadata_ptr.is_null() {
+            *out_correlator_metadata_ptr = std::ptr::null_mut();
+        }
+
         return MWALIB_FAILURE;
     }
     // Get the correlator context object from the raw pointer passed in
     let context = &*correlator_context_ptr;
 
     // Populate correlator coarse channels
-    let mut coarse_chan_vec: Vec<coarse_channel::ffi::CoarseChannel> = Vec::new();
-
-    for item in context.coarse_chans.iter() {
-        let out_item = {
-            let coarse_channel::CoarseChannel {
-                corr_chan_number,
-                rec_chan_number,
-                gpubox_number,
-                chan_width_hz,
-                chan_start_hz,
-                chan_centre_hz,
-                chan_end_hz,
-            } = item;
-            coarse_channel::ffi::CoarseChannel {
-                corr_chan_number: *corr_chan_number,
-                rec_chan_number: *rec_chan_number,
-                gpubox_number: *gpubox_number,
-                chan_width_hz: *chan_width_hz,
-                chan_start_hz: *chan_start_hz,
-                chan_centre_hz: *chan_centre_hz,
-                chan_end_hz: *chan_end_hz,
-            }
-        };
-
-        coarse_chan_vec.push(out_item);
-    }
+    let (coarse_channels_ptr, coarse_channels_len) =
+        coarse_channel::ffi::CoarseChannel::populate_array(&context.coarse_chans);
 
     // Populate correlator timesteps
-    let mut timestep_vec: Vec<timestep::ffi::TimeStep> = Vec::new();
-
-    for item in context.timesteps.iter() {
-        let out_item = {
-            let timestep::TimeStep {
-                unix_time_ms,
-                gps_time_ms,
-            } = item;
-            timestep::ffi::TimeStep {
-                unix_time_ms: *unix_time_ms,
-                gps_time_ms: *gps_time_ms,
-            }
-        };
-        timestep_vec.push(out_item);
-    }
+    let (timesteps_ptr, timesteps_len) =
+        timestep::ffi::TimeStep::populate_array(&context.timesteps);
 
     // Populate the rust owned data structure with data from the correlator context
     // We explicitly break out the attributes so at compile time it will let us know
     // if there have been new fields added to the rust struct, then we can choose to
     // ignore them (with _) or add that field to the FFI struct.
-    let out_context = {
+    let out_metadata = {
         let CorrelatorContext {
             metafits_context: _, // This is provided by the seperate metafits_metadata struct in FFI
             mwa_version,
-            num_timesteps,
+            num_timesteps: _,
             timesteps: _, // This is populated seperately
-            num_coarse_chans,
+            num_coarse_chans: _,
             coarse_chans: _, // This is populated seperately
-            common_timestep_indices,
-            num_common_timesteps,
-            common_coarse_chan_indices,
-            num_common_coarse_chans,
+            common_timestep_indices: _,
+            num_common_timesteps: _,
+            common_coarse_chan_indices: _,
+            num_common_coarse_chans: _,
             common_start_unix_time_ms,
             common_end_unix_time_ms,
             common_start_gps_time_ms,
             common_end_gps_time_ms,
             common_duration_ms,
             common_bandwidth_hz,
-            common_good_timestep_indices,
-            num_common_good_timesteps,
-            common_good_coarse_chan_indices,
-            num_common_good_coarse_chans,
+            common_good_timestep_indices: _,
+            num_common_good_timesteps: _,
+            common_good_coarse_chan_indices: _,
+            num_common_good_coarse_chans: _,
             common_good_start_unix_time_ms,
             common_good_end_unix_time_ms,
             common_good_start_gps_time_ms,
             common_good_end_gps_time_ms,
             common_good_duration_ms,
             common_good_bandwidth_hz,
-            provided_timestep_indices,
-            num_provided_timesteps: num_provided_timestep_indices,
-            provided_coarse_chan_indices,
-            num_provided_coarse_chans: num_provided_coarse_chan_indices,
+            provided_timestep_indices: _,
+            num_provided_timesteps: _,
+            provided_coarse_chan_indices: _,
+            num_provided_coarse_chans: _,
             num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats,
             num_timestep_coarse_chan_weight_floats,
@@ -235,18 +203,35 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             legacy_conversion_table: _, // This is currently not provided to FFI as it is private
             bscale,
         } = context;
+
+        let (common_timestep_indices_ptr, common_timestep_indices_len) =
+            ffi_create_c_array(context.common_timestep_indices.clone());
+
+        let (common_good_timestep_indices_ptr, common_good_timestep_indices_len) =
+            ffi_create_c_array(context.common_good_timestep_indices.clone());
+
+        let (provided_timestep_indices_ptr, provided_timestep_indices_len) =
+            ffi_create_c_array(context.provided_timestep_indices.clone());
+
+        let (common_coarse_chan_indices_ptr, common_coarse_chan_indices_len) =
+            ffi_create_c_array(context.common_coarse_chan_indices.clone());
+
+        let (common_good_coarse_chan_indices_ptr, common_good_coarse_chan_indices_len) =
+            ffi_create_c_array(context.common_good_coarse_chan_indices.clone());
+
+        let (provided_coarse_chan_indices_ptr, provided_coarse_chan_indices_len) =
+            ffi_create_c_array(context.provided_coarse_chan_indices.clone());
+
         CorrelatorMetadata {
             mwa_version: *mwa_version,
-            num_timesteps: *num_timesteps,
-            timesteps: ffi_array_to_boxed_slice(timestep_vec),
-            num_coarse_chans: *num_coarse_chans,
-            coarse_chans: ffi_array_to_boxed_slice(coarse_chan_vec),
-            num_common_timesteps: *num_common_timesteps,
-            common_timestep_indices: ffi_array_to_boxed_slice(common_timestep_indices.clone()),
-            num_common_coarse_chans: *num_common_coarse_chans,
-            common_coarse_chan_indices: ffi_array_to_boxed_slice(
-                common_coarse_chan_indices.clone(),
-            ),
+            num_timesteps: timesteps_len,
+            timesteps: timesteps_ptr,
+            num_coarse_chans: coarse_channels_len,
+            coarse_chans: coarse_channels_ptr,
+            num_common_timesteps: common_timestep_indices_len,
+            common_timestep_indices: common_timestep_indices_ptr,
+            num_common_coarse_chans: common_coarse_chan_indices_len,
+            common_coarse_chan_indices: common_coarse_chan_indices_ptr,
             common_start_unix_time_ms: *common_start_unix_time_ms,
             common_end_unix_time_ms: *common_end_unix_time_ms,
             common_start_gps_time_ms: *common_start_gps_time_ms,
@@ -254,14 +239,10 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_duration_ms: *common_duration_ms,
             common_bandwidth_hz: *common_bandwidth_hz,
 
-            num_common_good_timesteps: *num_common_good_timesteps,
-            common_good_timestep_indices: ffi_array_to_boxed_slice(
-                common_good_timestep_indices.clone(),
-            ),
-            num_common_good_coarse_chans: *num_common_good_coarse_chans,
-            common_good_coarse_chan_indices: ffi_array_to_boxed_slice(
-                common_good_coarse_chan_indices.clone(),
-            ),
+            num_common_good_timesteps: common_good_timestep_indices_len,
+            common_good_timestep_indices: common_good_timestep_indices_ptr,
+            num_common_good_coarse_chans: common_good_coarse_chan_indices_len,
+            common_good_coarse_chan_indices: common_good_coarse_chan_indices_ptr,
             common_good_start_unix_time_ms: *common_good_start_unix_time_ms,
             common_good_end_unix_time_ms: *common_good_end_unix_time_ms,
             common_good_start_gps_time_ms: *common_good_start_gps_time_ms,
@@ -269,12 +250,10 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
             common_good_duration_ms: *common_good_duration_ms,
             common_good_bandwidth_hz: *common_good_bandwidth_hz,
 
-            num_provided_timesteps: *num_provided_timestep_indices,
-            provided_timestep_indices: ffi_array_to_boxed_slice(provided_timestep_indices.clone()),
-            num_provided_coarse_chans: *num_provided_coarse_chan_indices,
-            provided_coarse_chan_indices: ffi_array_to_boxed_slice(
-                provided_coarse_chan_indices.clone(),
-            ),
+            num_provided_timesteps: provided_timestep_indices_len,
+            provided_timestep_indices: provided_timestep_indices_ptr,
+            num_provided_coarse_chans: provided_coarse_chan_indices_len,
+            provided_coarse_chan_indices: provided_coarse_chan_indices_ptr,
             num_timestep_coarse_chan_bytes: *num_timestep_coarse_chan_bytes,
             num_timestep_coarse_chan_floats: *num_timestep_coarse_chan_floats,
             num_timestep_coarse_chan_weight_floats: *num_timestep_coarse_chan_weight_floats,
@@ -283,11 +262,19 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
         }
     };
 
-    // Pass out the pointer to the rust owned data structure
-    *out_correlator_metadata_ptr = Box::into_raw(Box::new(out_context));
-
-    // Return success
-    MWALIB_SUCCESS
+    // Return ownership to C via raw pointer
+    if !out_correlator_metadata_ptr.is_null() {
+        *out_correlator_metadata_ptr = Box::into_raw(Box::new(out_metadata));
+        return MWALIB_SUCCESS;
+    } else {
+        // Cannot write the out pointer; report failure
+        set_c_string(
+            "mwalib_correlator_metadata_get() ERROR: out_correlator_metadata_ptr was NULL.",
+            error_message,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
 }
 
 /// Free a previously-allocated `CorrelatorMetadata` struct.
@@ -307,114 +294,66 @@ pub unsafe extern "C" fn mwalib_correlator_metadata_get(
 /// * `correlator_metadata_ptr` must point to a populated `CorrelatorMetadata` object from the `mwalib_correlator_metadata_get` function.
 /// * `correlator_metadata_ptr` must not have already been freed.
 #[no_mangle]
-pub unsafe extern "C" fn mwalib_correlator_metadata_free(
-    correlator_metadata_ptr: *mut CorrelatorMetadata,
-) -> i32 {
-    if correlator_metadata_ptr.is_null() {
+pub unsafe extern "C" fn mwalib_correlator_metadata_free(c_ptr: *mut CorrelatorMetadata) -> i32 {
+    if c_ptr.is_null() {
         return MWALIB_SUCCESS;
     }
+
+    // Box the object to free its contents
+    let boxed: Box<CorrelatorMetadata> = Box::from_raw(c_ptr);
 
     //
     // free any other members first
     //
 
     // coarse_channels
-    if !(*correlator_metadata_ptr).coarse_chans.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [coarse_channel::ffi::CoarseChannel] = slice::from_raw_parts_mut(
-            (*correlator_metadata_ptr).coarse_chans,
-            (*correlator_metadata_ptr).num_coarse_chans,
-        );
-        drop(Box::from_raw(slice));
-    }
+    coarse_channel::ffi::CoarseChannel::destroy_array(boxed.coarse_chans, boxed.num_coarse_chans);
 
     // timesteps
-    if !(*correlator_metadata_ptr).timesteps.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [timestep::ffi::TimeStep] = slice::from_raw_parts_mut(
-            (*correlator_metadata_ptr).timesteps,
-            (*correlator_metadata_ptr).num_timesteps,
-        );
-        drop(Box::from_raw(slice));
-    }
+    timestep::ffi::TimeStep::destroy_array(boxed.timesteps, boxed.num_timesteps);
+
+    //
+    // Primitive arrays
+    //
 
     // common timestep indices
-    if !(*correlator_metadata_ptr).common_timestep_indices.is_null() {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [usize] = slice::from_raw_parts_mut(
-            (*correlator_metadata_ptr).common_timestep_indices,
-            (*correlator_metadata_ptr).num_common_timesteps,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_array(boxed.common_timestep_indices, boxed.num_common_timesteps);
 
     // common coarse chan indices
-    if !(*correlator_metadata_ptr)
-        .common_coarse_chan_indices
-        .is_null()
-    {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [usize] = slice::from_raw_parts_mut(
-            (*correlator_metadata_ptr).common_coarse_chan_indices,
-            (*correlator_metadata_ptr).num_common_coarse_chans,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_array(
+        boxed.common_coarse_chan_indices,
+        boxed.num_common_coarse_chans,
+    );
 
     // common good timestep indices
-    if !(*correlator_metadata_ptr)
-        .common_good_timestep_indices
-        .is_null()
-    {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [usize] = slice::from_raw_parts_mut(
-            (*correlator_metadata_ptr).common_good_timestep_indices,
-            (*correlator_metadata_ptr).num_common_good_timesteps,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_array(
+        boxed.common_good_timestep_indices,
+        boxed.num_common_good_timesteps,
+    );
 
     // common good coarse chan indices
-    if !(*correlator_metadata_ptr)
-        .common_good_coarse_chan_indices
-        .is_null()
-    {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [usize] = slice::from_raw_parts_mut(
-            (*correlator_metadata_ptr).common_good_coarse_chan_indices,
-            (*correlator_metadata_ptr).num_common_good_coarse_chans,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_array(
+        boxed.common_good_coarse_chan_indices,
+        boxed.num_common_good_coarse_chans,
+    );
 
     // provided timestep indices
-    if !(*correlator_metadata_ptr)
-        .provided_timestep_indices
-        .is_null()
-    {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [usize] = slice::from_raw_parts_mut(
-            (*correlator_metadata_ptr).provided_timestep_indices,
-            (*correlator_metadata_ptr).num_provided_timesteps,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_array(
+        boxed.provided_timestep_indices,
+        boxed.num_provided_timesteps,
+    );
 
     // provided coarse channel indices
-    if !(*correlator_metadata_ptr)
-        .provided_coarse_chan_indices
-        .is_null()
-    {
-        // Reconstruct a fat slice first then box from that raw slice to allow Rust to deallocate the memory
-        let slice: &mut [usize] = slice::from_raw_parts_mut(
-            (*correlator_metadata_ptr).provided_coarse_chan_indices,
-            (*correlator_metadata_ptr).num_provided_coarse_chans,
-        );
-        drop(Box::from_raw(slice));
-    }
+    ffi_free_c_array(
+        boxed.provided_coarse_chan_indices,
+        boxed.num_provided_coarse_chans,
+    );
+
+    // Free strings
+    // (None)
 
     // Free main metadata struct
-    drop(Box::from_raw(correlator_metadata_ptr));
+    drop(boxed);
 
     // Return success
     MWALIB_SUCCESS

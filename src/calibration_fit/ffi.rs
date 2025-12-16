@@ -4,7 +4,7 @@
 
 use crate::{
     calibration_fit::{self, ffi},
-    ffi::{ffi_create_c_array, ffi_free_rust_struct},
+    ffi::{ffi_create_c_array, ffi_free_c_array},
     MetafitsContext,
 };
 
@@ -132,15 +132,15 @@ impl CalibrationFit {
         // Free string if present
         // Now for each item we need to free anything on the heap
         if !a.gains.is_null() {
-            ffi_free_rust_struct(a.gains, a.num_gains);
+            ffi_free_c_array(a.gains, a.num_gains);
         }
 
         if !a.gain_polynomial_fit0.is_null() {
-            ffi_free_rust_struct(a.gain_polynomial_fit0, a.num_gain_polynomial_fit0);
+            ffi_free_c_array(a.gain_polynomial_fit0, a.num_gain_polynomial_fit0);
         }
 
         if !a.gain_polynomial_fit1.is_null() {
-            ffi_free_rust_struct(a.gain_polynomial_fit1, a.num_gain_polynomial_fit1);
+            ffi_free_c_array(a.gain_polynomial_fit1, a.num_gain_polynomial_fit1);
         }
     }
 
@@ -162,6 +162,6 @@ impl CalibrationFit {
             Self::destroy_item(item);
         }
         // Now free the array itself by reconstructing the Vec and letting it drop
-        ffi_free_rust_struct(items_ptr, items_len);
+        ffi_free_c_array(items_ptr, items_len);
     }
 }

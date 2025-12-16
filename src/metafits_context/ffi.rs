@@ -6,7 +6,7 @@ use crate::{
     antenna::{self},
     baseline, beam, calibration_fit, coarse_channel,
     ffi::{
-        ffi_create_c_array, ffi_create_c_string, ffi_free_rust_c_string, ffi_free_rust_struct,
+        ffi_create_c_array, ffi_create_c_string, ffi_free_c_array, ffi_free_rust_c_string,
         set_c_string, MWALIB_FAILURE, MWALIB_SUCCESS,
     },
     rfinput, signal_chain_correction, timestep, CableDelaysApplied, CorrelatorContext,
@@ -105,10 +105,12 @@ pub struct MetafitsMetadata {
     pub best_cal_fit_timestamp: *mut c_char,
     /// Best calibration fit creator
     pub best_cal_creator: *mut c_char,
+
     /// Array of receiver numbers
     pub receivers: *mut usize,
     /// Array of beamformer delays
     pub delays: *mut u32,
+
     /// Array of antennas
     pub antennas: *mut antenna::ffi::Antenna,
     /// Array of rf inputs
@@ -237,7 +239,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     metafits_context_ptr: *mut MetafitsContext,
     correlator_context_ptr: *mut CorrelatorContext,
     voltage_context_ptr: *mut VoltageContext,
-    out_metafits_metadata_ptr: &mut *mut MetafitsMetadata,
+    out_metafits_metadata_ptr: *mut *mut MetafitsMetadata,
     error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
@@ -248,9 +250,14 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     if provided != 1 {
         set_c_string(
             "mwalib_metafits_metadata_get() ERROR: pointers for metafits_context_ptr, correlator_context_ptr and/or voltage_context_ptr were passed in. Only one should be provided.",
-            error_message as *mut c_char,
+            error_message,
             error_message_length,
         );
+
+        if !out_metafits_metadata_ptr.is_null() {
+            *out_metafits_metadata_ptr = std::ptr::null_mut();
+        }
+
         return MWALIB_FAILURE;
     }
 
@@ -269,7 +276,6 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     //
     // Populate members
     //
-
     // Populate antennas
     let (antennas_ptr, antennas_len) = antenna::ffi::Antenna::populate_array(&metafits_context);
 
@@ -277,25 +283,26 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     let (baselines_ptr, baselines_len) = baseline::ffi::Baseline::populate_array(&metafits_context);
 
     // Populate beams
-    let (beams_ptr, beams_len) = beam::ffi::Beam::populate_array(metafits_context);
+    let (beams_ptr, beams_len) = beam::ffi::Beam::populate_array(&metafits_context);
 
     // Populate calibration fits
     let (calibration_fits_ptr, calibration_fits_len) =
-        calibration_fit::ffi::CalibrationFit::populate_array(metafits_context);
+        calibration_fit::ffi::CalibrationFit::populate_array(&metafits_context);
 
     // Populate metafits coarse channels
     let (coarse_channels_ptr, coarse_channels_len) =
-        coarse_channel::ffi::CoarseChannel::populate_array(metafits_context);
+        coarse_channel::ffi::CoarseChannel::populate_array(&metafits_context.metafits_coarse_chans);
 
     // Populate metafits timesteps
-    let (timesteps_ptr, timesteps_len) = timestep::ffi::TimeStep::populate_array(metafits_context);
+    let (timesteps_ptr, timesteps_len) =
+        timestep::ffi::TimeStep::populate_array(&metafits_context.metafits_timesteps);
 
     // Populate rf_inputs
-    let (rfinputs_ptr, rfinputs_len) = rfinput::ffi::Rfinput::populate_array(metafits_context);
+    let (rfinputs_ptr, rfinputs_len) = rfinput::ffi::Rfinput::populate_array(&metafits_context);
 
     // Populate signal chain corrections
     let (signal_chain_corrections_ptr, signal_chain_corrections_len) =
-        signal_chain_correction::ffi::SignalChainCorrection::populate_array(metafits_context);
+        signal_chain_correction::ffi::SignalChainCorrection::populate_array(&metafits_context);
 
     //
     // Populate primitive arrays
@@ -507,18 +514,26 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
         }
     };
 
-    // Pass back a pointer to the rust owned struct
-    *out_metafits_metadata_ptr = Box::into_raw(Box::new(out_metadata));
-
-    // Return Success
-    MWALIB_SUCCESS
+    // Return ownership to C via raw pointer
+    if !out_metafits_metadata_ptr.is_null() {
+        *out_metafits_metadata_ptr = Box::into_raw(Box::new(out_metadata));
+        return MWALIB_SUCCESS;
+    } else {
+        // Cannot write the out pointer; report failure
+        set_c_string(
+            "mwalib_metafits_metadata_get() ERROR: out_metafits_metadata_ptr was NULL.",
+            error_message,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
 }
 
 /// Free a previously-allocated `mwalibMetafitsMetadata` struct.
 ///
 /// # Arguments
 ///
-/// * `metafits_metadata_ptr` - pointer to an already populated `mwalibMetafitsMetadata` object
+/// * `m_ptr` - (metafits_metadata_ptr) pointer to an already populated `mwalibMetafitsMetadata` object
 ///
 ///
 /// # Returns
@@ -531,96 +546,83 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
 /// * `metafits_metadata_ptr` must point to a populated `mwalibMetafitsMetadata` object from the `mwalib_metafits_metadata_get` function.
 /// * `metafits_metadata_ptr` must not have already been freed.
 #[no_mangle]
-pub unsafe extern "C" fn mwalib_metafits_metadata_free(
-    metafits_metadata_ptr: *mut MetafitsMetadata,
-) -> i32 {
+pub unsafe extern "C" fn mwalib_metafits_metadata_free(m_ptr: *mut MetafitsMetadata) -> i32 {
     // If the pointer is null, just return
-    if metafits_metadata_ptr.is_null() {
+    if m_ptr.is_null() {
         return MWALIB_SUCCESS;
     }
 
-    let m = metafits_metadata_ptr;
+    // Box the object to free its contents
+    let boxed: Box<MetafitsMetadata> = Box::from_raw(m_ptr);
 
     //
     // Free members first
     //
     // antennas
-    antenna::ffi::Antenna::destroy_array((*m).antennas, (*m).num_ants);
+    antenna::ffi::Antenna::destroy_array(boxed.antennas, boxed.num_ants);
 
     // baselines
-    baseline::ffi::Baseline::destroy_array((*m).baselines, (*m).num_baselines);
+    baseline::ffi::Baseline::destroy_array(boxed.baselines, boxed.num_baselines);
 
     // beams
-    beam::ffi::Beam::destroy_array(
-        (*metafits_metadata_ptr).metafits_beams,
-        (*metafits_metadata_ptr).num_metafits_beams,
-    );
+    beam::ffi::Beam::destroy_array(boxed.metafits_beams, boxed.num_metafits_beams);
 
     // calibration fits
     calibration_fit::ffi::CalibrationFit::destroy_array(
-        (*metafits_metadata_ptr).calibration_fits,
-        (*metafits_metadata_ptr).num_calibration_fits,
+        boxed.calibration_fits,
+        boxed.num_calibration_fits,
     );
 
     // coarse_channels
     coarse_channel::ffi::CoarseChannel::destroy_array(
-        (*metafits_metadata_ptr).metafits_coarse_chans,
-        (*metafits_metadata_ptr).num_metafits_coarse_chans,
+        boxed.metafits_coarse_chans,
+        boxed.num_metafits_coarse_chans,
     );
 
     // rf inputs
-    rfinput::ffi::Rfinput::destroy_array((*m).rf_inputs, (*m).num_rf_inputs);
+    rfinput::ffi::Rfinput::destroy_array(boxed.rf_inputs, boxed.num_rf_inputs);
 
     // signal chain corrections
     signal_chain_correction::ffi::SignalChainCorrection::destroy_array(
-        (*metafits_metadata_ptr).signal_chain_corrections,
-        (*metafits_metadata_ptr).num_signal_chain_corrections,
+        boxed.signal_chain_corrections,
+        boxed.num_signal_chain_corrections,
     );
 
     // timesteps
-    timestep::ffi::TimeStep::destroy_array(
-        (*metafits_metadata_ptr).metafits_timesteps,
-        (*metafits_metadata_ptr).num_metafits_timesteps,
-    );
+    timestep::ffi::TimeStep::destroy_array(boxed.metafits_timesteps, boxed.num_metafits_timesteps);
 
     //
     // Free top level primitive arrays
     //
     // delays
-    ffi_free_rust_struct(
-        (*metafits_metadata_ptr).delays,
-        (*metafits_metadata_ptr).num_delays,
-    );
+    ffi_free_c_array(boxed.delays, boxed.num_delays);
 
     // fine channel freqs
-    ffi_free_rust_struct(
-        (*metafits_metadata_ptr).metafits_fine_chan_freqs_hz,
-        (*metafits_metadata_ptr).num_metafits_fine_chan_freqs_hz,
+    ffi_free_c_array(
+        boxed.metafits_fine_chan_freqs_hz,
+        boxed.num_metafits_fine_chan_freqs_hz,
     );
 
     // receivers
-    ffi_free_rust_struct(
-        (*metafits_metadata_ptr).receivers,
-        (*metafits_metadata_ptr).num_receivers,
-    );
+    ffi_free_c_array(boxed.receivers, boxed.num_receivers);
 
     //
     // Free top level string fields
     //
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).hour_angle_string);
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).grid_name);
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).creator);
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).project_id);
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).obs_name);
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).calibrator_source);
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).metafits_filename);
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).deripple_param);
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).best_cal_code_ver);
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).best_cal_fit_timestamp);
-    ffi_free_rust_c_string(&mut (*metafits_metadata_ptr).best_cal_creator);
+    ffi_free_rust_c_string(boxed.hour_angle_string);
+    ffi_free_rust_c_string(boxed.grid_name);
+    ffi_free_rust_c_string(boxed.creator);
+    ffi_free_rust_c_string(boxed.project_id);
+    ffi_free_rust_c_string(boxed.obs_name);
+    ffi_free_rust_c_string(boxed.calibrator_source);
+    ffi_free_rust_c_string(boxed.metafits_filename);
+    ffi_free_rust_c_string(boxed.deripple_param);
+    ffi_free_rust_c_string(boxed.best_cal_code_ver);
+    ffi_free_rust_c_string(boxed.best_cal_fit_timestamp);
+    ffi_free_rust_c_string(boxed.best_cal_creator);
 
     // Free main metadata struct
-    drop(Box::from_raw(metafits_metadata_ptr));
+    drop(boxed);
 
     // Return success
     MWALIB_SUCCESS

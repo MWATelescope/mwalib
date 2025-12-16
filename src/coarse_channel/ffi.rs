@@ -4,8 +4,7 @@
 
 use crate::{
     coarse_channel::{self, ffi},
-    ffi::{ffi_create_c_array, ffi_free_rust_struct},
-    MetafitsContext,
+    ffi::{ffi_create_c_array, ffi_free_c_array},
 };
 
 /// Representation in C of an `CoarseChannel` struct
@@ -35,7 +34,7 @@ impl CoarseChannel {
     ///
     /// # Arguments
     ///
-    /// * `metafits_context` - Reference to the populated Rust MetafitsContext
+    /// * `coarse_chans` - Reference to the populated Rust slice of coarse channels
     ///    
     /// # Returns
     ///
@@ -45,10 +44,12 @@ impl CoarseChannel {
     /// # Safety
     /// * The corresponding `ffi_destroy` function for this class must be called to free the memory
     ///
-    pub fn populate_array(metafits_context: &MetafitsContext) -> (*mut ffi::CoarseChannel, usize) {
+    pub fn populate_array(
+        coarse_chans: &[crate::coarse_channel::CoarseChannel],
+    ) -> (*mut ffi::CoarseChannel, usize) {
         let mut item_vec: Vec<ffi::CoarseChannel> = Vec::new();
 
-        for item in metafits_context.metafits_coarse_chans.iter() {
+        for item in coarse_chans.iter() {
             let out_item = {
                 let coarse_channel::CoarseChannel {
                     corr_chan_number,
@@ -90,6 +91,6 @@ impl CoarseChannel {
     ///
     pub fn destroy_array(items_ptr: *mut ffi::CoarseChannel, items_len: usize) {
         // Now free the array itself by reconstructing the Vec and letting it drop
-        ffi_free_rust_struct(items_ptr, items_len);
+        ffi_free_c_array(items_ptr, items_len);
     }
 }

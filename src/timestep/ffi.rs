@@ -3,9 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use crate::{
-    ffi::{ffi_create_c_array, ffi_free_rust_struct},
+    ffi::{ffi_create_c_array, ffi_free_c_array},
     timestep::{self, ffi},
-    MetafitsContext,
 };
 
 ///
@@ -24,7 +23,7 @@ impl TimeStep {
     ///
     /// # Arguments
     ///
-    /// * `metafits_context` - Reference to the populated Rust MetafitsContext
+    /// * `timesteps` - Reference to the populated Rust timesteps slice
     ///    
     /// # Returns
     ///
@@ -34,10 +33,10 @@ impl TimeStep {
     /// # Safety
     /// * The corresponding `ffi_destroy` function for this class must be called to free the memory
     ///
-    pub fn populate_array(metafits_context: &MetafitsContext) -> (*mut ffi::TimeStep, usize) {
+    pub fn populate_array(timesteps: &[crate::timestep::TimeStep]) -> (*mut ffi::TimeStep, usize) {
         let mut item_vec: Vec<ffi::TimeStep> = Vec::new();
 
-        for item in metafits_context.metafits_timesteps.iter() {
+        for item in timesteps {
             let out_item = {
                 let timestep::TimeStep {
                     unix_time_ms,
@@ -69,6 +68,6 @@ impl TimeStep {
     ///
     pub fn destroy_array(items_ptr: *mut ffi::TimeStep, items_len: usize) {
         // Now free the array itself by reconstructing the Vec and letting it drop
-        ffi_free_rust_struct(items_ptr, items_len);
+        ffi_free_c_array(items_ptr, items_len);
     }
 }

@@ -47,12 +47,12 @@ int main(int argc, char *argv[])
         }
 
         // print metafits context info
-        if (mwalib_metafits_context_display(metafits_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+        /*if (mwalib_metafits_context_display(metafits_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
         {
             printf("Error displaying metafits context info: %s\n", error_message);
             free(error_message);
             exit(-1);
-        }
+        }*/
     }
     else
     {
@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
                    metafits_metadata->signal_chain_corrections[s].receiver_type,
                    metafits_metadata->signal_chain_corrections[s].whitening_filter,
                    metafits_metadata->signal_chain_corrections[s].corrections[0],
-                   metafits_metadata->signal_chain_corrections[s].corrections[255]);
+                   metafits_metadata->signal_chain_corrections[s].corrections[metafits_metadata->signal_chain_corrections[s].num_corrections - 1]);
         }
 
         // Clean up metadata

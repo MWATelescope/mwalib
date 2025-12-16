@@ -4,7 +4,7 @@
 
 use crate::{
     baseline::{self, ffi},
-    ffi::{ffi_create_c_array, ffi_free_rust_struct},
+    ffi::{ffi_create_c_array, ffi_free_c_array},
     MetafitsContext,
 };
 
@@ -69,6 +69,6 @@ impl Baseline {
     ///
     pub fn destroy_array(items_ptr: *mut ffi::Baseline, items_len: usize) {
         // Now free the array itself by reconstructing the Vec and letting it drop
-        ffi_free_rust_struct(items_ptr, items_len);
+        ffi_free_c_array(items_ptr, items_len);
     }
 }

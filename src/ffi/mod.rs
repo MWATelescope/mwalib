@@ -6,7 +6,7 @@
 
 use crate::*;
 use libc::{c_char, c_uint, size_t};
-use std::{ffi::CString, ptr, slice};
+use std::{ffi::CString, slice};
 
 #[cfg(test)]
 pub(crate) mod ffi_test_helpers;
@@ -65,7 +65,7 @@ pub(crate) fn set_c_string(
         buf[write_len] = 0u8;
     }
 
-    write_len + 1
+    write_len
 }
 
 /// Return the MAJOR version number of mwalib
@@ -148,36 +148,7 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
     MWALIB_SUCCESS
 }
 
-/// Boxes for FFI a rust-allocated vector of T. If the vector is 0 length, returns a null pointer.
-/// This leaks the array of T to C.
-/// At the end of use, you MUST call ffi_free_c_boxed_slice()
-///
-/// # Arguments
-///
-/// * `v` - Rust vector of T's
-///
-///
-/// # Returns
-///
-/// * a raw pointer to the array of T's
-///
-#[deprecated]
-pub(crate) fn ffi_array_to_boxed_slice<T>(v: Vec<T>) -> *mut T {
-    if !v.is_empty() {
-        // Prevent the slice from being destroyed (Leak the memory).
-        // This is because we are using our ffi code to free the memory
-        let mut boxed = v.into_boxed_slice();
-        let ptr = boxed.as_mut_ptr();
-        let _len = boxed.len();
-        std::mem::forget(boxed);
-
-        ptr
-    } else {
-        std::ptr::null_mut()
-    }
-}
-
-/// Utility: Create a C String from a Rust string
+//// Utility: Create a C String from a Rust string
 #[inline]
 pub fn ffi_create_c_string(rust_str: &str) -> *mut c_char {
     // Convert to CString (adds null terminator)
@@ -190,32 +161,37 @@ pub fn ffi_create_c_string(rust_str: &str) -> *mut c_char {
     };
 }
 
-/// Utility: Create a C Array from a Rust Vector
-#[inline]
-pub fn ffi_create_c_array<T>(mut rust_vec: Vec<T>) -> (*mut T, usize) {
-    let ptr = rust_vec.as_mut_ptr();
-    let len = rust_vec.len();
-    std::mem::forget(rust_vec); // Prevent Rust from freeing the Vec
-    (ptr, len)
-}
-
 /// Utility: free a Rust-allocated C string returned by this API.
 #[inline]
-pub fn ffi_free_rust_c_string(ptr: *mut *mut c_char) {
+pub fn ffi_free_rust_c_string(ptr: *mut c_char) {
     if !ptr.is_null() {
         unsafe {
-            let _ = CString::from_raw(*ptr); // drop to free
-            *ptr = ptr::null_mut();
+            let s = CString::from_raw(ptr); // drop to free
+            drop(s);
         }
     }
 }
 
+/// Utility: Create a C Array from a Rust Vector
+#[inline]
+pub fn ffi_create_c_array<T>(rust_vec: Vec<T>) -> (*mut T, usize) {
+    //let ptr = rust_vec.as_mut_ptr();
+    //let len = rust_vec.len();
+    //std::mem::forget(rust_vec); // Prevent Rust from freeing the Vec
+    //(ptr, len)
+    let boxed_slice: Box<[T]> = rust_vec.into_boxed_slice();
+    let len = boxed_slice.len();
+    let ptr = Box::into_raw(boxed_slice) as *mut T;
+    (ptr, len)
+}
+
 /// Utility: free a Rust-allocated C struct returned by this API
 #[inline]
-pub fn ffi_free_rust_struct<T>(ptr: *mut T, len: usize) {
+pub fn ffi_free_c_array<T>(ptr: *mut T, len: usize) {
     if !ptr.is_null() {
-        let _ = unsafe {
-            Vec::from_raw_parts(ptr, len, len);
-        };
+        unsafe {
+            let boxed = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len));
+            drop(boxed);
+        }
     }
 }
