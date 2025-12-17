@@ -8,6 +8,7 @@
 #include "mwalib.h"
 
 #define ERROR_MESSAGE_LEN 1024
+#define DISPLAY_MESSAGE_LEN 32768
 
 typedef struct ThreadArgs_read_file
 {
@@ -373,28 +374,32 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    const char **volt_files = malloc(sizeof(char *) * (argc - 2));
-    for (int i = 0; i < argc - 2; i++)
-    {
-        volt_files[i] = argv[i + 2];
-    }
-
     // Allocate buffer for any error messages
     char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
 
     VoltageContext *voltage_context = NULL;
 
-    if (mwalib_voltage_context_new(argv[1], volt_files, argc - 2, &voltage_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    if (mwalib_voltage_context_new(argv[1], (const char **)&argv[2], argc - 2, &voltage_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error creating voltage context: %s\n", error_message);
+        free(error_message);
         exit(-1);
     }
 
     // Print summary of voltage context
-    if (mwalib_voltage_context_display(voltage_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    // Allocate buffer space for the display info
+    char *display_message = malloc(DISPLAY_MESSAGE_LEN * sizeof(char));
+
+    if (mwalib_voltage_context_display(voltage_context, display_message, DISPLAY_MESSAGE_LEN, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error displaying voltage context summary: %s\n", error_message);
+        free(error_message);
         exit(-1);
+    }
+    else
+    {
+        printf("%s\n", display_message);
+        free(display_message);
     }
 
     VoltageMetadata *voltage_metadata = NULL;
@@ -402,6 +407,7 @@ int main(int argc, char *argv[])
     if (mwalib_voltage_metadata_get(voltage_context, &voltage_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error getting voltage metadata: %s\n", error_message);
+        free(error_message);
         exit(-1);
     }
 
@@ -410,6 +416,7 @@ int main(int argc, char *argv[])
     if (mwalib_metafits_metadata_get(NULL, NULL, voltage_context, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error getting metafits metadata: %s\n", error_message);
+        free(error_message);
         exit(-1);
     }
 
@@ -474,7 +481,7 @@ int main(int argc, char *argv[])
     mwalib_metafits_metadata_free(metafits_metadata);
     mwalib_voltage_metadata_free(voltage_metadata);
     mwalib_voltage_context_free(voltage_context);
-    free(volt_files);
+
     free(error_message);
 
     return EXIT_SUCCESS;

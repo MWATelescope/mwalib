@@ -105,11 +105,26 @@ fn test_mwalib_metafits_context_display() {
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
+    let buf_len: size_t = 1280;
+    let buf_message = CString::new(" ".repeat(buf_len)).unwrap();
+    let buf_message_ptr = buf_message.as_ptr() as *mut c_char;
+
     unsafe {
-        let retval =
-            mwalib_metafits_context_display(metafits_context_ptr, error_message_ptr, error_len);
+        let retval = mwalib_metafits_context_display(
+            metafits_context_ptr,
+            buf_message_ptr,
+            buf_len,
+            error_message_ptr,
+            error_len,
+        );
 
         assert_eq!(retval, 0);
+
+        // Check that the first few chars are "MetafitsContext ("
+        let output_str = CStr::from_ptr(buf_message_ptr)
+            .to_str()
+            .expect("Error converting C string");
+        assert!(output_str.starts_with("MetafitsContext ("));
     }
 }
 
@@ -156,10 +171,18 @@ fn test_mwalib_metafits_context_display_null_ptr() {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let buf_len: size_t = 1280;
+    let buf_message = CString::new(" ".repeat(buf_len)).unwrap();
+    let buf_message_ptr = buf_message.as_ptr() as *mut c_char;
 
     unsafe {
-        let retval =
-            mwalib_metafits_context_display(metafits_context_ptr, error_message_ptr, error_len);
+        let retval = mwalib_metafits_context_display(
+            metafits_context_ptr,
+            buf_message_ptr,
+            buf_len,
+            error_message_ptr,
+            error_len,
+        );
 
         assert_ne!(retval, 0);
     }

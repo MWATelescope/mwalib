@@ -7,6 +7,7 @@
 #include "mwalib.h"
 
 #define ERROR_MESSAGE_LEN 1024
+#define DISPLAY_MESSAGE_LEN 32768
 
 void do_sum(int mode, CorrelatorContext *context, long num_floats, int num_timesteps, int num_coarse_chans)
 {
@@ -28,7 +29,7 @@ void do_sum(int mode, CorrelatorContext *context, long num_floats, int num_times
         sum_func = mwalib_correlator_context_read_by_frequency;
         break;
     default:
-        exit(-1);
+        return;
     }
 
     for (int timestep_index = 0; timestep_index < num_timesteps; timestep_index++)
@@ -37,13 +38,25 @@ void do_sum(int mode, CorrelatorContext *context, long num_floats, int num_times
 
         for (int coarse_chan_index = 0; coarse_chan_index < num_coarse_chans; coarse_chan_index++)
         {
-            if (sum_func(context, timestep_index, coarse_chan_index,
-                         buffer_ptr, num_floats, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
+            int read_result = sum_func(context, timestep_index, coarse_chan_index, buffer_ptr, num_floats, error_message, ERROR_MESSAGE_LEN);
+
+            if (read_result == MWALIB_SUCCESS)
             {
                 for (long i = 0; i < num_floats; i++)
                 {
                     this_sum += buffer_ptr[i];
                 }
+            }
+            else if (read_result == MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN)
+            {
+                // Skip this timestep/cc combo
+            }
+            else
+            {
+                printf("Error reading MWA data %s:\n", error_message);
+                free(data_buffer);
+                free(error_message);
+                return;
             }
         }
 
@@ -76,28 +89,33 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    const char **gpuboxes = malloc(sizeof(char *) * (argc - 2));
-    for (int i = 0; i < argc - 2; i++)
-    {
-        gpuboxes[i] = argv[i + 2];
-    }
-
     // Allocate buffer for any error messages
     char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
 
     CorrelatorContext *corr_context = NULL;
 
-    if (mwalib_correlator_context_new(argv[1], gpuboxes, argc - 2, &corr_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    if (mwalib_correlator_context_new(argv[1], (const char **)&argv[2], argc - 2, &corr_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error creating correlator context: %s\n", error_message);
-        exit(-1);
+        free(error_message);
+        exit(EXIT_FAILURE);
     }
 
     // Print summary of correlator context
-    if (mwalib_correlator_context_display(corr_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    // Allocate buffer space for the display info
+    char *display_message = malloc(DISPLAY_MESSAGE_LEN * sizeof(char));
+
+    if (mwalib_correlator_context_display(corr_context, display_message, DISPLAY_MESSAGE_LEN, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error displaying correlator context summary: %s\n", error_message);
-        exit(-1);
+        free(error_message);
+        free(display_message);
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        printf("%s\n", display_message);
+        free(display_message);
     }
 
     CorrelatorMetadata *corr_metadata = NULL;
@@ -105,7 +123,8 @@ int main(int argc, char *argv[])
     if (mwalib_correlator_metadata_get(corr_context, &corr_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error getting correlator metadata: %s\n", error_message);
-        exit(-1);
+        free(error_message);
+        exit(EXIT_FAILURE);
     }
 
     MetafitsMetadata *metafits_metadata = NULL;
@@ -113,7 +132,8 @@ int main(int argc, char *argv[])
     if (mwalib_metafits_metadata_get(NULL, corr_context, NULL, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error getting metafits metadata: %s\n", error_message);
-        exit(-1);
+        free(error_message);
+        exit(EXIT_FAILURE);
     }
 
     int num_timesteps = corr_metadata->num_timesteps;
@@ -129,7 +149,6 @@ int main(int argc, char *argv[])
     mwalib_metafits_metadata_free(metafits_metadata);
     mwalib_correlator_metadata_free(corr_metadata);
     mwalib_correlator_context_free(corr_context);
-    free(gpuboxes);
     free(error_message);
 
     return EXIT_SUCCESS;

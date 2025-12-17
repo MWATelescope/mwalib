@@ -7,6 +7,7 @@
 pub(crate) mod error;
 pub use error::FitsError;
 use fitsio::{hdu::*, FitsFile};
+use log::error;
 use log::trace;
 use std::ffi::*;
 use std::ptr;
@@ -152,7 +153,7 @@ macro_rules! get_required_fits_key {
     };
 }
 
-/// Get a column from a fits file's HDU.
+/// Get a column of values from a fits file's table HDU.
 ///
 /// # Examples
 ///
@@ -699,32 +700,23 @@ pub fn _get_fits_float_img_into_buf(
     Ok(())
 }
 
-pub fn read_cell_value<T: fitsio::tables::ReadsCol>(
-    fits_fptr: &mut FitsFile,
-    fits_tile_table_hdu: &fitsio::hdu::FitsHdu,
-    col_name: &str,
-    row: usize,
-) -> Result<T, FitsError> {
-    match fits_tile_table_hdu.read_cell_value(fits_fptr, col_name, row) {
-        Ok(c) => {
-            trace!(
-                "read_cell_value() filename: '{}' hdu: {} col_name: '{}' row '{}'",
-                fits_fptr.file_path().display(),
-                fits_tile_table_hdu.number,
-                col_name,
-                row
-            );
-            Ok(c)
-        }
-        Err(_) => Err(FitsError::ReadCell {
-            fits_filename: fits_fptr.file_path().to_path_buf(),
-            hdu_num: fits_tile_table_hdu.number + 1,
-            row_num: row,
-            col_name: col_name.to_string(),
-        }),
-    }
-}
-
+/// Given a FITS file pointer, and a HDU pointer, read an optonal value from table in row/col.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `fits_tile_table_hdu` - A reference to the table HDU you want to find `col_name` in.
+///
+/// * `col_name` - String containing the keyword to read.
+///
+/// * `row` - Row number in the table.
+///
+///
+/// # Returns
+///
+/// * A Result containing an option containing the value read, or None if not found or an error.
+///
 pub fn read_optional_cell_value<T: fitsio::tables::ReadsCol>(
     fits_fptr: &mut FitsFile,
     fits_tile_table_hdu: &fitsio::hdu::FitsHdu,
@@ -756,30 +748,38 @@ pub fn read_optional_cell_value<T: fitsio::tables::ReadsCol>(
     }
 }
 
-/// Pull out the array-in-a-cell values. T
+/// Given a FITS file pointer, and a HDU pointer, read a u32 vector value from table in row/col.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `fits_tile_table_hdu` - A reference to the table HDU you want to find `col_name` in.
+///
+/// * `col_name` - String containing the keyword to read.
+///
+/// * `row` - Row number in the table.
+///
+/// * `n_elem` - Number of elements to read.
+///
+///
+/// # Returns
+///
+/// * A Result containing an vector read, or an error.
+///
 pub fn read_cell_array_u32(
     fits_fptr: &mut FitsFile,
     fits_table_hdu: &fitsio::hdu::FitsHdu,
     col_name: &str,
-    row: i64,
+    row: usize,
     n_elem: usize,
 ) -> Result<Vec<u32>, FitsError> {
+    // Get column number
+    let col_num: i32 = get_table_col_index(fits_fptr, fits_table_hdu, col_name)?;
+
     unsafe {
         // With the column name, get the column number.
         let mut status = 0;
-        let mut col_num = -1;
-        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
-        fitsio_sys::ffgcno(fits_fptr.as_raw(), 0, keyword, &mut col_num, &mut status);
-        // Check the status.
-        if status != 0 {
-            return Err(FitsError::CellArray {
-                fits_filename: fits_fptr.file_path().to_path_buf(),
-                hdu_num: fits_table_hdu.number,
-                row_num: row,
-                col_name: col_name.to_string(),
-            });
-        }
-        drop(std::ffi::CString::from_raw(keyword));
 
         // Now get the specified row from that column.
         // cfitsio is stupid. The data we want fits in i16, but we're forced to
@@ -791,7 +791,7 @@ pub fn read_cell_array_u32(
             fits_fptr.as_raw(),
             31,
             col_num,
-            row + 1,
+            row as i64 + 1,
             1,
             n_elem as i64,
             std::ptr::null_mut(),
@@ -817,7 +817,7 @@ pub fn read_cell_array_u32(
                 Ok(v.iter().map(|v| *v as _).collect())
             }
             _ => {
-                println!(
+                error!(
                     "ERROR {} read_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
                     status,
                     fits_fptr.file_path().display(),
@@ -837,26 +837,37 @@ pub fn read_cell_array_u32(
     }
 }
 
-/// Pull out the array-in-a-cell values. T
+/// Given a FITS file pointer, and a HDU pointer, read an optional u32 vector value from table in row/col.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `fits_tile_table_hdu` - A reference to the table HDU you want to find `col_name` in.
+///
+/// * `col_name` - String containing the keyword to read.
+///
+/// * `row` - Row number in the table.
+///
+/// * `n_elem` - Number of elements to read.
+///
+///
+/// # Returns
+///
+/// * A Result containing an option of vector read, None if not found or an error.
+///
 pub fn read_optional_cell_array_u32(
     fits_fptr: &mut FitsFile,
     fits_table_hdu: &fitsio::hdu::FitsHdu,
     col_name: &str,
-    row: i64,
+    row: usize,
     n_elem: usize,
 ) -> Result<Option<Vec<u32>>, FitsError> {
+    // Get column number
+    let col_num: i32 = get_table_col_index(fits_fptr, fits_table_hdu, col_name)?;
+
     unsafe {
-        // With the column name, get the column number.
         let mut status = 0;
-        let mut col_num = -1;
-        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
-        fitsio_sys::ffgcno(fits_fptr.as_raw(), 0, keyword, &mut col_num, &mut status);
-        // Check the status.
-        if status != 0 {
-            // column not found
-            return Ok(None);
-        }
-        drop(std::ffi::CString::from_raw(keyword));
 
         // Now get the specified row from that column.
         // cfitsio is stupid. The data we want fits in i16, but we're forced to
@@ -868,7 +879,7 @@ pub fn read_optional_cell_array_u32(
             fits_fptr.as_raw(),
             31,
             col_num,
-            row + 1,
+            row as i64 + 1,
             1,
             n_elem as i64,
             std::ptr::null_mut(),
@@ -894,7 +905,7 @@ pub fn read_optional_cell_array_u32(
                 Ok(Some(v.iter().map(|v| *v as _).collect()))
             }
             _ => {
-                println!(
+                error!(
                     "ERROR {} read_optional_cell_array_u32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
                     status,
                     fits_fptr.file_path().display(),
@@ -914,6 +925,25 @@ pub fn read_optional_cell_array_u32(
     }
 }
 
+/// Given a FITS file pointer, and a HDU pointer, read an f32 vector value from table in row/col.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `fits_tile_table_hdu` - A reference to the table HDU you want to find `col_name` in.
+///
+/// * `col_name` - String containing the keyword to read.
+///
+/// * `row` - Row number in the table.
+///
+/// * `n_elem` - Number of elements to read.
+///
+///
+/// # Returns
+///
+/// * A Result containing the vector read, or an error.
+///
 /// Pull out the array-in-a-cell values. This function assumes that the output
 /// datatype is f32, and that the fits datatype is E (f32), so it is not to be used
 /// generally!
@@ -921,25 +951,15 @@ pub fn read_cell_array_f32(
     fits_fptr: &mut FitsFile,
     fits_table_hdu: &fitsio::hdu::FitsHdu,
     col_name: &str,
-    row: i64,
+    row: usize,
     n_elem: usize,
 ) -> Result<Vec<f32>, FitsError> {
+    // Get column number
+    let col_num: i32 = get_table_col_index(fits_fptr, fits_table_hdu, col_name)?;
+
     unsafe {
         // With the column name, get the column number.
         let mut status = 0;
-        let mut col_num = -1;
-        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
-        fitsio_sys::ffgcno(fits_fptr.as_raw(), 0, keyword, &mut col_num, &mut status);
-        // Check the status.
-        if status != 0 {
-            return Err(FitsError::CellArray {
-                fits_filename: fits_fptr.file_path().to_path_buf(),
-                hdu_num: fits_table_hdu.number,
-                row_num: row,
-                col_name: col_name.to_string(),
-            });
-        }
-        drop(std::ffi::CString::from_raw(keyword));
 
         // Now get the specified row from that column.
         let mut array: Vec<f32> = vec![0.0; n_elem];
@@ -955,7 +975,7 @@ pub fn read_cell_array_f32(
             fits_fptr.as_raw(),
             42,
             col_num,
-            row + 1,
+            row as i64 + 1,
             1,
             n_elem as i64,
             std::ptr::null_mut(),
@@ -979,7 +999,7 @@ pub fn read_cell_array_f32(
                 Ok(std::slice::from_raw_parts(array_ptr, n_elem).to_vec())
             }
             _ => {
-                println!(
+                error!(
                     "ERROR {} read_cell_array_f32() filename: '{}' hdu: {} col_name: '{}' row '{}'",
                     status,
                     fits_fptr.file_path().display(),
@@ -999,32 +1019,37 @@ pub fn read_cell_array_f32(
     }
 }
 
-/// Pull out the array-in-a-cell values. This function assumes that the output
-/// datatype is f64, and that the fits datatype is D (f64), so it is not to be used
-/// generally!
+/// Given a FITS file pointer, and a HDU pointer, read a f64 vector value from table in row/col.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `fits_tile_table_hdu` - A reference to the table HDU you want to find `col_name` in.
+///
+/// * `col_name` - String containing the keyword to read.
+///
+/// * `row` - Row number in the table.
+///
+/// * `n_elem` - Number of elements to read.
+///
+///
+/// # Returns
+///
+/// * A Result containing a vector read, or an error.
+///
 pub fn read_cell_array_f64(
     fits_fptr: &mut FitsFile,
     fits_table_hdu: &fitsio::hdu::FitsHdu,
     col_name: &str,
-    row: i64,
+    row: usize,
     n_elem: usize,
 ) -> Result<Vec<f64>, FitsError> {
+    // Get column number
+    let col_num: i32 = get_table_col_index(fits_fptr, fits_table_hdu, col_name)?;
+
     unsafe {
-        // With the column name, get the column number.
-        let mut status = 0;
-        let mut col_num = -1;
-        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
-        fitsio_sys::ffgcno(fits_fptr.as_raw(), 0, keyword, &mut col_num, &mut status);
-        // Check the status.
-        if status != 0 {
-            return Err(FitsError::CellArray {
-                fits_filename: fits_fptr.file_path().to_path_buf(),
-                hdu_num: fits_table_hdu.number,
-                row_num: row,
-                col_name: col_name.to_string(),
-            });
-        }
-        drop(std::ffi::CString::from_raw(keyword));
+        let mut status: i32 = 0;
 
         // Now get the specified row from that column.
         let mut array: Vec<f64> = vec![0.0; n_elem];
@@ -1040,7 +1065,7 @@ pub fn read_cell_array_f64(
             fits_fptr.as_raw(),
             82,
             col_num,
-            row + 1,
+            row as i64 + 1,
             1,
             n_elem as i64,
             std::ptr::null_mut(),
@@ -1064,7 +1089,7 @@ pub fn read_cell_array_f64(
                 Ok(std::slice::from_raw_parts(array_ptr, n_elem).to_vec())
             }
             _ => {
-                println!(
+                error!(
                     "ERROR {} read_cell_array_f64() filename: '{}' hdu: {} col_name: '{}' row '{}'",
                     status,
                     fits_fptr.file_path().display(),
@@ -1092,4 +1117,171 @@ pub fn read_cell_array_f64(
 ///
 pub fn is_fitsio_reentrant() -> bool {
     unsafe { fitsio_sys::fits_is_reentrant() == 1 }
+}
+
+/// Given a FITS file pointer, and a HDU pointer, read value from table in row/col.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `fits_tile_table_hdu` - A reference to the table HDU you want to find `col_name` in.
+///
+/// * `col_name` - String containing the keyword to read.
+///
+/// * `row` - Row number in the table.
+///
+///
+/// # Returns
+///
+/// * A Result containing the value read, or an error.
+///
+pub fn read_cell_value<T: fitsio::tables::ReadsCol>(
+    fits_fptr: &mut FitsFile,
+    fits_tile_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: usize,
+) -> Result<T, FitsError> {
+    match fits_tile_table_hdu.read_cell_value(fits_fptr, col_name, row) {
+        Ok(c) => {
+            trace!(
+                "read_cell_value() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                fits_fptr.file_path().display(),
+                fits_tile_table_hdu.number,
+                col_name,
+                row
+            );
+            Ok(c)
+        }
+        Err(_) => Err(FitsError::ReadCell {
+            fits_filename: fits_fptr.file_path().to_path_buf(),
+            hdu_num: fits_tile_table_hdu.number + 1,
+            row_num: row,
+            col_name: col_name.to_string(),
+        }),
+    }
+}
+
+/// Given a FITS file pointer, and a HDU pointer, read a string value from table in row/col.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `fits_tile_table_hdu` - A reference to the table HDU you want to find `col_name` in.
+///
+/// * `col_name` - String containing the keyword to read.
+///
+/// * `row` - Row number in the table.
+///
+///
+/// # Returns
+///
+/// * A Result containing the string read, or an error.
+///
+pub fn read_cell_string(
+    fits_fptr: &mut FitsFile,
+    fits_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: usize,
+) -> Result<String, FitsError> {
+    // Get column number
+    let col_num: i32 = get_table_col_index(fits_fptr, fits_table_hdu, col_name)?;
+
+    unsafe {
+        let mut status: i32 = 0;
+
+        // Prepare buffer for string
+        const FLEN_VALUE: usize = 255;
+        let mut buffer = vec![0u8; FLEN_VALUE];
+        let mut str_ptrs = vec![buffer.as_mut_ptr() as *mut i8];
+
+        fitsio_sys::fits_read_col_str(
+            fits_fptr.as_raw(),
+            col_num,
+            row as i64 + 1,
+            1,
+            1,
+            ptr::null_mut(),
+            str_ptrs.as_mut_ptr(),
+            ptr::null_mut(),
+            &mut status,
+        );
+
+        // Check the status.
+        match status {
+            0 => {
+                trace!(
+                    "read_cell_string() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    fits_fptr.file_path().display(),
+                    fits_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                // Convert C string to Rust String
+                let c_str = CStr::from_ptr(str_ptrs[0]);
+                Ok(c_str.to_string_lossy().into_owned())
+            }
+            _ => {
+                error!(
+                    "ERROR {} read_cell_string() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                    status,
+                    fits_fptr.file_path().display(),
+                    fits_table_hdu.number,
+                    col_name,
+                    row
+                );
+
+                Err(FitsError::ReadCellString {
+                    fits_filename: fits_fptr.file_path().to_path_buf(),
+                    hdu_num: fits_table_hdu.number + 1,
+                    row_num: row,
+                    col_name: col_name.to_string(),
+                })
+            }
+        }
+    }
+}
+
+/// Given a FITS file pointer, and a HDU pointer, return the column index for colname.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `fits_tile_table_hdu` - A reference to the table HDU you want to find `col_name` in.
+///
+/// * `col_name` - String containing the keyword to read.
+///
+///
+/// # Returns
+///
+/// * A Result containing the column index read, or an error.
+///
+pub fn get_table_col_index(
+    fits_fptr: &mut FitsFile,
+    fits_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+) -> Result<i32, FitsError> {
+    unsafe {
+        // With the column name, get the column number.
+        let mut status = 0;
+        let mut col_num = -1;
+        let keyword = std::ffi::CString::new(col_name).unwrap().into_raw();
+        fitsio_sys::ffgcno(fits_fptr.as_raw(), 0, keyword, &mut col_num, &mut status);
+
+        drop(std::ffi::CString::from_raw(keyword));
+
+        // Check the status.
+        if status != 0 {
+            return Err(FitsError::TableColNotFound {
+                fits_filename: fits_fptr.file_path().to_path_buf(),
+                hdu_num: fits_table_hdu.number,
+                col_name: col_name.to_string(),
+            });
+        }
+
+        Ok(col_num)
+    }
 }

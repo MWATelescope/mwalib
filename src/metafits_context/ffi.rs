@@ -436,12 +436,12 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             jupiter_distance_deg: (*jupiter_distance_deg).unwrap_or(f64::NAN),
             lst_deg: *lst_degrees,
             lst_rad: *lst_radians,
-            hour_angle_string: std::ptr::null_mut(), //ffi_create_c_string(hour_angle_string),
-            grid_name: std::ptr::null_mut(),         //ffi_create_c_string(grid_name),
+            hour_angle_string: ffi_create_c_string(hour_angle_string),
+            grid_name: ffi_create_c_string(grid_name),
             grid_number: *grid_number,
-            creator: std::ptr::null_mut(), //ffi_create_c_string(creator),
-            project_id: std::ptr::null_mut(), //ffi_create_c_string(project_id),
-            obs_name: std::ptr::null_mut(), //ffi_create_c_string(obs_name),
+            creator: ffi_create_c_string(creator),
+            project_id: ffi_create_c_string(project_id),
+            obs_name: ffi_create_c_string(obs_name),
             mode: *mode,
             geometric_delays_applied: *geometric_delays_applied,
             cable_delays_applied: *cable_delays_applied,
@@ -457,7 +457,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             delays: delays_ptr,
             num_delays: delays_len,
             calibrator: *calibrator,
-            calibrator_source: std::ptr::null_mut(), //ffi_create_c_string(calibrator_source),
+            calibrator_source: ffi_create_c_string(calibrator_source),
             sched_start_utc: sched_start_utc.timestamp(),
             sched_end_utc: sched_end_utc.timestamp(),
             sched_start_mjd: *sched_start_mjd,
@@ -488,19 +488,19 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             obs_bandwidth_hz: *obs_bandwidth_hz,
             coarse_chan_width_hz: *coarse_chan_width_hz,
             centre_freq_hz: *centre_freq_hz,
-            metafits_filename: std::ptr::null_mut(), //ffi_create_c_string(metafits_filename),
+            metafits_filename: ffi_create_c_string(metafits_filename),
             oversampled: *oversampled,
             deripple_applied: *deripple_applied,
-            deripple_param: std::ptr::null_mut(), //ffi_create_c_string(deripple_param),
+            deripple_param: ffi_create_c_string(deripple_param),
             best_cal_fit_id: best_cal_fit_id.unwrap_or_default(),
             best_cal_obs_id: best_cal_obs_id.unwrap_or_default(),
-            best_cal_code_ver: std::ptr::null_mut(), //ffi_create_c_string(
-            //best_cal_code_ver.as_deref().unwrap_or_default(),
-            //),
-            best_cal_fit_timestamp: std::ptr::null_mut(), //ffi_create_c_string(
-            //    best_cal_fit_timestamp.as_deref().unwrap_or_default(),
-            //),
-            best_cal_creator: std::ptr::null_mut(), //ffi_create_c_string(best_cal_creator.as_deref().unwrap_or_default()),
+            best_cal_code_ver: ffi_create_c_string(
+                best_cal_code_ver.as_deref().unwrap_or_default(),
+            ),
+            best_cal_fit_timestamp: ffi_create_c_string(
+                best_cal_fit_timestamp.as_deref().unwrap_or_default(),
+            ),
+            best_cal_creator: ffi_create_c_string(best_cal_creator.as_deref().unwrap_or_default()),
             best_cal_fit_iters: best_cal_fit_iters.unwrap_or_default(),
             best_cal_fit_iter_limit: best_cal_fit_iter_limit.unwrap_or_default(),
             signal_chain_corrections: signal_chain_corrections_ptr,
@@ -860,12 +860,16 @@ pub unsafe extern "C" fn mwalib_metafits_get_expected_volt_filename(
     }
 }
 
-/// Display an `MetafitsContext` struct.
+/// Display a `MetafitsContext` struct.
 ///
 ///
 /// # Arguments
 ///
 /// * `metafits_context_ptr` - pointer to an already populated `MetafitsContext` object
+///
+/// * `out_buffer_ptr` - pointer to a C owned buffer where the output of context.display() will be written.
+///
+/// * `out_buffer_len` - length of out_buffer_ptr.
 ///
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
@@ -883,21 +887,25 @@ pub unsafe extern "C" fn mwalib_metafits_get_expected_volt_filename(
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_metafits_context_display(
     metafits_context_ptr: *const MetafitsContext,
+    out_buffer_ptr: *mut c_char,
+    out_buffer_len: usize,
     error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     if metafits_context_ptr.is_null() {
         set_c_string(
             "mwalib_metafits_context_display() ERROR: null pointer for metafits_context_ptr passed in",
-            error_message as *mut c_char,
+            error_message,
             error_message_length,
         );
         return MWALIB_FAILURE;
     }
 
     let context = &*metafits_context_ptr;
+    let output = format!("{}", context);
 
-    println!("{}", context);
+    // Write the output into the user supplied buffer
+    set_c_string(&output, out_buffer_ptr, out_buffer_len);
 
     // Return success
     MWALIB_SUCCESS

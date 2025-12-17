@@ -299,9 +299,9 @@ impl Rfinput {
         let input = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Input", row)?;
         let antenna = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Antenna", row)?;
         let tile_id = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Tile", row)?;
-        let tile_name = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "TileName", row)?;
+        let tile_name = read_cell_string(metafits_fptr, metafits_tile_table_hdu, "TileName", row)?;
         let pol = {
-            let p: String = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Pol", row)?;
+            let p: String = read_cell_string(metafits_fptr, metafits_tile_table_hdu, "Pol", row)?;
             match p.as_str() {
                 "X" => Pol::X,
                 "Y" => Pol::Y,
@@ -317,7 +317,7 @@ impl Rfinput {
         };
         // Length is stored as a string (no one knows why) starting with "EL_" the rest is a float so remove the prefix and get the float
         let length_string: String =
-            read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Length", row)?;
+            read_cell_string(metafits_fptr, metafits_tile_table_hdu, "Length", row)?;
         let north_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "North", row)?;
         let east_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "East", row)?;
         let height_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Height", row)?;
@@ -329,20 +329,15 @@ impl Rfinput {
             metafits_fptr,
             metafits_tile_table_hdu,
             "Gains",
-            row as i64,
+            row,
             num_coarse_chans,
         )?
         .iter()
         .map(|gains| *gains as f64 / 64.0)
         .collect();
 
-        let dipole_delays = read_cell_array_u32(
-            metafits_fptr,
-            metafits_tile_table_hdu,
-            "Delays",
-            row as i64,
-            16,
-        )?;
+        let dipole_delays =
+            read_cell_array_u32(metafits_fptr, metafits_tile_table_hdu, "Delays", row, 16)?;
         let rx = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Rx", row)?;
         let slot = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Slot", row)?;
 
@@ -355,7 +350,7 @@ impl Rfinput {
         // if it does not exist, don't panic, just return
         // en empty string. The enum value will end up
         // being set to ReceiverType::Unknown
-        let rx_type: String = read_cell_value(
+        let rx_type: String = read_cell_string(
             metafits_fptr,
             metafits_tile_table_hdu,
             "Receiver_Types",
@@ -367,7 +362,7 @@ impl Rfinput {
         // if it does not exist, don't panic, just return
         // en empty string.
         let flavour: String =
-            read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flavors", row)
+            read_cell_string(metafits_fptr, metafits_tile_table_hdu, "Flavors", row)
                 .unwrap_or_default();
 
         // If not present (pre-Jul 2024 metafits), return -1
@@ -427,9 +422,9 @@ impl Rfinput {
         if let Some(metafits_cal_hdu) = metafits_calibdata_table_hdu {
             let antenna = read_cell_value(metafits_fptr, metafits_cal_hdu, "Antenna", row)?;
             let tile_id = read_cell_value(metafits_fptr, metafits_cal_hdu, "Tile", row)?;
-            let tile_name = read_cell_value(metafits_fptr, metafits_cal_hdu, "TileName", row)?;
+            let tile_name = read_cell_string(metafits_fptr, metafits_cal_hdu, "TileName", row)?;
             let pol = {
-                let p: String = read_cell_value(metafits_fptr, metafits_cal_hdu, "Pol", row)?;
+                let p: String = read_cell_string(metafits_fptr, metafits_cal_hdu, "Pol", row)?;
                 match p.as_str() {
                     "X" => Pol::X,
                     "Y" => Pol::Y,
@@ -452,7 +447,7 @@ impl Rfinput {
                 metafits_fptr,
                 metafits_cal_hdu,
                 "Calib_Gains",
-                row as i64,
+                row,
                 num_coarse_chans,
             )?;
 

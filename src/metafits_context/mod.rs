@@ -1099,6 +1099,7 @@ impl fmt::Display for MetafitsContext {
     ..creator:                {bcal_creator},
 
     num signal chain corrs:   {n_scc},
+    Signal chain corrs:       {scc},
 
     num calibration fits:     {ncfits},
 
@@ -1196,6 +1197,16 @@ impl fmt::Display for MetafitsContext {
             int_time = self.corr_int_time_ms as f64 / 1e3,
             crsf = self.corr_raw_scale_factor,
             n_scc = self.num_signal_chain_corrections,
+            scc = match &self.signal_chain_corrections {
+                Some(s) => s.iter().fold(String::new(), |mut acc, x| {
+                    if !acc.is_empty() {
+                        acc.push_str(", ");
+                    }
+                    acc.push_str(&x.to_string());
+                    acc
+                }),
+                None => String::from("N/A"),
+            },
             ncfits = self.num_calibration_fits,
             bcal_fit_id = match self.best_cal_fit_id {
                 Some(b) => b.to_string(),

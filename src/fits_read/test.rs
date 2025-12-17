@@ -998,3 +998,66 @@ fn test_read_cell_array_f64() {
 fn test_is_fitsio_reentrant() {
     assert!(is_fitsio_reentrant())
 }
+
+#[test]
+fn test_read_cell_string() {
+    let metafits_filename = "test_files/metafits_signal_chain_corr/1096952256_metafits.fits";
+    let mut fptr = fits_open!(&metafits_filename).unwrap();
+    let hdu = fits_open_hdu_by_name!(&mut fptr, "SIGCHAINDATA").unwrap();
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 0);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("RRI"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::RRI);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 1);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("RRI"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::RRI);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 2);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("NI"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::NI);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 3);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("NI"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::NI);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 4);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("SHAO"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::SHAO);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 5);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("SHAO"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::SHAO);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 6);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("PSEUDO"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::Pseudo);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 7);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("PSEUDO"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::Pseudo);
+}

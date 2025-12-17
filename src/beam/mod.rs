@@ -113,14 +113,14 @@ pub(crate) fn populate_beams(
             metafits_fptr,
             voltagebeams_hdu,
             "channel_set",
-            row as i64,
+            row,
             MAX_RECEIVER_CHANNELS,
         )?;
         let tileset: Vec<u32> = read_cell_array_u32(
             metafits_fptr,
             voltagebeams_hdu,
             "tileset",
-            row as i64,
+            row,
             MAX_ANTENNAS,
         )?;
         let polarisation: Option<String> =

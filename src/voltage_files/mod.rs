@@ -125,17 +125,6 @@ impl std::cmp::PartialEq for TempVoltageFile<'_> {
     }
 }
 
-lazy_static::lazy_static! {
-    // 1234567890_1234567890_123.sub
-    // obsid        subobsid  chan
-    static ref RE_MWAX_VCS: Regex =
-        Regex::new(r"(?P<obs_id>\d{10})_(?P<gpstime>\d{10})_(?P<channel>\d{1,3})\.sub").unwrap();
-    // 1234567890_1234567890_123.dat
-    // obsid        subobsid  chan
-    static ref RE_LEGACY_VCS_RECOMBINED: Regex =
-        Regex::new(r"(?P<obs_id>\d{10})_(?P<gpstime>\d{10})_ch(?P<channel>\d{1,3})\.dat").unwrap();
-}
-
 /// A type alias for a horrible type:
 /// `BTreeMap<u64, BTreeMap<usize, String>>`
 ///
@@ -258,6 +247,11 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
     let mut format = None;
     let mut temp_voltage_files: Vec<TempVoltageFile> = Vec::with_capacity(voltage_filenames.len());
 
+    let re_legacy_vcs_recombined: Regex =
+        Regex::new(r"(?P<obs_id>\d{10})_(?P<gpstime>\d{10})_ch(?P<channel>\d{1,3})\.dat").unwrap();
+    let re_mwax_vcs: Regex =
+        Regex::new(r"(?P<obs_id>\d{10})_(?P<gpstime>\d{10})_(?P<channel>\d{1,3})\.sub").unwrap();
+
     for v_path in voltage_filenames {
         // So that we can pass along useful error messages, convert the input
         // filename type to a string slice. This will fail if the filename is
@@ -268,7 +262,7 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
             .expect("Voltage filename is not UTF-8 compliant");
 
         let new_temp_voltage_file: TempVoltageFile = {
-            match RE_MWAX_VCS.captures(v) {
+            match re_mwax_vcs.captures(v) {
                 Some(caps) => {
                     // Check if we've already matched any files as being the old
                     // format. If so, then we've got a mix, and we should exit
@@ -290,7 +284,7 @@ fn determine_voltage_file_gpstime_batches<T: AsRef<Path>>(
                 }
 
                 // Try to match the legacy format.
-                None => match RE_LEGACY_VCS_RECOMBINED.captures(v) {
+                None => match re_legacy_vcs_recombined.captures(v) {
                     Some(caps) => {
                         match format {
                             None => format = Some(MWAVersion::VCSLegacyRecombined),

@@ -172,7 +172,7 @@ pub(crate) fn populate_calibration_fits(
             metafits_fptr,
             calibdata_hdu,
             "gains",
-            row as i64,
+            row,
             num_coarse_channels,
         ) {
             Ok(val) => val,
@@ -180,7 +180,7 @@ pub(crate) fn populate_calibration_fits(
                 metafits_fptr,
                 calibdata_hdu,
                 "Calib_Gains",
-                row as i64,
+                row,
                 num_coarse_channels,
             )?,
         };
@@ -190,7 +190,7 @@ pub(crate) fn populate_calibration_fits(
             metafits_fptr,
             calibdata_hdu,
             "gains_pol0",
-            row as i64,
+            row,
             num_coarse_channels,
         )
         .unwrap_or_default();
@@ -200,7 +200,7 @@ pub(crate) fn populate_calibration_fits(
             metafits_fptr,
             calibdata_hdu,
             "gains_pol1",
-            row as i64,
+            row,
             num_coarse_channels,
         )
         .unwrap_or_default();

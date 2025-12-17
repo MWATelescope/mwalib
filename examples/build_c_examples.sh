@@ -4,8 +4,10 @@ set -eux
 
 cargo build --release --features="cfitsio-static"
 
-make clean
+mkdir -p build
+pushd build
+cmake .. -DCMAKE_BUILD_TYPE=Release 
+make
+popd
 
-make 
-
-echo "Run the compiled binaries with some MWA files to test mwalib. NOTE: you may need to add the ../target/release path to your LD_LIBRARY_PATH env variable for the executables to work."
+echo "Run the compiled binaries with some MWA files to test mwalib."

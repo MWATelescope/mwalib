@@ -20,15 +20,15 @@ pub const MWALIB_FAILURE: i32 = 1;
 pub const MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN: i32 = -1;
 
 /// Generic helper function for all FFI modules to take an already allocated C string buffer
-/// and populate it with a string. This is primarily used to pass error messages back to C from Rust.
+/// and populate it with a string. This is primarily used to pass messages back to C from Rust.
 ///
 /// # Arguments
 ///
-/// * `in_message` - A Rust string holing the error message you want to pass back to C
+/// * `in_message` - A Rust string holing the message you want to pass back to C
 ///
-/// * `error_buffer_ptr` - Pointer to a char* buffer which has already been allocated, for storing the error message.
+/// * `buffer_ptr` - Pointer to a char* buffer which has already been allocated, for storing the message.
 ///
-/// * `error_buffer_len` - Length of char* buffer allocated by caller in C.
+/// * `buffer_len` - Length of char* buffer allocated by caller in C.
 ///
 ///
 /// # Returns
@@ -38,25 +38,21 @@ pub const MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN: i32 = -1;
 ///
 /// # Safety
 /// It is up to the caller to:
-/// - Allocate `error_buffer_len` bytes as a `char*` on the heap
-/// - Free `error_buffer_ptr` (in C) once finished with the buffer
+/// - Allocate `buffer_len` bytes as a `char*` on the heap
+/// - Free `buffer_ptr` (in C) once finished with the buffer
 ///
-pub(crate) fn set_c_string(
-    in_message: &str,
-    error_buffer_ptr: *mut c_char,
-    error_buffer_len: size_t,
-) -> usize {
-    if error_buffer_ptr.is_null() || error_buffer_len == 0 {
+pub(crate) fn set_c_string(in_message: &str, buffer_ptr: *mut c_char, buffer_len: size_t) -> usize {
+    if buffer_ptr.is_null() || buffer_len == 0 {
         return 0;
     }
 
     // Reserve space for NUL terminator
-    let max_bytes = error_buffer_len - 1;
+    let max_bytes = buffer_len - 1;
     let bytes = in_message.as_bytes();
     let write_len = bytes.len().min(max_bytes);
 
     unsafe {
-        let buf = slice::from_raw_parts_mut(error_buffer_ptr as *mut u8, error_buffer_len);
+        let buf = slice::from_raw_parts_mut(buffer_ptr as *mut u8, buffer_len);
 
         // Copy the string bytes
         buf[..write_len].copy_from_slice(&bytes[..write_len]);

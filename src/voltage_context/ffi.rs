@@ -610,6 +610,10 @@ pub unsafe extern "C" fn mwalib_voltage_context_new(
 ///
 /// * `voltage_context_ptr` - pointer to an already populated `VoltageContext` object
 ///
+/// * `out_buffer_ptr` - pointer to a C owned buffer where the output of context.display() will be written.
+///
+/// * `out_buffer_len` - length of out_buffer_ptr.
+///
 /// * `error_message` - pointer to already allocated buffer for any error messages to be returned to the caller.
 ///
 /// * `error_message_length` - length of error_message char* buffer.
@@ -626,13 +630,15 @@ pub unsafe extern "C" fn mwalib_voltage_context_new(
 #[no_mangle]
 pub unsafe extern "C" fn mwalib_voltage_context_display(
     voltage_context_ptr: *const VoltageContext,
+    out_buffer_ptr: *mut c_char,
+    out_buffer_len: usize,
     error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
     if voltage_context_ptr.is_null() {
         set_c_string(
             "mwalib_voltage_context() ERROR: null pointer for voltage_context_ptr passed in",
-            error_message as *mut c_char,
+            error_message,
             error_message_length,
         );
         return MWALIB_FAILURE;
@@ -640,7 +646,10 @@ pub unsafe extern "C" fn mwalib_voltage_context_display(
 
     let context = &*voltage_context_ptr;
 
-    println!("{}", context);
+    let output = format!("{}", context);
+
+    // Write the output into the user supplied buffer
+    set_c_string(&output, out_buffer_ptr, out_buffer_len);
 
     // Return success
     MWALIB_SUCCESS

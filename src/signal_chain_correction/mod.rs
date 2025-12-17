@@ -1,5 +1,7 @@
 use crate::types::ReceiverType;
-use crate::{read_cell_array_f64, read_cell_value, FitsError, MAX_RECEIVER_CHANNELS};
+use crate::{
+    read_cell_array_f64, read_cell_string, read_cell_value, FitsError, MAX_RECEIVER_CHANNELS,
+};
 use std::fmt;
 
 use fitsio::hdu::{FitsHdu, HduInfo};
@@ -97,19 +99,20 @@ pub(crate) fn populate_signal_chain_corrections(
     let mut sig_chain_vec: Vec<SignalChainCorrection> = Vec::new();
 
     for row in 0..rows {
-        let rx_type_str: String =
-            read_cell_value(metafits_fptr, sig_chain_hdu, "Receiver_type", row).unwrap_or_default();
-        let receiver_type: ReceiverType = rx_type_str.parse::<ReceiverType>().unwrap();
-
+        // unwrap_or(-1)
         let whitening_filter: bool =
             read_cell_value(metafits_fptr, sig_chain_hdu, "Whitening_Filter", row).unwrap_or(-1)
                 == 1;
+
+        let rx_type_str: String =
+            read_cell_string(metafits_fptr, sig_chain_hdu, "Receiver_type", row)?;
+        let receiver_type: ReceiverType = rx_type_str.parse::<ReceiverType>().unwrap();
 
         let corrections: Vec<f64> = read_cell_array_f64(
             metafits_fptr,
             sig_chain_hdu,
             "Corrections",
-            row as i64,
+            row,
             MAX_RECEIVER_CHANNELS,
         )?;
 

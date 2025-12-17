@@ -9,6 +9,7 @@ Example code to print context info, given at least a metafits file and optionall
 #include "time.h"
 
 #define ERROR_MESSAGE_LEN 1024
+#define DISPLAY_MESSAGE_LEN 32768
 
 void print_usage()
 {
@@ -46,19 +47,31 @@ int main(int argc, char *argv[])
             exit(-1);
         }
 
+        // Allocate buffer space for the display info
+        char *display_message = malloc(DISPLAY_MESSAGE_LEN * sizeof(char));
+
         // print metafits context info
-        /*if (mwalib_metafits_context_display(metafits_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+        if (mwalib_metafits_context_display(metafits_context, display_message, DISPLAY_MESSAGE_LEN, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
         {
             printf("Error displaying metafits context info: %s\n", error_message);
             free(error_message);
+            free(display_message);
             exit(-1);
-        }*/
+        }
+        else
+        {
+            printf("%s\n", display_message);
+            free(display_message);
+        }
     }
     else
     {
         // Determine file type from first data file
         if (strcmp(strrchr(argv[2], '\0') - 5, ".fits") == 0)
         {
+            // Allocate buffer space for the display info
+            char *display_message = malloc(DISPLAY_MESSAGE_LEN * sizeof(char));
+
             // Correlator files
             const char **files = malloc(sizeof(char *) * (argc - 2));
             for (int i = 0; i < argc - 2; i++)
@@ -86,12 +99,17 @@ int main(int argc, char *argv[])
             }
 
             // print correlator context info
-            if (mwalib_correlator_context_display(correlator_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+            if (mwalib_correlator_context_display(correlator_context, display_message, DISPLAY_MESSAGE_LEN, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error displaying context info: %s\n", error_message);
                 free(error_message);
                 free(files);
                 exit(-1);
+            }
+            else
+            {
+                printf("%s\n", display_message);
+                free(display_message);
             }
 
             printf("\n\nExample of accessing Correlator Metadata:\n");
@@ -119,6 +137,9 @@ int main(int argc, char *argv[])
         }
         else if (strcmp(strrchr(argv[2], '\0') - 4, ".sub") == 0 || strcmp(strrchr(argv[2], '\0') - 4, ".dat") == 0)
         {
+            // Allocate buffer space for the display info
+            char *display_message = malloc(DISPLAY_MESSAGE_LEN * sizeof(char));
+
             // Voltage files
             const char **files = malloc(sizeof(char *) * (argc - 2));
             for (int i = 0; i < argc - 2; i++)
@@ -142,10 +163,15 @@ int main(int argc, char *argv[])
             }
 
             // print voltage context info
-            if (mwalib_voltage_context_display(voltage_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+            if (mwalib_voltage_context_display(voltage_context, display_message, DISPLAY_MESSAGE_LEN, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error displaying voltage context info: %s\n", error_message);
                 exit(-1);
+            }
+            else
+            {
+                printf("%s\n", display_message);
+                free(display_message);
             }
 
             printf("\n\nExample of accessing Voltage Metadata:\n");

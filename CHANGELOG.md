@@ -33,6 +33,7 @@ Notes:
 * **BREAKING**: FFI/C: Fixed the datatype of `error_message` pointer to buffers in functions to be `char*` instead of `const char*`, since the functions modify the contents of the buffer.
 * **BREAKING**: FFI/C: Fixed some incorrect uses of `mut* u8`. They are now `mut* c_char` for better compatibility.
 * **BREAKING**: FFI/C: Re-ordered members of `MetafitsMetadata`, `CorrelatorMetadata` and `VoltageMetadata` structs to optimise packing and reduce wasted memory. 
+* **BREAKING**: Fixed inconsistent data types for the `row` values used in `fits_read::read_cell_array_f32`,`fits_read::read_cell_array_f64`,`fits_read::read_cell_array_u32`, `FitsError::CellArray`. Was i64 in some places, now is usize to be consistent.
 * Updated dependencies
 * Moved `SignalChainCorrections` population code into the signal_chain_correction module.
 * FFI/C: Moved `antenna`, `baseline`, `calibration_fit`, `coarse_channel`, `rfinput`, `signal_chain_correction` and `timestep` FFI code and their tests from the monolithic ffi.rs source file into their own ffi.rs under the respective module folders for shorter, easier to read code.
@@ -44,6 +45,8 @@ Notes:
 ### Secuirty
 * FFI/C: Fixed memory leak in C free functions: `mwalib_metafits_metadata_free()`, `mwalib_correlator_metadata_free()`, `mwalib_voltage_metadata_free()` to correctly free all Rust unsafely allocated memory.
 * FFI/C: Fix to ensure conversions of Rust to C strings get validated for null terminator, correct buffer length and unicode.
+* Fixed memory leak (in Rust code!) happening when using lazy_static to create static `RegEx` objects. Laxy_static does not `Drop` the static objects causing a memory leak. Removed lazy_static from Cargo.toml for now.
+* Fixed memory leak (in Rust code!) happening when using rayon to iterate over all gpubox files in parallel, since Fitsio is not thread safe when using FitsFile and FitsHDU structs. Removed rayon from Cargo.toml for now. The parallelisation was only providing a very modest speedup in any case.
 
 ### Fixed
 * Fixed `VoltageContext::read_second()` function which is much more efficient now when reading MWAX Subfiles (up to 7x less open, seek, read and close calls).
