@@ -275,7 +275,7 @@ jobs:
         # to crates.io
         - name: Install cfitsio 3.49
           run: |
-            curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-3.49.tar.gz" -o cfitsio.tar.gz
+            curl "https://github.com/HEASARC/cfitsio/archive/refs/tags/cfitsio-4.6.3.tar.gz" -o cfitsio.tar.gz
             tar -xf cfitsio.tar.gz
             rm cfitsio.tar.gz
             cd cfitsio-3.49
