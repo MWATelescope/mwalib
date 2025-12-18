@@ -21,7 +21,7 @@ mod test;
     any(feature = "python", feature = "python-stubgen"),
     pyclass(get_all, set_all)
 )]
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Antenna {
     /// This is the antenna number.
     /// Nominally this is the field we sort by to get the desired output order of antenna.
@@ -113,7 +113,7 @@ impl Antenna {
     }
 }
 
-/// Implements fmt::Debug for Antenna struct
+/// Implements fmt::Display for Antenna struct
 ///
 /// # Arguments
 ///
@@ -125,7 +125,7 @@ impl Antenna {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Debug for Antenna {
+impl fmt::Display for Antenna {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.tile_name)
     }

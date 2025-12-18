@@ -147,6 +147,302 @@ class Baseline:
         """
 
 @typing.final
+class Beam:
+    @property
+    def number(self) -> builtins.int:
+        r"""
+        Arbitrary integer identifying this beam
+        """
+    @number.setter
+    def number(self, value: builtins.int) -> None:
+        r"""
+        Arbitrary integer identifying this beam
+        """
+    @property
+    def coherent(self) -> builtins.bool:
+        r"""
+        True if the beam is coherent (has a defined position on the sky), False if incoherent (indicating that all tiles should be summed without phase correction)
+        """
+    @coherent.setter
+    def coherent(self, value: builtins.bool) -> None:
+        r"""
+        True if the beam is coherent (has a defined position on the sky), False if incoherent (indicating that all tiles should be summed without phase correction)
+        """
+    @property
+    def az_deg(self) -> typing.Optional[builtins.float]:
+        r"""
+        azimuth, elevation - for coherent beams, these describe a fixed position relative to the telescope centre (eg, a geosynchronous satellite or ground-based RFI source)
+        """
+    @az_deg.setter
+    def az_deg(self, value: typing.Optional[builtins.float]) -> None:
+        r"""
+        azimuth, elevation - for coherent beams, these describe a fixed position relative to the telescope centre (eg, a geosynchronous satellite or ground-based RFI source)
+        """
+    @property
+    def alt_deg(self) -> typing.Optional[builtins.float]: ...
+    @alt_deg.setter
+    def alt_deg(self, value: typing.Optional[builtins.float]) -> None: ...
+    @property
+    def ra_deg(self) -> typing.Optional[builtins.float]:
+        r"""
+        ra, dec - for coherent beams, a fixed source on the sky to track as the Earth rotates.
+        """
+    @ra_deg.setter
+    def ra_deg(self, value: typing.Optional[builtins.float]) -> None:
+        r"""
+        ra, dec - for coherent beams, a fixed source on the sky to track as the Earth rotates.
+        """
+    @property
+    def dec_deg(self) -> typing.Optional[builtins.float]: ...
+    @dec_deg.setter
+    def dec_deg(self, value: typing.Optional[builtins.float]) -> None: ...
+    @property
+    def tle(self) -> typing.Optional[builtins.str]:
+        r"""
+        tle - for coherent beams, a ‘Two Line Elements’ ephemeris description string for an Earth orbiting satellite.
+        """
+    @tle.setter
+    def tle(self, value: typing.Optional[builtins.str]) -> None:
+        r"""
+        tle - for coherent beams, a ‘Two Line Elements’ ephemeris description string for an Earth orbiting satellite.
+        """
+    @property
+    def num_time_samples_to_average(self) -> builtins.int:
+        r"""
+        nsample_avg - number of time samples to average in the output date.
+        """
+    @num_time_samples_to_average.setter
+    def num_time_samples_to_average(self, value: builtins.int) -> None:
+        r"""
+        nsample_avg - number of time samples to average in the output date.
+        """
+    @property
+    def frequency_resolution_hz(self) -> builtins.int:
+        r"""
+        fres_hz - Output frequency resolution, in Hz.
+        """
+    @frequency_resolution_hz.setter
+    def frequency_resolution_hz(self, value: builtins.int) -> None:
+        r"""
+        fres_hz - Output frequency resolution, in Hz.
+        """
+    @property
+    def coarse_channels(self) -> builtins.list[CoarseChannel]:
+        r"""
+        channel_set - list of up to 24 coarse channels to include in the output data. If not present, include all 24 coarse channels.
+        """
+    @coarse_channels.setter
+    def coarse_channels(self, value: builtins.list[CoarseChannel]) -> None:
+        r"""
+        channel_set - list of up to 24 coarse channels to include in the output data. If not present, include all 24 coarse channels.
+        """
+    @property
+    def num_coarse_chans(self) -> builtins.int:
+        r"""
+        Number of coarse channels included in this beam
+        """
+    @num_coarse_chans.setter
+    def num_coarse_chans(self, value: builtins.int) -> None:
+        r"""
+        Number of coarse channels included in this beam
+        """
+    @property
+    def antennas(self) -> builtins.list[Antenna]:
+        r"""
+        tileset - Array of antennas which are the tiles used for this beam. Must be the same as, or a subset of, the main observation tileset.
+        """
+    @antennas.setter
+    def antennas(self, value: builtins.list[Antenna]) -> None:
+        r"""
+        tileset - Array of antennas which are the tiles used for this beam. Must be the same as, or a subset of, the main observation tileset.
+        """
+    @property
+    def num_ants(self) -> builtins.int:
+        r"""
+        num_antennas - number of antennas / tiles used for this beam
+        """
+    @num_ants.setter
+    def num_ants(self, value: builtins.int) -> None:
+        r"""
+        num_antennas - number of antennas / tiles used for this beam
+        """
+    @property
+    def polarisation(self) -> typing.Optional[builtins.str]:
+        r"""
+        polarisation - string describing the polarisation format in the output data.
+        """
+    @polarisation.setter
+    def polarisation(self, value: typing.Optional[builtins.str]) -> None:
+        r"""
+        polarisation - string describing the polarisation format in the output data.
+        """
+    @property
+    def data_file_type(self) -> DataFileType:
+        r"""
+        data_file_type - integer index into the ‘data_file_types’ database table describing the output format for this beam.
+        """
+    @data_file_type.setter
+    def data_file_type(self, value: DataFileType) -> None:
+        r"""
+        data_file_type - integer index into the ‘data_file_types’ database table describing the output format for this beam.
+        """
+    @property
+    def creator(self) -> builtins.str:
+        r"""
+        creator - arbitrary string describing the person or script that scheduled this voltage beam.
+        """
+    @creator.setter
+    def creator(self, value: builtins.str) -> None:
+        r"""
+        creator - arbitrary string describing the person or script that scheduled this voltage beam.
+        """
+    @property
+    def modtime(self) -> datetime.datetime:
+        r"""
+        modtime - ISO format timestamp for this voltage beam record.
+        """
+    @modtime.setter
+    def modtime(self, value: datetime.datetime) -> None:
+        r"""
+        modtime - ISO format timestamp for this voltage beam record.
+        """
+    @property
+    def beam_index(self) -> typing.Optional[builtins.int]:
+        r"""
+        beam_index - Starts at zero for the first coherent beam in this observation, and increments by one for each coherent beam. Used to index into the BeamAltAz
+        """
+    @beam_index.setter
+    def beam_index(self, value: typing.Optional[builtins.int]) -> None:
+        r"""
+        beam_index - Starts at zero for the first coherent beam in this observation, and increments by one for each coherent beam. Used to index into the BeamAltAz
+        """
+
+@typing.final
+class CalibrationFit:
+    r"""
+    Calibration Fits
+    This table is present in some metafits files, and if present, contains data from the calibration_solutions
+    database table with a calibration fit from the most recent fitted calibration observation with the same
+    frequency channel setttings as this observation.
+    """
+    @property
+    def rf_input(self) -> Rfinput:
+        r"""
+        rf_input (ant, pol)
+        """
+    @rf_input.setter
+    def rf_input(self, value: Rfinput) -> None:
+        r"""
+        rf_input (ant, pol)
+        """
+    @property
+    def delay_metres(self) -> builtins.float:
+        r"""
+        The calibration offset, in metres, for that input,
+        derived from the most recently processed calibrator
+        observation with the same coarse channels.
+        May be missing or all zeros in some metafits files.
+        Used to generate the slope (versus frequency) for the phase correction.
+        """
+    @delay_metres.setter
+    def delay_metres(self, value: builtins.float) -> None:
+        r"""
+        The calibration offset, in metres, for that input,
+        derived from the most recently processed calibrator
+        observation with the same coarse channels.
+        May be missing or all zeros in some metafits files.
+        Used to generate the slope (versus frequency) for the phase correction.
+        """
+    @property
+    def intercept_metres(self) -> builtins.float:
+        r"""
+        Used, with the phase slope above to generate the phase correction for each fine channel, for this tile.
+        """
+    @intercept_metres.setter
+    def intercept_metres(self, value: builtins.float) -> None:
+        r"""
+        Used, with the phase slope above to generate the phase correction for each fine channel, for this tile.
+        """
+    @property
+    def gains(self) -> builtins.list[builtins.float]:
+        r"""
+        The calibration gain multiplier (not in dB) for each of the N channels (normally 24) in this observation,
+        for this input. Derived from the most recently processed calibrator observation with the same coarse
+        channels. May be missing or all ones in some metafits files.
+        """
+    @gains.setter
+    def gains(self, value: builtins.list[builtins.float]) -> None:
+        r"""
+        The calibration gain multiplier (not in dB) for each of the N channels (normally 24) in this observation,
+        for this input. Derived from the most recently processed calibrator observation with the same coarse
+        channels. May be missing or all ones in some metafits files.
+        """
+    @property
+    def num_gains(self) -> builtins.int: ...
+    @num_gains.setter
+    def num_gains(self, value: builtins.int) -> None: ...
+    @property
+    def gain_polynomial_fit0(self) -> builtins.list[builtins.float]:
+        r"""
+        polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
+        """
+    @gain_polynomial_fit0.setter
+    def gain_polynomial_fit0(self, value: builtins.list[builtins.float]) -> None:
+        r"""
+        polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
+        """
+    @property
+    def num_gain_polynomial_fit0(self) -> builtins.int:
+        r"""
+        number of gain_polynomial_fit0 elements
+        """
+    @num_gain_polynomial_fit0.setter
+    def num_gain_polynomial_fit0(self, value: builtins.int) -> None:
+        r"""
+        number of gain_polynomial_fit0 elements
+        """
+    @property
+    def gain_polynomial_fit1(self) -> builtins.list[builtins.float]:
+        r"""
+        polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
+        """
+    @gain_polynomial_fit1.setter
+    def gain_polynomial_fit1(self, value: builtins.list[builtins.float]) -> None:
+        r"""
+        polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
+        """
+    @property
+    def num_gain_polynomial_fit1(self) -> builtins.int:
+        r"""
+        number of gain_polynomial_fit1 elements
+        """
+    @num_gain_polynomial_fit1.setter
+    def num_gain_polynomial_fit1(self, value: builtins.int) -> None:
+        r"""
+        number of gain_polynomial_fit1 elements
+        """
+    @property
+    def phase_fit_quality(self) -> builtins.float:
+        r"""
+        dimensionless quality parameter (0-1.0) for the phase fit
+        """
+    @phase_fit_quality.setter
+    def phase_fit_quality(self, value: builtins.float) -> None:
+        r"""
+        dimensionless quality parameter (0-1.0) for the phase fit
+        """
+    @property
+    def gain_fit_quality(self) -> builtins.float:
+        r"""
+        dimensionless quality parameter (0-1.0) for the gain fit
+        """
+    @gain_fit_quality.setter
+    def gain_fit_quality(self, value: builtins.float) -> None:
+        r"""
+        dimensionless quality parameter (0-1.0) for the gain fit
+        """
+
+@typing.final
 class CoarseChannel:
     r"""
     This is a struct for coarse channels
@@ -1717,6 +2013,66 @@ class MetafitsContext:
         r"""
         Number of Signal Chain corrections
         """
+    @property
+    def calibration_fits(self) -> typing.Optional[builtins.list[CalibrationFit]]:
+        r"""
+        Calibration fits
+        """
+    @calibration_fits.setter
+    def calibration_fits(self, value: typing.Optional[builtins.list[CalibrationFit]]) -> None:
+        r"""
+        Calibration fits
+        """
+    @property
+    def num_calibration_fits(self) -> builtins.int:
+        r"""
+        Number of calibration fits
+        """
+    @num_calibration_fits.setter
+    def num_calibration_fits(self, value: builtins.int) -> None:
+        r"""
+        Number of calibration fits
+        """
+    @property
+    def metafits_beams(self) -> typing.Optional[builtins.list[Beam]]:
+        r"""
+        Beamformer beams
+        """
+    @metafits_beams.setter
+    def metafits_beams(self, value: typing.Optional[builtins.list[Beam]]) -> None:
+        r"""
+        Beamformer beams
+        """
+    @property
+    def num_metafits_beams(self) -> builtins.int:
+        r"""
+        Number of beamformer beams defined in this observation
+        """
+    @num_metafits_beams.setter
+    def num_metafits_beams(self, value: builtins.int) -> None:
+        r"""
+        Number of beamformer beams defined in this observation
+        """
+    @property
+    def num_metafits_coherent_beams(self) -> builtins.int:
+        r"""
+        Number of coherent beamformer beams defined in this observation
+        """
+    @num_metafits_coherent_beams.setter
+    def num_metafits_coherent_beams(self, value: builtins.int) -> None:
+        r"""
+        Number of coherent beamformer beams defined in this observation
+        """
+    @property
+    def num_metafits_incoherent_beams(self) -> builtins.int:
+        r"""
+        Number of incoherent beamformer beams defined in this observation
+        """
+    @num_metafits_incoherent_beams.setter
+    def num_metafits_incoherent_beams(self, value: builtins.int) -> None:
+        r"""
+        Number of incoherent beamformer beams defined in this observation
+        """
     def __new__(cls, metafits_filename: builtins.str, mwa_version: typing.Optional[MWAVersion] = None) -> MetafitsContext:
         r"""
         From a path to a metafits file, create a `MetafitsContext`.
@@ -2045,6 +2401,16 @@ class SignalChainCorrection:
     def corrections(self, value: builtins.list[builtins.float]) -> None:
         r"""
         Corrections
+        """
+    @property
+    def num_corrections(self) -> builtins.int:
+        r"""
+        Number of corrections
+        """
+    @num_corrections.setter
+    def num_corrections(self, value: builtins.int) -> None:
+        r"""
+        Number of corrections
         """
 
 @typing.final
@@ -2721,6 +3087,33 @@ class CableDelaysApplied(enum.Enum):
     CableAndRecClockAndBeamformerDipoleDelays = ...
 
 @typing.final
+class DataFileType(enum.Enum):
+    r"""
+    DataFileType enum.
+    """
+    UnknownType = ...
+    RawVsib = ...
+    AvgVsib = ...
+    InstCfgTxt = ...
+    HdrTxt = ...
+    InstCfgHdr = ...
+    Lacspc = ...
+    Lccspc = ...
+    HwLfilesFits = ...
+    AntCfg = ...
+    Flag = ...
+    RawVolt = ...
+    RawVoltRecombined = ...
+    Uvfits = ...
+    Ppd = ...
+    Ics = ...
+    Tar = ...
+    Subfile = ...
+    MwaxFits = ...
+    Vdif = ...
+    Filterbank = ...
+
+@typing.final
 class GeometricDelaysApplied(enum.Enum):
     r"""
     The type of geometric delays applied to the data
@@ -2757,6 +3150,8 @@ class MWAMode(enum.Enum):
     Mwax_Correlator = ...
     Mwax_Vcs = ...
     Mwax_Buffer = ...
+    Mwax_Beamformer = ...
+    Mwax_Corr_Bf = ...
 
 @typing.final
 class MWAVersion(enum.Enum):
@@ -2782,6 +3177,14 @@ class MWAVersion(enum.Enum):
     VCSMWAXv2 = ...
     r"""
     MWAX VCS
+    """
+    BeamformerMWAXv2 = ...
+    r"""
+    MWAX Beamformer
+    """
+    CorrBeamformerMWAXv2 = ...
+    r"""
+    MWAX Corr+Beamformer
     """
 
 @typing.final

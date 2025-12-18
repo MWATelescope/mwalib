@@ -56,27 +56,11 @@ fn bench_mwaxvcs_read_second(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("mwaxvcs_read_second2", |b| {
-        b.iter(|| {
-            context
-                .read_second2(gps_start, gps_count, chan_index, &mut buffer)
-                .expect("Error calling read_second2");
-        })
-    });
-
     c.bench_function("mwaxvcs_read_file", |b| {
         b.iter(|| {
             context
                 .read_file(first_timestep_index, chan_index, &mut buffer)
                 .expect("Error calling read_file");
-        })
-    });
-
-    c.bench_function("mwaxvcs_read_file2", |b| {
-        b.iter(|| {
-            context
-                .read_file2(first_timestep_index, chan_index, &mut buffer)
-                .expect("Error calling read_file2");
         })
     });
 }

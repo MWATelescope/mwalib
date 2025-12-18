@@ -23,7 +23,7 @@ pub mod ffi;
     any(feature = "python", feature = "python-stubgen"),
     pyclass(get_all, set_all)
 )]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Baseline {
     /// Index in the mwalibContext.antenna array for antenna1 for this baseline    
     pub ant1_index: usize,
@@ -67,7 +67,8 @@ impl Baseline {
         bls
     }
 }
-/// Implements fmt::Debug for Baseline struct
+
+/// Implements fmt::Display for Baseline struct
 ///
 /// # Arguments
 ///
@@ -79,7 +80,7 @@ impl Baseline {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Debug for Baseline {
+impl fmt::Display for Baseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{},{}", self.ant1_index, self.ant2_index,)
     }

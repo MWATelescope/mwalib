@@ -27,7 +27,7 @@ use pyo3_stub_gen_derive::gen_stub_pyclass;
     any(feature = "python", feature = "python-stubgen"),
     pyclass(get_all, set_all)
 )]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,
@@ -373,7 +373,7 @@ impl TimeStep {
     }
 }
 
-/// Implements fmt::Debug for TimeStep struct
+/// Implements fmt::Display for TimeStep struct
 ///
 /// # Arguments
 ///
@@ -385,7 +385,7 @@ impl TimeStep {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Debug for TimeStep {
+impl fmt::Display for TimeStep {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

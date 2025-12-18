@@ -1193,8 +1193,8 @@ pub fn read_cell_string(
 
         // Prepare buffer for string
         const FLEN_VALUE: usize = 255;
-        let mut buffer = vec![0u8; FLEN_VALUE];
-        let mut str_ptrs = vec![buffer.as_mut_ptr() as *mut i8];
+        let mut buffer: Vec<c_char> = vec![0u8 as c_char; FLEN_VALUE];
+        let mut str_ptrs: Vec<*mut c_char> = vec![buffer.as_mut_ptr() as *mut c_char];
 
         fitsio_sys::fits_read_col_str(
             fits_fptr.as_raw(),

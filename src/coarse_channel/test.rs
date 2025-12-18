@@ -570,10 +570,10 @@ fn test_process_coarse_chans_both_time_maps() {
 }
 
 #[test]
-fn test_coarse_chan_debug() {
+fn test_coarse_chan_display() {
     let cc = CoarseChannel::new(1, 109, 2, 1_280_000);
 
-    assert_eq!(format!("{:?}", cc), "gpu=2 corr=1 rec=109 @ 139.520 MHz");
+    assert_eq!(format!("{}", cc), "gpu=2 corr=1 rec=109 @ 139.520 MHz");
 }
 
 #[test]

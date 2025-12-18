@@ -1,6 +1,7 @@
 use crate::types::ReceiverType;
 use crate::{
-    read_cell_array_f64, read_cell_string, read_cell_value, FitsError, MAX_RECEIVER_CHANNELS,
+    pretty_print_vec, read_cell_array_f64, read_cell_string, read_cell_value, FitsError,
+    MAX_RECEIVER_CHANNELS,
 };
 use std::fmt;
 
@@ -53,20 +54,19 @@ pub struct SignalChainCorrection {
 ///
 impl fmt::Display for SignalChainCorrection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let corr: String = if !self.corrections.is_empty() {
-            format!(
-                "[{}..{}]",
-                self.corrections[0],
-                self.corrections[MAX_RECEIVER_CHANNELS - 1]
-            )
-        } else {
-            "[]".to_string()
-        };
-
         write!(
             f,
             "Receiver Type: {} Whitening filter: {} Corrections: {}",
-            self.receiver_type, self.whitening_filter, corr
+            self.receiver_type,
+            self.whitening_filter,
+            pretty_print_vec(
+                &self
+                    .corrections
+                    .iter()
+                    .map(|c| format!("{:.3}", c))
+                    .collect::<Vec<String>>(),
+                4
+            )
         )
     }
 }

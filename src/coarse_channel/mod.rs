@@ -28,7 +28,7 @@ mod test;
     any(feature = "python", feature = "python-stubgen"),
     pyclass(get_all, set_all)
 )]
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CoarseChannel {
     /// Correlator channel is 0 indexed (0..N-1)
     pub corr_chan_number: usize,
@@ -432,8 +432,7 @@ impl CoarseChannel {
     }
 }
 
-/// Implements fmt::Debug for
-///CoarseChannel struct
+/// Implements fmt::Display for CoarseChannel struct
 ///
 /// # Arguments
 ///
@@ -445,7 +444,7 @@ impl CoarseChannel {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Debug for CoarseChannel {
+impl fmt::Display for CoarseChannel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

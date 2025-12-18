@@ -824,7 +824,7 @@ pub unsafe extern "C" fn mwalib_metafits_get_expected_volt_filename(
     metafits_context_ptr: *const MetafitsContext,
     metafits_timestep_index: usize,
     metafits_coarse_chan_index: usize,
-    out_filename_ptr: *const c_char,
+    out_filename_ptr: *mut c_char,
     out_filename_len: size_t,
     error_message: *mut c_char,
     error_message_length: size_t,

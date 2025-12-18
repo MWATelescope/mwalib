@@ -1011,7 +1011,7 @@ impl fmt::Display for MetafitsContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            r#"MetafitsContext (
+            "MetafitsContext (
     obsid:                     {obsid},
     mode:                      {mode},
 
@@ -1031,8 +1031,8 @@ impl fmt::Display for MetafitsContext {
     Creator:                  {creator},
     Project ID:               {project_id},
     Observation Name:         {obs_name},
-    Receivers:                {receivers:?},
-    Delays:                   {delays:?},
+    Receivers:                {receivers},
+    Delays:                   {delays},
     Calibration:              {calib},
     Calibrator Source:        {calsrc},
     Global attenuation:       {atten} dB,
@@ -1050,10 +1050,10 @@ impl fmt::Display for MetafitsContext {
     Good UNIX start time:     {good_time},
 
     Num timesteps:            {nts},
-    Timesteps:                {ts:?},
+    Timesteps:                {ts},
 
     Num coarse channels:      {ncc},
-    Coarse Channels:          {cc:?},
+    Coarse Channels:          {cc},
     Oversampled coarse chans: {os},
     Deripple applied:         {dr} ({dr_param}),
 
@@ -1062,8 +1062,8 @@ impl fmt::Display for MetafitsContext {
 
     R.A. (tile_pointing):     {rtpc} degrees,
     Dec. (tile_pointing):     {dtpc} degrees,
-    R.A. (phase center):      {rppc:?} degrees,
-    Dec. (phase center):      {dppc:?} degrees,
+    R.A. (phase center):      {rppc} degrees,
+    Dec. (phase center):      {dppc} degrees,
     Azimuth:                  {az} degrees,
     Altitude:                 {alt} degrees,
     Sun altitude:             {sun_alt} degrees,
@@ -1076,8 +1076,8 @@ impl fmt::Display for MetafitsContext {
     Grid number:              {grid_n},
 
     num antennas:             {n_ants},
-    antennas:                 {ants:?},
-    rf_inputs:                {rfs:?},
+    antennas:                 {ants},
+    rf_inputs:                {rfs},
 
     num antenna pols:         {n_aps},
     num baselines:            {n_bls},
@@ -1104,13 +1104,13 @@ impl fmt::Display for MetafitsContext {
     num calibration fits:     {ncfits},
 
     metafits filename:        {meta},
-)"#,
+)",
             obsid = self.obs_id,
             creator = self.creator,
             project_id = self.project_id,
             obs_name = self.obs_name,
-            receivers = self.receivers,
-            delays = self.delays,
+            receivers = pretty_print_vec(&self.receivers, 32),
+            delays = pretty_print_vec(&self.delays, 32),
             atten = self.global_analogue_attenuation_db,
             sched_start_unix = self.sched_start_unix_time_ms as f64 / 1e3,
             sched_end_unix = self.sched_end_unix_time_ms as f64 / 1e3,
@@ -1123,9 +1123,9 @@ impl fmt::Display for MetafitsContext {
             sched_duration = self.sched_duration_ms as f64 / 1e3,
             quack_duration = self.quack_time_duration_ms as f64 / 1e3,
             good_time = self.good_time_unix_ms as f64 / 1e3,
-            ts = self.metafits_timesteps,
+            ts = pretty_print_vec(&self.metafits_timesteps, 10),
             nts = self.metafits_timesteps.len(),
-            cc = self.metafits_coarse_chans,
+            cc = pretty_print_vec(&self.metafits_coarse_chans, 24),
             ncc = self.metafits_coarse_chans.len(),
             os = self.oversampled,
             dr = self.deripple_applied,
@@ -1134,18 +1134,24 @@ impl fmt::Display for MetafitsContext {
                 false => String::from("N/A"),
             },
             nfc = self.metafits_fine_chan_freqs_hz.len(),
-            fc = misc::pretty_print_vec_to_string(
+            fc = pretty_print_vec(
                 &self
                     .metafits_fine_chan_freqs_hz
                     .iter()
                     .map(|f| (f / 1000000.) as f32)
                     .collect::<Vec<f32>>(),
-                16
+                8
             ),
-            rtpc = self.ra_tile_pointing_degrees,
-            dtpc = self.dec_tile_pointing_degrees,
-            rppc = Some(self.ra_phase_center_degrees),
-            dppc = Some(self.dec_phase_center_degrees),
+            rtpc = format!("{:.3}", self.ra_tile_pointing_degrees),
+            dtpc = format!("{:.3}", self.dec_tile_pointing_degrees),
+            rppc = match self.ra_phase_center_degrees {
+                Some(s) => format!("{:.3}", s),
+                None => String::from("None"),
+            },
+            dppc = match self.dec_phase_center_degrees {
+                Some(s) => format!("{:.3}", s),
+                None => String::from("None"),
+            },
             az = self.az_deg,
             alt = self.alt_deg,
             sun_alt = match self.sun_alt_deg {
@@ -1171,8 +1177,8 @@ impl fmt::Display for MetafitsContext {
             calib = self.calibrator,
             calsrc = self.calibrator_source,
             n_ants = self.num_ants,
-            ants = self.antennas,
-            rfs = self.rf_inputs,
+            ants = pretty_print_vec(&self.antennas, 256),
+            rfs = pretty_print_vec(&self.rf_inputs, 10),
             n_aps = self.num_ant_pols,
             n_bls = self.num_baselines,
             bl01 = self.baselines[0].ant1_index,
@@ -1197,16 +1203,7 @@ impl fmt::Display for MetafitsContext {
             int_time = self.corr_int_time_ms as f64 / 1e3,
             crsf = self.corr_raw_scale_factor,
             n_scc = self.num_signal_chain_corrections,
-            scc = match &self.signal_chain_corrections {
-                Some(s) => s.iter().fold(String::new(), |mut acc, x| {
-                    if !acc.is_empty() {
-                        acc.push_str(", ");
-                    }
-                    acc.push_str(&x.to_string());
-                    acc
-                }),
-                None => String::from("N/A"),
-            },
+            scc = pretty_print_opt_vec(&self.signal_chain_corrections, 2),
             ncfits = self.num_calibration_fits,
             bcal_fit_id = match self.best_cal_fit_id {
                 Some(b) => b.to_string(),

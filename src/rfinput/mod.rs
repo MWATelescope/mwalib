@@ -160,7 +160,7 @@ struct RfInputMetafitsCalibDataTableRow {
     any(feature = "python", feature = "python-stubgen"),
     pyclass(get_all, set_all)
 )]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
@@ -588,7 +588,7 @@ impl Rfinput {
     }
 }
 
-/// Implements fmt::Debug for RFInput struct
+/// Implements fmt::Display for RFInput struct
 ///
 /// # Arguments
 ///
@@ -600,7 +600,7 @@ impl Rfinput {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Debug for Rfinput {
+impl fmt::Display for Rfinput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.tile_name, self.pol)
     }

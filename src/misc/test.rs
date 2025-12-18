@@ -654,31 +654,49 @@ fn test_vecf64_nan_eq_no_nans_neq3() {
 fn test_pretty_print_vec_to_string() {
     let test_vec1 = vec![1.1; 10];
 
-    let s = pretty_print_vec_to_string(&test_vec1, 12);
-    assert_eq!(
-        s,
-        String::from("[1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1]")
-    );
+    let s = pretty_print_vec(&test_vec1, 5);
+    assert_eq!(s, String::from("[1.1,1.1,1.1,1.1,1.1,1.1,1.1,1.1,1.1,1.1]"));
 
-    let s = pretty_print_vec_to_string(&test_vec1, 10);
-    assert_eq!(
-        s,
-        String::from("[1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1]")
-    );
+    let s = pretty_print_vec(&test_vec1, 6);
+    assert_eq!(s, String::from("[1.1,1.1,1.1,1.1,1.1,1.1,1.1,1.1,1.1,1.1]"));
 
-    let s = pretty_print_vec_to_string(&test_vec1, 9);
-    assert_eq!(
-        s,
-        String::from("[1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1...]")
-    );
+    let s = pretty_print_vec(&test_vec1, 4);
+    assert_eq!(s, String::from("[1.1,1.1,1.1,1.1...1.1,1.1,1.1,1.1]"));
 
-    let s = pretty_print_vec_to_string(&[1.1; 2], 1);
-    assert_eq!(s, String::from("[1.1...]"));
-
-    let s = pretty_print_vec_to_string(&[1.1; 1], 1);
+    let s = pretty_print_vec(&[1.1; 1], 1);
     assert_eq!(s, String::from("[1.1]"));
 
+    let s = pretty_print_vec(&[1.1; 2], 1);
+    assert_eq!(s, String::from("[1.1,1.1]"));
+
+    let s = pretty_print_vec(&[1.1; 2], 2);
+    assert_eq!(s, String::from("[1.1,1.1]"));
+
+    let s = pretty_print_vec(&[1.1; 3], 2);
+    assert_eq!(s, String::from("[1.1,1.1,1.1]"));
+
+    let s = pretty_print_vec(&[1.1; 3], 1);
+    assert_eq!(s, String::from("[1.1...1.1]"));
+
+    let s = pretty_print_vec(&[1.1; 4], 1);
+    assert_eq!(s, String::from("[1.1...1.1]"));
+
+    let s = pretty_print_vec(&[1.1; 5], 2);
+    assert_eq!(s, String::from("[1.1,1.1...1.1,1.1]"));
+
     let empty_vec: Vec<f32> = Vec::new();
-    let s = pretty_print_vec_to_string(&empty_vec, 1);
+    let s = pretty_print_vec(&empty_vec, 1);
+    assert_eq!(s, String::from("[]"));
+}
+
+#[test]
+fn test_pretty_print_opt_vec_to_string() {
+    let test_vec1 = vec![1.1; 10];
+
+    let s = pretty_print_opt_vec(&Some(test_vec1), 4);
+    assert_eq!(s, String::from("[1.1,1.1,1.1,1.1...1.1,1.1,1.1,1.1]"));
+
+    let test_opt: Option<Vec<f64>> = None;
+    let s = pretty_print_opt_vec(&test_opt, 4);
     assert_eq!(s, String::from("[]"));
 }

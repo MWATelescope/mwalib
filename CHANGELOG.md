@@ -5,16 +5,23 @@ All notable changes to this project will be documented in this file.
 The format (from Dec 2025 onwards) is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Notes:
-* Changes which have the *potential* to break existing code are tagged with "**BREAKING**".
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
 ## 2.0.0 XX-Dec-2025
 
+### (Possibly) Breaking Changes
+* Bumped MSRV to 1.81** due to dependency hell.
+* Moved all enum types (and their tests) into their own `types` module. This includes `MWAVersion`, `VisPol`, `GeometricDelaysApplied`, `CableDelaysApplied`, `MWAMode`, `Pol` and `ReceiverType`. 
+* Fixed inconsistent data types for the `row` values used in `fits_read::read_cell_array_f32`,`fits_read::read_cell_array_f64`,`fits_read::read_cell_array_u32`, `FitsError::CellArray`. Was i64 in some places, now is usize to be consistent.
+* Two new values added to `MWAVersion` enum: `BeamformerMWAXv2` (6) and `CorrBeamformerMWAXv2` (7).
+* Two new values added to `MWAMode` enum: `MWAX_BEAMFORMER` (33) and `MWAX_BF_CORR` (34).  
+* FFI/C: Fixed the datatype of `error_message` pointer to buffers in functions to be `char*` instead of `const char*`, since the functions modify the contents of the buffer.
+* FFI/C: Fixed some incorrect uses of `mut* u8`. They are now `mut* c_char` for better compatibility.
+* FFI/C: Re-ordered members of `MetafitsMetadata`, `CorrelatorMetadata` and `VoltageMetadata` structs to optimise packing and reduce wasted memory. 
+
 ### Added
-* Added support for upcoming MWA beamforming observations:
-  * ***BREAKING**: Two new values added to `MWAVersion` enum: `BeamformerMWAXv2` (6) and `CorrBeamformerMWAXv2` (7).
-  * ***BREAKING**: Two new values added to `MWAMode` enum: `MWAX_BEAMFORMER` (33) and `MWAX_BF_CORR` (34).  
+* Added support for upcoming MWA beamforming observations:  
   * A new enum `DataFileType`.
   * New struct `Beam` which handles beamformer neam metadata.
   * New `MetafitsContext` attributes: `metafits_beams`, `num_metafits_beams`, `num_metafits_incoherent_beams`, `num_metafits_coherent_beams`
@@ -24,18 +31,13 @@ Notes:
 * Added benchmarks for `VoltageContext::read_file()` and `read_second()`.
 * Added support for reading old and new versions of the CALIBDATA HDU (calibration_fit/mod.rs = CalibrationFit) from the metafits files - providing the client with info on the best calibration solution found at the time the metafits file was generated.
 * FFI/C: Added tests for `mwalib_voltage_context_read_second()` and `mwalib_voltage_context_read_file()` functions.
-* FFI/C: Added `Makefile` for building the C examples.
+* FFI/C: Added `CMakeLists.txt` for building the C examples with CMake.
 * Added new feature `python-stubgen` and moved `pyo3-stubgen` related code behind it. This feature is only used by the mwalib maintainers to update the Python types stub when doing a release, allowing users of the pip package to have intellisense and documentation for all classes and methods.
 
 ### Changed
-* **BREAKING**: Bumped MSRV to 1.81** due to dependency hell.
-* **BREAKING**: Moved all enum types (and their tests) into their own `types` module. This includes `MWAVersion`, `VisPol`, `GeometricDelaysApplied`, `CableDelaysApplied`, `MWAMode`, `Pol` and `ReceiverType`. 
-* **BREAKING**: FFI/C: Fixed the datatype of `error_message` pointer to buffers in functions to be `char*` instead of `const char*`, since the functions modify the contents of the buffer.
-* **BREAKING**: FFI/C: Fixed some incorrect uses of `mut* u8`. They are now `mut* c_char` for better compatibility.
-* **BREAKING**: FFI/C: Re-ordered members of `MetafitsMetadata`, `CorrelatorMetadata` and `VoltageMetadata` structs to optimise packing and reduce wasted memory. 
-* **BREAKING**: Fixed inconsistent data types for the `row` values used in `fits_read::read_cell_array_f32`,`fits_read::read_cell_array_f64`,`fits_read::read_cell_array_u32`, `FitsError::CellArray`. Was i64 in some places, now is usize to be consistent.
 * Updated dependencies
 * Moved `SignalChainCorrections` population code into the signal_chain_correction module.
+* Cleaned up Display trait output for `CorrelatorContext`, `MetafitsContext` and `VoltageContext`.
 * FFI/C: Moved `antenna`, `baseline`, `calibration_fit`, `coarse_channel`, `rfinput`, `signal_chain_correction` and `timestep` FFI code and their tests from the monolithic ffi.rs source file into their own ffi.rs under the respective module folders for shorter, easier to read code.
 * FFI/C: Internally changed `c_ulong` to `u64` to be consistent with other definitions of GPS seconds.
 * FFI/C: mwalib.h now generated with a cbindgen.toml configuration file.
@@ -52,6 +54,7 @@ Notes:
 * Fixed `VoltageContext::read_second()` function which is much more efficient now when reading MWAX Subfiles (up to 7x less open, seek, read and close calls).
 * Fixed `VoltageContext::read_file()` function which is also slightly more efficient than the previous implementation of read_file.
 * Fixed bug in `VoltageContext::Display()` which had the fine channel width units as "Hz" when they should have been "kHz".
+* CI now downloads CFITSIO from github rather than NASA, due to NASA website having intermittent issues.
 
 ## 1.9.0 27-Oct-2025
 

@@ -144,36 +144,71 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
     MWALIB_SUCCESS
 }
 
-//// Utility: Create a C String from a Rust string
+/// Utility: Create a C String from a Rust string
+///
+/// Take a reference to a Rust string and return a C string pointer, transferring ownership to the caller (C).
+///
+/// # Arguments
+///
+/// * `rust_cstring` - pointer to a `char*` of a Rust string
+///
+///
+/// # Returns
+///
+/// * A mutable pointer to c_char. This is C owned, and if there was an error with the string, e.g. an
+/// extra NUL terminator for some reason, then the function will return a NULL pointer.
+///
+/// # Safety
+/// * It is up to the caller to free the string, using `ffi_free_rust_c_string`.
 #[inline]
 pub fn ffi_create_c_string(rust_str: &str) -> *mut c_char {
     // Convert to CString (adds null terminator)
     return match CString::new(rust_str) {
         Ok(s) => s.into_raw(),
         Err(_) => {
-            // If the string name contains an interior NUL, skip it (or handle differently)
-            CString::new("").unwrap().into_raw()
+            // If the string name contains an interior NUL or some other error, return a NULL ptr
+            std::ptr::null_mut()
         }
     };
 }
 
 /// Utility: free a Rust-allocated C string returned by this API.
+///
+/// # Arguments
+///
+/// * `c_string_ptr` - pointer to a C-owned `char*`
+///
+/// # Returns
+///
+/// * Nothing
+///
+/// # Safety
+/// * c_string_ptr must not have already been freed and must point to a C string.
 #[inline]
-pub fn ffi_free_rust_c_string(ptr: *mut c_char) {
-    if !ptr.is_null() {
+pub fn ffi_free_rust_c_string(c_string_ptr: *mut c_char) {
+    if !c_string_ptr.is_null() {
         unsafe {
-            let _ = CString::from_raw(ptr); // drop to free
+            let _ = CString::from_raw(c_string_ptr); // drop to free
         }
     }
 }
 
 /// Utility: Create a C Array from a Rust Vector
+///
+/// # Arguments
+///
+/// * `rust_vec` - A Rust owned vector of type T
+///
+/// # Returns
+///
+/// * Pointer to a C owned array of type T*
+///
+/// * Length of the C owned array of type T*
+///
+/// # Safety
+/// * You must call `ffi_free_c_array` passing the pointer and len to properly free the object.
 #[inline]
 pub fn ffi_create_c_array<T>(rust_vec: Vec<T>) -> (*mut T, usize) {
-    //let ptr = rust_vec.as_mut_ptr();
-    //let len = rust_vec.len();
-    //std::mem::forget(rust_vec); // Prevent Rust from freeing the Vec
-    //(ptr, len)
     let boxed_slice: Box<[T]> = rust_vec.into_boxed_slice();
     let len = boxed_slice.len();
     let ptr = Box::into_raw(boxed_slice) as *mut T;
@@ -181,11 +216,26 @@ pub fn ffi_create_c_array<T>(rust_vec: Vec<T>) -> (*mut T, usize) {
 }
 
 /// Utility: free a Rust-allocated C struct returned by this API
+///
+/// # Arguments
+///
+/// * `c_vec_ptr` - C pointer to array of T
+///
+/// * `c_vec_len` - Length of array
+///
+/// # Returns
+///
+/// * Nothing
+///
+/// # Safety
+/// * c_vec_ptr must not have already been freed and must point to a populate T*.
+/// * If the T contains members which also have vectors or other objects that need freeing, you'll need to do that first
+/// before calling this.
 #[inline]
-pub fn ffi_free_c_array<T>(ptr: *mut T, len: usize) {
-    if !ptr.is_null() {
+pub fn ffi_free_c_array<T>(c_vec_ptr: *mut T, c_vec_len: usize) {
+    if !c_vec_ptr.is_null() {
         unsafe {
-            let boxed = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len));
+            let boxed = Box::from_raw(std::slice::from_raw_parts_mut(c_vec_ptr, c_vec_len));
             drop(boxed);
         }
     }

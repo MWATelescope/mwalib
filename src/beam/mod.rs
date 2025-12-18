@@ -1,3 +1,6 @@
+use core::f64;
+use std::fmt;
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -186,4 +189,35 @@ pub(crate) fn populate_beams(
     }
 
     Ok(beam_vec)
+}
+
+/// Implements fmt::Display for Beam struct
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+impl fmt::Display for Beam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Beam: {} {{Type: {}, Tiles: {}, Coarse chans: {}, RA: {:.3} deg, Dec: {:.3} deg}}",
+            self.number,
+            if self.coherent {
+                String::from("Coherent")
+            } else {
+                String::from("Incoherent")
+            },
+            self.num_ants,
+            self.num_coarse_chans,
+            self.ra_deg.unwrap_or(f64::NAN),
+            self.dec_deg.unwrap_or(f64::NAN),
+        )
+    }
 }
