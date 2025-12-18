@@ -18,7 +18,6 @@ typedef struct ThreadArgs_read_file
     unsigned int timestep_index;
     unsigned int coarse_chan_index;
     long local_sum;
-    unsigned int version;
 } ThreadArgs_read_file;
 
 typedef struct ThreadArgs_read_second
@@ -30,7 +29,6 @@ typedef struct ThreadArgs_read_second
     size_t gps_second_count;
     unsigned int coarse_chan_index;
     long local_sum;
-    unsigned int version;
 } ThreadArgs_read_second;
 
 void *process_coarse_channel_read_second(void *arg)
@@ -44,11 +42,7 @@ void *process_coarse_channel_read_second(void *arg)
         pthread_exit(NULL);
     }
 
-    int ret = -1;
-
-    if (args->version == 1)
-    {
-        ret = mwalib_voltage_context_read_second(args->context,
+    int ret = mwalib_voltage_context_read_second(args->context,
                                                  args->gps_second_start,
                                                  args->gps_second_count,
                                                  args->coarse_chan_index,
@@ -56,24 +50,6 @@ void *process_coarse_channel_read_second(void *arg)
                                                  args->num_bytes_per_cc_per_timestep,
                                                  args->error_message,
                                                  ERROR_MESSAGE_LEN);
-    }
-    else if (args->version == 2)
-    {
-        ret = mwalib_voltage_context_read_second2(args->context,
-                                                  args->gps_second_start,
-                                                  args->gps_second_count,
-                                                  args->coarse_chan_index,
-                                                  buffer,
-                                                  args->num_bytes_per_cc_per_timestep,
-                                                  args->error_message,
-                                                  ERROR_MESSAGE_LEN);
-    }
-    else
-    {
-        printf("Invalid version specified: %d", args->version);
-        free(buffer);
-        pthread_exit((void *)-1);
-    }
 
     if (ret == MWALIB_SUCCESS)
     {
@@ -110,34 +86,13 @@ void *process_coarse_channel_read_file(void *arg)
         pthread_exit(NULL);
     }
 
-    int ret = -1;
-
-    if (args->version == 1)
-    {
-        ret = mwalib_voltage_context_read_file(args->context,
+    int ret = mwalib_voltage_context_read_file(args->context,
                                                args->timestep_index,
                                                args->coarse_chan_index,
                                                buffer,
                                                args->num_bytes_per_cc_per_timestep,
                                                args->error_message,
                                                ERROR_MESSAGE_LEN);
-    }
-    else if (args->version == 2)
-    {
-        ret = mwalib_voltage_context_read_file2(args->context,
-                                                args->timestep_index,
-                                                args->coarse_chan_index,
-                                                buffer,
-                                                args->num_bytes_per_cc_per_timestep,
-                                                args->error_message,
-                                                ERROR_MESSAGE_LEN);
-    }
-    else
-    {
-        printf("Invalid version specified: %d", args->version);
-        free(buffer);
-        pthread_exit((void *)-1);
-    }
 
     if (ret == MWALIB_SUCCESS)
     {
@@ -168,8 +123,7 @@ void do_sum_parallel_pthreads_read_file(VoltageContext *context,
                                         unsigned int first_timestep_index,
                                         unsigned int last_timestep_index,
                                         unsigned int first_chan_index,
-                                        unsigned int last_chan_index,
-                                        unsigned int version)
+                                        unsigned int last_chan_index)
 {
     unsigned int num_coarse_chans = last_chan_index - first_chan_index + 1;
     unsigned int num_timesteps = last_timestep_index - first_timestep_index + 1;
@@ -211,7 +165,6 @@ void do_sum_parallel_pthreads_read_file(VoltageContext *context,
         }
         args[a].context = context;
         args[a].num_bytes_per_cc_per_timestep = num_bytes_per_cc_per_timestep;
-        args[a].version = version;
     }
 
     unsigned int arg_index = 0;
@@ -268,8 +221,7 @@ void do_sum_parallel_pthreads_read_second(VoltageContext *context,
                                           unsigned int first_gps_second,
                                           unsigned int timestep_duration_seconds,
                                           unsigned int first_chan_index,
-                                          unsigned int last_chan_index,
-                                          unsigned int version)
+                                          unsigned int last_chan_index)
 {
     unsigned int num_coarse_chans = last_chan_index - first_chan_index + 1;
     unsigned int num_timesteps = last_timestep_index - first_timestep_index + 1;
@@ -312,7 +264,6 @@ void do_sum_parallel_pthreads_read_second(VoltageContext *context,
         args[a].context = context;
         args[a].num_bytes_per_cc_per_timestep = num_bytes_per_cc_per_timestep;
         args[a].gps_second_count = timestep_duration_seconds;
-        args[a].version = version;
     }
 
     unsigned int arg_index = 0;
@@ -448,31 +399,15 @@ int main(int argc, char *argv[])
 
     printf("Running sum using mwalib_voltage_context_read_file...\n");
     gettimeofday(&start, NULL);
-    do_sum_parallel_pthreads_read_file(voltage_context, num_bytes_per_cc_per_ts, first_timestep_index, last_timestep_index, first_cc_index, last_cc_index, 1);
+    do_sum_parallel_pthreads_read_file(voltage_context, num_bytes_per_cc_per_ts, first_timestep_index, last_timestep_index, first_cc_index, last_cc_index);
     gettimeofday(&end, NULL);
     double elapsed = (end.tv_sec - start.tv_sec) +
                      (end.tv_usec - start.tv_usec) / 1e6;
     printf("Elapsed time: %.6f seconds\n", elapsed);
 
-    printf("Running sum using mwalib_voltage_context_read_file2...\n");
-    gettimeofday(&start, NULL);
-    do_sum_parallel_pthreads_read_file(voltage_context, num_bytes_per_cc_per_ts, first_timestep_index, last_timestep_index, first_cc_index, last_cc_index, 2);
-    gettimeofday(&end, NULL);
-    elapsed = (end.tv_sec - start.tv_sec) +
-              (end.tv_usec - start.tv_usec) / 1e6;
-    printf("Elapsed time: %.6f seconds\n", elapsed);
-
     printf("Running sum using mwalib_voltage_context_read_second...\n");
     gettimeofday(&start, NULL);
-    do_sum_parallel_pthreads_read_second(voltage_context, num_bytes_per_cc_per_ts, first_timestep_index, last_timestep_index, first_gps_second, timestep_duration, first_cc_index, last_cc_index, 1);
-    gettimeofday(&end, NULL);
-    elapsed = (end.tv_sec - start.tv_sec) +
-              (end.tv_usec - start.tv_usec) / 1e6;
-    printf("Elapsed time: %.6f seconds\n", elapsed);
-
-    printf("Running sum using mwalib_voltage_context_read_second2...\n");
-    gettimeofday(&start, NULL);
-    do_sum_parallel_pthreads_read_second(voltage_context, num_bytes_per_cc_per_ts, first_timestep_index, last_timestep_index, first_gps_second, timestep_duration, first_cc_index, last_cc_index, 2);
+    do_sum_parallel_pthreads_read_second(voltage_context, num_bytes_per_cc_per_ts, first_timestep_index, last_timestep_index, first_gps_second, timestep_duration, first_cc_index, last_cc_index);
     gettimeofday(&end, NULL);
     elapsed = (end.tv_sec - start.tv_sec) +
               (end.tv_usec - start.tv_usec) / 1e6;

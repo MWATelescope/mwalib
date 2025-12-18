@@ -273,12 +273,12 @@ jobs:
         # writing. With feature cfitsio-static, it has to build cfitsio which
         # involves writing so have to build without that feature when pushing
         # to crates.io
-        - name: Install cfitsio 3.49
+        - name: Install cfitsio 4.6.3
           run: |
             curl "https://github.com/HEASARC/cfitsio/archive/refs/tags/cfitsio-4.6.3.tar.gz" -o cfitsio.tar.gz
             tar -xf cfitsio.tar.gz
             rm cfitsio.tar.gz
-            cd cfitsio-3.49
+            cd cfitsio-cfitsio-4.6.3
             # Enabling SSE2/SSSE3 could cause portability problems, but it's unlikely that anyone
             # is using such a CPU...
             # https://stackoverflow.com/questions/52858556/most-recent-processor-without-support-of-ssse3-instructions
@@ -290,7 +290,7 @@ jobs:
             sudo ldconfig    
 
             cd ..
-            rm -rf cfitsio-3.49
+            rm -rf cfitsio-cfitsio-4.6.3
           
         - name: Build on latest stable rust
           run: cargo build --release --features examples
