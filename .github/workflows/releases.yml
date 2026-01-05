@@ -275,7 +275,7 @@ jobs:
         # to crates.io
         - name: Install cfitsio 4.6.3
           run: |
-            curl "https://github.com/HEASARC/cfitsio/archive/refs/tags/cfitsio-4.6.3.tar.gz" -o cfitsio.tar.gz
+            curl "https://codeload.github.com/HEASARC/cfitsio/tar.gz/refs/tags/cfitsio-4.6.3" -o cfitsio.tar.gz
             tar -xf cfitsio.tar.gz
             rm cfitsio.tar.gz
             cd cfitsio-cfitsio-4.6.3
