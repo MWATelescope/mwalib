@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for metafits context
-#[cfg(test)]
 use super::*;
 use float_cmp::*;
 

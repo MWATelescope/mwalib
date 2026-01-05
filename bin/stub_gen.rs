@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 use std::path::Path;
 
 #[cfg(test)]
-use tempdir::TempDir;
+use tempfile::Builder;
 
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().filter_or("RUST_LOG", "info")).init();
@@ -153,8 +153,10 @@ fn replace_stub<P: AsRef<Path>>(
 #[test]
 fn test_insert_stub_below() {
     // Create ephemeral temp directory which will be deleted at end of test
-    let dir =
-        TempDir::new("test_insert_stub_below").expect("Cannot create temp directory for test");
+    let dir = Builder::new()
+        .prefix("test_insert_stub_below")
+        .tempdir()
+        .expect("Cannot create temp directory for test");
 
     // Create a test file
     let text_filename = dir.path().join("test.pyi");
@@ -190,8 +192,10 @@ fn test_insert_stub_below() {
 #[test]
 fn test_replace_stub() {
     // Create ephemeral temp directory which will be deleted at end of test
-    let dir =
-        TempDir::new("mwalib_test_replace_stub").expect("Cannot create temp directory for test");
+    let dir = Builder::new()
+        .prefix("mwalib_test_replace_stub")
+        .tempdir()
+        .expect("Cannot create temp directory for test");
 
     // Create a test file
     let text_filename = dir.path().join("test.pyi");

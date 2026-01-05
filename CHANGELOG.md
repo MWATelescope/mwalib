@@ -2,16 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
-The format (from Dec 2025 onwards) is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format (from Jan 2026 onwards) is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
-## 2.0.0 XX-Dec-2025
+## 2.0.0 XX-Jan-2026
 
-### (Possibly) Breaking Changes
-* Bumped MSRV to 1.81** due to dependency hell.
+### Potentially Breaking Changes
+* Bumped MSRV to 1.81 due to dependency hell.
 * Moved all enum types (and their tests) into their own `types` module. This includes `MWAVersion`, `VisPol`, `GeometricDelaysApplied`, `CableDelaysApplied`, `MWAMode`, `Pol` and `ReceiverType`. 
 * Fixed inconsistent data types for the `row` values used in `fits_read::read_cell_array_f32`,`fits_read::read_cell_array_f64`,`fits_read::read_cell_array_u32`, `FitsError::CellArray`. Was i64 in some places, now is usize to be consistent.
 * Two new values added to `MWAVersion` enum: `BeamformerMWAXv2` (6) and `CorrBeamformerMWAXv2` (7).
@@ -36,6 +36,9 @@ Notes:
 
 ### Changed
 * Updated dependencies
+* Improved error messages when a named HDU cannot be found in a FITS file (Fixes [#78](https://github.com/MWATelescope/mwalib/issues/78)).
+* Refactored `VoltageContext::read_second()` function to be much more efficient now when reading MWAX Subfiles (up to 7x fewer open, seek, read and close calls).
+* Refactored `VoltageContext::read_file()` function to be slightly more efficient than the previous implementation of read_file.
 * Moved `SignalChainCorrections` population code into the signal_chain_correction module.
 * Cleaned up Display trait output for `CorrelatorContext`, `MetafitsContext` and `VoltageContext`.
 * FFI/C: Moved `antenna`, `baseline`, `calibration_fit`, `coarse_channel`, `rfinput`, `signal_chain_correction` and `timestep` FFI code and their tests from the monolithic ffi.rs source file into their own ffi.rs under the respective module folders for shorter, easier to read code.
@@ -45,16 +48,16 @@ Notes:
 * CI: Changed `macos-13` in github CI runners, and replaced it with `macos-15-intel`.
 
 ### Secuirty
+* Replaced test dependency `tempdir` (which has been abandonded for a while) with the replacement crate `tempfile`.
 * FFI/C: Fixed memory leak in C free functions: `mwalib_metafits_metadata_free()`, `mwalib_correlator_metadata_free()`, `mwalib_voltage_metadata_free()` to correctly free all Rust unsafely allocated memory.
 * FFI/C: Fix to ensure conversions of Rust to C strings get validated for null terminator, correct buffer length and unicode.
 * Fixed memory leak (in Rust code!) happening when using lazy_static to create static `RegEx` objects. Laxy_static does not `Drop` the static objects causing a memory leak. Removed lazy_static from Cargo.toml for now.
 * Fixed memory leak (in Rust code!) happening when using rayon to iterate over all gpubox files in parallel, since Fitsio is not thread safe when using FitsFile and FitsHDU structs. Removed rayon from Cargo.toml for now. The parallelisation was only providing a very modest speedup in any case.
+* Fixed potential access of invalid pointer in `metafits_metadata_get()` C call.
 
 ### Fixed
-* Fixed `VoltageContext::read_second()` function which is much more efficient now when reading MWAX Subfiles (up to 7x less open, seek, read and close calls).
-* Fixed `VoltageContext::read_file()` function which is also slightly more efficient than the previous implementation of read_file.
 * Fixed bug in `VoltageContext::Display()` which had the fine channel width units as "Hz" when they should have been "kHz".
-* CI now downloads CFITSIO from github rather than NASA, due to NASA website having intermittent issues.
+* CI now downloads CFITSIO from github rather than NASA for 4.x, due to NASA website having intermittent issues. 3.49 is downloaded from ftp.eso.org.
 
 ## 1.9.0 27-Oct-2025
 

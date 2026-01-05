@@ -54,11 +54,11 @@ pub enum FitsError {
     },
 
     /// A generic error associated with the fitsio crate.
-    #[error("{source_file}:{source_line}\n{fits_filename} HDU {hdu_num}: {fits_error}")]
+    #[error("{source_file}:{source_line}\n{fits_filename} HDU {hdu}: {fits_error}")]
     Fitsio {
         fits_error: fitsio::errors::Error,
         fits_filename: PathBuf,
-        hdu_num: usize,
+        hdu: String,
         source_file: &'static str,
         source_line: u32,
     },

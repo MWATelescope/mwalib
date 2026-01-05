@@ -3,11 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for types
-
-use std::str::FromStr;
-
-#[cfg(test)]
 use super::*;
+use std::str::FromStr;
 
 #[test]
 fn test_mwa_version_display_corr_mwaxv2() {

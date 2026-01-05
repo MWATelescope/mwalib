@@ -3,11 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for baseline metadata
-
-#[cfg(test)]
 use super::*;
 
-#[cfg(test)]
 mod tests {
     use super::*;
 

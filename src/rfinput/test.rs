@@ -3,11 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for rfinput metadata
-
-#[cfg(test)]
 use super::*;
-use crate::misc::test::*;
-use crate::*;
+use crate::{
+    fits_open, fits_open_hdu, test::with_new_temp_fits_file, MWAVersion, MetafitsContext,
+    MAX_RECEIVER_CHANNELS,
+};
 use fitsio::tables::{ColumnDataType, ColumnDescription};
 use float_cmp::*;
 

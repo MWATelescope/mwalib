@@ -3,8 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for voltage context
-
-#[cfg(test)]
 use super::*;
 use float_cmp::*;
 use misc::generate_test_voltage_file;
@@ -17,7 +15,6 @@ pub(crate) static VCS_LEGACY_TEST_DATA_CREATED: Once = Once::new();
 pub(crate) static VCS_MWAXV2_TEST_DATA_CREATED: Once = Once::new();
 pub(crate) static VCS_MWAXV2_OS_TEST_DATA_CREATED: Once = Once::new();
 
-#[cfg(test)]
 pub(crate) fn generate_test_voltage_file_legacy_recombined(
     filename: &str,
     initial_value: u8,
@@ -36,7 +33,6 @@ pub(crate) fn generate_test_voltage_file_legacy_recombined(
     )
 }
 
-#[cfg(test)]
 pub(crate) fn generate_test_voltage_file_mwax(
     filename: &str,
     initial_value: u8,
@@ -55,7 +51,6 @@ pub(crate) fn generate_test_voltage_file_mwax(
     )
 }
 
-#[cfg(test)]
 pub(crate) fn generate_test_voltage_file_mwax_os(
     filename: &str,
     initial_value: u8,
@@ -74,7 +69,6 @@ pub(crate) fn generate_test_voltage_file_mwax_os(
     )
 }
 
-#[cfg(test)]
 pub(crate) fn get_test_voltage_files(mwa_version: MWAVersion, oversampled: bool) -> Vec<String> {
     // Create some test files
     // Populate vector of filenames
@@ -157,7 +151,6 @@ pub(crate) fn get_test_voltage_files(mwa_version: MWAVersion, oversampled: bool)
     test_filenames
 }
 
-#[cfg(test)]
 pub(crate) fn get_index_for_location_in_test_voltage_file_legacy(
     sample_index: usize,
     fine_chan_index: usize,
@@ -185,7 +178,6 @@ pub(crate) fn get_index_for_location_in_test_voltage_file_legacy(
     s + rf + fc
 }
 
-#[cfg(test)]
 pub(crate) fn get_index_for_location_in_test_voltage_file_mwaxv2(
     voltage_block_index: usize,
     rfinput_index: usize,
@@ -211,7 +203,6 @@ pub(crate) fn get_index_for_location_in_test_voltage_file_mwaxv2(
     vb + rf + (sample_index * 2) + value_index
 }
 
-#[cfg(test)]
 pub(crate) fn get_index_for_location_in_test_voltage_file_mwaxv2_os(
     voltage_block_index: usize,
     rfinput_index: usize,
@@ -237,7 +228,6 @@ pub(crate) fn get_index_for_location_in_test_voltage_file_mwaxv2_os(
     vb + rf + (sample_index * 2) + value_index
 }
 
-#[cfg(test)]
 pub(crate) fn get_test_voltage_context(
     mwa_version: MWAVersion,
     oversampled: bool,

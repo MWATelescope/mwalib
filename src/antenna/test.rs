@@ -3,11 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for antenna metadata
-
-use crate::types::ReceiverType;
-
-#[cfg(test)]
 use super::*;
+use crate::types::ReceiverType;
 use float_cmp::*;
 
 #[test]

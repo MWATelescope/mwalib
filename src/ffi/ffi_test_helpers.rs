@@ -5,7 +5,6 @@
 use crate::correlator_context::ffi::mwalib_correlator_context_new;
 use crate::metafits_context::ffi::mwalib_metafits_context_new;
 use crate::voltage_context::test::get_test_voltage_context;
-#[cfg(test)]
 use crate::{CorrelatorContext, MWAVersion, MetafitsContext, VoltageContext};
 use libc::size_t;
 use std::ffi::{c_char, CString};
@@ -25,7 +24,6 @@ use std::ffi::{c_char, CString};
 ///
 /// * a raw pointer to an instantiated MetafitsContext for the test metafits and gpubox file
 ///
-#[cfg(test)]
 pub(crate) fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut MetafitsContext {
     get_test_ffi_metafits_context_ext(
         mwa_version,
@@ -45,7 +43,6 @@ pub(crate) fn get_test_ffi_metafits_context(mwa_version: MWAVersion) -> *mut Met
 ///
 /// * a raw pointer to an instantiated MetafitsContext for the test metafits and gpubox file
 ///
-#[cfg(test)]
 pub(crate) fn get_test_ffi_metafits_context_ext(
     mwa_version: MWAVersion,
     metafits_filename: String,
@@ -91,7 +88,6 @@ pub(crate) fn get_test_ffi_metafits_context_ext(
 ///
 /// * a raw pointer to an instantiated CorrelatorContext for the test metafits and gpubox file
 ///
-#[cfg(test)]
 pub(crate) fn get_test_ffi_correlator_context_legacy() -> *mut CorrelatorContext {
     // This tests for a valid correlator context
     let error_len: size_t = 128;
@@ -144,7 +140,6 @@ pub(crate) fn get_test_ffi_correlator_context_legacy() -> *mut CorrelatorContext
 ///
 /// * a raw pointer to an instantiated CorrelatorContext for the test metafits and gpubox file
 ///
-#[cfg(test)]
 pub(crate) fn get_test_ffi_correlator_context_mwax() -> *mut CorrelatorContext {
     // This tests for a valid correlator context
     let error_len: size_t = 128;
@@ -198,7 +193,6 @@ pub(crate) fn get_test_ffi_correlator_context_mwax() -> *mut CorrelatorContext {
 ///
 /// * a raw pointer to an instantiated VoltageContext for the test metafits and voltage file
 ///
-#[cfg(test)]
 pub(crate) fn get_test_ffi_voltage_context(
     mwa_version: MWAVersion,
     oversampled: bool,
@@ -223,7 +217,6 @@ pub(crate) fn get_test_ffi_voltage_context(
 ///
 /// * Array of T expressed as Vec<T>
 ///
-#[cfg(test)]
 pub(crate) fn ffi_boxed_slice_to_array<T>(ptr: *mut T, len: usize) -> Vec<T> {
     unsafe {
         let vec: Vec<T> = Vec::from_raw_parts(ptr, len, len);

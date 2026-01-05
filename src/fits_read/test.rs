@@ -3,8 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for fits reading functions
-
-#[cfg(test)]
 use super::*;
 use crate::misc::test::*;
 use crate::*;
@@ -169,7 +167,7 @@ fn test_get_fits_image_invalid() {
             FitsError::Fitsio {
                 fits_error: _,
                 fits_filename: _,
-                hdu_num: _,
+                hdu: _,
                 source_file: _,
                 source_line: _
             }

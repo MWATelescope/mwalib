@@ -268,9 +268,22 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     } else if !correlator_context_ptr.is_null() {
         // Caller passed in a correlator context, so use that
         &(*correlator_context_ptr).metafits_context
-    } else {
+    } else if !voltage_context_ptr.is_null() {
         // Caller passed in a voltage context, so use that
         &(*voltage_context_ptr).metafits_context
+    } else {
+        // This should never happen due to the check above, but just in case
+        set_c_string(
+            "mwalib_metafits_metadata_get() ERROR: unable to determine which context pointer was provided.",
+            error_message,
+            error_message_length,
+        );
+
+        if !out_metafits_metadata_ptr.is_null() {
+            *out_metafits_metadata_ptr = std::ptr::null_mut();
+        }
+
+        return MWALIB_FAILURE;
     };
 
     //

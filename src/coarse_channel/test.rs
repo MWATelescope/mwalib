@@ -3,14 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for coarse channel metadata
-
-#[cfg(test)]
 use super::*;
 use float_cmp::*;
 use std::collections::BTreeMap;
 
 // Create a BTree Structure for testing
-#[cfg(test)]
 fn get_gpubox_time_map(sub_map_keys: Vec<usize>) -> GpuboxTimeMap {
     let mut sub_map = BTreeMap::new();
     for i in sub_map_keys {
@@ -22,7 +19,6 @@ fn get_gpubox_time_map(sub_map_keys: Vec<usize>) -> GpuboxTimeMap {
 }
 
 // Create a BTree Structure for testing
-#[cfg(test)]
 fn get_voltage_time_map(sub_map_keys: Vec<usize>) -> VoltageFileTimeMap {
     let mut sub_map = BTreeMap::new();
     for i in sub_map_keys {

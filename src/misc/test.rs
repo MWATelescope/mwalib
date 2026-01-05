@@ -3,16 +3,27 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for misc utility functions
-
-use core::f32;
-
-#[cfg(test)]
-use super::*;
 use crate::antenna::*;
+use crate::convert_gpstime_to_unixtime;
+use crate::convert_unixtime_to_gpstime;
+use crate::dms_to_degrees;
+use crate::eq_with_nan_eq_f32;
+use crate::eq_with_nan_eq_f64;
+use crate::get_antennas_from_baseline;
+use crate::get_baseline_count;
+use crate::get_baseline_from_antenna_names;
+use crate::get_baseline_from_antennas;
+use crate::has_whitening_filter;
+use crate::pretty_print_opt_vec;
+use crate::pretty_print_vec;
 use crate::rfinput::*;
+use crate::vec_compare_f32;
+use crate::vec_compare_f64;
 use crate::Pol;
 use crate::ReceiverType;
+use core::f32;
 use float_cmp::*;
+use tempfile::Builder;
 
 /// Function to allow access to a temporary FITS file. Temp directory and File is dropped once out of scope.
 /// This is derived from fitsio crate.
@@ -31,7 +42,10 @@ pub fn with_new_temp_fits_file<F>(filename: &str, callback: F)
 where
     F: for<'a> Fn(&'a mut fitsio::FitsFile),
 {
-    let tdir = tempdir::TempDir::new("fitsio-").unwrap();
+    let tdir = Builder::new()
+        .prefix("fitsio-")
+        .tempdir()
+        .expect("Failed to create temp dir");
     let tdir_path = tdir.path();
     let filename = tdir_path.join(filename);
 

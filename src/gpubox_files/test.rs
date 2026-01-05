@@ -3,14 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for gpubox file metadata
-
-#[cfg(test)]
 use super::*;
-use crate::misc::test::*;
+use crate::test::with_new_temp_fits_file;
 use fitsio::images::{ImageDescription, ImageType};
 use std::time::SystemTime;
 
-#[cfg(test)]
 /// Helper method will create a gpubox timemap which will be used by some tests in this module
 ///
 fn create_determine_common_obs_times_and_chans_test_data(

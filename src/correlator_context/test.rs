@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for correlator context
-
 use super::*;
 use float_cmp::*;
 use std::path::PathBuf;

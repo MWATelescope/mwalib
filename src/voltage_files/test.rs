@@ -3,16 +3,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for voltage file metadata
-
-#[cfg(test)]
 use super::*;
 use std::fs::File;
 use std::io::{Error, Write};
+use tempfile::Builder;
 
 // Helper fuction to generate (small) test voltage files
-#[cfg(test)]
 fn generate_test_voltage_file(
-    temp_dir: &tempdir::TempDir,
+    temp_dir: &tempfile::TempDir,
     filename: &str,
     time_samples: usize,
     rf_inputs: usize,
@@ -557,7 +555,10 @@ fn test_examine_voltage_files_valid() {
 
     // Create a temp dir for the temp files
     // Once out of scope the temp dir and it's contents will be deleted
-    let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
+    let temp_dir = Builder::new()
+        .prefix("voltage_test")
+        .tempdir()
+        .expect("Failed to create temp dir");
 
     // Populate vector of filenames
     let voltage_filenames: Vec<String> = vec![
@@ -597,7 +598,10 @@ fn test_examine_voltage_files_error_mismatched_sizes() {
 
     // Create a temp dir for the temp files
     // Once out of scope the temp dir and it's contents will be deleted
-    let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
+    let temp_dir = Builder::new()
+        .prefix("voltage_test")
+        .tempdir()
+        .expect("Failed to create temp dir");
 
     // Populate vector of filenames
     let voltage_filenames: Vec<String> = vec![
@@ -645,7 +649,10 @@ fn test_examine_voltage_files_error_gpstime_gaps() {
 
     // Create a temp dir for the temp files
     // Once out of scope the temp dir and it's contents will be deleted
-    let temp_dir = tempdir::TempDir::new("voltage_test").unwrap();
+    let temp_dir = Builder::new()
+        .prefix("voltage_test")
+        .tempdir()
+        .expect("Failed to create temp dir");
 
     // Populate vector of filenames
     // NOTE: Gap of 8 seconds between elements 0,1 and 2,3

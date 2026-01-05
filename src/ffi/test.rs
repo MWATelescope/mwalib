@@ -3,10 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for ffi module
-use std::ffi::CStr;
-
-#[cfg(test)]
 use super::*;
+use std::ffi::CStr;
 
 /// Test that we can get the version numbers from the built crate
 #[test]

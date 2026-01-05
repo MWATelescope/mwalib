@@ -97,7 +97,7 @@ clap = { version = "4.5", features = ["derive"], optional = true }
 criterion = "0.7"
 csv = "1.4"
 float-cmp = "0.10"
-tempdir = "0.3"
+tempfile = "3.24"
 
 [build-dependencies]
 built = "0.8"

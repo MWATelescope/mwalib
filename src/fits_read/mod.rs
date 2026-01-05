@@ -330,7 +330,7 @@ pub fn _open_hdu(
         Err(e) => Err(FitsError::Fitsio {
             fits_error: e,
             fits_filename: fits_fptr.file_path().to_path_buf(),
-            hdu_num: hdu_num + 1,
+            hdu: format!("{}", hdu_num + 1),
             source_file,
             source_line,
         }),
@@ -359,7 +359,7 @@ pub fn _open_hdu_by_name(
         Err(e) => Err(FitsError::Fitsio {
             fits_error: e,
             fits_filename: fits_fptr.file_path().to_path_buf(),
-            hdu_num: 9999,
+            hdu: hdu_name.to_string(),
             source_file,
             source_line,
         }),
@@ -393,7 +393,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
                     return Err(FitsError::Fitsio {
                         fits_error: e,
                         fits_filename: fits_fptr.file_path().to_path_buf(),
-                        hdu_num: hdu.number + 1,
+                        hdu: format!("{}", hdu.number + 1),
                         source_file,
                         source_line,
                     })
@@ -403,7 +403,7 @@ pub fn _get_optional_fits_key<T: std::str::FromStr>(
                 return Err(FitsError::Fitsio {
                     fits_error: e,
                     fits_filename: fits_fptr.file_path().to_path_buf(),
-                    hdu_num: hdu.number + 1,
+                    hdu: format!("{}", hdu.number + 1),
                     source_file,
                     source_line,
                 })
@@ -480,7 +480,7 @@ pub fn _get_fits_col<T: fitsio::tables::ReadsCol>(
         Err(fits_error) => Err(FitsError::Fitsio {
             fits_error,
             fits_filename: fits_fptr.file_path().to_path_buf(),
-            hdu_num: hdu.number + 1,
+            hdu: format!("{}", hdu.number + 1),
             source_file,
             source_line,
         }),
@@ -635,7 +635,7 @@ pub fn _get_fits_image<T: fitsio::images::ReadImage>(
             Err(e) => Err(FitsError::Fitsio {
                 fits_error: e,
                 fits_filename: fits_fptr.file_path().to_path_buf(),
-                hdu_num: hdu.number + 1,
+                hdu: format!("{}", hdu.number + 1),
                 source_file,
                 source_line,
             }),
@@ -683,7 +683,7 @@ pub fn _get_fits_float_img_into_buf(
                 return Err(FitsError::Fitsio {
                     fits_error: e,
                     fits_filename: fits_fptr.file_path().to_path_buf(),
-                    hdu_num: hdu.number + 1,
+                    hdu: format!("{}", hdu.number + 1),
                     source_file,
                     source_line,
                 });
