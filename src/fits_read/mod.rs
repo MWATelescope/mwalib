@@ -30,7 +30,7 @@ mod test;
 #[macro_export]
 macro_rules! fits_open {
     ($fptr:expr) => {
-        _open_fits($fptr, file!(), line!())
+        crate::_open_fits($fptr, file!(), line!())
     };
 }
 
@@ -52,7 +52,7 @@ macro_rules! fits_open {
 #[macro_export]
 macro_rules! fits_open_hdu {
     ($fptr:expr, $hdu_num:expr) => {
-        _open_hdu($fptr, $hdu_num, file!(), line!())
+        crate::_open_hdu($fptr, $hdu_num, file!(), line!())
     };
 }
 
@@ -74,7 +74,7 @@ macro_rules! fits_open_hdu {
 #[macro_export]
 macro_rules! fits_open_hdu_by_name {
     ($fptr:expr, $hdu_name:expr) => {
-        _open_hdu_by_name($fptr, $hdu_name, file!(), line!())
+        crate::_open_hdu_by_name($fptr, $hdu_name, file!(), line!())
     };
 }
 
@@ -701,6 +701,7 @@ pub fn _get_fits_float_img_into_buf(
 }
 
 /// Given a FITS file pointer, and a HDU pointer, read an optonal value from table in row/col.
+/// NOTE: for String types, this will return Some("") if the string is empty.
 ///
 /// # Arguments
 ///
@@ -732,7 +733,64 @@ pub fn read_optional_cell_value<T: fitsio::tables::ReadsCol>(
                 col_name,
                 row
             );
+
+            // Check for empty string case for String types
             Ok(Some(c))
+        }
+        Err(e) => match e {
+            // When the cell is null, return None.
+            fitsio::errors::Error::Null(_) => Ok(None),
+            // Otherwise, return the error.
+            _ => Err(FitsError::ReadCell {
+                fits_filename: fits_fptr.file_path().to_path_buf(),
+                hdu_num: fits_tile_table_hdu.number + 1,
+                row_num: row,
+                col_name: col_name.to_string(),
+            }),
+        },
+    }
+}
+
+/// Given a FITS file pointer, and a HDU pointer, read an optonal String value from table in row/col.
+/// NOTE: An empty string will be returned as None.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `fits_tile_table_hdu` - A reference to the table HDU you want to find `col_name` in.
+///
+/// * `col_name` - String containing the keyword to read.
+///
+/// * `row` - Row number in the table.
+///
+///
+/// # Returns
+///
+/// * A Result containing an option containing the value read, or None if not found, empty string or an error.
+///
+pub fn read_optional_cell_string_value(
+    fits_fptr: &mut FitsFile,
+    fits_tile_table_hdu: &fitsio::hdu::FitsHdu,
+    col_name: &str,
+    row: usize,
+) -> Result<Option<String>, FitsError> {
+    match fits_tile_table_hdu.read_cell_value::<String>(fits_fptr, col_name, row) {
+        Ok(c) => {
+            trace!(
+                "read_cell_value() filename: '{}' hdu: {} col_name: '{}' row '{}'",
+                fits_fptr.file_path().display(),
+                fits_tile_table_hdu.number,
+                col_name,
+                row
+            );
+
+            // Check for empty string case for String types
+            if c.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(c))
+            }
         }
         Err(e) => match e {
             // When the cell is null, return None.

@@ -206,7 +206,7 @@ fn test_populate_rf_inputs() {
     let result = Rfinput::populate_rf_inputs(
         256,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &None,
@@ -286,7 +286,7 @@ fn test_populate_rf_inputs_newer_metafits() {
     let result = Rfinput::populate_rf_inputs(
         256,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &None,
@@ -328,7 +328,7 @@ fn test_flavor_and_whitening_filter() {
     let result = Rfinput::populate_rf_inputs(
         290,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &None,
@@ -366,7 +366,7 @@ fn test_populate_rf_inputs_calib_metafits() {
     let result = Rfinput::populate_rf_inputs(
         256,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &None,
@@ -421,7 +421,7 @@ fn test_populate_rf_inputs_sig_chain_in_metafits() {
     let result = Rfinput::populate_rf_inputs(
         256,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &Some(sig_chain_corrs),
@@ -450,7 +450,7 @@ fn test_populate_rf_inputs_sig_chain_not_in_metafits() {
     let result = Rfinput::populate_rf_inputs(
         256,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &None,

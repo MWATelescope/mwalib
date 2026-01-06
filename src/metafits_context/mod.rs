@@ -441,7 +441,7 @@ impl MetafitsContext {
         let mut rf_inputs: Vec<Rfinput> = Rfinput::populate_rf_inputs(
             num_rf_inputs,
             &mut metafits_fptr,
-            metafits_tile_table_hdu,
+            &metafits_tile_table_hdu,
             MWALIB_MWA_COAX_V_FACTOR,
             metafits_coarse_chan_vec.len(),
             &signal_chain_corrections,

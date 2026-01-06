@@ -1059,3 +1059,30 @@ fn test_read_cell_string() {
     assert_eq!(value, String::from("PSEUDO"));
     assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::Pseudo);
 }
+
+#[test]
+fn test_read_optional_cell_string_value_empty_string() {
+    let metafits_filename = "test_files/1449798840_bf/1449798840_metafits.fits";
+    let mut fptr = fits_open!(&metafits_filename).unwrap();
+    let hdu = fits_open_hdu_by_name!(&mut fptr, "VOLTAGEBEAMS").unwrap();
+
+    let result_value: Result<Option<String>, FitsError> =
+        read_optional_cell_string_value(&mut fptr, &hdu, "channel_set", 0);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert!(value.is_none());
+}
+
+#[test]
+fn test_read_optional_cell_string_value_nonempty_string() {
+    let metafits_filename = "test_files/metafits_signal_chain_corr/1096952256_metafits.fits";
+    let mut fptr = fits_open!(&metafits_filename).unwrap();
+    let hdu = fits_open_hdu_by_name!(&mut fptr, "SIGCHAINDATA").unwrap();
+
+    let result_value: Result<Option<String>, FitsError> =
+        read_optional_cell_string_value(&mut fptr, &hdu, "Receiver_type", 0);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert!(value.is_some());
+    assert_eq!(value.unwrap(), String::from("RRI"));
+}

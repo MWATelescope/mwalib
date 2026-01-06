@@ -486,7 +486,7 @@ impl Rfinput {
     pub(crate) fn populate_rf_inputs(
         num_inputs: usize,
         metafits_fptr: &mut FitsFile,
-        metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
+        metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
         coax_v_factor: f64,
         num_coarse_chans: usize,
         signal_chain_corrections: &Option<Vec<SignalChainCorrection>>,
@@ -503,7 +503,7 @@ impl Rfinput {
             // Note fits row numbers start at 1
             let metafits_row = Self::read_metafits_tiledata_values(
                 metafits_fptr,
-                &metafits_tile_table_hdu,
+                metafits_tile_table_hdu,
                 input,
                 num_coarse_chans,
             )?;

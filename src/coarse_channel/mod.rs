@@ -105,7 +105,7 @@ impl CoarseChannel {
     ///
     /// * A vector containing all of the receiver channel numbers for this observation.
     ///
-    fn get_metafits_coarse_chan_array(metafits_coarse_chans_string: &str) -> Vec<usize> {
+    pub(crate) fn get_metafits_coarse_chan_array(metafits_coarse_chans_string: &str) -> Vec<usize> {
         metafits_coarse_chans_string
             .replace(&['\'', '&'][..], "")
             .split(',')

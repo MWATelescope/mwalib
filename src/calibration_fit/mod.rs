@@ -18,6 +18,9 @@ pub mod ffi;
 #[cfg(test)]
 pub(crate) mod ffi_test;
 
+#[cfg(test)]
+mod test;
+
 ///
 /// Calibration Fits
 /// This table is present in some metafits files, and if present, contains data from the calibration_solutions
