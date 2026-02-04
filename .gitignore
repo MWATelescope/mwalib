@@ -1,5 +1,6 @@
 /.idea/
 target
+/examples/build/
 /examples/sum-all-hdus
 /examples/mwalib-print-context
 /examples/mwalib-sum-all-hdus

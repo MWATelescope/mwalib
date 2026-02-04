@@ -18,7 +18,7 @@ pub enum MwalibError {
 
     /// An error derived from `BeamError`.
     #[error("{0}")]
-    Beam(#[from] crate::beam::error::BeamError),
+    Beam(#[from] crate::voltage_beam::error::BeamError),
 
     /// An error derived from `CalibrationFitError`.
     #[error("{0}")]

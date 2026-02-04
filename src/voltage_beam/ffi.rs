@@ -7,25 +7,25 @@ use std::ffi::c_char;
 use libc::time_t;
 
 use crate::{
-    beam::{self, ffi},
     ffi::{ffi_create_c_array, ffi_create_c_string, ffi_free_c_array, ffi_free_rust_c_string},
     types::DataFileType,
+    voltage_beam::{self, ffi},
     MetafitsContext,
 };
 
 ///
-/// C Representation of a `Beam` struct
+/// C Representation of a `VoltageBeam` struct
 ///
 ///
-/// Beam
+/// Voltage Beam
 ///
 #[repr(C)]
-pub struct Beam {
+pub struct VoltageBeam {
     /// Arbitrary integer identifying this beam
     pub number: usize,
     /// True if the beam is coherent (has a defined position on the sky), False if incoherent (indicating that all tiles should be summed without phase correction)
     pub coherent: bool,
-    /// azimuth, elevation - for coherent beams, these describe a fixed position relative to the telescope centre (eg, a geosynchronous satellite or ground-based RFI source)
+    /// azimuth, altitude - for coherent beams, these describe a fixed position relative to the telescope centre (eg, a geosynchronous satellite or ground-based RFI source)
     /// for incoherent beams these are set to 0.0
     pub az_deg: f64,
     pub alt_deg: f64,
@@ -59,7 +59,7 @@ pub struct Beam {
     pub beam_index: i32,
 }
 
-impl Beam {
+impl VoltageBeam {
     /// This function populates a C array (owned by Rust) of this class
     ///
     /// # Arguments
@@ -74,10 +74,10 @@ impl Beam {
     /// # Safety
     /// * The corresponding `ffi_destroy` function for this class must be called to free the memory
     ///
-    pub fn populate_array(metafits_context: &MetafitsContext) -> (*mut ffi::Beam, usize) {
-        let mut item_vec: Vec<ffi::Beam> = Vec::new();
+    pub fn populate_array(metafits_context: &MetafitsContext) -> (*mut ffi::VoltageBeam, usize) {
+        let mut item_vec: Vec<ffi::VoltageBeam> = Vec::new();
 
-        if let Some(v) = &metafits_context.metafits_beams {
+        if let Some(v) = &metafits_context.metafits_voltage_beams {
             for item in v.iter() {
                 // Get a list of antenna indicies for this beam
                 let tileset_antenna_indices: Vec<usize> = item
@@ -99,7 +99,7 @@ impl Beam {
                     .collect();
 
                 let out_item = {
-                    let beam::Beam {
+                    let voltage_beam::VoltageBeam {
                         number,
                         coherent,
                         az_deg,
@@ -125,7 +125,7 @@ impl Beam {
                     let (tileset_antenna_indicies_ptr, tileset_antenna_indices_len) =
                         ffi_create_c_array(tileset_antenna_indices);
 
-                    beam::ffi::Beam {
+                    voltage_beam::ffi::VoltageBeam {
                         number: *number,
                         coherent: *coherent,
                         az_deg: az_deg.unwrap_or_default(),
@@ -167,7 +167,7 @@ impl Beam {
     ///
     /// * Nothing
     ///
-    fn destroy_item(item: *mut ffi::Beam) {
+    fn destroy_item(item: *mut ffi::VoltageBeam) {
         if item.is_null() {
             return;
         }
@@ -209,7 +209,7 @@ impl Beam {
     ///
     /// * Nothing
     ///
-    pub fn destroy_array(items_ptr: *mut ffi::Beam, items_len: usize) {
+    pub fn destroy_array(items_ptr: *mut ffi::VoltageBeam, items_len: usize) {
         let items_slice = unsafe { std::slice::from_raw_parts_mut(items_ptr, items_len) };
         for item in items_slice {
             Self::destroy_item(item);

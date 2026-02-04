@@ -121,6 +121,8 @@ pub struct MetafitsContext {
     pub cable_delays_applied: CableDelaysApplied,
     /// Have calibration delays and gains been applied to the data?
     pub calibration_delays_and_gains_applied: bool,
+    /// Have signal chain corrections been applied to the data?
+    pub signal_chain_corrections_applied: bool,
     /// Correlator fine_chan_resolution
     pub corr_fine_chan_width_hz: u32,
     /// Correlator mode dump time
@@ -219,9 +221,9 @@ pub struct MetafitsContext {
     /// Number of calibration fits
     pub num_calibration_fits: usize,
     /// Beamformer beams
-    pub metafits_beams: Option<Vec<Beam>>,
+    pub metafits_voltage_beams: Option<Vec<VoltageBeam>>,
     /// Number of beamformer beams defined in this observation
-    pub num_metafits_beams: usize,
+    pub num_metafits_voltage_beams: usize,
     /// Number of coherent beamformer beams defined in this observation
     pub num_metafits_coherent_beams: usize,
     /// Number of incoherent beamformer beams defined in this observation
@@ -578,9 +580,14 @@ impl MetafitsContext {
                 None => CableDelaysApplied::NoCableDelaysApplied,
             };
 
-        // This next key is specified as TINT not TBOOL in the metafits, so we need to translate 0=false, 1=true
+        // This next two keys are specified as TINT not TBOOL in the metafits, so we need to translate 0=false, 1=true
         let calibration_delays_and_gains_applied: bool = matches!(
             (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CALIBDEL")?).unwrap_or(0),
+            1
+        );
+
+        let signal_chain_corrections_applied: bool = matches!(
+            (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "SIGCHDEL")?).unwrap_or(0),
             1
         );
 
@@ -733,15 +740,15 @@ impl MetafitsContext {
             }
         };
 
-        // beams
-        let beams: Option<Vec<Beam>>;
+        // voltage beams
+        let beams: Option<Vec<VoltageBeam>>;
         let num_beams: usize;
         let num_coherent_beams: usize;
         let num_incoherent_beams: usize;
 
         match &metafits_beams_hdu_result {
             Ok(metafits_beams_hdu) => {
-                let beams_vec = beam::populate_beams(
+                let beams_vec = voltage_beam::populate_voltage_beams(
                     &mut metafits_fptr,
                     metafits_beams_hdu,
                     &metafits_coarse_chans,
@@ -811,6 +818,7 @@ impl MetafitsContext {
             geometric_delays_applied,
             cable_delays_applied,
             calibration_delays_and_gains_applied,
+            signal_chain_corrections_applied,
             corr_fine_chan_width_hz,
             corr_int_time_ms: integration_time_ms,
             corr_raw_scale_factor,
@@ -859,8 +867,8 @@ impl MetafitsContext {
             num_signal_chain_corrections,
             calibration_fits,
             num_calibration_fits,
-            metafits_beams: beams,
-            num_metafits_beams: num_beams,
+            metafits_voltage_beams: beams,
+            num_metafits_voltage_beams: num_beams,
             num_metafits_coherent_beams: num_coherent_beams,
             num_metafits_incoherent_beams: num_incoherent_beams,
         })
@@ -1027,6 +1035,7 @@ impl fmt::Display for MetafitsContext {
     Geometric delays applied          : {geodel},
     Cable length corrections applied  : {cabledel},
     Calibration delays & gains applied: {calibdel},
+    Signal chain corrections applied  : {sigchdel},
 
     Creator:                  {creator},
     Project ID:               {project_id},
@@ -1196,6 +1205,7 @@ impl fmt::Display for MetafitsContext {
             geodel = self.geometric_delays_applied,
             cabledel = self.cable_delays_applied,
             calibdel = self.calibration_delays_and_gains_applied,
+            sigchdel = self.signal_chain_corrections_applied,
             vfcw = self.volt_fine_chan_width_hz as f64 / 1e3,
             nvfcpc = self.num_volt_fine_chans_per_coarse,
             fcw = self.corr_fine_chan_width_hz as f64 / 1e3,

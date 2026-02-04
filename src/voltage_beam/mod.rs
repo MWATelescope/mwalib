@@ -30,7 +30,7 @@ mod test;
     pyclass(get_all, set_all)
 )]
 #[derive(Clone, Debug, PartialEq)]
-pub struct Beam {
+pub struct VoltageBeam {
     /// Arbitrary integer identifying this beam
     pub number: usize,
     /// True if the beam is coherent (has a defined position on the sky), False if incoherent (indicating that all tiles should be summed without phase correction)
@@ -81,12 +81,12 @@ pub struct Beam {
 ///
 /// * Result containing a vector of voltage beams read from the voltagebeams HDU.
 ///
-pub(crate) fn populate_beams(
+pub(crate) fn populate_voltage_beams(
     metafits_fptr: &mut FitsFile,
     voltagebeams_hdu: &FitsHdu,
     coarse_channels: &[CoarseChannel],
     antennas: &[Antenna],
-) -> Result<Vec<Beam>, error::BeamError> {
+) -> Result<Vec<VoltageBeam>, error::BeamError> {
     // Find out how many beams there are in the table
     let rows = match &voltagebeams_hdu.info {
         HduInfo::TableInfo {
@@ -96,7 +96,7 @@ pub(crate) fn populate_beams(
         _ => 0,
     };
 
-    let mut beam_vec: Vec<Beam> = Vec::new();
+    let mut beam_vec: Vec<VoltageBeam> = Vec::new();
 
     for row in 0..rows {
         let number: u64 = read_cell_value(metafits_fptr, voltagebeams_hdu, "number", row)?;
@@ -164,7 +164,7 @@ pub(crate) fn populate_beams(
         };
         let num_beam_coarse_channels = beam_coarse_channels.len();
 
-        beam_vec.push(Beam {
+        beam_vec.push(VoltageBeam {
             number: number as usize,
             coherent: coherent == 1,
             az_deg,
@@ -201,11 +201,11 @@ pub(crate) fn populate_beams(
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Display for Beam {
+impl fmt::Display for VoltageBeam {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Beam: {} {{Type: {}, Tiles: {}, Coarse chans: {}, RA: {:.3} deg, Dec: {:.3} deg}}",
+            "Voltage beam: {} {{Type: {}, Tiles: {}, Coarse chans: {}, RA: {:.3} deg, Dec: {:.3} deg}}",
             self.number,
             if self.coherent {
                 String::from("Coherent")

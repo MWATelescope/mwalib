@@ -395,6 +395,11 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
             CString::new("").unwrap()
         );
 
+        // test calibration delays and gains
+        assert!(!metafits_metadata.calibration_delays_and_gains_applied);
+        // test signal chain corrections applied
+        assert!(!metafits_metadata.signal_chain_corrections_applied);
+
         // test signal chain corrections (should be empty array)
         if metafits_metadata.num_signal_chain_corrections > 0 {
             let sig_chain_corrs = ffi_boxed_slice_to_array(

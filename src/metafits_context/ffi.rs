@@ -4,13 +4,14 @@
 
 use crate::{
     antenna::{self},
-    baseline, beam, calibration_fit, coarse_channel,
+    baseline, calibration_fit, coarse_channel,
     ffi::{
         ffi_create_c_array, ffi_create_c_string, ffi_free_c_array, ffi_free_rust_c_string,
         set_c_string, MWALIB_FAILURE, MWALIB_SUCCESS,
     },
-    rfinput, signal_chain_correction, timestep, CableDelaysApplied, CorrelatorContext,
-    GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, VoltageContext,
+    rfinput, signal_chain_correction, timestep, voltage_beam, CableDelaysApplied,
+    CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext,
+    VoltageContext,
 };
 use libc::size_t;
 use std::ffi::{c_char, CStr};
@@ -128,7 +129,7 @@ pub struct MetafitsMetadata {
     /// Calibration fits
     pub calibration_fits: *mut calibration_fit::ffi::CalibrationFit,
     /// Beamformer beams array
-    pub metafits_beams: *mut beam::ffi::Beam,
+    pub metafits_voltage_beams: *mut voltage_beam::ffi::VoltageBeam,
 
     // ---- 32-bit integers ----
     /// Observation id
@@ -170,7 +171,7 @@ pub struct MetafitsMetadata {
     pub num_ant_pols: usize,
     pub num_baselines: usize,
     pub num_visibility_pols: usize,
-    pub num_metafits_beams: usize,
+    pub num_metafits_voltage_beams: usize,
     pub num_metafits_coherent_beams: usize,
     pub num_metafits_incoherent_beams: usize,
     pub num_metafits_coarse_chans: usize,
@@ -192,6 +193,8 @@ pub struct MetafitsMetadata {
     // ---- Booleans ----
     /// Have calibration delays and gains been applied to the data?
     pub calibration_delays_and_gains_applied: bool,
+    /// Have signal chain corrections been applied to the data?
+    pub signal_chain_corrections_applied: bool,
     /// Intended for calibration
     pub calibrator: bool,
     /// Was this observation using oversampled coarse channels?
@@ -296,7 +299,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     let (baselines_ptr, baselines_len) = baseline::ffi::Baseline::populate_array(&metafits_context);
 
     // Populate beams
-    let (beams_ptr, beams_len) = beam::ffi::Beam::populate_array(&metafits_context);
+    let (beams_ptr, beams_len) = voltage_beam::ffi::VoltageBeam::populate_array(&metafits_context);
 
     // Populate calibration fits
     let (calibration_fits_ptr, calibration_fits_len) =
@@ -375,6 +378,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             geometric_delays_applied,
             cable_delays_applied,
             calibration_delays_and_gains_applied,
+            signal_chain_corrections_applied,
             corr_fine_chan_width_hz,
             corr_int_time_ms,
             corr_raw_scale_factor,
@@ -423,8 +427,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_signal_chain_corrections: _,
             calibration_fits: _, // This is populated seperately
             num_calibration_fits: _,
-            metafits_beams: _, // This is populated seperately
-            num_metafits_beams: _,
+            metafits_voltage_beams: _, // This is populated seperately
+            num_metafits_voltage_beams: _,
             num_metafits_coherent_beams,
             num_metafits_incoherent_beams,
         } = metafits_context;
@@ -459,6 +463,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             geometric_delays_applied: *geometric_delays_applied,
             cable_delays_applied: *cable_delays_applied,
             calibration_delays_and_gains_applied: *calibration_delays_and_gains_applied,
+            signal_chain_corrections_applied: *signal_chain_corrections_applied,
             corr_fine_chan_width_hz: *corr_fine_chan_width_hz,
             corr_int_time_ms: *corr_int_time_ms,
             corr_raw_scale_factor: *corr_raw_scale_factor,
@@ -520,8 +525,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             num_signal_chain_corrections: signal_chain_corrections_len,
             calibration_fits: calibration_fits_ptr,
             num_calibration_fits: calibration_fits_len,
-            num_metafits_beams: beams_len,
-            metafits_beams: beams_ptr,
+            num_metafits_voltage_beams: beams_len,
+            metafits_voltage_beams: beams_ptr,
             num_metafits_coherent_beams: *num_metafits_coherent_beams,
             num_metafits_incoherent_beams: *num_metafits_incoherent_beams,
         }
@@ -578,7 +583,10 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(m_ptr: *mut MetafitsMetad
     baseline::ffi::Baseline::destroy_array(boxed.baselines, boxed.num_baselines);
 
     // beams
-    beam::ffi::Beam::destroy_array(boxed.metafits_beams, boxed.num_metafits_beams);
+    voltage_beam::ffi::VoltageBeam::destroy_array(
+        boxed.metafits_voltage_beams,
+        boxed.num_metafits_voltage_beams,
+    );
 
     // calibration fits
     calibration_fit::ffi::CalibrationFit::destroy_array(

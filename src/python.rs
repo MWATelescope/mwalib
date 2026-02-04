@@ -21,9 +21,9 @@ use crate::{
     gpubox_files::error::*,
     types::{DataFileType, Pol, ReceiverType},
     voltage_files::error::*,
-    Antenna, Baseline, Beam, CableDelaysApplied, CalibrationFit, CoarseChannel, CorrelatorContext,
+    Antenna, Baseline, CableDelaysApplied, CalibrationFit, CoarseChannel, CorrelatorContext,
     GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, Rfinput, SignalChainCorrection,
-    VisPol, VoltageContext,
+    VisPol, VoltageBeam, VoltageContext,
 };
 
 // Add a python exception for MmwalibError.
@@ -94,7 +94,7 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<VoltageContext>()?;
     m.add_class::<Antenna>()?;
     m.add_class::<Baseline>()?;
-    m.add_class::<Beam>()?;
+    m.add_class::<VoltageBeam>()?;
     m.add_class::<CoarseChannel>()?;
     m.add_class::<CalibrationFit>()?;
     m.add_class::<Rfinput>()?;

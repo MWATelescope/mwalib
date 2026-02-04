@@ -24,7 +24,9 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: 3 :: Only",
 ]
-dependencies = ["numpy"]
+dependencies = [
+    "numpy",
+]
 
 [project.urls] # Optional
 "Homepage" = "https://github.com/MWATelescope/mwalib"

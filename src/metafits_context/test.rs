@@ -226,6 +226,8 @@ fn test_metafits_context_new_corrlegacy_valid() {
 
     // Calibration delays & gains applied  - this old metafits has none of these keys so it will be false
     assert!(!context.calibration_delays_and_gains_applied);
+    // Signal chain corrections applied  - this old metafits has none of these keys so it will be false
+    assert!(!context.signal_chain_corrections_applied);
 
     // metafits_filename
     assert_eq!(context.metafits_filename, metafits_filename);

@@ -8,11 +8,11 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
-## 2.0.0 XX-Jan-2026
+## 2.0.0 XX-Feb-2026
 
 ### Potentially Breaking Changes
-* Bumped MSRV to 1.81 due to dependency hell.
-* Moved all enum types (and their tests) into their own `types` module. This includes `MWAVersion`, `VisPol`, `GeometricDelaysApplied`, `CableDelaysApplied`, `MWAMode`, `Pol` and `ReceiverType`. 
+* Bumped MSRV to 1.85.0 due to dependency hell.
+* Moved all enum types (and their tests) into their own `types` module. This includes `MWAVersion`, `VisPol`, `GeometricDelaysApplied`, `CableDelaysApplied`, `MWAMode`, `Pol` and `ReceiverType`. They are still re-exported from the crate so hopefully shouldn't break anything.
 * Fixed inconsistent data types for the `row` values used in `fits_read::read_cell_array_f32`,`fits_read::read_cell_array_f64`,`fits_read::read_cell_array_u32`, `FitsError::CellArray`. Was i64 in some places, now is usize to be consistent.
 * Two new values added to `MWAVersion` enum: `BeamformerMWAXv2` (6) and `CorrBeamformerMWAXv2` (7).
 * Two new values added to `MWAMode` enum: `MWAX_BEAMFORMER` (33) and `MWAX_BF_CORR` (34).  
@@ -23,10 +23,11 @@ Notes:
 ### Added
 * Added support for upcoming MWA beamforming observations:  
   * A new enum `DataFileType`.
-  * New struct `Beam` which handles beamformer neam metadata.
-  * New `MetafitsContext` attributes: `metafits_beams`, `num_metafits_beams`, `num_metafits_incoherent_beams`, `num_metafits_coherent_beams`
+  * New struct `VoltageBeam` which handles beamformer observation metadata.
+  * New `MetafitsContext` attributes: `metafits_voltage_beams`, `num_metafits_voltage_beams`, `num_metafits_incoherent_voltage_beams`, `num_metafits_coherent_voltage_beams`
   * Added `num_corrections` attribute to the `SignalChainCorrection`struct.
   * FFI/C: Added `num_corrections` attribute to the FFI `SignalChainCorrection`struct.
+* Added `signal_chain_corrections_applied` (boolean) to `MetafitsContext` to indicate if the correlator has applied signal chain corrections to the data.
 * Added new functions in `fits_read`: `read_optional_cell_value()` and `read_optional_cell_array_u32()` to read FITS table values which may or may not be present in a FITS bintable.
 * Added benchmarks for `VoltageContext::read_file()` and `read_second()`.
 * Added support for reading old and new versions of the CALIBDATA HDU (calibration_fit/mod.rs = CalibrationFit) from the metafits files - providing the client with info on the best calibration solution found at the time the metafits file was generated.
@@ -51,7 +52,7 @@ Notes:
 * Replaced test dependency `tempdir` (which has been abandonded for a while) with the replacement crate `tempfile`.
 * FFI/C: Fixed memory leak in C free functions: `mwalib_metafits_metadata_free()`, `mwalib_correlator_metadata_free()`, `mwalib_voltage_metadata_free()` to correctly free all Rust unsafely allocated memory.
 * FFI/C: Fix to ensure conversions of Rust to C strings get validated for null terminator, correct buffer length and unicode.
-* Fixed memory leak (in Rust code!) happening when using lazy_static to create static `RegEx` objects. Laxy_static does not `Drop` the static objects causing a memory leak. Removed lazy_static from Cargo.toml for now.
+* Fixed memory leak (in Rust code!) happening when using lazy_static to create static `RegEx` objects. Lazy_static does not `Drop` the static objects causing a memory leak. Removed lazy_static from Cargo.toml for now.
 * Fixed memory leak (in Rust code!) happening when using rayon to iterate over all gpubox files in parallel, since Fitsio is not thread safe when using FitsFile and FitsHDU structs. Removed rayon from Cargo.toml for now. The parallelisation was only providing a very modest speedup in any case.
 * Fixed potential access of invalid pointer in `metafits_metadata_get()` C call.
 

@@ -3,7 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for beam metadata
-use crate::{beam, coarse_channel, fits_open, fits_open_hdu, fits_open_hdu_by_name, Rfinput};
+use crate::{
+    coarse_channel, fits_open, fits_open_hdu, fits_open_hdu_by_name, voltage_beam, Rfinput,
+};
 
 #[test]
 fn test_populate_beams() {
@@ -61,7 +63,7 @@ fn test_populate_beams() {
     // open beams HDU
     let beam_hdu =
         fits_open_hdu_by_name!(&mut fptr, "VOLTAGEBEAMS").expect("Failed to open VOLTAGEBEAMS HDU");
-    let beams = beam::populate_beams(&mut fptr, &beam_hdu, &coarse_chans, &ants)
+    let beams = voltage_beam::populate_voltage_beams(&mut fptr, &beam_hdu, &coarse_chans, &ants)
         .expect("Failed to populate beams");
 
     assert_eq!(beams.len(), OBS_BEAMS);
