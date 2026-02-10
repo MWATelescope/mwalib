@@ -30,7 +30,7 @@ mod test;
 #[macro_export]
 macro_rules! fits_open {
     ($fptr:expr) => {
-        crate::_open_fits($fptr, file!(), line!())
+        $crate::_open_fits($fptr, file!(), line!())
     };
 }
 
@@ -52,7 +52,7 @@ macro_rules! fits_open {
 #[macro_export]
 macro_rules! fits_open_hdu {
     ($fptr:expr, $hdu_num:expr) => {
-        crate::_open_hdu($fptr, $hdu_num, file!(), line!())
+        $crate::_open_hdu($fptr, $hdu_num, file!(), line!())
     };
 }
 
@@ -74,7 +74,7 @@ macro_rules! fits_open_hdu {
 #[macro_export]
 macro_rules! fits_open_hdu_by_name {
     ($fptr:expr, $hdu_name:expr) => {
-        crate::_open_hdu_by_name($fptr, $hdu_name, file!(), line!())
+        $crate::_open_hdu_by_name($fptr, $hdu_name, file!(), line!())
     };
 }
 
