@@ -14,7 +14,7 @@ mod convert;
 mod correlator_context;
 mod error;
 pub mod ffi;
-mod fits_read;
+pub mod fits_read;
 mod gpubox_files;
 mod metafits_context;
 pub mod misc;
