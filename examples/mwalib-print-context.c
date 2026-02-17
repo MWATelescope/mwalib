@@ -9,11 +9,11 @@ Example code to print context info, given at least a metafits file and optionall
 #include "time.h"
 
 #define ERROR_MESSAGE_LEN 1024
+#define DISPLAY_MESSAGE_LEN 32768
 
 void print_usage()
 {
     printf("print-obs-context metafits_file [data_files...]\n");
-    exit(0);
 }
 
 int main(int argc, char *argv[])
@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
     {
         printf("At least one file is needed (if only one, it should be the metafits file).\n");
         print_usage();
+        exit(EXIT_FAILURE);
     }
 
     // Allocate buffer for any error messages
@@ -42,14 +43,25 @@ int main(int argc, char *argv[])
         if (mwalib_metafits_context_new2(argv[1], &metafits_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
         {
             printf("Error getting metafits context: %s\n", error_message);
-            exit(-1);
+            free(error_message);
+            exit(EXIT_FAILURE);
         }
 
+        // Allocate buffer space for the display info
+        char *display_message = malloc(DISPLAY_MESSAGE_LEN * sizeof(char));
+
         // print metafits context info
-        if (mwalib_metafits_context_display(metafits_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+        if (mwalib_metafits_context_display(metafits_context, display_message, DISPLAY_MESSAGE_LEN, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
         {
             printf("Error displaying metafits context info: %s\n", error_message);
-            exit(-1);
+            free(error_message);
+            free(display_message);
+            exit(EXIT_FAILURE);
+        }
+        else
+        {
+            printf("%s\n", display_message);
+            free(display_message);
         }
     }
     else
@@ -57,18 +69,15 @@ int main(int argc, char *argv[])
         // Determine file type from first data file
         if (strcmp(strrchr(argv[2], '\0') - 5, ".fits") == 0)
         {
-            // Correlator files
-            const char **files = malloc(sizeof(char *) * (argc - 2));
-            for (int i = 0; i < argc - 2; i++)
-            {
-                files[i] = argv[i + 2];
-            }
+            // Allocate buffer space for the display info
+            char *display_message = malloc(DISPLAY_MESSAGE_LEN * sizeof(char));
 
             // Create correlator context
-            if (mwalib_correlator_context_new(argv[1], files, file_count - 1, &correlator_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+            if (mwalib_correlator_context_new(argv[1], (const char **)argv[2], file_count - 1, &correlator_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error getting correlator context: %s\n", error_message);
-                exit(-1);
+                free(error_message);
+                exit(EXIT_FAILURE);
             }
 
             // Get correlator metadata
@@ -76,14 +85,21 @@ int main(int argc, char *argv[])
             if (mwalib_correlator_metadata_get(correlator_context, &corr_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error retrieving correlator metadata info: %s\n", error_message);
-                exit(-1);
+                free(error_message);
+                exit(EXIT_FAILURE);
             }
 
             // print correlator context info
-            if (mwalib_correlator_context_display(correlator_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+            if (mwalib_correlator_context_display(correlator_context, display_message, DISPLAY_MESSAGE_LEN, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error displaying context info: %s\n", error_message);
-                exit(-1);
+                free(error_message);
+                exit(EXIT_FAILURE);
+            }
+            else
+            {
+                printf("%s\n", display_message);
+                free(display_message);
             }
 
             printf("\n\nExample of accessing Correlator Metadata:\n");
@@ -107,23 +123,17 @@ int main(int argc, char *argv[])
 
             // Clean up metadata
             mwalib_correlator_metadata_free(corr_metadata);
-
-            free(files);
         }
         else if (strcmp(strrchr(argv[2], '\0') - 4, ".sub") == 0 || strcmp(strrchr(argv[2], '\0') - 4, ".dat") == 0)
         {
-            // Voltage files
-            const char **files = malloc(sizeof(char *) * (argc - 2));
-            for (int i = 0; i < argc - 2; i++)
-            {
-                files[i] = argv[i + 2];
-            }
+            // Allocate buffer space for the display info
+            char *display_message = malloc(DISPLAY_MESSAGE_LEN * sizeof(char));
 
             // Create correlator context
-            if (mwalib_voltage_context_new(argv[1], files, file_count - 1, &voltage_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+            if (mwalib_voltage_context_new(argv[1], (const char **)argv[2], file_count - 1, &voltage_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error getting correlator context: %s\n", error_message);
-                exit(-1);
+                exit(EXIT_FAILURE);
             }
 
             // Get voltage metadata
@@ -131,14 +141,19 @@ int main(int argc, char *argv[])
             if (mwalib_voltage_metadata_get(voltage_context, &volt_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error retrieving voltage metadata info: %s\n", error_message);
-                exit(-1);
+                exit(EXIT_FAILURE);
             }
 
             // print voltage context info
-            if (mwalib_voltage_context_display(voltage_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+            if (mwalib_voltage_context_display(voltage_context, display_message, DISPLAY_MESSAGE_LEN, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
             {
                 printf("Error displaying voltage context info: %s\n", error_message);
-                exit(-1);
+                exit(EXIT_FAILURE);
+            }
+            else
+            {
+                printf("%s\n", display_message);
+                free(display_message);
             }
 
             printf("\n\nExample of accessing Voltage Metadata:\n");
@@ -163,14 +178,13 @@ int main(int argc, char *argv[])
 
             // Clean up metadata
             mwalib_voltage_metadata_free(volt_metadata);
-
-            free(files);
         }
         else
         {
             // Unknown files!
             printf("Error- provided data files must be .fits, .dat or .sub!\n");
-            exit(-1);
+            free(error_message);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -181,20 +195,42 @@ int main(int argc, char *argv[])
 
     if (mwalib_metafits_metadata_get(metafits_context, correlator_context, voltage_context, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
     {
+        size_t index = 0;
+
         // print a baseline
-        printf("Baseline index 1: %ld vs %ld\n", metafits_metadata->baselines[1].ant1_index, metafits_metadata->baselines[1].ant2_index);
+        if (metafits_metadata->num_baselines > 0)
+        {
+            index = metafits_metadata->num_baselines - 1;
+            printf("Baseline index %ld: %ld vs %ld\n", index, metafits_metadata->baselines[index].ant1_index, metafits_metadata->baselines[index].ant2_index);
+        }
 
         // print an rfinput
-        printf("RF Input index 1: ant index: %d, tile_id: %d name: %s pol: %s\n", metafits_metadata->rf_inputs[1].ant, metafits_metadata->rf_inputs[1].tile_id, metafits_metadata->rf_inputs[1].tile_name, metafits_metadata->rf_inputs[1].pol);
+        if (metafits_metadata->num_rf_inputs > 0)
+        {
+            index = metafits_metadata->num_rf_inputs - 1;
+            printf("RF Input index %ld: ant index: %d, tile_id: %d name: %s pol: %s\n", index, metafits_metadata->rf_inputs[index].ant, metafits_metadata->rf_inputs[index].tile_id, metafits_metadata->rf_inputs[index].tile_name, metafits_metadata->rf_inputs[index].pol);
+        }
 
         // print a antenna
-        printf("Ant index 1: %d name: %s elec len (m): %f\n", metafits_metadata->antennas[1].tile_id, metafits_metadata->antennas[1].tile_name, metafits_metadata->antennas[1].electrical_length_m);
+        if (metafits_metadata->num_ants > 0)
+        {
+            index = metafits_metadata->num_ants - 1;
+            printf("Ant index %ld: %d name: %s elec len (m): %f\n", index, metafits_metadata->antennas[index].tile_id, metafits_metadata->antennas[index].tile_name, metafits_metadata->antennas[index].electrical_length_m);
+        }
 
         // print a coarse channel
-        printf("Metafits Coarse channel index 1: receiver channel: %ld (centre = %f MHz)\n", metafits_metadata->metafits_coarse_chans[1].rec_chan_number, (float)metafits_metadata->metafits_coarse_chans[1].chan_centre_hz / 1000000.);
+        if (metafits_metadata->num_metafits_coarse_chans > 0)
+        {
+            index = metafits_metadata->num_metafits_coarse_chans - 1;
+            printf("Metafits Coarse channel index %ld: receiver channel: %ld (centre = %f MHz)\n", index, metafits_metadata->metafits_coarse_chans[index].rec_chan_number, (float)metafits_metadata->metafits_coarse_chans[index].chan_centre_hz / 1000000.);
+        }
 
         // print a timestep
-        printf("Metafits Timestep index 2: GPS Time = %f  (UNIX time: %f)\n", (double)metafits_metadata->metafits_timesteps[2].gps_time_ms / 1000., (double)metafits_metadata->metafits_timesteps[2].unix_time_ms / 1000.);
+        if (metafits_metadata->num_metafits_timesteps > 0)
+        {
+            index = metafits_metadata->num_metafits_timesteps - 1;
+            printf("Metafits Timestep index %ld: GPS Time = %f  (UNIX time: %f)\n", index, (double)metafits_metadata->metafits_timesteps[index].gps_time_ms / 1000., (double)metafits_metadata->metafits_timesteps[index].unix_time_ms / 1000.);
+        }
 
         // print the start time UTC and sched start unix time
         printf("Scheduled start time (UNIX): %f\n", metafits_metadata->sched_start_unix_time_ms / 1000.0);
@@ -208,7 +244,6 @@ int main(int argc, char *argv[])
         if (strftime(utc_start_string, sizeof(utc_start_string), date_format, utc_start_timeinfo) == 0)
         {
             printf("Error formatting sched_start_utc value.");
-            return -1;
         }
         else
         {
@@ -218,12 +253,13 @@ int main(int argc, char *argv[])
         // Print any signal chain corrections
         printf("Num signal chain corrections: %ld\n", metafits_metadata->num_signal_chain_corrections);
 
-        for (int s=0; s<metafits_metadata->num_signal_chain_corrections; s++) {
-            printf("...[%d] Receiver Type: %d Whitening filter: %d Correction[0]: %f, Correction[255]: %f\n", s, 
-            metafits_metadata->signal_chain_corrections[s].receiver_type, 
-            metafits_metadata->signal_chain_corrections[s].whitening_filter,
-            metafits_metadata->signal_chain_corrections[s].corrections[0],
-            metafits_metadata->signal_chain_corrections[s].corrections[255]);
+        for (size_t s = 0; s < metafits_metadata->num_signal_chain_corrections; s++)
+        {
+            printf("...[%ld] Receiver Type: %d Whitening filter: %d Correction[0]: %f, Correction[255]: %f\n", s,
+                   metafits_metadata->signal_chain_corrections[s].receiver_type,
+                   metafits_metadata->signal_chain_corrections[s].whitening_filter,
+                   metafits_metadata->signal_chain_corrections[s].corrections[0],
+                   metafits_metadata->signal_chain_corrections[s].corrections[metafits_metadata->signal_chain_corrections[s].num_corrections - 1]);
         }
 
         // Clean up metadata

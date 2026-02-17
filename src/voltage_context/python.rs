@@ -34,8 +34,7 @@ impl VoltageContext {
             .into_iter()
             .map(|g| g.to_string())
             .collect();
-        let c: VoltageContext =
-            VoltageContext::new(metafits_filename.to_string(), &voltage_filenames)?;
+        let c: VoltageContext = VoltageContext::new(metafits_filename, &voltage_filenames)?;
         Ok(c)
     }
 

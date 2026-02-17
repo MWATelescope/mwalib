@@ -3,8 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Structs and helper methods for antenna metadata
-
-use crate::rfinput::*;
+use crate::{rfinput::*, types::Pol};
+pub mod ffi;
 use std::fmt;
 
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
@@ -19,9 +19,9 @@ mod test;
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all)
+    pyclass(get_all, set_all, from_py_object)
 )]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Antenna {
     /// This is the antenna number.
     /// Nominally this is the field we sort by to get the desired output order of antenna.
@@ -113,7 +113,7 @@ impl Antenna {
     }
 }
 
-/// Implements fmt::Debug for Antenna struct
+/// Implements fmt::Display for Antenna struct
 ///
 /// # Arguments
 ///
@@ -125,7 +125,7 @@ impl Antenna {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Debug for Antenna {
+impl fmt::Display for Antenna {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.tile_name)
     }

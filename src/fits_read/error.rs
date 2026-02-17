@@ -54,11 +54,11 @@ pub enum FitsError {
     },
 
     /// A generic error associated with the fitsio crate.
-    #[error("{source_file}:{source_line}\n{fits_filename} HDU {hdu_num}: {fits_error}")]
+    #[error("{source_file}:{source_line}\n{fits_filename} HDU {hdu}: {fits_error}")]
     Fitsio {
         fits_error: fitsio::errors::Error,
         fits_filename: PathBuf,
-        hdu_num: usize,
+        hdu: String,
         source_file: &'static str,
         source_line: u32,
     },
@@ -87,7 +87,24 @@ pub enum FitsError {
     CellArray {
         fits_filename: PathBuf,
         hdu_num: usize,
-        row_num: i64,
+        row_num: usize,
+        col_name: String,
+    },
+
+    /// Error when attempting to read a cell string.
+    #[error("{fits_filename} HDU {hdu_num}: Failed to read cell string from column {col_name}, row {row_num} from metafits")]
+    ReadCellString {
+        fits_filename: PathBuf,
+        hdu_num: usize,
+        row_num: usize,
+        col_name: String,
+    },
+
+    /// Error when reading from an MWA metafits table cell and column not found.
+    #[error("{fits_filename} HDU {hdu_num}: Failed to find {col_name} in metafits table")]
+    TableColNotFound {
+        fits_filename: PathBuf,
+        hdu_num: usize,
         col_name: String,
     },
 }

@@ -15,8 +15,6 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
 
-permissions:
-  contents: read
 jobs:
   test_cfitsio_3:
     name: Test cfitsio 3.49 on ${{ matrix.os }}
@@ -25,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
-        os: [ubuntu-latest, ubuntu-22.04-arm, macos-13, macos-14, macos-15] # macos-13 is x86_64, macos-14 & 15 are Arm64
+        os: [ubuntu-latest, ubuntu-22.04-arm, macos-14, macos-15, macos-15-intel] # macos-14 & 15 are Arm64
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
@@ -42,7 +40,7 @@ jobs:
 
     - name: Install cfitsio 3.49
       run: |
-        curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-3.49.tar.gz" -o cfitsio.tar.gz
+        curl "https://ftp.eso.org/pub/dfs/pipelines/libraries/cfitsio/cfitsio-3.49.tar.gz" -o cfitsio.tar.gz
         tar -xf cfitsio.tar.gz
         rm cfitsio.tar.gz
         cd cfitsio-3.49
@@ -68,13 +66,13 @@ jobs:
       run: cargo test --features examples
   
   test_cfitsio_4:
-    name: Test cfitsio 4.5.0 on ${{ matrix.os }}
+    name: Test cfitsio latest on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
-        os: [ubuntu-latest, ubuntu-22.04-arm, macos-13, macos-14, macos-15] # macos-13 is x86_64, macos-14 & 15 are Arm64
+        os: [ubuntu-latest, ubuntu-22.04-arm, macos-14, macos-15, macos-15-intel] # macos-14 & 15 are Arm64
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
@@ -89,12 +87,12 @@ jobs:
       with:          
           toolchain: stable
 
-    - name: Install cfitsio 4.6.3
+    - name: Install cfitsio latest
       run: |
-        curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-4.6.3.tar.gz" -o cfitsio.tar.gz
+        curl "https://codeload.github.com/HEASARC/cfitsio/tar.gz/refs/tags/cfitsio-4.6.3" -o cfitsio.tar.gz
         tar -xf cfitsio.tar.gz
         rm cfitsio.tar.gz
-        cd cfitsio-4.6.3
+        cd cfitsio-cfitsio-4.6.3
         # Enabling SSE2/SSSE3 could cause portability problems, but it's unlikely that anyone
         # is using such a CPU...
         # https://stackoverflow.com/questions/52858556/most-recent-processor-without-support-of-ssse3-instructions

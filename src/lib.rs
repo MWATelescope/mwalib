@@ -8,18 +8,21 @@
 // Public items will be exposed as mwalib::module.
 mod antenna;
 mod baseline;
+mod calibration_fit;
 mod coarse_channel;
 mod convert;
 mod correlator_context;
 mod error;
-mod ffi;
-mod fits_read;
+pub mod ffi;
+pub mod fits_read;
 mod gpubox_files;
 mod metafits_context;
-mod misc;
+pub mod misc;
 mod rfinput;
 mod signal_chain_correction;
 mod timestep;
+mod types;
+mod voltage_beam;
 mod voltage_context;
 mod voltage_files;
 
@@ -46,6 +49,8 @@ pub(crate) const MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS: u64 = 1;
 pub(crate) const MWA_VCS_MWAXV2_SUBFILE_SECONDS: u64 = 8;
 /// Total number of MWA Receiver coarse channels
 pub(crate) const MAX_RECEIVER_CHANNELS: usize = 256;
+/// Maximum number of antennas (tiles) in the MWA
+pub(crate) const MAX_ANTENNAS: usize = 256;
 
 // Include the generated built.rs code into our library
 pub mod built_info {
@@ -56,6 +61,8 @@ pub mod built_info {
 // Re-exports (public to other crates and in a flat structure)
 pub use antenna::Antenna;
 pub use baseline::Baseline;
+pub use calibration_fit::error::CalibrationFitError;
+pub use calibration_fit::CalibrationFit;
 pub use coarse_channel::error::CoarseChannelError;
 pub use coarse_channel::CoarseChannel;
 pub use correlator_context::CorrelatorContext;
@@ -63,13 +70,15 @@ pub use error::MwalibError;
 pub use fits_read::*;
 pub use gpubox_files::GpuboxError;
 pub use metafits_context::error::MetafitsError;
-pub use metafits_context::{
-    CableDelaysApplied, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, VisPol,
-};
+pub use metafits_context::MetafitsContext;
 pub use misc::*;
-pub use rfinput::{error::RfinputError, Pol, ReceiverType, Rfinput};
+pub use rfinput::{error::RfinputError, Rfinput};
 pub use signal_chain_correction::*;
 pub use timestep::TimeStep;
+pub use types::{
+    CableDelaysApplied, GeometricDelaysApplied, MWAMode, MWAVersion, Pol, ReceiverType, VisPol,
+};
+pub use voltage_beam::VoltageBeam;
 pub use voltage_context::VoltageContext;
 pub use voltage_files::error::VoltageFileError;
 

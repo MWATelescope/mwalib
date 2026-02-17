@@ -3,14 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for coarse channel metadata
-
-#[cfg(test)]
 use super::*;
 use float_cmp::*;
 use std::collections::BTreeMap;
 
 // Create a BTree Structure for testing
-#[cfg(test)]
 fn get_gpubox_time_map(sub_map_keys: Vec<usize>) -> GpuboxTimeMap {
     let mut sub_map = BTreeMap::new();
     for i in sub_map_keys {
@@ -22,7 +19,6 @@ fn get_gpubox_time_map(sub_map_keys: Vec<usize>) -> GpuboxTimeMap {
 }
 
 // Create a BTree Structure for testing
-#[cfg(test)]
 fn get_voltage_time_map(sub_map_keys: Vec<usize>) -> VoltageFileTimeMap {
     let mut sub_map = BTreeMap::new();
     for i in sub_map_keys {
@@ -570,10 +566,10 @@ fn test_process_coarse_chans_both_time_maps() {
 }
 
 #[test]
-fn test_coarse_chan_debug() {
+fn test_coarse_chan_display() {
     let cc = CoarseChannel::new(1, 109, 2, 1_280_000);
 
-    assert_eq!(format!("{:?}", cc), "gpu=2 corr=1 rec=109 @ 139.520 MHz");
+    assert_eq!(format!("{}", cc), "gpu=2 corr=1 rec=109 @ 139.520 MHz");
 }
 
 #[test]

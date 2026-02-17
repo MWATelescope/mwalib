@@ -17,6 +17,8 @@ use pyo3::prelude::*;
 #[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
 
+pub mod ffi;
+
 #[cfg(test)]
 mod test;
 
@@ -24,9 +26,9 @@ mod test;
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all)
+    pyclass(get_all, set_all, from_py_object)
 )]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CoarseChannel {
     /// Correlator channel is 0 indexed (0..N-1)
     pub corr_chan_number: usize,
@@ -103,7 +105,7 @@ impl CoarseChannel {
     ///
     /// * A vector containing all of the receiver channel numbers for this observation.
     ///
-    fn get_metafits_coarse_chan_array(metafits_coarse_chans_string: &str) -> Vec<usize> {
+    pub(crate) fn get_metafits_coarse_chan_array(metafits_coarse_chans_string: &str) -> Vec<usize> {
         metafits_coarse_chans_string
             .replace(&['\'', '&'][..], "")
             .split(',')
@@ -172,7 +174,7 @@ impl CoarseChannel {
     ///   The width in Hz of each coarse channel
     ///
     pub(crate) fn populate_coarse_channels(
-        mwa_version: metafits_context::MWAVersion,
+        mwa_version: types::MWAVersion,
         metafits_coarse_chan_vec: &[usize],
         metafits_coarse_chan_width_hz: u32,
         gpubox_time_map: Option<&GpuboxTimeMap>,
@@ -233,7 +235,7 @@ impl CoarseChannel {
                                 }
                             }
                         }
-                        _ => match voltage_time_map {
+                        None => match voltage_time_map {
                             Some(v) => {
                                 if let Some((_, channel_map)) = v.iter().next() {
                                     if channel_map.contains_key(rec_chan_number) {
@@ -248,7 +250,7 @@ impl CoarseChannel {
                             }
                             // If no timemap has been passed in, we are populating based on metafits only.
                             // Need to do different behaviour for coarse channels for LegacyVCS vs CorrLegacy and CorrOldLegacy
-                            _ => match mwa_version {
+                            None => match mwa_version {
                                 MWAVersion::CorrLegacy | MWAVersion::CorrOldLegacy => coarse_chans
                                     .push(CoarseChannel::new(
                                         correlator_chan_number,
@@ -269,7 +271,10 @@ impl CoarseChannel {
                         },
                     }
                 }
-                MWAVersion::CorrMWAXv2 | MWAVersion::VCSMWAXv2 => {
+                MWAVersion::CorrMWAXv2
+                | MWAVersion::VCSMWAXv2
+                | MWAVersion::CorrBeamformerMWAXv2
+                | MWAVersion::BeamformerMWAXv2 => {
                     // If we have the correlator channel number, then add it to
                     // the output vector.
                     match gpubox_time_map {
@@ -285,7 +290,7 @@ impl CoarseChannel {
                                 }
                             }
                         }
-                        _ => match voltage_time_map {
+                        None => match voltage_time_map {
                             Some(v) => {
                                 if let Some((_, channel_map)) = v.iter().next() {
                                     if channel_map.contains_key(rec_chan_number) {
@@ -298,7 +303,7 @@ impl CoarseChannel {
                                     }
                                 }
                             }
-                            _ => coarse_chans.push(CoarseChannel::new(
+                            None => coarse_chans.push(CoarseChannel::new(
                                 correlator_chan_number,
                                 *rec_chan_number,
                                 *rec_chan_number,
@@ -399,7 +404,10 @@ impl CoarseChannel {
                 32 => 15_000.0, // 40 kHz corr mode needs a 15 kHz offset applied
                 _ => 0.0,       // other modes (10kHz) does not need any offset applied
             },
-            MWAVersion::CorrMWAXv2 | MWAVersion::VCSMWAXv2 => 0.0,
+            MWAVersion::CorrMWAXv2
+            | MWAVersion::VCSMWAXv2
+            | MWAVersion::BeamformerMWAXv2
+            | MWAVersion::CorrBeamformerMWAXv2 => 0.0,
         };
 
         // We need a factor based on whether the number of fine channels per coarse is even or odd
@@ -424,8 +432,7 @@ impl CoarseChannel {
     }
 }
 
-/// Implements fmt::Debug for
-///CoarseChannel struct
+/// Implements fmt::Display for CoarseChannel struct
 ///
 /// # Arguments
 ///
@@ -437,7 +444,7 @@ impl CoarseChannel {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Debug for CoarseChannel {
+impl fmt::Display for CoarseChannel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

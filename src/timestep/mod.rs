@@ -3,13 +3,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Structs and helper methods for timestep metadata
-
 use crate::gpubox_files::GpuboxTimeMap;
 use crate::misc;
 use crate::voltage_files::VoltageFileTimeMap;
-use crate::{metafits_context, MWAVersion, MetafitsContext};
+use crate::{MWAVersion, MetafitsContext};
 use crate::{MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS, MWA_VCS_MWAXV2_SUBFILE_SECONDS};
 use std::fmt;
+
+pub mod ffi;
 
 #[cfg(test)]
 mod test;
@@ -24,9 +25,9 @@ use pyo3_stub_gen_derive::gen_stub_pyclass;
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all)
+    pyclass(get_all, set_all, from_py_object)
 )]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TimeStep {
     /// UNIX time (in milliseconds to avoid floating point inaccuracy)
     pub unix_time_ms: u64,
@@ -299,7 +300,7 @@ impl TimeStep {
     ///
     pub(crate) fn populate_timesteps(
         metafits_context: &MetafitsContext,
-        mwa_version: metafits_context::MWAVersion,
+        mwa_version: MWAVersion,
         start_gps_time_ms: u64,
         duration_ms: u64,
         scheduled_starttime_gps_ms: u64,
@@ -307,11 +308,15 @@ impl TimeStep {
     ) -> Vec<Self> {
         // Determine the interval between timesteps
         let interval_ms: u64 = match mwa_version {
-            MWAVersion::CorrOldLegacy | MWAVersion::CorrLegacy | MWAVersion::CorrMWAXv2 => {
-                metafits_context.corr_int_time_ms
-            }
+            MWAVersion::CorrOldLegacy
+            | MWAVersion::CorrLegacy
+            | MWAVersion::CorrMWAXv2
+            | MWAVersion::CorrBeamformerMWAXv2 => metafits_context.corr_int_time_ms,
             MWAVersion::VCSLegacyRecombined => MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS * 1000,
             MWAVersion::VCSMWAXv2 => MWA_VCS_MWAXV2_SUBFILE_SECONDS * 1000,
+            MWAVersion::BeamformerMWAXv2 => {
+                panic!("BeamformerMWAXv2 timestep population not yet implemented")
+            }
         };
 
         // Init our vector
@@ -368,7 +373,7 @@ impl TimeStep {
     }
 }
 
-/// Implements fmt::Debug for TimeStep struct
+/// Implements fmt::Display for TimeStep struct
 ///
 /// # Arguments
 ///
@@ -380,7 +385,7 @@ impl TimeStep {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Debug for TimeStep {
+impl fmt::Display for TimeStep {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

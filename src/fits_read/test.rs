@@ -3,8 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for fits reading functions
-
-#[cfg(test)]
 use super::*;
 use crate::misc::test::*;
 use crate::*;
@@ -169,7 +167,7 @@ fn test_get_fits_image_invalid() {
             FitsError::Fitsio {
                 fits_error: _,
                 fits_filename: _,
-                hdu_num: _,
+                hdu: _,
                 source_file: _,
                 source_line: _
             }
@@ -997,4 +995,94 @@ fn test_read_cell_array_f64() {
 #[test]
 fn test_is_fitsio_reentrant() {
     assert!(is_fitsio_reentrant())
+}
+
+#[test]
+fn test_read_cell_string() {
+    let metafits_filename = "test_files/metafits_signal_chain_corr/1096952256_metafits.fits";
+    let mut fptr = fits_open!(&metafits_filename).unwrap();
+    let hdu = fits_open_hdu_by_name!(&mut fptr, "SIGCHAINDATA").unwrap();
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 0);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("RRI"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::RRI);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 1);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("RRI"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::RRI);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 2);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("NI"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::NI);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 3);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("NI"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::NI);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 4);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("SHAO"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::SHAO);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 5);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("SHAO"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::SHAO);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 6);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("PSEUDO"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::Pseudo);
+
+    let result_value: Result<String, FitsError> =
+        read_cell_string(&mut fptr, &hdu, "Receiver_type", 7);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert_eq!(value, String::from("PSEUDO"));
+    assert_eq!(value.parse::<ReceiverType>().unwrap(), ReceiverType::Pseudo);
+}
+
+#[test]
+fn test_read_optional_cell_string_value_empty_string() {
+    let metafits_filename = "test_files/1449798840_bf/1449798840_metafits.fits";
+    let mut fptr = fits_open!(&metafits_filename).unwrap();
+    let hdu = fits_open_hdu_by_name!(&mut fptr, "VOLTAGEBEAMS").unwrap();
+
+    let result_value: Result<Option<String>, FitsError> =
+        read_optional_cell_string_value(&mut fptr, &hdu, "channel_set", 0);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert!(value.is_none());
+}
+
+#[test]
+fn test_read_optional_cell_string_value_nonempty_string() {
+    let metafits_filename = "test_files/metafits_signal_chain_corr/1096952256_metafits.fits";
+    let mut fptr = fits_open!(&metafits_filename).unwrap();
+    let hdu = fits_open_hdu_by_name!(&mut fptr, "SIGCHAINDATA").unwrap();
+
+    let result_value: Result<Option<String>, FitsError> =
+        read_optional_cell_string_value(&mut fptr, &hdu, "Receiver_type", 0);
+    assert!(result_value.is_ok());
+    let value = result_value.unwrap();
+    assert!(value.is_some());
+    assert_eq!(value.unwrap(), String::from("RRI"));
 }

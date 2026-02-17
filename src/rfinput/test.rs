@@ -3,11 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for rfinput metadata
-
-#[cfg(test)]
 use super::*;
-use crate::misc::test::*;
-use crate::*;
+use crate::{
+    fits_open, fits_open_hdu, test::with_new_temp_fits_file, MWAVersion, MetafitsContext,
+    MAX_RECEIVER_CHANNELS,
+};
 use fitsio::tables::{ColumnDataType, ColumnDescription};
 use float_cmp::*;
 
@@ -206,7 +206,7 @@ fn test_populate_rf_inputs() {
     let result = Rfinput::populate_rf_inputs(
         256,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &None,
@@ -286,7 +286,7 @@ fn test_populate_rf_inputs_newer_metafits() {
     let result = Rfinput::populate_rf_inputs(
         256,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &None,
@@ -328,7 +328,7 @@ fn test_flavor_and_whitening_filter() {
     let result = Rfinput::populate_rf_inputs(
         290,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &None,
@@ -366,7 +366,7 @@ fn test_populate_rf_inputs_calib_metafits() {
     let result = Rfinput::populate_rf_inputs(
         256,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &None,
@@ -407,11 +407,13 @@ fn test_populate_rf_inputs_sig_chain_in_metafits() {
         SignalChainCorrection {
             receiver_type: ReceiverType::RRI,
             whitening_filter: false,
+            num_corrections: all_ones.len(),
             corrections: all_ones,
         },
         SignalChainCorrection {
             receiver_type: ReceiverType::RRI,
             whitening_filter: true,
+            num_corrections: all_twos.len(),
             corrections: all_twos,
         },
     ];
@@ -419,7 +421,7 @@ fn test_populate_rf_inputs_sig_chain_in_metafits() {
     let result = Rfinput::populate_rf_inputs(
         256,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &Some(sig_chain_corrs),
@@ -448,7 +450,7 @@ fn test_populate_rf_inputs_sig_chain_not_in_metafits() {
     let result = Rfinput::populate_rf_inputs(
         256,
         &mut metafits_fptr,
-        metafits_tile_table_hdu,
+        &metafits_tile_table_hdu,
         1.204,
         24,
         &None,

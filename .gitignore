@@ -1,5 +1,7 @@
+Cargo.lock
 /.idea/
 target
+/examples/build/
 /examples/sum-all-hdus
 /examples/mwalib-print-context
 /examples/mwalib-sum-all-hdus
@@ -18,6 +20,7 @@ ccov.zip
 /test_files/1101503312_vcs/*.dat
 /test_files/1370755832_mwax_vcs_os/*.sub
 /test_files/1380365160/*.sub
+test_files/1363085416/*.sub
 .coverage
 .python-version
 __pycache__

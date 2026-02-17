@@ -60,5 +60,5 @@ jobs:
           pip3 install maturin pytest
 
           echo "Build mwalib python module and test"
-          maturin develop --all-features --strip
+          maturin develop --features=cfitsio-static,examples,python --strip
           pytest 

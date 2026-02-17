@@ -3,8 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for timestep metadata
-
-#[cfg(test)]
 use super::*;
 use crate::gpubox_files::GpuboxTimeMap;
 use crate::MetafitsContext;
@@ -17,7 +15,6 @@ use std::collections::BTreeMap;
 /// * GpuboxTimeMap of correlator data files
 /// * Option, containing a populated Vector of correlator timesteps (or None). This is what we are checking for validity.
 ///
-#[cfg(test)]
 fn create_corr_timestep_testdata(
     scheduled_start_unix_ms: u64,
     scheduled_start_gpstime_ms: u64,

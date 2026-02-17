@@ -46,7 +46,7 @@ jobs:
         uses: PyO3/maturin-action@v1        
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --all-features --out dist -i 3.10 3.11 3.12 3.13 3.14
+          args: --release --features=cfitsio-static,examples,python --out dist -i 3.10 3.11 3.12 3.13 3.14
           manylinux: auto
 
       - name: Upload linux wheels
@@ -136,7 +136,7 @@ jobs:
         uses: PyO3/maturin-action@v1        
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --all-features --out dist -i 3.10 3.11 3.12 3.13 3.14
+          args: --release --features=cfitsio-static,examples,python --out dist -i 3.10 3.11 3.12 3.13 3.14
 
       - name: Upload macos wheels
         uses: actions/upload-artifact@v4
@@ -194,9 +194,7 @@ jobs:
           if-no-files-found: error
 
   create-github-release:
-    name: Create a new github release
-    permissions:
-      contents: write
+    name: Create a new github release    
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -275,12 +273,12 @@ jobs:
         # writing. With feature cfitsio-static, it has to build cfitsio which
         # involves writing so have to build without that feature when pushing
         # to crates.io
-        - name: Install cfitsio 3.49
+        - name: Install cfitsio 4.6.3
           run: |
-            curl "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-3.49.tar.gz" -o cfitsio.tar.gz
+            curl "https://codeload.github.com/HEASARC/cfitsio/tar.gz/refs/tags/cfitsio-4.6.3" -o cfitsio.tar.gz
             tar -xf cfitsio.tar.gz
             rm cfitsio.tar.gz
-            cd cfitsio-3.49
+            cd cfitsio-cfitsio-4.6.3
             # Enabling SSE2/SSSE3 could cause portability problems, but it's unlikely that anyone
             # is using such a CPU...
             # https://stackoverflow.com/questions/52858556/most-recent-processor-without-support-of-ssse3-instructions
@@ -292,7 +290,7 @@ jobs:
             sudo ldconfig    
 
             cd ..
-            rm -rf cfitsio-3.49
+            rm -rf cfitsio-cfitsio-4.6.3
           
         - name: Build on latest stable rust
           run: cargo build --release --features examples

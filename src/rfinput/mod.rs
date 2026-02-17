@@ -7,16 +7,19 @@
 pub mod error;
 use crate::misc::{has_whitening_filter, vec_compare_f32, vec_compare_f64};
 use crate::signal_chain_correction::SignalChainCorrection;
+use crate::types::{Pol, ReceiverType};
 use crate::{fits_open_hdu_by_name, fits_read::*};
 use core::f32;
 use error::RfinputError;
 use fitsio::FitsFile;
 use std::fmt;
 
+pub mod ffi;
+
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
 #[cfg(feature = "python-stubgen")]
-use pyo3_stub_gen_derive::{gen_stub_pyclass, gen_stub_pyclass_enum};
+use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 #[cfg(test)]
 mod test;
@@ -89,43 +92,6 @@ fn get_electrical_length(metafits_length_string: String, coax_v_factor: f64) -> 
     }
 }
 
-/// Instrument polarisation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
-)]
-#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
-pub enum Pol {
-    X,
-    Y,
-}
-
-/// Implements fmt::Display for Pol
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for Pol {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Pol::X => "X",
-                Pol::Y => "Y",
-            }
-        )
-    }
-}
-
 /// Structure to hold one row of the metafits tiledata table
 struct RfInputMetafitsTableRow {
     /// This is the ordinal index of the rf_input in the metafits file
@@ -177,81 +143,6 @@ struct RfInputMetafitsTableRow {
     whitening_filter: i32,
 }
 
-/// ReceiverType enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(C)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
-)]
-#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
-#[allow(clippy::upper_case_acronyms)]
-pub enum ReceiverType {
-    Unknown,
-    RRI,
-    NI,
-    Pseudo,
-    SHAO,
-    EDA2,
-}
-
-/// Implements fmt::Display for ReceiverType
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for ReceiverType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                ReceiverType::Unknown => "Unknown",
-                ReceiverType::RRI => "RRI",
-                ReceiverType::NI => "NI",
-                ReceiverType::Pseudo => "Pseudo",
-                ReceiverType::SHAO => "SHAO",
-                ReceiverType::EDA2 => "EDA2",
-            }
-        )
-    }
-}
-
-/// Implements str::FromStr for ReceiverType enum.
-/// Non uppercase values are coverted to uppercase for comparision.
-///
-/// # Arguments
-///
-/// * `input` - A &str which we want to convert to an enum
-///
-///
-/// # Returns
-///
-/// * `Result<ReceiverType, Err>` - Result of this method
-///
-///
-impl std::str::FromStr for ReceiverType {
-    type Err = ();
-
-    fn from_str(input: &str) -> Result<ReceiverType, Self::Err> {
-        match input.to_uppercase().as_str() {
-            "RRI" => Ok(ReceiverType::RRI),
-            "NI" => Ok(ReceiverType::NI),
-            "PSEUDO" => Ok(ReceiverType::Pseudo),
-            "SHAO" => Ok(ReceiverType::SHAO),
-            "EDA2" => Ok(ReceiverType::EDA2),
-            _ => Ok(ReceiverType::Unknown),
-        }
-    }
-}
-
 /// Structure to hold one row of the metafits calibdata table
 struct RfInputMetafitsCalibDataTableRow {
     /// This is the ordinal index of the rf_input in the metafits file
@@ -267,9 +158,9 @@ struct RfInputMetafitsCalibDataTableRow {
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all)
+    pyclass(get_all, set_all, from_py_object)
 )]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Rfinput {
     /// This is the metafits order (0-n inputs)
     pub input: u32,
@@ -408,9 +299,9 @@ impl Rfinput {
         let input = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Input", row)?;
         let antenna = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Antenna", row)?;
         let tile_id = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Tile", row)?;
-        let tile_name = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "TileName", row)?;
+        let tile_name = read_cell_string(metafits_fptr, metafits_tile_table_hdu, "TileName", row)?;
         let pol = {
-            let p: String = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Pol", row)?;
+            let p: String = read_cell_string(metafits_fptr, metafits_tile_table_hdu, "Pol", row)?;
             match p.as_str() {
                 "X" => Pol::X,
                 "Y" => Pol::Y,
@@ -426,7 +317,7 @@ impl Rfinput {
         };
         // Length is stored as a string (no one knows why) starting with "EL_" the rest is a float so remove the prefix and get the float
         let length_string: String =
-            read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Length", row)?;
+            read_cell_string(metafits_fptr, metafits_tile_table_hdu, "Length", row)?;
         let north_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "North", row)?;
         let east_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "East", row)?;
         let height_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Height", row)?;
@@ -438,20 +329,15 @@ impl Rfinput {
             metafits_fptr,
             metafits_tile_table_hdu,
             "Gains",
-            row as i64,
+            row,
             num_coarse_chans,
         )?
         .iter()
         .map(|gains| *gains as f64 / 64.0)
         .collect();
 
-        let dipole_delays = read_cell_array_u32(
-            metafits_fptr,
-            metafits_tile_table_hdu,
-            "Delays",
-            row as i64,
-            16,
-        )?;
+        let dipole_delays =
+            read_cell_array_u32(metafits_fptr, metafits_tile_table_hdu, "Delays", row, 16)?;
         let rx = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Rx", row)?;
         let slot = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Slot", row)?;
 
@@ -464,7 +350,7 @@ impl Rfinput {
         // if it does not exist, don't panic, just return
         // en empty string. The enum value will end up
         // being set to ReceiverType::Unknown
-        let rx_type: String = read_cell_value(
+        let rx_type: String = read_cell_string(
             metafits_fptr,
             metafits_tile_table_hdu,
             "Receiver_Types",
@@ -476,7 +362,7 @@ impl Rfinput {
         // if it does not exist, don't panic, just return
         // en empty string.
         let flavour: String =
-            read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flavors", row)
+            read_cell_string(metafits_fptr, metafits_tile_table_hdu, "Flavors", row)
                 .unwrap_or_default();
 
         // If not present (pre-Jul 2024 metafits), return -1
@@ -536,9 +422,9 @@ impl Rfinput {
         if let Some(metafits_cal_hdu) = metafits_calibdata_table_hdu {
             let antenna = read_cell_value(metafits_fptr, metafits_cal_hdu, "Antenna", row)?;
             let tile_id = read_cell_value(metafits_fptr, metafits_cal_hdu, "Tile", row)?;
-            let tile_name = read_cell_value(metafits_fptr, metafits_cal_hdu, "TileName", row)?;
+            let tile_name = read_cell_string(metafits_fptr, metafits_cal_hdu, "TileName", row)?;
             let pol = {
-                let p: String = read_cell_value(metafits_fptr, metafits_cal_hdu, "Pol", row)?;
+                let p: String = read_cell_string(metafits_fptr, metafits_cal_hdu, "Pol", row)?;
                 match p.as_str() {
                     "X" => Pol::X,
                     "Y" => Pol::Y,
@@ -561,7 +447,7 @@ impl Rfinput {
                 metafits_fptr,
                 metafits_cal_hdu,
                 "Calib_Gains",
-                row as i64,
+                row,
                 num_coarse_chans,
             )?;
 
@@ -600,7 +486,7 @@ impl Rfinput {
     pub(crate) fn populate_rf_inputs(
         num_inputs: usize,
         metafits_fptr: &mut FitsFile,
-        metafits_tile_table_hdu: fitsio::hdu::FitsHdu,
+        metafits_tile_table_hdu: &fitsio::hdu::FitsHdu,
         coax_v_factor: f64,
         num_coarse_chans: usize,
         signal_chain_corrections: &Option<Vec<SignalChainCorrection>>,
@@ -617,7 +503,7 @@ impl Rfinput {
             // Note fits row numbers start at 1
             let metafits_row = Self::read_metafits_tiledata_values(
                 metafits_fptr,
-                &metafits_tile_table_hdu,
+                metafits_tile_table_hdu,
                 input,
                 num_coarse_chans,
             )?;
@@ -702,7 +588,7 @@ impl Rfinput {
     }
 }
 
-/// Implements fmt::Debug for RFInput struct
+/// Implements fmt::Display for RFInput struct
 ///
 /// # Arguments
 ///
@@ -714,7 +600,7 @@ impl Rfinput {
 /// * `fmt::Result` - Result of this method
 ///
 ///
-impl fmt::Debug for Rfinput {
+impl fmt::Display for Rfinput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.tile_name, self.pol)
     }

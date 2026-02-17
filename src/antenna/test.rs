@@ -3,9 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for antenna metadata
-
-#[cfg(test)]
 use super::*;
+use crate::types::ReceiverType;
 use float_cmp::*;
 
 #[test]
@@ -253,7 +252,7 @@ fn test_populate_antennas() {
 }
 
 #[test]
-fn test_antenna_debug() {
+fn test_antenna_display() {
     // Create some rf_inputs
     let rf_inputs: Vec<Rfinput> = vec![
         Rfinput {
@@ -311,5 +310,5 @@ fn test_antenna_debug() {
     // Call populate
     let antennas = Antenna::populate_antennas(&rf_inputs);
 
-    assert_eq!(format!("{:?}", antennas[0]), "Tile101");
+    assert_eq!(format!("{:}", antennas[0]), "Tile101");
 }

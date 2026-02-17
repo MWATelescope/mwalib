@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! The main interface to MWA voltage data.
-
 use crate::coarse_channel::*;
 use crate::error::*;
 use crate::metafits_context::*;
@@ -23,8 +22,12 @@ use pyo3_stub_gen_derive::gen_stub_pyclass;
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 mod python;
 
+pub(crate) mod ffi;
+
 #[cfg(test)]
-pub(crate) mod test; // It's pub crate because I reuse some test code in the ffi tests.
+pub mod ffi_test;
+#[cfg(test)]
+pub mod test; // It's pub crate because I reuse some test code in the ffi tests.
 
 ///
 /// This represents the basic metadata and methods for an MWA voltage capture system (VCS) observation.
@@ -144,8 +147,7 @@ pub struct VoltageContext {
     /// voltage file, which is associated with another `BTreeMap`, associating each
     /// voltage number with a voltage batch number and HDU index. The voltage
     /// number, batch number and HDU index are everything needed to find the
-    /// correct HDU out of all voltage files.
-    #[allow(dead_code)]
+    /// correct HDU out of all voltage files.    
     pub(crate) voltage_time_map: VoltageFileTimeMap,
 }
 
@@ -671,7 +673,7 @@ impl VoltageContext {
             let mut file_handle = File::open(filename).expect("no file found");
 
             // Obtain metadata
-            let metadata = std::fs::metadata(filename).expect("unable to read metadata");
+            let metadata = file_handle.metadata().expect("unable to read metadata");
 
             // Check file is as big as we expect
             if metadata.len() != self.expected_voltage_data_file_size_bytes {
@@ -734,7 +736,7 @@ impl VoltageContext {
         Ok(())
     }
 
-    /// Read a single or multiple seconds of data for a coarse channel
+    /// Read a single or multiple seconds of data for a coarse channel from one file
     ///
     /// # Arguments
     ///
@@ -775,59 +777,33 @@ impl VoltageContext {
                 self.num_coarse_chans - 1,
             ));
         }
+
+        // Determine the GPS time for this timestep
+        let ts_gps = self.timesteps[volt_timestep_index].gps_time_ms / 1000;
+
         // Determine the channel identifier, which we will use later to find the correct data file
         let channel_identifier = self.coarse_chans[volt_coarse_chan_index].gpubox_number;
 
-        // Work out how much to read at once
-        let chunk_size: usize = self.voltage_block_size_bytes as usize; // This will be the size of a voltage block
-
-        // Find the batch relating to the timestep index or None if we don't have any data files for that timestep
-        let batch = &self
-            .voltage_batches
-            .iter()
-            .find(|f| f.gps_time_seconds * 1000 == self.timesteps[volt_timestep_index].gps_time_ms);
-
         // find the filename if the timestep/coarse chan combo exists
-        let filename_result = match batch {
-            Some(b) => b
-                .voltage_files
-                .iter()
-                .find(|f| f.channel_identifier == channel_identifier),
-            None => None,
-        };
+        let filename = self
+            .voltage_time_map
+            .get(&ts_gps)
+            .and_then(|batch_map| batch_map.get(&channel_identifier))
+            .ok_or(VoltageFileError::NoDataForTimeStepCoarseChannel {
+                timestep_index: volt_timestep_index,
+                coarse_chan_index: volt_coarse_chan_index,
+            })?;
 
-        // Get the filename for this timestep and coarse channel
-        let filename: &String = match filename_result {
-            Some(f) => &f.filename,
-            None => {
-                return Err(VoltageFileError::NoDataForTimeStepCoarseChannel {
-                    timestep_index: volt_timestep_index,
-                    coarse_chan_index: volt_coarse_chan_index,
-                });
-            }
-        };
+        // Prepare unsafe cast for zero-copy read
+        let ptr = buffer.as_mut_ptr() as *mut u8;
+        let len = buffer.len();
+        let buffer_u8 = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
 
         // Open the file
-        let mut file_handle = File::open(filename).expect("no file found");
+        let mut fh = File::open(filename).expect("no file found");
 
-        // Obtain metadata
-        let metadata = std::fs::metadata(filename).expect("unable to read metadata");
-
-        // Check file is as big as we expect
-        // normally we would compare the file len to context.expected_voltage_data_file_size_bytes,
-        // but in our tests we override the voltage_block_size_bytes because our test files only have 1 tile
-        // TODO: This should be an Error type
-        assert_eq!(
-            metadata.len(),
-            self.data_file_header_size_bytes
-                + self.delay_block_size_bytes
-                + (self.voltage_block_size_bytes * self.num_voltage_blocks_per_timestep as u64),
-            "header={} + delay={} + vb_size={} + vb_per_ts={}",
-            self.data_file_header_size_bytes,
-            self.delay_block_size_bytes,
-            self.voltage_block_size_bytes,
-            self.num_voltage_blocks_per_timestep
-        );
+        // Normally we would compare the file len to context.expected_voltage_data_file_size_bytes,
+        // but it is already checked in new()
 
         // Check buffer is big enough
         let expected_buffer_size =
@@ -841,47 +817,14 @@ impl VoltageContext {
         }
 
         // Skip header
-        file_handle
-            .by_ref()
+        fh.by_ref()
             .seek(SeekFrom::Start(
                 self.data_file_header_size_bytes + self.delay_block_size_bytes,
             ))
             .expect("Unable to seek to data in voltage file");
 
         // Read the data into the final output buffer in blocks, spaced out with delay blocks (possibly)
-        let mut start_pos: usize = 0;
-        let mut end_pos: usize = chunk_size;
-
-        // Loop until all data is read into our buffer
-        for _ in 0..self.num_voltage_blocks_per_timestep {
-            //let chunk = &mut buffer[start_pos..end_pos];
-            //let bytes_read = reader.by_ref().read(chunk).expect("Error");
-
-            // Our input buffer is &mut [i8] because we want signed data, yet
-            // all the read functions seem to only read as [u8].
-            // So convert the chunk to &mut [u8] then read into it.
-            // This should just be a pointer cast and not cost anything.
-            let chunk: &mut [u8] = unsafe {
-                core::slice::from_raw_parts_mut(
-                    buffer[start_pos..end_pos].as_mut_ptr() as *mut u8,
-                    chunk_size,
-                )
-            };
-
-            //let chunk = &buffer[start_pos..end_pos];
-            //let bytes_read = reader.by_ref().read(&mut chunk).expect("Error");
-            let bytes_read = file_handle
-                .by_ref()
-                .take(chunk_size as u64)
-                .read(chunk)
-                .expect("Unable to read data block in voltage file");
-
-            assert_eq!(bytes_read, chunk_size);
-
-            // Set new start and end pos
-            start_pos = end_pos;
-            end_pos = start_pos + chunk_size;
-        }
+        fh.read_exact(buffer_u8)?;
 
         Ok(())
     }
@@ -903,21 +846,21 @@ impl fmt::Display for VoltageContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            r#"VoltageContext (
+            "VoltageContext (
             Metafits Context:         {metafits_context}
             MWA version:              {corr_ver},            
 
             num timesteps:            {n_timesteps},
-            timesteps:                {timesteps:?},            
+            timesteps:                {timesteps},            
             timestep duration ms:     {timestep_duration_ms} ms,
             num coarse channels,      {n_coarse},
-            coarse channels:          {coarse:?},
+            coarse channels:          {coarse},
 
-            provided timesteps indices:   {num_provided_timesteps}: {provided_timesteps:?},
-            provided coarse chan indices: {num_provided_coarse_chans}: {provided_coarse_chans:?},
+            provided timesteps indices:   {num_provided_timesteps}: {provided_timesteps},
+            provided coarse chan indices: {num_provided_coarse_chans}: {provided_coarse_chans},
 
-            Common timestep indices:    {num_common_timesteps}: {common_ts:?},
-            Common coarse chan indices: {num_common_coarse_chans}: {common_chans:?},
+            Common timestep indices:    {num_common_timesteps}: {common_ts},
+            Common coarse chan indices: {num_common_coarse_chans}: {common_chans},
             Common UNIX start time:     {common_start_unix},
             Common UNIX end time:       {common_end_unix},
             Common GPS start time:      {common_start_gps},
@@ -925,8 +868,8 @@ impl fmt::Display for VoltageContext {
             Common duration:            {common_duration} s,
             Common bandwidth:           {common_bw} MHz,                         
 
-            Common/Good timestep indices:    {num_common_good_timesteps}: {common_good_ts:?},
-            Common/Good coarse chan indices: {num_common_good_coarse_chans}: {common_good_chans:?},
+            Common/Good timestep indices:    {num_common_good_timesteps}: {common_good_ts},
+            Common/Good coarse chan indices: {num_common_good_coarse_chans}: {common_good_chans},
             Common/Good UNIX start time:     {common_good_start_unix},
             Common/Good UNIX end time:       {common_good_end_unix},
             Common/Good GPS start time:      {common_good_start_gps},
@@ -934,7 +877,7 @@ impl fmt::Display for VoltageContext {
             Common/Good duration:            {common_good_duration} s,
             Common/Good bandwidth:           {common_good_bw} MHz,
 
-            fine channel resolution:  {fcw} Hz,
+            fine channel resolution:  {fcw} kHz,
             num fine channels/coarse: {nfcpc},
 
             Number of bytes/sample:          {ssb} bytes,
@@ -947,17 +890,17 @@ impl fmt::Display for VoltageContext {
             Expected voltage data file size: {evdfsb} bytes,
             
             voltage batches:          {batches:#?},
-        )"#,
+        )",
             metafits_context = self.metafits_context,
             corr_ver = self.mwa_version,
             n_timesteps = self.num_timesteps,
-            timesteps = self.timesteps,
+            timesteps = pretty_print_vec(&self.timesteps, 5),
             timestep_duration_ms = self.timestep_duration_ms,
             n_coarse = self.num_coarse_chans,
-            coarse = self.coarse_chans,
-            common_ts = self.common_timestep_indices,
+            coarse = pretty_print_vec(&self.coarse_chans, 24),
+            common_ts = pretty_print_vec(&self.common_timestep_indices, 5),
             num_common_timesteps = self.num_common_timesteps,
-            common_chans = self.common_coarse_chan_indices,
+            common_chans = pretty_print_vec(&self.common_coarse_chan_indices, 24),
             num_common_coarse_chans = self.num_common_coarse_chans,
             common_start_unix = self.common_start_unix_time_ms as f64 / 1e3,
             common_end_unix = self.common_end_unix_time_ms as f64 / 1e3,
@@ -965,9 +908,9 @@ impl fmt::Display for VoltageContext {
             common_end_gps = self.common_end_gps_time_ms as f64 / 1e3,
             common_duration = self.common_duration_ms as f64 / 1e3,
             common_bw = self.common_bandwidth_hz as f64 / 1e6,
-            common_good_ts = self.common_good_timestep_indices,
+            common_good_ts = pretty_print_vec(&self.common_good_timestep_indices, 5),
             num_common_good_timesteps = self.num_common_good_timesteps,
-            common_good_chans = self.common_good_coarse_chan_indices,
+            common_good_chans = pretty_print_vec(&self.common_good_coarse_chan_indices, 24),
             num_common_good_coarse_chans = self.num_common_good_coarse_chans,
             common_good_start_unix = self.common_good_start_unix_time_ms as f64 / 1e3,
             common_good_end_unix = self.common_good_end_unix_time_ms as f64 / 1e3,
@@ -976,9 +919,9 @@ impl fmt::Display for VoltageContext {
             common_good_duration = self.common_good_duration_ms as f64 / 1e3,
             common_good_bw = self.common_good_bandwidth_hz as f64 / 1e6,
             num_provided_timesteps = self.num_provided_timesteps,
-            provided_timesteps = self.provided_timestep_indices,
+            provided_timesteps = pretty_print_vec(&self.provided_timestep_indices, 5),
             num_provided_coarse_chans = self.num_provided_coarse_chans,
-            provided_coarse_chans = self.provided_coarse_chan_indices,
+            provided_coarse_chans = pretty_print_vec(&self.provided_coarse_chan_indices, 24),
             fcw = self.fine_chan_width_hz as f64 / 1e3,
             nfcpc = self.num_fine_chans_per_coarse,
             ssb = self.sample_size_bytes,

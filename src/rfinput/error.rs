@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
-/// EfinputError subtypes
+/// RfinputError subtypes
 #[derive(Error, Debug)]
 pub enum RfinputError {
     /// Error when reading in a Rfinput's polarisation.

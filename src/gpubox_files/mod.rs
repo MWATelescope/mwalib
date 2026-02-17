@@ -12,7 +12,6 @@ use std::fmt;
 use std::path::Path;
 
 use fitsio::hdu::FitsHdu;
-use rayon::prelude::*;
 use regex::Regex;
 
 use crate::*;
@@ -42,7 +41,7 @@ pub(crate) struct ObsTimesAndChans {
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all)
+    pyclass(get_all, set_all, from_py_object)
 )]
 #[derive(Clone)]
 pub struct GpuBoxBatch {
@@ -76,7 +75,7 @@ impl fmt::Debug for GpuBoxBatch {
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all)
+    pyclass(get_all, set_all, from_py_object)
 )]
 #[derive(Clone)]
 pub struct GpuBoxFile {
@@ -126,22 +125,6 @@ impl std::cmp::PartialEq for TempGpuBoxFile<'_> {
             && self.channel_identifier == other.channel_identifier
             && self.batch_number == other.batch_number
     }
-}
-
-lazy_static::lazy_static! {
-    // MWAX: 1234567890_1234567890123_ch123_123.fits
-    //          obsid   datetime      chan  batch
-    static ref RE_MWAX: Regex =
-        Regex::new(r"\d{10}_\d{8}(.)?\d{6}_ch(?P<channel>\d{3})_(?P<batch>\d{3}).fits").unwrap();
-    // Legacy MWA: 1234567890_1234567890123_gpubox12_12.fits
-    //                 obsid     datetime       chan batch
-    static ref RE_LEGACY_BATCH: Regex =
-        Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2})_(?P<batch>\d{2}).fits").unwrap();
-    // Old Legacy MWA: 1234567890_1234567890123_gpubox12.fits
-    //                    obsid      datetime        chan
-    static ref RE_OLD_LEGACY_FORMAT: Regex =
-        Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2}).fits").unwrap();
-    static ref RE_BAND: Regex = Regex::new(r"\d{10}_\d{14}_(ch|gpubox)(?P<band>\d+)").unwrap();
 }
 
 /// A type alias for a horrible type:
@@ -345,6 +328,20 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
     if gpubox_filenames.is_empty() {
         return Err(GpuboxError::NoGpuboxes);
     }
+
+    // MWAX: 1234567890_1234567890123_ch123_123.fits
+    //          obsid   datetime      chan  batch
+    let re_mwax: Regex =
+        Regex::new(r"\d{10}_\d{8}(.)?\d{6}_ch(?P<channel>\d{3})_(?P<batch>\d{3}).fits").unwrap();
+    // Legacy MWA: 1234567890_1234567890123_gpubox12_12.fits
+    //                 obsid     datetime       chan batch
+    let re_legacy_batch: Regex =
+        Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2})_(?P<batch>\d{2}).fits").unwrap();
+    // Old Legacy MWA: 1234567890_1234567890123_gpubox12.fits
+    //                    obsid      datetime        chan
+    let re_old_legacy_format: Regex =
+        Regex::new(r"\d{10}_\d{14}_gpubox(?P<band>\d{2}).fits").unwrap();
+
     let mut format = None;
     let mut temp_gpuboxes: Vec<TempGpuBoxFile> = Vec::with_capacity(gpubox_filenames.len());
 
@@ -357,7 +354,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
             .as_ref()
             .to_str()
             .expect("gpubox filename is not UTF-8 compliant");
-        match RE_MWAX.captures(g) {
+        match re_mwax.captures(g) {
             Some(caps) => {
                 // Check if we've already matched any files as being the old
                 // format. If so, then we've got a mix, and we should exit
@@ -378,7 +375,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
             }
 
             // Try to match the legacy format.
-            None => match RE_LEGACY_BATCH.captures(g) {
+            None => match re_legacy_batch.captures(g) {
                 Some(caps) => {
                     match format {
                         None => format = Some(MWAVersion::CorrLegacy),
@@ -394,7 +391,7 @@ fn determine_gpubox_batches<T: AsRef<Path>>(
                 }
 
                 // Try to match the old legacy format.
-                None => match RE_OLD_LEGACY_FORMAT.captures(g) {
+                None => match re_old_legacy_format.captures(g) {
                     Some(caps) => {
                         match format {
                             None => format = Some(MWAVersion::CorrOldLegacy),
@@ -617,7 +614,7 @@ fn create_time_map(
     // the temporary gpubox files along with their times. In any case, handling
     // that would be difficult!
     let maps = gpuboxes
-        .into_par_iter()
+        .into_iter()
         .map(|g| {
             let mut fptr = fits_open!(&g.filename)?;
             let hdu = fits_open_hdu!(&mut fptr, 0)?;

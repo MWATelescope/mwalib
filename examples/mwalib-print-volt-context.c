@@ -6,6 +6,7 @@
 #include "mwalib.h"
 
 #define ERROR_MESSAGE_LEN 1024
+#define DISPLAY_MESSAGE_LEN 32768
 
 void do_sum(VoltageContext *context, long bytes_per_timestep, size_t num_timesteps, size_t num_coarse_chans, size_t num_provided_timesteps, size_t num_provided_coarse_chans)
 {
@@ -16,17 +17,17 @@ void do_sum(VoltageContext *context, long bytes_per_timestep, size_t num_timeste
     signed char *buffer_ptr = data_buffer; // Keep data_buffer pointing to the start of the buffer so we can free it later
     double sum = 0;
 
-    for (int timestep_index = 0; timestep_index < num_timesteps; timestep_index++)
+    for (size_t timestep_index = 0; timestep_index < num_timesteps; timestep_index++)
     {
         double ts_sum = 0;
 
-        for (int coarse_chan_index = 0; coarse_chan_index < num_coarse_chans; coarse_chan_index++)
+        for (size_t coarse_chan_index = 0; coarse_chan_index < num_coarse_chans; coarse_chan_index++)
         {
             double ts_cc_sum = 0;
 
             if (mwalib_voltage_context_read_file(context, timestep_index, coarse_chan_index, buffer_ptr, bytes_per_timestep, error_message, ERROR_MESSAGE_LEN) == EXIT_SUCCESS)
             {
-                printf("Reading data from timestep: %d, Coarse Channel: %d...\n", timestep_index, coarse_chan_index);
+                printf("Reading data from timestep: %ld, Coarse Channel: %ld...\n", timestep_index, coarse_chan_index);
                 for (long i = 0; i < bytes_per_timestep; i++)
                 {
                     ts_cc_sum += buffer_ptr[i];
@@ -61,38 +62,43 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    const char **voltage_files = malloc(sizeof(char *) * (argc - 2));
-    for (int i = 0; i < argc - 2; i++)
-    {
-        voltage_files[i] = argv[i + 2];
-    }
-
     // Allocate buffer for any error messages
     char *error_message = malloc(ERROR_MESSAGE_LEN * sizeof(char));
 
     VoltageContext *volt_context = NULL;
 
-    if (mwalib_voltage_context_new(argv[1], voltage_files, argc - 2, &volt_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    if (mwalib_voltage_context_new(argv[1], (const char **)&argv[2], argc - 2, &volt_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
-        printf("Error creating correlator context: %s\n", error_message);
+        printf("Error creating voltage context: %s\n", error_message);
+        free(error_message);
         exit(-1);
     }
 
     // Print version
     printf("Using mwalib v%d.%d.%d\n", mwalib_get_version_major(), mwalib_get_version_minor(), mwalib_get_version_patch());
 
+    // Allocate buffer space for the display info
+    char *display_message = malloc(DISPLAY_MESSAGE_LEN * sizeof(char));
+
     // Print summary of correlator context
-    if (mwalib_voltage_context_display(volt_context, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
+    if (mwalib_voltage_context_display(volt_context, display_message, DISPLAY_MESSAGE_LEN, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
-        printf("Error displaying correlator context summary: %s\n", error_message);
+        printf("Error displaying voltage context summary: %s\n", error_message);
+        free(error_message);
         exit(-1);
+    }
+    else
+    {
+        printf("%s\n", display_message);
+        free(display_message);
     }
 
     VoltageMetadata *volt_metadata = NULL;
 
     if (mwalib_voltage_metadata_get(volt_context, &volt_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
-        printf("Error getting correlator metadata: %s\n", error_message);
+        printf("Error getting voltage metadata: %s\n", error_message);
+        free(error_message);
         exit(-1);
     }
 
@@ -101,6 +107,7 @@ int main(int argc, char *argv[])
     if (mwalib_metafits_metadata_get(NULL, NULL, volt_context, &metafits_metadata, error_message, ERROR_MESSAGE_LEN) != EXIT_SUCCESS)
     {
         printf("Error getting metafits metadata: %s\n", error_message);
+        free(error_message);
         exit(-1);
     }
 
@@ -116,7 +123,6 @@ int main(int argc, char *argv[])
     mwalib_metafits_metadata_free(metafits_metadata);
     mwalib_voltage_metadata_free(volt_metadata);
     mwalib_voltage_context_free(volt_context);
-    free(voltage_files);
     free(error_message);
 
     return EXIT_SUCCESS;

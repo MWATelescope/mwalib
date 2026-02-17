@@ -81,6 +81,23 @@ maybe you have a mix of different files?"#)]
         timestep_index: usize,
         coarse_chan_index: usize,
     },
+
+    #[error("IO error reading the voltage file.")]
+    IoError(String),
+
+    #[error("Invalid ReadSecond range: read range ({gps_second_start}-{gps_second_end}) does not overlap {ts_duration_sec} second timestep {ts_start_gps_time}")]
+    ReadSecondOutOfBounds {
+        gps_second_start: u64,
+        gps_second_end: u64,
+        ts_start_gps_time: u64,
+        ts_duration_sec: u64,
+    },
+}
+
+impl From<std::io::Error> for VoltageFileError {
+    fn from(err: std::io::Error) -> Self {
+        VoltageFileError::IoError(err.to_string())
+    }
 }
 
 //
@@ -230,6 +247,18 @@ create_exception!(
     pyo3::exceptions::PyException
 );
 
+// Add exception for PyVoltageErrorReadSecondOutOfBounds
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+create_exception!(
+    mwalib,
+    PyVoltageErrorReadSecondOutOfBounds,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyVoltageErrorIoError
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+create_exception!(mwalib, PyVoltageErrorIoError, pyo3::exceptions::PyException);
+
 // Convert a rust VoltageFileError to a python exception
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 impl std::convert::From<VoltageFileError> for PyErr {
@@ -304,6 +333,12 @@ impl std::convert::From<VoltageFileError> for PyErr {
 
             VoltageFileError::NoDataForTimeStepCoarseChannel { .. } => {
                 PyVoltageErrorNoDataForTimeStepCoarseChannel::new_err(err.to_string())
+            }
+
+            VoltageFileError::IoError { .. } => PyVoltageErrorIoError::new_err(err.to_string()),
+
+            VoltageFileError::ReadSecondOutOfBounds { .. } => {
+                PyVoltageErrorReadSecondOutOfBounds::new_err(err.to_string())
             }
         }
     }

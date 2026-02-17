@@ -5,7 +5,11 @@
 //! General helper/utility methods
 
 use crate::antenna;
-use std::{fmt::Debug, fmt::Display, mem, slice};
+use crate::MWAVersion;
+use std::fmt::Display;
+use std::fs::File;
+use std::io::{Error, Write};
+use std::{fmt::Debug, mem, slice};
 
 #[cfg(test)]
 pub(crate) mod test;
@@ -359,62 +363,226 @@ pub fn vec_compare_f64(va: &[f64], vb: &[f64]) -> bool {
 
 /// Returns a formatted string to 'pretty print' a vector
 /// Example 1:
-/// show_first_elements = 2
+/// num_elements = 2
 ///
 /// vec = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 ///
-/// result = "[0, 1...]"
+/// result = "[0,1...8,9]"
 ///
 /// Example 2:
-/// show_first_elements = 12
+/// num_elements = 5
 /// vec = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 ///
-/// result = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"
+/// result = "[0,1,2,3,4,5,6,7,8,9]"
 ///
 /// # Arguments
 ///
 /// * `vec` - slice of type T to get a formatted string for. Must support the Display trait
 ///
-/// * `show_first_elements` - how many elements from the start of the slice should we display?
+/// * `num_elements` - how many elements from the start and end of the slice should we display?
 ///
 /// # Returns
 ///
 /// * a string which puts an elipses "..." after the specified number of elements are included in the string
 ///   - basically a "pretty" format of a slice
 ///
-pub fn pretty_print_vec_to_string<T>(vec: &[T], show_first_elements: usize) -> String
+pub fn pretty_print_vec<T>(vec: &[T], num_elements: usize) -> String
 where
-    T: Display + Debug,
+    T: Debug + Display,
 {
     let vec_len = vec.len();
+    let return_str: String;
 
     // Check for silliness
-    if vec_len == 0 || show_first_elements == 0 {
+    if vec_len == 0 || num_elements == 0 {
         return String::from("[]");
     }
 
-    let pos: usize = if vec_len < show_first_elements {
-        vec_len
+    if vec_len <= (num_elements * 2) {
+        // We will display the whole array
+        // Remove the last ", "
+        let full_str = vec
+            .iter()
+            .fold(String::new(), |acc, num| {
+                acc + format!("{}", &num).as_str() + ","
+            })
+            .to_string();
+
+        return_str = format!("[{}]", full_str.strip_suffix(",").unwrap_or(&full_str));
     } else {
-        show_first_elements
+        let start_str = vec[0..num_elements]
+            .iter()
+            .fold(String::new(), |acc, num| {
+                acc + format!("{}", &num).as_str() + ","
+            })
+            .to_string();
+
+        let end_str = vec[vec_len - num_elements..]
+            .iter()
+            .fold(String::new(), |acc, num| {
+                acc + format!("{}", &num).as_str() + ","
+            })
+            .to_string();
+
+        return_str = format!(
+            "[{}...{}]",
+            start_str.strip_suffix(",").unwrap_or(&start_str),
+            end_str.strip_suffix(",").unwrap_or(&end_str),
+        );
     };
 
-    let suffix: String = if vec_len <= show_first_elements {
-        String::from("")
-    } else {
-        String::from("...")
-    };
+    return return_str;
+}
 
-    let mut ret_string = vec[0..pos]
-        .iter()
-        .fold(String::new(), |acc, num| {
-            acc + format!("{}", &num).as_str() + ", "
-        })
-        .to_string();
+/// Returns a formatted string to 'pretty print' an Option<vector>
+///
+/// Works the same as pretty_print_vec except handles a case where the vec may be wrapped in an Option<>
+///
+/// # Arguments
+///
+/// * `opt_vec` - Option slice of type T to get a formatted string for. Must support the Display trait
+///
+/// * `num_elements` - how many elements from the start and end of the slice should we display?
+///
+/// # Returns
+///
+/// * a string which puts an elipses "..." after the specified number of elements are included in the string
+///   - basically a "pretty" format of an Option slice
+///   - returns and empty vector if None
+///
+pub fn pretty_print_opt_vec<T>(opt_vec: &Option<Vec<T>>, num_elements: usize) -> String
+where
+    T: Debug + Display,
+{
+    match opt_vec {
+        Some(v) => pretty_print_vec(v, num_elements),
+        None => String::from("[]"),
+    }
+}
 
-    // Remove the last ", " and format properly
-    ret_string.remove(ret_string.len() - 1);
-    ret_string.remove(ret_string.len() - 1);
+/// Helper fuctions to generate (small-sh) test voltage files
+/// for mwax test files they contain an incrememting byte for the real in each samples and decrementing byte value for the imag value.
+/// for legacy test files they contain a single incrememnting byte for the real/imag value.
+///
+/// # Arguments
+///
+/// * `filename` - name of file to create
+///
+/// * `mwa_version` - Which "flavour" of MWA observation is it (assumed to be VCS only)
+///
+/// * `num_voltage_blocks` - Bocks of voltage data in a file
+///
+/// * `samples_per_block` - Samples in each block
+///
+/// * `rf_inputs` - Number of tiles * pols
+///
+/// * `fine_chans` - Number of fine channels - not MWAX VCS has only 1
+///
+/// * `bytes_per_sample` - Bytes in each sample includes (r and i)
+///
+/// * `initial_value` - Start the test file at this byte value
+///
+/// # Returns
+///
+/// * A result containing the Filename of the created test file, or Error
+///
+#[allow(clippy::too_many_arguments)]
+pub fn generate_test_voltage_file(
+    filename: &str,
+    mwa_version: MWAVersion,
+    num_voltage_blocks: usize,
+    samples_per_block: usize,
+    rf_inputs: usize,
+    fine_chans: usize,
+    bytes_per_sample: usize,
+    initial_value: u8,
+) -> Result<String, Error> {
+    // initialization test data
+    let mut output_file: File = File::create(filename)?;
 
-    format!("[{}{}]", ret_string, suffix)
+    // Write out header if one is needed
+    if mwa_version == MWAVersion::VCSMWAXv2 {
+        let header_buffer: Vec<u8> = vec![0x01; 4096];
+        output_file
+            .write_all(&header_buffer)
+            .expect("Cannot write header!");
+    }
+
+    // Each voltage_block has samples_per_rf_fine for each combination of rfinputs x fine_chans
+    let num_bytes_per_voltage_block = samples_per_block * rf_inputs * fine_chans * bytes_per_sample;
+
+    // Write out delay block if one is needed
+    if mwa_version == MWAVersion::VCSMWAXv2 {
+        let delay_buffer: Vec<u8> = vec![0x02; num_bytes_per_voltage_block];
+        output_file
+            .write_all(&delay_buffer)
+            .expect("Cannot write delay block!");
+    }
+
+    // Write out num_voltage_blocks
+    //
+
+    // Loop for each voltage block
+    // legacy: 1 blocks per file
+    // mwax  : 160 blocks per file
+    for b in 0..num_voltage_blocks {
+        let mut value1: u8;
+        let mut value2: u8;
+
+        // Allocate a buffer
+        let mut voltage_block_buffer: Vec<u8> = vec![0; num_bytes_per_voltage_block];
+
+        // Populate the buffer with test data
+        let mut bptr: usize = 0; // Keeps track of where we are in the byte array
+
+        match mwa_version {
+            MWAVersion::VCSMWAXv2 => {
+                // Data should be written in the following order (slowest to fastest axis)
+                // voltage_block (time1), rf_input, sample (time2), value (complex)
+                for r in 0..rf_inputs {
+                    for s in 0..samples_per_block {
+                        // Encode the data location (plus inital value)
+                        value1 =
+                            ((initial_value as u64 + (b * 5 + r * 4 + s * 2) as u64) % 256) as u8;
+
+                        // Value 2 is the reverse
+                        value2 = 255 - value1;
+
+                        // Byte 1
+                        voltage_block_buffer[bptr] = value1;
+                        bptr += 1;
+
+                        // Byte 2
+                        voltage_block_buffer[bptr] = value2;
+                        bptr += 1;
+                    }
+                }
+            }
+            MWAVersion::VCSLegacyRecombined => {
+                // Data should be written in the following order (slowest to fastest axis)
+                // sample (time1), fine_chan, rf_input, value (complex)
+                for s in 0..samples_per_block {
+                    for f in 0..fine_chans {
+                        for r in 0..rf_inputs {
+                            // Encode the data location (plus inital value)
+                            value1 = ((initial_value as u64 + (s * 4 + f * 3 + r * 2) as u64) % 256)
+                                as u8;
+
+                            // In this case 1 byte is split into 4bits real and 4bits imag
+                            voltage_block_buffer[bptr] = value1;
+                            bptr += 1;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        output_file
+            .write_all(&voltage_block_buffer)
+            .expect("Cannot write voltage data block");
+    }
+
+    output_file.flush()?;
+
+    Ok(String::from(filename))
 }

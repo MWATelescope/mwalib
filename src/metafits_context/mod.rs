@@ -3,14 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! The main interface to MWA data.
-
+use chrono::{DateTime, Duration, FixedOffset};
+use num_traits::ToPrimitive;
 use std::fmt;
 use std::path::Path;
-
-use chrono::{DateTime, Duration, FixedOffset};
-use fitsio::{hdu::HduInfo, FitsFile};
-use num_derive::FromPrimitive;
-use num_traits::ToPrimitive;
 
 use self::error::MetafitsError;
 use crate::antenna::*;
@@ -18,11 +14,16 @@ use crate::baseline::*;
 use crate::coarse_channel::*;
 use crate::fits_read::*;
 use crate::rfinput::*;
+use crate::types::*;
 use crate::voltage_files::*;
 use crate::*;
 
 pub mod error;
 
+pub(crate) mod ffi;
+
+#[cfg(test)]
+pub(crate) mod ffi_test;
 #[cfg(test)]
 mod test;
 
@@ -32,337 +33,6 @@ use pyo3::prelude::*;
 mod python;
 #[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pyclass;
-#[cfg(feature = "python-stubgen")]
-use pyo3_stub_gen_derive::gen_stub_pyclass_enum;
-
-/// Enum for all of the known variants of file format based on Correlator version
-///
-#[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
-)]
-pub enum MWAVersion {
-    /// MWA correlator (v1.0), having data files without any batch numbers.
-    CorrOldLegacy = 1,
-    /// MWA correlator (v1.0), having data files with "gpubox" and batch numbers in their names.
-    CorrLegacy = 2,
-    /// MWAX correlator (v2.0)
-    CorrMWAXv2 = 3,
-    /// Legacy VCS Recombined
-    VCSLegacyRecombined = 4,
-    /// MWAX VCS
-    VCSMWAXv2 = 5,
-}
-
-/// Implements fmt::Display for MWAVersion enum
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for MWAVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                MWAVersion::CorrOldLegacy => "Correlator v1 old Legacy (no file indices)",
-                MWAVersion::CorrLegacy => "Correlator v1 Legacy",
-                MWAVersion::CorrMWAXv2 => "Correlator v2 MWAX",
-                MWAVersion::VCSLegacyRecombined => "VCS Legacy Recombined",
-                MWAVersion::VCSMWAXv2 => "VCS MWAX v2",
-            }
-        )
-    }
-}
-
-/// Visibility polarisations
-///
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
-)]
-pub enum VisPol {
-    XX = 1,
-    XY = 2,
-    YX = 3,
-    YY = 4,
-}
-/// Implements fmt::Display for VisPol enum
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for VisPol {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                VisPol::XX => "XX",
-                VisPol::XY => "XY",
-                VisPol::YX => "YX",
-                VisPol::YY => "YY",
-            }
-        )
-    }
-}
-
-/// The type of geometric delays applied to the data
-///
-#[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
-#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
-)]
-pub enum GeometricDelaysApplied {
-    No = 0,
-    Zenith = 1,
-    TilePointing = 2,
-    AzElTracking = 3,
-}
-
-/// Implements fmt::Display for GeometricDelaysApplied enum
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for GeometricDelaysApplied {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                GeometricDelaysApplied::No => "No",
-                GeometricDelaysApplied::Zenith => "Zenith",
-                GeometricDelaysApplied::TilePointing => "Tile Pointing",
-                GeometricDelaysApplied::AzElTracking => "Az/El Tracking",
-            }
-        )
-    }
-}
-
-/// Implements str::FromStr for GeometricDelaysApplied enum
-///
-/// # Arguments
-///
-/// * `input` - A &str which we want to convert to an enum
-///
-///
-/// # Returns
-///
-/// * `Result<GeometricDelaysApplied, Err>` - Result of this method
-///
-///
-impl std::str::FromStr for GeometricDelaysApplied {
-    type Err = ();
-
-    fn from_str(input: &str) -> Result<GeometricDelaysApplied, Self::Err> {
-        match input {
-            "No" => Ok(GeometricDelaysApplied::No),
-            "Zenith" => Ok(GeometricDelaysApplied::Zenith),
-            "Tile Pointing" => Ok(GeometricDelaysApplied::TilePointing),
-            "Az/El Tracking" => Ok(GeometricDelaysApplied::AzElTracking),
-            _ => Err(()),
-        }
-    }
-}
-
-/// The type of cable delays applied to the data
-///
-#[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
-#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
-)]
-pub enum CableDelaysApplied {
-    NoCableDelaysApplied = 0,
-    CableAndRecClock = 1,
-    CableAndRecClockAndBeamformerDipoleDelays = 2,
-}
-
-/// Implements fmt::Display for CableDelaysApplied enum
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for CableDelaysApplied {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                CableDelaysApplied::NoCableDelaysApplied => "No",
-                CableDelaysApplied::CableAndRecClock => "Cable and receiver clock cable length",
-                CableDelaysApplied::CableAndRecClockAndBeamformerDipoleDelays =>
-                    "Cable, receiver clock cable and pointing-dependent beamformer dipole delays",
-            }
-        )
-    }
-}
-
-impl std::str::FromStr for CableDelaysApplied {
-    type Err = ();
-
-    fn from_str(input: &str) -> Result<CableDelaysApplied, Self::Err> {
-        match input {
-            "No" => Ok(CableDelaysApplied::NoCableDelaysApplied),
-            "Cable and receiver clock cable length" => Ok(CableDelaysApplied::CableAndRecClock),
-            "Cable, receiver clock cable and pointing-dependent beamformer dipole delays" => {
-                Ok(CableDelaysApplied::CableAndRecClockAndBeamformerDipoleDelays)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-/// The MODE the system was in for this observation
-#[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
-#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
-)]
-pub enum MWAMode {
-    No_Capture = 0,
-    Burst_Vsib = 1,
-    Sw_Cor_Vsib = 2,
-    Hw_Cor_Pkts = 3,
-    Rts_32t = 4,
-    Hw_Lfiles = 5,
-    Hw_Lfiles_Nomentok = 6,
-    Sw_Cor_Vsib_Nomentok = 7,
-    Burst_Vsib_Synced = 8,
-    Burst_Vsib_Raw = 9,
-    Lfiles_Client = 16,
-    No_Capture_Burst = 17,
-    Enter_Burst = 18,
-    Enter_Channel = 19,
-    Voltage_Raw = 20,
-    Corr_Mode_Change = 21,
-    Voltage_Start = 22,
-    Voltage_Stop = 23,
-    Voltage_Buffer = 24,
-    Mwax_Correlator = 30,
-    Mwax_Vcs = 31,
-    Mwax_Buffer = 32,
-}
-
-/// Implements fmt::Display for MWAMode enum
-///
-/// # Arguments
-///
-/// * `f` - A fmt::Formatter
-///
-///
-/// # Returns
-///
-/// * `fmt::Result` - Result of this method
-///
-///
-impl fmt::Display for MWAMode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                MWAMode::No_Capture => "NO_CAPTURE",
-                MWAMode::Burst_Vsib => "BURST_VSIB",
-                MWAMode::Sw_Cor_Vsib => "SW_COR_VSIB",
-                MWAMode::Hw_Cor_Pkts => "HW_COR_PKTS",
-                MWAMode::Rts_32t => "RTS_32T",
-                MWAMode::Hw_Lfiles => "HW_LFILES",
-                MWAMode::Hw_Lfiles_Nomentok => "HW_LFILES_NOMENTOK",
-                MWAMode::Sw_Cor_Vsib_Nomentok => "SW_COR_VSIB_NOMENTOK",
-                MWAMode::Burst_Vsib_Synced => "BURST_VSIB_SYNCED",
-                MWAMode::Burst_Vsib_Raw => "BURST_VSIB_RAW",
-                MWAMode::Lfiles_Client => "LFILES_CLIENT",
-                MWAMode::No_Capture_Burst => "NO_CAPTURE_BURST",
-                MWAMode::Enter_Burst => "ENTER_BURST",
-                MWAMode::Enter_Channel => "ENTER_CHANNEL",
-                MWAMode::Voltage_Raw => "VOLTAGE_RAW",
-                MWAMode::Corr_Mode_Change => "CORR_MODE_CHANGE",
-                MWAMode::Voltage_Start => "VOLTAGE_START",
-                MWAMode::Voltage_Stop => "VOLTAGE_STOP",
-                MWAMode::Voltage_Buffer => "VOLTAGE_BUFFER",
-                MWAMode::Mwax_Correlator => "MWAX_CORRELATOR",
-                MWAMode::Mwax_Vcs => "MWAX_VCS",
-                MWAMode::Mwax_Buffer => "MWAX_BUFFER",
-            }
-        )
-    }
-}
-
-impl std::str::FromStr for MWAMode {
-    type Err = ();
-
-    fn from_str(input: &str) -> Result<MWAMode, Self::Err> {
-        match input {
-            "NO_CAPTURE" => Ok(MWAMode::No_Capture),
-            "BURST_VSIB" => Ok(MWAMode::Burst_Vsib),
-            "SW_COR_VSIB" => Ok(MWAMode::Sw_Cor_Vsib),
-            "HW_COR_PKTS" => Ok(MWAMode::Hw_Cor_Pkts),
-            "RTS_32T" => Ok(MWAMode::Rts_32t),
-            "HW_LFILES" => Ok(MWAMode::Hw_Lfiles),
-            "HW_LFILES_NOMENTOK" => Ok(MWAMode::Hw_Lfiles_Nomentok),
-            "SW_COR_VSIB_NOMENTOK" => Ok(MWAMode::Sw_Cor_Vsib_Nomentok),
-            "BURST_VSIB_SYNCED" => Ok(MWAMode::Burst_Vsib_Synced),
-            "BURST_VSIB_RAW" => Ok(MWAMode::Burst_Vsib_Raw),
-            "LFILES_CLIENT" => Ok(MWAMode::Lfiles_Client),
-            "NO_CAPTURE_BURST" => Ok(MWAMode::No_Capture_Burst),
-            "ENTER_BURST" => Ok(MWAMode::Enter_Burst),
-            "ENTER_CHANNEL" => Ok(MWAMode::Enter_Channel),
-            "VOLTAGE_RAW" => Ok(MWAMode::Voltage_Raw),
-            "CORR_MODE_CHANGE" => Ok(MWAMode::Corr_Mode_Change),
-            "VOLTAGE_START" => Ok(MWAMode::Voltage_Start),
-            "VOLTAGE_STOP" => Ok(MWAMode::Voltage_Stop),
-            "VOLTAGE_BUFFER" => Ok(MWAMode::Voltage_Buffer),
-            "MWAX_CORRELATOR" => Ok(MWAMode::Mwax_Correlator),
-            "MWAX_VCS" => Ok(MWAMode::Mwax_Vcs),
-            "MWAX_BUFFER" => Ok(MWAMode::Mwax_Buffer),
-            _ => Err(()),
-        }
-    }
-}
 
 ///
 /// Metafits context. This represents the basic metadata for an MWA observation.
@@ -370,7 +40,7 @@ impl std::str::FromStr for MWAMode {
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all)
+    pyclass(get_all, set_all, from_py_object)
 )]
 #[derive(Clone, Debug)]
 pub struct MetafitsContext {
@@ -451,6 +121,8 @@ pub struct MetafitsContext {
     pub cable_delays_applied: CableDelaysApplied,
     /// Have calibration delays and gains been applied to the data?
     pub calibration_delays_and_gains_applied: bool,
+    /// Have signal chain corrections been applied to the data?
+    pub signal_chain_corrections_applied: bool,
     /// Correlator fine_chan_resolution
     pub corr_fine_chan_width_hz: u32,
     /// Correlator mode dump time
@@ -544,6 +216,18 @@ pub struct MetafitsContext {
     pub signal_chain_corrections: Option<Vec<SignalChainCorrection>>,
     /// Number of Signal Chain corrections
     pub num_signal_chain_corrections: usize,
+    /// Calibration fits
+    pub calibration_fits: Option<Vec<CalibrationFit>>,
+    /// Number of calibration fits
+    pub num_calibration_fits: usize,
+    /// Beamformer beams
+    pub metafits_voltage_beams: Option<Vec<VoltageBeam>>,
+    /// Number of beamformer beams defined in this observation
+    pub num_metafits_voltage_beams: usize,
+    /// Number of coherent beamformer beams defined in this observation
+    pub num_metafits_coherent_beams: usize,
+    /// Number of incoherent beamformer beams defined in this observation
+    pub num_metafits_incoherent_beams: usize,
 }
 
 impl MetafitsContext {
@@ -619,17 +303,21 @@ impl MetafitsContext {
                 MWAVersion::VCSLegacyRecombined | MWAVersion::VCSMWAXv2 => {
                     new_context.volt_fine_chan_width_hz
                 }
-                MWAVersion::CorrLegacy | MWAVersion::CorrOldLegacy | MWAVersion::CorrMWAXv2 => {
-                    new_context.corr_fine_chan_width_hz
-                }
+                MWAVersion::CorrLegacy
+                | MWAVersion::CorrOldLegacy
+                | MWAVersion::CorrMWAXv2
+                | MWAVersion::CorrBeamformerMWAXv2
+                | MWAVersion::BeamformerMWAXv2 => new_context.corr_fine_chan_width_hz,
             },
             match new_context.mwa_version.unwrap() {
                 MWAVersion::VCSLegacyRecombined | MWAVersion::VCSMWAXv2 => {
                     new_context.num_volt_fine_chans_per_coarse
                 }
-                MWAVersion::CorrLegacy | MWAVersion::CorrOldLegacy | MWAVersion::CorrMWAXv2 => {
-                    new_context.num_corr_fine_chans_per_coarse
-                }
+                MWAVersion::CorrLegacy
+                | MWAVersion::CorrOldLegacy
+                | MWAVersion::CorrMWAXv2
+                | MWAVersion::CorrBeamformerMWAXv2
+                | MWAVersion::BeamformerMWAXv2 => new_context.num_corr_fine_chans_per_coarse,
             },
         );
         new_context.num_metafits_fine_chan_freqs = new_context.metafits_fine_chan_freqs_hz.len();
@@ -677,26 +365,9 @@ impl MetafitsContext {
         let metafits_signalchain_hdu_result =
             fits_open_hdu_by_name!(&mut metafits_fptr, "SIGCHAINDATA");
 
-        // Signal chain corrections
-        let signal_chain_corrections: Option<Vec<SignalChainCorrection>>;
-        let num_signal_chain_corrections: usize;
-
-        match metafits_signalchain_hdu_result {
-            Ok(metafits_signalchain_hdu) => {
-                let sig_chain_corrs = Self::populate_signal_chain_corrections(
-                    &mut metafits_fptr,
-                    &metafits_signalchain_hdu,
-                )?;
-
-                num_signal_chain_corrections = sig_chain_corrs.len();
-                signal_chain_corrections = Some(sig_chain_corrs);
-            }
-            Err(_) => {
-                // This will occur if the HDU does not exist (old / or metafits without this)
-                num_signal_chain_corrections = 0;
-                signal_chain_corrections = None;
-            }
-        }
+        // The voltage beams HDU is not always present, so we will check the result when we need to use it.
+        // is_ok() means it exists, is_err() = True means it does not.
+        let metafits_beams_hdu_result = fits_open_hdu_by_name!(&mut metafits_fptr, "VOLTAGEBEAMS");
 
         // Populate obsid from the metafits
         let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
@@ -747,11 +418,32 @@ impl MetafitsContext {
         // there are antennas; halve that value.
         let num_antennas = num_rf_inputs / 2;
 
+        // Signal chain corrections
+        let signal_chain_corrections: Option<Vec<SignalChainCorrection>>;
+        let num_signal_chain_corrections: usize;
+
+        match metafits_signalchain_hdu_result {
+            Ok(metafits_signalchain_hdu) => {
+                let sig_chain_corrs = signal_chain_correction::populate_signal_chain_corrections(
+                    &mut metafits_fptr,
+                    &metafits_signalchain_hdu,
+                )?;
+
+                num_signal_chain_corrections = sig_chain_corrs.len();
+                signal_chain_corrections = Some(sig_chain_corrs);
+            }
+            Err(_) => {
+                // This will occur if the HDU does not exist (old / or metafits without this)
+                num_signal_chain_corrections = 0;
+                signal_chain_corrections = None;
+            }
+        }
+
         // Create a vector of rf_input structs from the metafits
         let mut rf_inputs: Vec<Rfinput> = Rfinput::populate_rf_inputs(
             num_rf_inputs,
             &mut metafits_fptr,
-            metafits_tile_table_hdu,
+            &metafits_tile_table_hdu,
             MWALIB_MWA_COAX_V_FACTOR,
             metafits_coarse_chan_vec.len(),
             &signal_chain_corrections,
@@ -888,9 +580,14 @@ impl MetafitsContext {
                 None => CableDelaysApplied::NoCableDelaysApplied,
             };
 
-        // This next key is specified as TINT not TBOOL in the metafits, so we need to translate 0=false, 1=true
+        // This next two keys are specified as TINT not TBOOL in the metafits, so we need to translate 0=false, 1=true
         let calibration_delays_and_gains_applied: bool = matches!(
             (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "CALIBDEL")?).unwrap_or(0),
+            1
+        );
+
+        let signal_chain_corrections_applied: bool = matches!(
+            (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "SIGCHDEL")?).unwrap_or(0),
             1
         );
 
@@ -976,6 +673,29 @@ impl MetafitsContext {
         let num_volt_fine_chans_per_coarse =
             (metafits_coarse_chan_width_hz / volt_fine_chan_width_hz) as usize;
 
+        // Calibration fits
+        let calibration_fits: Option<Vec<CalibrationFit>>;
+        let num_calibration_fits: usize;
+
+        match &metafits_cal_hdu_result {
+            Ok(metafits_calibdata_hdu) => {
+                let cal_fits = calibration_fit::populate_calibration_fits(
+                    &mut metafits_fptr,
+                    metafits_calibdata_hdu,
+                    &rf_inputs,
+                    num_metafits_coarse_chans,
+                )?;
+
+                num_calibration_fits = cal_fits.len();
+                calibration_fits = Some(cal_fits);
+            }
+            Err(_) => {
+                // This will occur if the HDU does not exist (old / or metafits without this)
+                num_calibration_fits = 0;
+                calibration_fits = None;
+            }
+        }
+
         // Handle all of the calibration metadata
         let best_cal_fit_id: Option<u32>;
         let best_cal_obs_id: Option<u32>;
@@ -1020,6 +740,45 @@ impl MetafitsContext {
             }
         };
 
+        // voltage beams
+        let beams: Option<Vec<VoltageBeam>>;
+        let num_beams: usize;
+        let num_coherent_beams: usize;
+        let num_incoherent_beams: usize;
+
+        match &metafits_beams_hdu_result {
+            Ok(metafits_beams_hdu) => {
+                let beams_vec = voltage_beam::populate_voltage_beams(
+                    &mut metafits_fptr,
+                    metafits_beams_hdu,
+                    &metafits_coarse_chans,
+                    &antennas,
+                )?;
+
+                num_beams = beams_vec.len();
+                beams = Some(beams_vec);
+                num_coherent_beams = beams
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .filter(|b| b.coherent == true)
+                    .count();
+                num_incoherent_beams = beams
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .filter(|b| b.coherent == false)
+                    .count();
+            }
+            Err(_) => {
+                // This will occur if the HDU does not exist (old / or metafits without this)
+                num_beams = 0;
+                num_coherent_beams = 0;
+                num_incoherent_beams = 0;
+                beams = None;
+            }
+        }
+
         Ok(MetafitsContext {
             mwa_version: None,
             obs_id: obsid,
@@ -1059,6 +818,7 @@ impl MetafitsContext {
             geometric_delays_applied,
             cable_delays_applied,
             calibration_delays_and_gains_applied,
+            signal_chain_corrections_applied,
             corr_fine_chan_width_hz,
             corr_int_time_ms: integration_time_ms,
             corr_raw_scale_factor,
@@ -1105,63 +865,13 @@ impl MetafitsContext {
             best_cal_fit_iter_limit,
             signal_chain_corrections,
             num_signal_chain_corrections,
+            calibration_fits,
+            num_calibration_fits,
+            metafits_voltage_beams: beams,
+            num_metafits_voltage_beams: num_beams,
+            num_metafits_coherent_beams: num_coherent_beams,
+            num_metafits_incoherent_beams: num_incoherent_beams,
         })
-    }
-
-    /// Read the signal chain FitsHdu and return a populated vector of `SignalChainCorrection`s
-    ///
-    /// # Arguments
-    ///
-    /// * `metafits_fptr` - reference to the FitsFile representing the metafits file.
-    ///
-    /// * `sig_chain_hdu` - The FitsHdu containing valid signal chain corrections data.
-    ///
-    /// # Returns
-    ///
-    /// * Result containing a vector of signal chain corrections read from the sig_chain_hdu HDU.
-    ///
-    fn populate_signal_chain_corrections(
-        metafits_fptr: &mut FitsFile,
-        sig_chain_hdu: &fitsio::hdu::FitsHdu,
-    ) -> Result<Vec<SignalChainCorrection>, FitsError> {
-        // Find out how many rows there are in the table
-        let rows = match &sig_chain_hdu.info {
-            HduInfo::TableInfo {
-                column_descriptions: _,
-                num_rows,
-            } => *num_rows,
-            _ => 0,
-        };
-
-        let mut sig_chain_vec: Vec<SignalChainCorrection> = Vec::new();
-
-        for row in 0..rows {
-            let rx_type_str: String =
-                read_cell_value(metafits_fptr, sig_chain_hdu, "Receiver_type", row)
-                    .unwrap_or_default();
-            let receiver_type: ReceiverType = rx_type_str.parse::<ReceiverType>().unwrap();
-
-            let whitening_filter: bool =
-                read_cell_value(metafits_fptr, sig_chain_hdu, "Whitening_Filter", row)
-                    .unwrap_or(-1)
-                    == 1;
-
-            let corrections: Vec<f64> = read_cell_array_f64(
-                metafits_fptr,
-                sig_chain_hdu,
-                "Corrections",
-                row as i64,
-                MAX_RECEIVER_CHANNELS,
-            )?;
-
-            sig_chain_vec.push(SignalChainCorrection {
-                receiver_type,
-                whitening_filter,
-                corrections,
-            });
-        }
-
-        Ok(sig_chain_vec)
     }
 
     /// Given a hint at the expected `MWAVersion`, populate the coarse_channel vector with the expected
@@ -1309,7 +1019,7 @@ impl fmt::Display for MetafitsContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            r#"MetafitsContext (
+            "MetafitsContext (
     obsid:                     {obsid},
     mode:                      {mode},
 
@@ -1325,12 +1035,13 @@ impl fmt::Display for MetafitsContext {
     Geometric delays applied          : {geodel},
     Cable length corrections applied  : {cabledel},
     Calibration delays & gains applied: {calibdel},
+    Signal chain corrections applied  : {sigchdel},
 
     Creator:                  {creator},
     Project ID:               {project_id},
     Observation Name:         {obs_name},
-    Receivers:                {receivers:?},
-    Delays:                   {delays:?},
+    Receivers:                {receivers},
+    Delays:                   {delays},
     Calibration:              {calib},
     Calibrator Source:        {calsrc},
     Global attenuation:       {atten} dB,
@@ -1348,10 +1059,10 @@ impl fmt::Display for MetafitsContext {
     Good UNIX start time:     {good_time},
 
     Num timesteps:            {nts},
-    Timesteps:                {ts:?},
+    Timesteps:                {ts},
 
     Num coarse channels:      {ncc},
-    Coarse Channels:          {cc:?},
+    Coarse Channels:          {cc},
     Oversampled coarse chans: {os},
     Deripple applied:         {dr} ({dr_param}),
 
@@ -1360,8 +1071,8 @@ impl fmt::Display for MetafitsContext {
 
     R.A. (tile_pointing):     {rtpc} degrees,
     Dec. (tile_pointing):     {dtpc} degrees,
-    R.A. (phase center):      {rppc:?} degrees,
-    Dec. (phase center):      {dppc:?} degrees,
+    R.A. (phase center):      {rppc} degrees,
+    Dec. (phase center):      {dppc} degrees,
     Azimuth:                  {az} degrees,
     Altitude:                 {alt} degrees,
     Sun altitude:             {sun_alt} degrees,
@@ -1374,8 +1085,8 @@ impl fmt::Display for MetafitsContext {
     Grid number:              {grid_n},
 
     num antennas:             {n_ants},
-    antennas:                 {ants:?},
-    rf_inputs:                {rfs:?},
+    antennas:                 {ants},
+    rf_inputs:                {rfs},
 
     num antenna pols:         {n_aps},
     num baselines:            {n_bls},
@@ -1397,15 +1108,18 @@ impl fmt::Display for MetafitsContext {
     ..creator:                {bcal_creator},
 
     num signal chain corrs:   {n_scc},
+    Signal chain corrs:       {scc},
+
+    num calibration fits:     {ncfits},
 
     metafits filename:        {meta},
-)"#,
+)",
             obsid = self.obs_id,
             creator = self.creator,
             project_id = self.project_id,
             obs_name = self.obs_name,
-            receivers = self.receivers,
-            delays = self.delays,
+            receivers = pretty_print_vec(&self.receivers, 32),
+            delays = pretty_print_vec(&self.delays, 32),
             atten = self.global_analogue_attenuation_db,
             sched_start_unix = self.sched_start_unix_time_ms as f64 / 1e3,
             sched_end_unix = self.sched_end_unix_time_ms as f64 / 1e3,
@@ -1418,9 +1132,9 @@ impl fmt::Display for MetafitsContext {
             sched_duration = self.sched_duration_ms as f64 / 1e3,
             quack_duration = self.quack_time_duration_ms as f64 / 1e3,
             good_time = self.good_time_unix_ms as f64 / 1e3,
-            ts = self.metafits_timesteps,
+            ts = pretty_print_vec(&self.metafits_timesteps, 10),
             nts = self.metafits_timesteps.len(),
-            cc = self.metafits_coarse_chans,
+            cc = pretty_print_vec(&self.metafits_coarse_chans, 24),
             ncc = self.metafits_coarse_chans.len(),
             os = self.oversampled,
             dr = self.deripple_applied,
@@ -1429,18 +1143,24 @@ impl fmt::Display for MetafitsContext {
                 false => String::from("N/A"),
             },
             nfc = self.metafits_fine_chan_freqs_hz.len(),
-            fc = misc::pretty_print_vec_to_string(
+            fc = pretty_print_vec(
                 &self
                     .metafits_fine_chan_freqs_hz
                     .iter()
                     .map(|f| (f / 1000000.) as f32)
                     .collect::<Vec<f32>>(),
-                16
+                8
             ),
-            rtpc = self.ra_tile_pointing_degrees,
-            dtpc = self.dec_tile_pointing_degrees,
-            rppc = Some(self.ra_phase_center_degrees),
-            dppc = Some(self.dec_phase_center_degrees),
+            rtpc = format!("{:.3}", self.ra_tile_pointing_degrees),
+            dtpc = format!("{:.3}", self.dec_tile_pointing_degrees),
+            rppc = match self.ra_phase_center_degrees {
+                Some(s) => format!("{:.3}", s),
+                None => String::from("None"),
+            },
+            dppc = match self.dec_phase_center_degrees {
+                Some(s) => format!("{:.3}", s),
+                None => String::from("None"),
+            },
             az = self.az_deg,
             alt = self.alt_deg,
             sun_alt = match self.sun_alt_deg {
@@ -1466,8 +1186,8 @@ impl fmt::Display for MetafitsContext {
             calib = self.calibrator,
             calsrc = self.calibrator_source,
             n_ants = self.num_ants,
-            ants = self.antennas,
-            rfs = self.rf_inputs,
+            ants = pretty_print_vec(&self.antennas, 256),
+            rfs = pretty_print_vec(&self.rf_inputs, 10),
             n_aps = self.num_ant_pols,
             n_bls = self.num_baselines,
             bl01 = self.baselines[0].ant1_index,
@@ -1485,6 +1205,7 @@ impl fmt::Display for MetafitsContext {
             geodel = self.geometric_delays_applied,
             cabledel = self.cable_delays_applied,
             calibdel = self.calibration_delays_and_gains_applied,
+            sigchdel = self.signal_chain_corrections_applied,
             vfcw = self.volt_fine_chan_width_hz as f64 / 1e3,
             nvfcpc = self.num_volt_fine_chans_per_coarse,
             fcw = self.corr_fine_chan_width_hz as f64 / 1e3,
@@ -1492,6 +1213,8 @@ impl fmt::Display for MetafitsContext {
             int_time = self.corr_int_time_ms as f64 / 1e3,
             crsf = self.corr_raw_scale_factor,
             n_scc = self.num_signal_chain_corrections,
+            scc = pretty_print_opt_vec(&self.signal_chain_corrections, 2),
+            ncfits = self.num_calibration_fits,
             bcal_fit_id = match self.best_cal_fit_id {
                 Some(b) => b.to_string(),
                 None => String::from("None"),
