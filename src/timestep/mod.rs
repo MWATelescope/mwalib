@@ -306,6 +306,9 @@ impl TimeStep {
         scheduled_starttime_gps_ms: u64,
         scheduled_starttime_unix_ms: u64,
     ) -> Vec<Self> {
+        // Init our vector
+        let mut timesteps_vec: Vec<Self> = vec![];
+
         // Determine the interval between timesteps
         let interval_ms: u64 = match mwa_version {
             MWAVersion::CorrOldLegacy
@@ -315,12 +318,10 @@ impl TimeStep {
             MWAVersion::VCSLegacyRecombined => MWA_VCS_LEGACY_RECOMBINED_FILE_SECONDS * 1000,
             MWAVersion::VCSMWAXv2 => MWA_VCS_MWAXV2_SUBFILE_SECONDS * 1000,
             MWAVersion::BeamformerMWAXv2 => {
-                panic!("BeamformerMWAXv2 timestep population not yet implemented")
+                // we don't have any timesteps to populate
+                return timesteps_vec;
             }
         };
-
-        // Init our vector
-        let mut timesteps_vec: Vec<Self> = vec![];
 
         // Populate the vector (note use of ..= here for an INCLUSIVE for loop)
         for gps_time in

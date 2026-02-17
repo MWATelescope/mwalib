@@ -691,8 +691,8 @@ fn test_metafits_context_mwax_beamformer() {
     // Read the observation using mwalib
     //
     // Open a context and load in a test metafits
-    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrMWAXv2))
-        .expect("Failed to create MetafitsContext");
+    let context =
+        MetafitsContext::new(metafits_filename, None).expect("Failed to create MetafitsContext");
 
     // Test the properties of the context object match what we expect
 
@@ -707,6 +707,8 @@ fn test_metafits_context_mwax_beamformer() {
 
     assert_eq!(beams[1].frequency_resolution_hz, 6400);
     assert_eq!(beams.len(), 10);
+
+    assert_eq!(context.num_metafits_timesteps, 0);
 }
 
 #[test]
