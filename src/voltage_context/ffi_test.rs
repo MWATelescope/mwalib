@@ -552,6 +552,11 @@ fn test_mwalib_voltage_context_mwaxv2_read_second_valid() {
         );
 
         assert_eq!(retval, 0);
+
+        assert!(
+            !voltage_metadata_ptr.is_null(),
+            "mwalib_voltage_metadata_get returned success but voltage_metadata_ptr is null"
+        );
     }
 
     unsafe {
