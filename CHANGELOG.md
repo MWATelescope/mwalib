@@ -8,7 +8,7 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
-## 2.0.0 XX-Feb-2026
+## 2.0.0 13-Feb-2026
 
 ### Potentially Breaking Changes
 * Bumped MSRV to 1.85.0 due to dependency hell.
@@ -30,6 +30,7 @@ Notes:
 * Added `signal_chain_corrections_applied` (boolean) to `MetafitsContext` to indicate if the correlator has applied signal chain corrections to the data.
 * Added new functions in `fits_read`: `read_optional_cell_value()` and `read_optional_cell_array_u32()` to read FITS table values which may or may not be present in a FITS bintable.
 * Added benchmarks for `VoltageContext::read_file()` and `read_second()`.
+* Added benchmarks for `CorrelatorContext::read_by_baseline_into_buffer()`, `read_by_frequency_into_buffer()`, `read_by_baseline()` and `read_by_frequency()`.
 * Added support for reading old and new versions of the CALIBDATA HDU (calibration_fit/mod.rs = CalibrationFit) from the metafits files - providing the client with info on the best calibration solution found at the time the metafits file was generated.
 * FFI/C: Added tests for `mwalib_voltage_context_read_second()` and `mwalib_voltage_context_read_file()` functions.
 * FFI/C: Added `CMakeLists.txt` for building the C examples with CMake.

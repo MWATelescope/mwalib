@@ -42,15 +42,14 @@ python-stubgen = [
     "pyo3",
     "pyo3-stub-gen",
     "pyo3-stub-gen-derive",
-    #   "malachite",
-    #   "malachite-base",
-    #   "malachite-nz",
-    #   "malachite-q",
 ]
 
 [[bench]]
 name = "voltage_context_benches"
-# don't use path here, it breaks things.
+harness = false
+
+[[bench]]
+name = "correlator_context_benches"
 harness = false
 
 [profile.bench]
@@ -74,8 +73,8 @@ env_logger = { version = "0.11", optional = true }
 
 # "python" feature
 ndarray = { version = "0.17", optional = true }
-numpy = { version = "0.27", optional = true }
-pyo3 = { version = "0.27", features = [
+numpy = { version = "0.28", optional = true }
+pyo3 = { version = "0.28", features = [
     "chrono",
     "extension-module",
     "macros",
@@ -85,6 +84,7 @@ pyo3 = { version = "0.27", features = [
 pyo3-stub-gen = { version = "0.18", optional = true }
 pyo3-stub-gen-derive = { version = "0.18", optional = true }
 
+# Transitive due to latest versions using higher MSRV than mwalib
 # "examples" feature.
 clap = { version = "4.5", features = ["derive"], optional = true }
 
@@ -97,8 +97,6 @@ tempfile = "3.24"
 [build-dependencies]
 built = "0.8"
 cbindgen = { version = "0.29", default-features = false }
-# Transitive due to latest versions using higher MSRV than mwalib
-#indexmap = "=2.11"
 
 [[example]]
 name = "mwalib-data-dump"

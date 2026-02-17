@@ -43,7 +43,7 @@ fn fine_pfb_reorder(input: usize) -> usize {
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all)
+    pyclass(get_all, set_all, from_py_object)
 )]
 #[derive(Clone)]
 pub(crate) struct LegacyConversionBaseline {

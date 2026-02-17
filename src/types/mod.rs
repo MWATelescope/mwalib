@@ -18,7 +18,7 @@ use pyo3_stub_gen_derive::gen_stub_pyclass_enum;
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
+    pyo3::pyclass(eq, eq_int, from_py_object)
 )]
 pub enum MWAVersion {
     /// MWA correlator (v1.0), having data files without any batch numbers.
@@ -74,7 +74,7 @@ impl fmt::Display for MWAVersion {
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
+    pyo3::pyclass(eq, eq_int, from_py_object)
 )]
 pub enum VisPol {
     XX = 1,
@@ -116,7 +116,7 @@ impl fmt::Display for VisPol {
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
+    pyo3::pyclass(eq, eq_int, from_py_object)
 )]
 pub enum GeometricDelaysApplied {
     No = 0,
@@ -185,7 +185,7 @@ impl std::str::FromStr for GeometricDelaysApplied {
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
+    pyo3::pyclass(eq, eq_int, from_py_object)
 )]
 pub enum CableDelaysApplied {
     NoCableDelaysApplied = 0,
@@ -242,7 +242,7 @@ impl std::str::FromStr for CableDelaysApplied {
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
+    pyo3::pyclass(eq, eq_int, from_py_object)
 )]
 pub enum MWAMode {
     No_Capture = 0,
@@ -356,7 +356,7 @@ impl std::str::FromStr for MWAMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
+    pyo3::pyclass(eq, eq_int, from_py_object)
 )]
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 pub enum Pol {
@@ -394,7 +394,7 @@ impl fmt::Display for Pol {
 #[repr(C)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
+    pyo3::pyclass(eq, eq_int, from_py_object)
 )]
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 #[allow(clippy::upper_case_acronyms)]
@@ -469,7 +469,7 @@ impl std::str::FromStr for ReceiverType {
 #[repr(C)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyo3::pyclass(eq, eq_int)
+    pyo3::pyclass(eq, eq_int, from_py_object)
 )]
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
 #[allow(clippy::upper_case_acronyms)]
