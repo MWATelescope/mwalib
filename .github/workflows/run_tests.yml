@@ -5,15 +5,14 @@ permissions:
 on:
   push:
     tags-ignore:
-      - '**'
+      - "**"
     branches:
-      - '**'
-  pull_request:
+      - "**"
 
 env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
-  CARGO_INCREMENTAL: 0  
+  CARGO_INCREMENTAL: 0
 
 jobs:
   test:
@@ -23,26 +22,33 @@ jobs:
       fail-fast: false
       matrix:
         # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
-        os: [ubuntu-latest, ubuntu-24.04-arm, ubuntu-22.04, macos-14, macos-15, macos-15-intel] # macos-14 & 15 are Arm64
+        os: [
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+            ubuntu-22.04,
+            macos-14,
+            macos-15,
+            macos-15-intel,
+          ] # macos-14 & 15 are Arm64
     steps:
-    - name: Checkout sources
-      uses: actions/checkout@v4
+      - name: Checkout sources
+        uses: actions/checkout@v4
 
-    - name: (macos) install automake and autoconf
-      if: ${{ startsWith(matrix.os, 'macOS') }}
-      run: |
-        brew install automake autoconf    
-          
-    - name: Install stable minimal toolchain
-      uses: dtolnay/rust-toolchain@v1
-      with:          
-          toolchain: stable    
+      - name: (macos) install automake and autoconf
+        if: ${{ startsWith(matrix.os, 'macOS') }}
+        run: |
+          brew install automake autoconf
 
-    - name: Run tests on latest stable rust
-      run: cargo test --features cfitsio-static,examples
+      - name: Install stable minimal toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
 
-    - name: Minimum-specified Rust version works
-      run: |
-        MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
-        ~/.cargo/bin/rustup install $MIN_RUST --profile minimal          
-        cargo +${MIN_RUST} test --features cfitsio-static,examples
+      - name: Run tests on latest stable rust
+        run: cargo test --features cfitsio-static,examples
+
+      - name: Minimum-specified Rust version works
+        run: |
+          MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
+          ~/.cargo/bin/rustup install $MIN_RUST --profile minimal          
+          cargo +${MIN_RUST} test --features cfitsio-static,examples

@@ -3,80 +3,79 @@ name: Code Coverage
 on:
   push:
     tags-ignore:
-      - '**'
+      - "**"
     branches:
-      - '**'
-  pull_request:
+      - "**"
 
 env:
-  RUST_BACKTRACE: 1  
+  RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
-  CARGO_INCREMENTAL: 0  
+  CARGO_INCREMENTAL: 0
 
 jobs:
   generate_coverage:
-    runs-on: ubuntu-latest    
+    runs-on: ubuntu-latest
     permissions:
       contents: read
 
     steps:
-    - name: Checkout sources
-      uses: actions/checkout@v3
+      - name: Checkout sources
+        uses: actions/checkout@v3
 
-    - name: Install dependencies
-      run: |
-        sudo apt update -y
-        sudo apt install -y \
-          tzdata \
-          build-essential \
-          pkg-config \
-          git \
-          lcov \
-          ;
-      env:
-        DEBIAN_FRONTEND: noninteractive
+      - name: Install dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y \
+            tzdata \
+            build-essential \
+            pkg-config \
+            git \
+            lcov \
+            ;
+        env:
+          DEBIAN_FRONTEND: noninteractive
 
-    - name: Install stable minimal toolchain
-      uses: dtolnay/rust-toolchain@v1
-      with:          
-        toolchain: stable
-        components: llvm-tools        
+      - name: Install stable minimal toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: llvm-tools
 
-    - name: Install cargo-llvm-cov
-      run: cargo install cargo-llvm-cov
-    
-    - name: Set up latest Python3 stable version
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.x"
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
 
-    - name: Generate test lcov coverage into coverage/ dir      
-      run: |
-        pip3 install --upgrade pip
-        python3 -m venv env
-        source env/bin/activate
-        
-        pip3 install maturin pytest pytest-cov
+      - name: Set up latest Python3 stable version
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
-        mkdir -p coverage
-        cargo llvm-cov clean --workspace      
+      - name: Generate test lcov coverage into coverage/ dir
+        run: |
+          pip3 install --upgrade pip
+          python3 -m venv env
+          source env/bin/activate
 
-        # Run rust tests to generate test data
-        cargo test --features=cfitsio-static,examples,python
+          pip3 install maturin pytest pytest-cov
 
-        # build python
-        maturin develop --features=cfitsio-static,examples,python
+          mkdir -p coverage
+          cargo llvm-cov clean --workspace      
 
-        # Coverage for python tests
-        pytest tests --cov=mwalib --cov-report xml:coverage/coverage.xml tests
+          # Run rust tests to generate test data
+          cargo test --features=cfitsio-static,examples,python
 
-        # Coverage for rust tests
-        cargo llvm-cov --features=cfitsio-static,examples,python --lcov --output-path coverage/coverage.lcov
+          # build python
+          maturin develop --features=cfitsio-static,examples,python
 
-        # this uses the result of the previous run to generate a text summary
-        cargo llvm-cov report
+          # Coverage for python tests
+          pytest tests --cov=mwalib --cov-report xml:coverage/coverage.xml tests
 
-    - name: Upload reports to codecov.io. Codecov should automatically merge the python and rust coverage
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+          # Coverage for rust tests
+          cargo llvm-cov --features=cfitsio-static,examples,python --lcov --output-path coverage/coverage.lcov
+
+          # this uses the result of the previous run to generate a text summary
+          cargo llvm-cov report
+
+      - name: Upload reports to codecov.io. Codecov should automatically merge the python and rust coverage
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

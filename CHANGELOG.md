@@ -8,6 +8,12 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
+## 2.0.1 17-Feb-2026
+
+### Fixed
+
+* Error when reading a MWAX_BEAMFORMER mode metafits file via `MetafitsContext`.
+
 ## 2.0.0 17-Feb-2026
 
 ### Potentially Breaking Changes

@@ -3,6 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Unit tests for metafits context
+use std::str::FromStr;
+
 use super::*;
 use float_cmp::*;
 
@@ -678,4 +680,58 @@ fn test_metafits_context_new_corrmwaxv2_224_tiles_valid() {
     assert_eq!(context.num_receivers, 28);
 
     assert_eq!(context.num_ants, 224);
+}
+
+#[test]
+fn test_metafits_context_mwax_beamformer() {
+    // Open the test mwa v 1 metafits file
+    let metafits_filename = "test_files/1455334168_bf/1455334168_metafits.fits";
+
+    //
+    // Read the observation using mwalib
+    //
+    // Open a context and load in a test metafits
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrMWAXv2))
+        .expect("Failed to create MetafitsContext");
+
+    // Test the properties of the context object match what we expect
+
+    // obsid:                    1455334168,
+    assert_eq!(context.obs_id, 1_455_334_168);
+    assert_eq!(context.num_receivers, 32);
+    assert_eq!(context.num_ants, 256);
+    assert_eq!(context.num_metafits_incoherent_beams, 1);
+    assert_eq!(context.num_metafits_coherent_beams, 9);
+
+    let beams = context.metafits_voltage_beams.unwrap();
+
+    assert_eq!(beams[1].frequency_resolution_hz, 6400);
+    assert_eq!(beams.len(), 10);
+}
+
+#[test]
+fn test_mode() {
+    let m: MWAMode = MWAMode::from_str("HW_LFILES").unwrap();
+    assert_eq!(m, MWAMode::Hw_Lfiles);
+
+    let m: MWAMode = MWAMode::from_str("VOLTAGE_START").unwrap();
+    assert_eq!(m, MWAMode::Voltage_Start);
+
+    let m: MWAMode = MWAMode::from_str("MWAX_CORRELATOR").unwrap();
+    assert_eq!(m, MWAMode::Mwax_Correlator);
+
+    let m: MWAMode = MWAMode::from_str("MWAX_VCS").unwrap();
+    assert_eq!(m, MWAMode::Mwax_Vcs);
+
+    let m: MWAMode = MWAMode::from_str("VOLTAGE_BUFFER").unwrap();
+    assert_eq!(m, MWAMode::Voltage_Buffer);
+
+    let m: MWAMode = MWAMode::from_str("MWAX_BUFFER").unwrap();
+    assert_eq!(m, MWAMode::Mwax_Buffer);
+
+    let m: MWAMode = MWAMode::from_str("MWAX_BEAMFORMER").unwrap();
+    assert_eq!(m, MWAMode::Mwax_Beamformer);
+
+    let m: MWAMode = MWAMode::from_str("MWAX_CORR_BF").unwrap();
+    assert_eq!(m, MWAMode::Mwax_Corr_Bf);
 }

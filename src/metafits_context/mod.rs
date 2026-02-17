@@ -268,6 +268,8 @@ impl MetafitsContext {
                 }
                 MWAMode::Mwax_Correlator => Some(MWAVersion::CorrMWAXv2),
                 MWAMode::Mwax_Vcs | MWAMode::Mwax_Buffer => Some(MWAVersion::VCSMWAXv2),
+                MWAMode::Mwax_Beamformer => Some(MWAVersion::BeamformerMWAXv2),
+                MWAMode::Mwax_Corr_Bf => Some(MWAVersion::CorrBeamformerMWAXv2),
                 _ => {
                     return Err(MwalibError::Metafits(
                         MetafitsError::UnableToDetermineMWAVersionFromMode(new_context.mode),

@@ -5,10 +5,9 @@ permissions:
 on:
   push:
     tags-ignore:
-      - '**'
+      - "**"
     branches:
-      - '**'
-  pull_request:
+      - "**"
 
 env:
   RUST_BACKTRACE: 1
@@ -23,35 +22,42 @@ jobs:
       fail-fast: false
       matrix:
         # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
-        os: [ubuntu-latest, ubuntu-24.04-arm, ubuntu-22.04, macos-14, macos-15, macos-15-intel] # macos-14 & 15 are Arm64
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]        
-    steps:    
-    - name: Checkout sources
-      uses: actions/checkout@v4
+        os: [
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+            ubuntu-22.04,
+            macos-14,
+            macos-15,
+            macos-15-intel,
+          ] # macos-14 & 15 are Arm64
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
 
-    - name: (macos) install automake and autoconf
-      if: ${{ startsWith(matrix.os, 'macOS') }}
-      run: |
-        brew install automake autoconf
-    
-    - name: Install stable minimal toolchain
-      uses: dtolnay/rust-toolchain@v1
-      with:          
-          toolchain: stable        
-    
-    - name: Run tests to generate the test data
-      run: |
+      - name: (macos) install automake and autoconf
+        if: ${{ startsWith(matrix.os, 'macOS') }}
+        run: |
+          brew install automake autoconf
+
+      - name: Install stable minimal toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Run tests to generate the test data
+        run: |
           echo "Run rust tests to generate test data"
           cargo update
-          cargo test --features cfitsio-static,examples          
+          cargo test --features cfitsio-static,examples
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
           python-version: ${{ matrix.python-version }}
 
-    - name: Setup python environment and build mwalib Python module
-      run: |          
+      - name: Setup python environment and build mwalib Python module
+        run: |
           echo "Install Python deps"
           pip3 install --upgrade pip
           python3 -m venv env
@@ -61,4 +67,4 @@ jobs:
 
           echo "Build mwalib python module and test"
           maturin develop --features=cfitsio-static,examples,python --strip
-          pytest 
+          pytest
