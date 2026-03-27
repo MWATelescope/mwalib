@@ -65,6 +65,12 @@ pub struct VoltageBeam {
     pub modtime: DateTime<FixedOffset>,
     /// beam_index - Starts at zero for the first coherent beam in this observation, and increments by one for each coherent beam. Used to index into the BeamAltAz
     pub beam_index: Option<usize>,
+    /// target_name - optional name for the target of this beam
+    pub target_name: Option<String>,
+    /// RA at the start of the observation
+    pub start_ra_deg: Option<f64>,
+    /// Dec at the start of the observation
+    pub start_dec_deg: Option<f64>,
 }
 
 /// Read the voltagebeam FitsHdu and return a populated vector of `Beam`s
@@ -75,6 +81,8 @@ pub struct VoltageBeam {
 ///
 /// * `voltagebeams_hdu` - The FitsHdu containing valid voltagebeams data.
 ///
+/// * `beamaltaz_hdu` - The Optional FitsHdu containing the beam pointing info.
+///
 /// * `num_coarse_channels` - The number of coarse channels in the observation (usually 24).
 ///
 /// # Returns
@@ -84,6 +92,7 @@ pub struct VoltageBeam {
 pub(crate) fn populate_voltage_beams(
     metafits_fptr: &mut FitsFile,
     voltagebeams_hdu: &FitsHdu,
+    beamaltaz_hdu: Option<&FitsHdu>,
     coarse_channels: &[CoarseChannel],
     antennas: &[Antenna],
 ) -> Result<Vec<VoltageBeam>, error::BeamError> {
@@ -139,6 +148,36 @@ pub(crate) fn populate_voltage_beams(
             None => DataFileType::UnknownType,
         };
 
+        let target_name: Option<String> =
+            read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "target_name", row)
+                .ok()
+                .flatten();
+
+        // we use the beam number as a two digit, zero padded value for the next columns
+        let sra_col = format!("B{:02}_SRA", number);
+        let sdec_col = format!("B{:02}_SDEC", number);
+
+        //
+        // Only get the below values if the beamaltaz_hdu is present, otherwise use None
+        //
+        let (start_ra_deg, start_dec_deg) = match beamaltaz_hdu {
+            Some(hdu) => {
+                let sra: Option<f64> = read_optional_cell_value(metafits_fptr, hdu, &sra_col, row)
+                    .ok()
+                    .flatten();
+                let sdec: Option<f64> =
+                    read_optional_cell_value(metafits_fptr, hdu, &sdec_col, row)
+                        .ok()
+                        .flatten();
+                (sra, sdec)
+            }
+            None => {
+                let sra: Option<f64> = None;
+                let sdec: Option<f64> = None;
+                (sra, sdec)
+            }
+        };
+
         // Determine which antennas are in this beam's tileset
         let mut beam_antennas: Vec<Antenna> = Vec::new();
         for tile_id in tileset.iter() {
@@ -183,6 +222,9 @@ pub(crate) fn populate_voltage_beams(
             creator,
             modtime,
             beam_index: beam_index.map(|bi| bi as usize),
+            target_name,
+            start_ra_deg,
+            start_dec_deg,
         });
     }
 

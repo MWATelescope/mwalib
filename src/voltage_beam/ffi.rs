@@ -57,6 +57,12 @@ pub struct VoltageBeam {
     pub modtime: time_t,
     /// beam_index - Starts at zero for the first coherent beam in this observation, and increments by one for each coherent beam. Used to index into the BeamAltAz. -1 if not coherent.
     pub beam_index: i32,
+    /// target_name - optional name for the target of this beam
+    pub target_name: *mut c_char,
+    /// RA at the start of the observation
+    pub start_ra_deg: f64,
+    /// Dec at the start of the observation
+    pub start_dec_deg: f64,
 }
 
 impl VoltageBeam {
@@ -118,6 +124,9 @@ impl VoltageBeam {
                         creator,
                         modtime,
                         beam_index,
+                        target_name,
+                        start_ra_deg,
+                        start_dec_deg,
                     } = item;
 
                     let (coarse_channel_indicies_ptr, coarse_channel_indicies_len) =
@@ -143,12 +152,17 @@ impl VoltageBeam {
                             polarisation.as_deref().unwrap_or_default(),
                         ),
                         data_file_type: *data_file_type as DataFileType,
-                        creator: ffi_create_c_string(creator),
+                        creator: ffi_create_c_string(&creator),
                         modtime: chrono::DateTime::<chrono::Utc>::from(*modtime).timestamp(),
                         beam_index: match beam_index {
                             Some(idx) => *idx as i32,
                             None => -1,
                         },
+                        target_name: ffi_create_c_string(
+                            target_name.as_deref().unwrap_or_default(),
+                        ),
+                        start_ra_deg: start_ra_deg.unwrap_or_default(),
+                        start_dec_deg: start_dec_deg.unwrap_or_default(),
                     }
                 };
                 item_vec.push(out_item);
@@ -185,6 +199,10 @@ impl VoltageBeam {
 
         if !a.creator.is_null() {
             ffi_free_rust_c_string(a.creator);
+        }
+
+        if !a.target_name.is_null() {
+            ffi_free_rust_c_string(a.target_name);
         }
 
         // Free arrays

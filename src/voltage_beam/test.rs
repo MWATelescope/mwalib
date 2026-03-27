@@ -63,8 +63,9 @@ fn test_populate_beams() {
     // open beams HDU
     let beam_hdu =
         fits_open_hdu_by_name!(&mut fptr, "VOLTAGEBEAMS").expect("Failed to open VOLTAGEBEAMS HDU");
-    let beams = voltage_beam::populate_voltage_beams(&mut fptr, &beam_hdu, &coarse_chans, &ants)
-        .expect("Failed to populate beams");
+    let beams =
+        voltage_beam::populate_voltage_beams(&mut fptr, &beam_hdu, None, &coarse_chans, &ants)
+            .expect("Failed to populate beams");
 
     assert_eq!(beams.len(), OBS_BEAMS);
 }
