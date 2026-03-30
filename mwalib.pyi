@@ -2517,6 +2517,56 @@ class VoltageBeam:
         r"""
         beam_index - Starts at zero for the first coherent beam in this observation, and increments by one for each coherent beam. Used to index into the BeamAltAz
         """
+    @property
+    def target_name(self) -> typing.Optional[builtins.str]:
+        r"""
+        target_name - optional name for the target of this beam
+        """
+    @target_name.setter
+    def target_name(self, value: typing.Optional[builtins.str]) -> None:
+        r"""
+        target_name - optional name for the target of this beam
+        """
+    @property
+    def start_ra_deg(self) -> typing.Optional[builtins.float]:
+        r"""
+        RA at the start of the observation
+        """
+    @start_ra_deg.setter
+    def start_ra_deg(self, value: typing.Optional[builtins.float]) -> None:
+        r"""
+        RA at the start of the observation
+        """
+    @property
+    def start_dec_deg(self) -> typing.Optional[builtins.float]:
+        r"""
+        Dec at the start of the observation
+        """
+    @start_dec_deg.setter
+    def start_dec_deg(self, value: typing.Optional[builtins.float]) -> None:
+        r"""
+        Dec at the start of the observation
+        """
+    @property
+    def start_az_deg(self) -> typing.Optional[builtins.float]:
+        r"""
+        Azimuth at the start of the observation
+        """
+    @start_az_deg.setter
+    def start_az_deg(self, value: typing.Optional[builtins.float]) -> None:
+        r"""
+        Azimuth at the start of the observation
+        """
+    @property
+    def start_alt_deg(self) -> typing.Optional[builtins.float]:
+        r"""
+        Altitude at the start of the observation
+        """
+    @start_alt_deg.setter
+    def start_alt_deg(self, value: typing.Optional[builtins.float]) -> None:
+        r"""
+        Altitude at the start of the observation
+        """
 
 @typing.final
 class VoltageContext:

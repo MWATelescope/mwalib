@@ -13,7 +13,7 @@ Notes:
 ### Added
 
 * Added `target_name` in `VoltageBeam` struct.
-* Added `start_ra_deg` and `start_dec_deg` to VoltageBeam struct (only available in internal MWAX metafits files).
+* Added `start_ra_deg`, `start_dec_deg`, `start_az_deg` and `start_alt_deg` to VoltageBeam struct (only available in internal MWAX metafits files).
 
 ## 2.0.2 17-Feb-2026
 

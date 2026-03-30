@@ -1,14 +1,14 @@
-use core::f64;
-use std::fmt;
-
-use crate::{read_optional_cell_string_value, CoarseChannel};
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+use core::f64;
+use std::fmt;
+
 use crate::{
-    read_cell_array_u32, read_cell_value, read_optional_cell_value, types::DataFileType, Antenna,
-    MAX_ANTENNAS,
+    get_optional_fits_key, read_cell_array_u32, read_cell_value, read_optional_cell_value,
+    types::DataFileType, Antenna, MAX_ANTENNAS,
 };
+use crate::{read_optional_cell_string_value, CoarseChannel};
 use chrono::{DateTime, FixedOffset};
 use fitsio::hdu::{FitsHdu, HduInfo};
 use fitsio::FitsFile;
@@ -71,6 +71,10 @@ pub struct VoltageBeam {
     pub start_ra_deg: Option<f64>,
     /// Dec at the start of the observation
     pub start_dec_deg: Option<f64>,
+    /// Azimuth at the start of the observation
+    pub start_az_deg: Option<f64>,
+    /// Altitude at the start of the observation
+    pub start_alt_deg: Option<f64>,
 }
 
 /// Read the voltagebeam FitsHdu and return a populated vector of `Beam`s
@@ -156,25 +160,34 @@ pub(crate) fn populate_voltage_beams(
         // we use the beam number as a two digit, zero padded value for the next columns
         let sra_col = format!("B{:02}_SRA", number);
         let sdec_col = format!("B{:02}_SDEC", number);
+        let salt_col = format!("B{:02}_SALT", number);
+        let saz_col = format!("B{:02}_SAZ", number);
 
         //
         // Only get the below values if the beamaltaz_hdu is present, otherwise use None
         //
-        let (start_ra_deg, start_dec_deg) = match beamaltaz_hdu {
+        let (start_ra_deg, start_dec_deg, start_az_deg, start_alt_deg) = match beamaltaz_hdu {
             Some(hdu) => {
-                let sra: Option<f64> = read_optional_cell_value(metafits_fptr, hdu, &sra_col, row)
+                let sra: Option<f64> = get_optional_fits_key!(metafits_fptr, hdu, &sra_col)
                     .ok()
                     .flatten();
-                let sdec: Option<f64> =
-                    read_optional_cell_value(metafits_fptr, hdu, &sdec_col, row)
-                        .ok()
-                        .flatten();
-                (sra, sdec)
+                let sdec: Option<f64> = get_optional_fits_key!(metafits_fptr, hdu, &sdec_col)
+                    .ok()
+                    .flatten();
+                let saz: Option<f64> = get_optional_fits_key!(metafits_fptr, hdu, &saz_col)
+                    .ok()
+                    .flatten();
+                let salt: Option<f64> = get_optional_fits_key!(metafits_fptr, hdu, &salt_col)
+                    .ok()
+                    .flatten();
+                (sra, sdec, saz, salt)
             }
             None => {
                 let sra: Option<f64> = None;
                 let sdec: Option<f64> = None;
-                (sra, sdec)
+                let saz: Option<f64> = None;
+                let salt: Option<f64> = None;
+                (sra, sdec, saz, salt)
             }
         };
 
@@ -225,6 +238,8 @@ pub(crate) fn populate_voltage_beams(
             target_name,
             start_ra_deg,
             start_dec_deg,
+            start_az_deg,
+            start_alt_deg,
         });
     }
 

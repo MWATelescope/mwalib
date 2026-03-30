@@ -63,6 +63,10 @@ pub struct VoltageBeam {
     pub start_ra_deg: f64,
     /// Dec at the start of the observation
     pub start_dec_deg: f64,
+    // Azimuth at the start of the observation
+    pub start_az_deg: f64,
+    /// Altitude at the start of the observation
+    pub start_alt_deg: f64,
 }
 
 impl VoltageBeam {
@@ -127,6 +131,8 @@ impl VoltageBeam {
                         target_name,
                         start_ra_deg,
                         start_dec_deg,
+                        start_az_deg,
+                        start_alt_deg,
                     } = item;
 
                     let (coarse_channel_indicies_ptr, coarse_channel_indicies_len) =
@@ -163,6 +169,8 @@ impl VoltageBeam {
                         ),
                         start_ra_deg: start_ra_deg.unwrap_or_default(),
                         start_dec_deg: start_dec_deg.unwrap_or_default(),
+                        start_az_deg: start_az_deg.unwrap_or_default(),
+                        start_alt_deg: start_alt_deg.unwrap_or_default(),
                     }
                 };
                 item_vec.push(out_item);
