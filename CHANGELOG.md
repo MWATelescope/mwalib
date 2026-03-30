@@ -8,7 +8,7 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
-## 2.0.3 27-Mar-2026
+## 2.0.3 30-Mar-2026
 
 ### Added
 
