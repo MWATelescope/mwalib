@@ -78,45 +78,6 @@ macro_rules! fits_open_hdu_by_name {
     };
 }
 
-/// Given a FITS file pointer, a HDU that belongs to it, and a keyword that may
-/// or may not exist, pull out the value of the keyword, parsing it into the
-/// desired type.
-///
-/// # Arguments
-///
-/// * `fits_fptr` - A reference to the `FITSFile` object.
-///
-/// * `hdu` - A reference to the HDU you want to find `keyword` in the header of.
-///
-/// * `keyword` - String containing the keyword to read.
-///
-///
-/// # Returns
-///
-/// *  A Result containing an Option containing the value read or None if the key did not exist, or an error.
-///
-/// # Examples
-///
-/// ```
-/// # use mwalib::*;
-/// # fn main() -> Result<(), FitsError> {
-/// let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
-/// let mut fptr = fits_open!(&metafits)?;
-/// let hdu = fits_open_hdu!(&mut fptr, 0)?;
-/// let freq_centre: Option<f64> = get_optional_fits_key!(&mut fptr, &hdu, "FREQCENT")?;
-/// assert_eq!(freq_centre, Some(154.24));
-/// let not_real: Option<f64> = get_optional_fits_key!(&mut fptr, &hdu, "NOTREAL")?;
-/// assert_eq!(not_real, None);
-/// #     Ok(())
-/// # }
-/// ```
-#[macro_export]
-macro_rules! get_optional_fits_key {
-    ($fptr:expr, $hdu:expr, $keyword:expr) => {
-        _get_optional_fits_key($fptr, $hdu, $keyword, file!(), line!())
-    };
-}
-
 /// Given a FITS file pointer, a HDU that belongs to it, and a keyword, pull out
 /// the value of the keyword, parsing it into the desired type.
 ///
@@ -1342,4 +1303,43 @@ pub fn get_table_col_index(
 
         Ok(col_num)
     }
+}
+
+/// Given a FITS file pointer, a HDU that belongs to it, and a keyword that may
+/// or may not exist, pull out the value of the keyword, parsing it into the
+/// desired type.
+///
+/// # Arguments
+///
+/// * `fits_fptr` - A reference to the `FITSFile` object.
+///
+/// * `hdu` - A reference to the HDU you want to find `keyword` in the header of.
+///
+/// * `keyword` - String containing the keyword to read.
+///
+///
+/// # Returns
+///
+/// *  A Result containing an Option containing the value read or None if the key did not exist, or an error.
+///
+/// # Examples
+///
+/// ```
+/// # use mwalib::*;
+/// # fn main() -> Result<(), FitsError> {
+/// let metafits = "test_files/1101503312_1_timestep/1101503312.metafits";
+/// let mut fptr = fits_open!(&metafits)?;
+/// let hdu = fits_open_hdu!(&mut fptr, 0)?;
+/// let freq_centre: Option<f64> = get_optional_fits_key!(&mut fptr, &hdu, "FREQCENT")?;
+/// assert_eq!(freq_centre, Some(154.24));
+/// let not_real: Option<f64> = get_optional_fits_key!(&mut fptr, &hdu, "NOTREAL")?;
+/// assert_eq!(not_real, None);
+/// #     Ok(())
+/// # }
+/// ```
+#[macro_export]
+macro_rules! get_optional_fits_key {
+    ($fptr:expr, $hdu:expr, $keyword:expr) => {
+        $crate::_get_optional_fits_key($fptr, $hdu, $keyword, file!(), line!())
+    };
 }

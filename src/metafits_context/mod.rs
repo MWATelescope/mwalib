@@ -4,6 +4,7 @@
 
 //! The main interface to MWA data.
 use chrono::{DateTime, Duration, FixedOffset};
+use fitsio::hdu::FitsHdu;
 use num_traits::ToPrimitive;
 use std::fmt;
 use std::path::Path;
@@ -370,6 +371,11 @@ impl MetafitsContext {
         // The voltage beams HDU is not always present, so we will check the result when we need to use it.
         // is_ok() means it exists, is_err() = True means it does not.
         let metafits_beams_hdu_result = fits_open_hdu_by_name!(&mut metafits_fptr, "VOLTAGEBEAMS");
+
+        // The voltage beams HDU is not always present, so we will check the result when we need to use it.
+        // is_ok() means it exists, is_err() = True means it does not.
+        let metafits_beam_alt_az_hdu_result =
+            fits_open_hdu_by_name!(&mut metafits_fptr, "BEAMALTAZ");
 
         // Populate obsid from the metafits
         let obsid = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "GPSTIME")?;
@@ -750,9 +756,12 @@ impl MetafitsContext {
 
         match &metafits_beams_hdu_result {
             Ok(metafits_beams_hdu) => {
+                let beamaltaz_hdu: Option<&FitsHdu> = metafits_beam_alt_az_hdu_result.as_ref().ok();
+
                 let beams_vec = voltage_beam::populate_voltage_beams(
                     &mut metafits_fptr,
                     metafits_beams_hdu,
+                    beamaltaz_hdu,
                     &metafits_coarse_chans,
                     &antennas,
                 )?;
