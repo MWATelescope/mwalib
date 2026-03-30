@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Install dependencies
         run: |
@@ -36,7 +36,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
 
       - name: Install stable minimal toolchain
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           components: llvm-tools
@@ -45,7 +45,7 @@ jobs:
         run: cargo install cargo-llvm-cov
 
       - name: Set up latest Python3 stable version
-        uses: actions/setup-python@v5
+        uses: actions/actions/setup-python@v6
         with:
           python-version: "3.x"
 
@@ -76,6 +76,6 @@ jobs:
           cargo llvm-cov report
 
       - name: Upload reports to codecov.io. Codecov should automatically merge the python and rust coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

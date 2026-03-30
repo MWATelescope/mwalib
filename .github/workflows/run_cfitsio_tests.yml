@@ -24,24 +24,27 @@ jobs:
         # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
         os: [
             ubuntu-latest,
-            ubuntu-22.04-arm,
+            ubuntu-24.04-arm,
             macos-14,
             macos-15,
             macos-15-intel,
           ] # macos-14 & 15 are Arm64
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: (macos) install automake and autoconf
-        if: ${{ startsWith(matrix.os, 'macOS') }}
+        if: ${{ startsWith(matrix.os, 'macos') }}
         run: |
           brew install automake autoconf
 
       - name: Install stable minimal toolchain
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
 
       - name: Install cfitsio 3.49
         run: |
@@ -86,7 +89,7 @@ jobs:
           ] # macos-14 & 15 are Arm64
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: (macos) install automake and autoconf
         if: ${{ startsWith(matrix.os, 'macOS') }}
@@ -94,9 +97,12 @@ jobs:
           brew install automake autoconf
 
       - name: Install stable minimal toolchain
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
 
       - name: Install cfitsio latest
         run: |

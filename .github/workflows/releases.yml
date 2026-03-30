@@ -17,7 +17,7 @@ permissions:
 on:
   push:
     tags:
-      - "v*"  
+      - "v*"
   workflow_dispatch:
 
 env:
@@ -34,33 +34,33 @@ jobs:
             target: x86_64
           - runner: ubuntu-24.04-arm
             target: aarch64
-#          - runner: ubuntu-latest
-#            target: armv7
-#          - runner: ubuntu-latest
-#            target: ppc64le
-    steps:                  
+    #          - runner: ubuntu-latest
+    #            target: armv7
+    #          - runner: ubuntu-latest
+    #            target: ppc64le
+    steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build linux wheels
-        uses: PyO3/maturin-action@v1        
+        uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
           args: --release --features=cfitsio-static,examples,python --out dist -i 3.10 3.11 3.12 3.13 3.14
           manylinux: auto
 
       - name: Upload linux wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wheels-linux-${{ matrix.platform.target }}
           path: dist
 
-      - name: Build linux C and Rust libraries      
+      - name: Build linux C and Rust libraries
         run: |
           # Fix permissions- output files from maturn-action end up owned by root
           # so lets change them back to root:root
           sudo chown -R runner:docker .
-         
+
           export TAG="$(git describe --tags)"
           echo "TAG=$TAG"
 
@@ -109,7 +109,7 @@ jobs:
           done
 
       - name: Upload linux tarball
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-${{ matrix.platform.target }}.tar.gz
           path: "*.tar.gz"
@@ -123,29 +123,29 @@ jobs:
           - runner: macos-15-intel
             target: x86_64
           - runner: macos-15
-            target: aarch64          
-    steps:      
+            target: aarch64
+    steps:
       - name: Checkout repository
-        uses: actions/checkout@v4      
-      
-      - name: Install automake and autoconf        
+        uses: actions/checkout@v6
+
+      - name: Install automake and autoconf
         run: |
           brew install automake autoconf
 
       - name: Build macos wheels
-        uses: PyO3/maturin-action@v1        
+        uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
           args: --release --features=cfitsio-static,examples,python --out dist -i 3.10 3.11 3.12 3.13 3.14
 
       - name: Upload macos wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wheels-${{ matrix.platform.runner }}-${{ matrix.platform.target }}
           path: dist
 
       - name: Build C and Rust libraries
-        run: |                  
+        run: |
           export TAG="$(git describe --tags)"
           echo "TAG=$TAG"
 
@@ -168,7 +168,7 @@ jobs:
                               
           echo "building kernel-target $KERNEL-$TARGET"
           export RUSTFLAGS="-C target-cpu=$TARGET"          
-          
+
           # Build C objects
           cargo build --release --features examples,cfitsio-static
 
@@ -187,25 +187,25 @@ jobs:
               ./dist/*.whl
 
       - name: Upload macos tarball
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.platform.runner }}-${{ matrix.platform.target }}.tar.gz
           path: "*.tar.gz"
           if-no-files-found: error
 
   create-github-release:
-    name: Create a new github release    
+    name: Create a new github release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
-    needs: [build_linux, build_macos]    
+    needs: [build_linux, build_macos]
     environment: CI
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
-          merge-multiple: true     
+          merge-multiple: true
 
       - name: Create release
         env:
@@ -233,14 +233,14 @@ jobs:
       attestations: write
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
-          pattern: wheels-*   
+          pattern: wheels-*
 
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
-          subject-path: 'wheels-*/*'
+          subject-path: "wheels-*/*"
 
       - name: Publish to PyPI
         if: startsWith(github.ref, 'refs/tags/')
@@ -260,45 +260,48 @@ jobs:
     needs: [create-github-release]
     environment: CI
     steps:
-        - name: Checkout sources
-          uses: actions/checkout@v4
+      - name: Checkout sources
+        uses: actions/checkout@v6
 
-        - name: Install stable, minimal toolchain
-          uses: dtolnay/rust-toolchain@v1
-          with:
-            toolchain: stable
+      - name: Install stable, minimal toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
-        # We install cfitsio because when releasing to crates.io, it runs
-        # the rust docs generation which fails if our code does any
-        # writing. With feature cfitsio-static, it has to build cfitsio which
-        # involves writing so have to build without that feature when pushing
-        # to crates.io
-        - name: Install cfitsio 4.6.3
-          run: |
-            curl "https://codeload.github.com/HEASARC/cfitsio/tar.gz/refs/tags/cfitsio-4.6.3" -o cfitsio.tar.gz
-            tar -xf cfitsio.tar.gz
-            rm cfitsio.tar.gz
-            cd cfitsio-cfitsio-4.6.3
-            # Enabling SSE2/SSSE3 could cause portability problems, but it's unlikely that anyone
-            # is using such a CPU...
-            # https://stackoverflow.com/questions/52858556/most-recent-processor-without-support-of-ssse3-instructions
-            # Disabling curl just means you cannot fits_open() using a URL.
-            CFLAGS="-O3" ./configure --prefix=/usr/local --enable-reentrant --enable-sse2 --enable-ssse3 --disable-curl
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
 
-            make -j
-            sudo make install
-            sudo ldconfig    
+      # We install cfitsio because when releasing to crates.io, it runs
+      # the rust docs generation which fails if our code does any
+      # writing. With feature cfitsio-static, it has to build cfitsio which
+      # involves writing so have to build without that feature when pushing
+      # to crates.io
+      - name: Install cfitsio 4.6.3
+        run: |
+          curl "https://codeload.github.com/HEASARC/cfitsio/tar.gz/refs/tags/cfitsio-4.6.3" -o cfitsio.tar.gz
+          tar -xf cfitsio.tar.gz
+          rm cfitsio.tar.gz
+          cd cfitsio-cfitsio-4.6.3
+          # Enabling SSE2/SSSE3 could cause portability problems, but it's unlikely that anyone
+          # is using such a CPU...
+          # https://stackoverflow.com/questions/52858556/most-recent-processor-without-support-of-ssse3-instructions
+          # Disabling curl just means you cannot fits_open() using a URL.
+          CFLAGS="-O3" ./configure --prefix=/usr/local --enable-reentrant --enable-sse2 --enable-ssse3 --disable-curl
 
-            cd ..
-            rm -rf cfitsio-cfitsio-4.6.3
-          
-        - name: Build on latest stable rust
-          run: cargo build --release --features examples
+          make -j
+          sudo make install
+          sudo ldconfig    
 
-        - name: Run tests on latest stable rust
-          run: cargo test --release --features examples
+          cd ..
+          rm -rf cfitsio-cfitsio-4.6.3
 
-        - uses: katyo/publish-crates@v2
-          with:
-              registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-              args: --no-verify
+      - name: Build on latest stable rust
+        run: cargo build --release --features examples
+
+      - name: Run tests on latest stable rust
+        run: cargo test --release --features examples
+
+      - uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          args: --no-verify
