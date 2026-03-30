@@ -198,7 +198,7 @@ def test_mwax_metafits_context_voltage_beams(mwax_vb_mc: mwalib.MetafitsContext)
     assert mwax_vb_mc.metafits_voltage_beams[0].start_az_deg == 112.09423355582292
 
     assert mwax_vb_mc.metafits_voltage_beams[1].number == 1
-    assert mwax_vb_mc.metafits_voltage_beams[0].coherent is True
+    assert mwax_vb_mc.metafits_voltage_beams[1].coherent is True
     assert mwax_vb_mc.metafits_voltage_beams[1].target_name == "PSR J1455-3330"
     assert mwax_vb_mc.metafits_voltage_beams[1].start_ra_deg == 223.9499
     assert mwax_vb_mc.metafits_voltage_beams[1].start_dec_deg == -33.51289
