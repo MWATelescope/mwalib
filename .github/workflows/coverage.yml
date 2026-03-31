@@ -45,7 +45,7 @@ jobs:
         run: cargo install cargo-llvm-cov
 
       - name: Set up latest Python3 stable version
-        uses: actions/actions/setup-python@v6
+        uses: actions/setup-python@v6
         with:
           python-version: "3.x"
 

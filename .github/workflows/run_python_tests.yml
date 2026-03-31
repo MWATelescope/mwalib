@@ -54,7 +54,7 @@ jobs:
           cargo test --features cfitsio-static,examples
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/actions/setup-python@v6
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
