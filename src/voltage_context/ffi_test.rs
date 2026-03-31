@@ -551,18 +551,22 @@ fn test_mwalib_voltage_context_mwaxv2_read_second_valid() {
             error_message_length,
         );
 
+        // Ensure the call succeeded before using the metadata pointer.
         assert_eq!(retval, 0);
 
+        // Verify that the metadata pointer was actually set by the FFI call.
         assert!(
             !voltage_metadata_ptr.is_null(),
             "mwalib_voltage_metadata_get returned success but voltage_metadata_ptr is null"
         );
-    }
 
-    unsafe {
+        // At this point we have asserted that voltage_metadata_ptr is non-null,
+        // so it is safe to create a reference and use it below.
+        let voltage_metadata = &*voltage_metadata_ptr;
+
         // 2 pols x 1 fine chans x 1 tile * 81920 samples * 160 blocks * 2 bytes per sample
-        let buffer_len = ((*voltage_metadata_ptr).voltage_block_size_bytes
-            * (*voltage_metadata_ptr).num_voltage_blocks_per_second as u64
+        let buffer_len = (voltage_metadata.voltage_block_size_bytes
+            * voltage_metadata.num_voltage_blocks_per_second as u64
             * gps_second_count as u64) as usize;
 
         let in_buffer: Vec<i8> = vec![0; buffer_len];
