@@ -156,20 +156,20 @@ pub unsafe extern "C" fn mwalib_free_rust_cstring(rust_cstring: *mut c_char) -> 
 /// # Returns
 ///
 /// * A mutable pointer to c_char. This is C owned, and if there was an error with the string, e.g. an
-/// extra NUL terminator for some reason, then the function will return a NULL pointer.
+///   extra NUL terminator for some reason, then the function will return a NULL pointer.
 ///
 /// # Safety
 /// * It is up to the caller to free the string, using `ffi_free_rust_c_string`.
 #[inline]
 pub fn ffi_create_c_string(rust_str: &str) -> *mut c_char {
     // Convert to CString (adds null terminator)
-    return match CString::new(rust_str) {
+    match CString::new(rust_str) {
         Ok(s) => s.into_raw(),
         Err(_) => {
             // If the string name contains an interior NUL or some other error, return a NULL ptr
             std::ptr::null_mut()
         }
-    };
+    }
 }
 
 /// Utility: free a Rust-allocated C string returned by this API.
@@ -183,9 +183,10 @@ pub fn ffi_create_c_string(rust_str: &str) -> *mut c_char {
 /// * Nothing
 ///
 /// # Safety
-/// * c_string_ptr must not have already been freed and must point to a C string.
+/// `c_string_ptr` must be a pointer previously returned by `CString::into_raw`,
+/// or null. Passing any other pointer is undefined behaviour.
 #[inline]
-pub fn ffi_free_rust_c_string(c_string_ptr: *mut c_char) {
+pub unsafe fn ffi_free_rust_c_string(c_string_ptr: *mut c_char) {
     if !c_string_ptr.is_null() {
         unsafe {
             let _ = CString::from_raw(c_string_ptr); // drop to free
@@ -230,12 +231,12 @@ pub fn ffi_create_c_array<T>(rust_vec: Vec<T>) -> (*mut T, usize) {
 /// # Safety
 /// * c_vec_ptr must not have already been freed and must point to a populate T*.
 /// * If the T contains members which also have vectors or other objects that need freeing, you'll need to do that first
-/// before calling this.
+///   before calling this.
 #[inline]
 pub fn ffi_free_c_array<T>(c_vec_ptr: *mut T, c_vec_len: usize) {
     if !c_vec_ptr.is_null() {
         unsafe {
-            let boxed = Box::from_raw(std::slice::from_raw_parts_mut(c_vec_ptr, c_vec_len));
+            let boxed = Box::from_raw(std::ptr::slice_from_raw_parts_mut(c_vec_ptr, c_vec_len));
             drop(boxed);
         }
     }

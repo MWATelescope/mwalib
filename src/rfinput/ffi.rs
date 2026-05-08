@@ -202,15 +202,21 @@ impl Rfinput {
 
         // Free strings if present
         if !a.tile_name.is_null() {
-            ffi_free_rust_c_string(a.tile_name);
+            unsafe {
+                ffi_free_rust_c_string(a.tile_name);
+            }
         }
 
         if !a.pol.is_null() {
-            ffi_free_rust_c_string(a.pol);
+            unsafe {
+                ffi_free_rust_c_string(a.pol);
+            }
         }
 
         if !a.flavour.is_null() {
-            ffi_free_rust_c_string(a.flavour);
+            unsafe {
+                ffi_free_rust_c_string(a.flavour);
+            }
         }
 
         // Free arrays

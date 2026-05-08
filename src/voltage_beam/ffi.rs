@@ -158,7 +158,7 @@ impl VoltageBeam {
                             polarisation.as_deref().unwrap_or_default(),
                         ),
                         data_file_type: *data_file_type as DataFileType,
-                        creator: ffi_create_c_string(&creator),
+                        creator: ffi_create_c_string(creator),
                         modtime: chrono::DateTime::<chrono::Utc>::from(*modtime).timestamp(),
                         beam_index: match beam_index {
                             Some(idx) => *idx as i32,
@@ -198,19 +198,27 @@ impl VoltageBeam {
 
         // Free string if present
         if !a.tle.is_null() {
-            ffi_free_rust_c_string(a.tle);
+            unsafe {
+                ffi_free_rust_c_string(a.tle);
+            }
         }
 
         if !a.polarisation.is_null() {
-            ffi_free_rust_c_string(a.polarisation);
+            unsafe {
+                ffi_free_rust_c_string(a.polarisation);
+            }
         }
 
         if !a.creator.is_null() {
-            ffi_free_rust_c_string(a.creator);
+            unsafe {
+                ffi_free_rust_c_string(a.creator);
+            }
         }
 
         if !a.target_name.is_null() {
-            ffi_free_rust_c_string(a.target_name);
+            unsafe {
+                ffi_free_rust_c_string(a.target_name);
+            }
         }
 
         // Free arrays

@@ -21,7 +21,6 @@ use crate::{
 ///
 /// C Representation of the `VoltageContext` metadata
 ///
-
 #[repr(C)]
 pub struct VoltageMetadata {
     // ---- 8-byte aligned fields first (u64) ----
@@ -288,7 +287,7 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
     // Return ownership to C via raw pointer
     if !out_voltage_metadata_ptr.is_null() {
         *out_voltage_metadata_ptr = Box::into_raw(Box::new(out_metadata));
-        return MWALIB_SUCCESS;
+        MWALIB_SUCCESS
     } else {
         // Cannot write the out pointer; report failure
         set_c_string(
@@ -296,7 +295,7 @@ pub unsafe extern "C" fn mwalib_voltage_metadata_get(
             error_message,
             error_message_length,
         );
-        return MWALIB_FAILURE;
+        MWALIB_FAILURE
     }
 }
 

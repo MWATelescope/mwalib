@@ -391,47 +391,36 @@ where
     T: Debug + Display,
 {
     let vec_len = vec.len();
-    let return_str: String;
 
-    // Check for silliness
     if vec_len == 0 || num_elements == 0 {
         return String::from("[]");
     }
 
-    if vec_len <= (num_elements * 2) {
-        // We will display the whole array
-        // Remove the last ", "
-        let full_str = vec
-            .iter()
-            .fold(String::new(), |acc, num| {
-                acc + format!("{}", &num).as_str() + ","
-            })
-            .to_string();
+    let return_str = if vec_len <= (num_elements * 2) {
+        let full_str = vec.iter().fold(String::new(), |acc, num| {
+            acc + format!("{}", &num).as_str() + ","
+        });
 
-        return_str = format!("[{}]", full_str.strip_suffix(",").unwrap_or(&full_str));
+        format!("[{}]", full_str.strip_suffix(",").unwrap_or(&full_str))
     } else {
-        let start_str = vec[0..num_elements]
-            .iter()
-            .fold(String::new(), |acc, num| {
-                acc + format!("{}", &num).as_str() + ","
-            })
-            .to_string();
+        let start_str = vec[0..num_elements].iter().fold(String::new(), |acc, num| {
+            acc + format!("{}", &num).as_str() + ","
+        });
 
         let end_str = vec[vec_len - num_elements..]
             .iter()
             .fold(String::new(), |acc, num| {
                 acc + format!("{}", &num).as_str() + ","
-            })
-            .to_string();
+            });
 
-        return_str = format!(
+        format!(
             "[{}...{}]",
             start_str.strip_suffix(",").unwrap_or(&start_str),
             end_str.strip_suffix(",").unwrap_or(&end_str),
-        );
+        )
     };
 
-    return return_str;
+    return_str
 }
 
 /// Returns a formatted string to 'pretty print' an Option<vector>

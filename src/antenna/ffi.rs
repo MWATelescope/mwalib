@@ -6,10 +6,7 @@ use std::ffi::c_char;
 
 use crate::{
     antenna::{self, ffi},
-    ffi::{
-        ffi_create_c_array, ffi_create_c_string, ffi_free_c_array,
-        ffi_free_rust_c_string,
-    },
+    ffi::{ffi_create_c_array, ffi_create_c_string, ffi_free_c_array, ffi_free_rust_c_string},
     MetafitsContext,
 };
 
@@ -125,7 +122,9 @@ impl Antenna {
 
         // Free string if present
         if !a.tile_name.is_null() {
-            ffi_free_rust_c_string(a.tile_name);
+            unsafe {
+                ffi_free_rust_c_string(a.tile_name);
+            }
         }
     }
 

@@ -201,7 +201,7 @@ fn convert_temp_voltage_files(
     // channel_identifier.
     for v in voltage_file_batches.values_mut() {
         v.voltage_files
-            .sort_unstable_by(|a, b| a.channel_identifier.cmp(&b.channel_identifier));
+            .sort_unstable_by_key(|a| a.channel_identifier);
     }
     voltage_file_batches
 }

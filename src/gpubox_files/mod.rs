@@ -188,7 +188,7 @@ fn convert_temp_gpuboxes(temp_gpuboxes: Vec<TempGpuBoxFile>) -> Vec<GpuBoxBatch>
     // channel_identifier.
     for v in &mut gpubox_batches {
         v.gpubox_files
-            .sort_unstable_by(|a, b| a.channel_identifier.cmp(&b.channel_identifier));
+            .sort_unstable_by_key(|a| a.channel_identifier);
     }
 
     // Sort the batches by batch number
@@ -614,7 +614,7 @@ fn create_time_map(
     // the temporary gpubox files along with their times. In any case, handling
     // that would be difficult!
     let maps = gpuboxes
-        .into_iter()
+        .iter()
         .map(|g| {
             let mut fptr = fits_open!(&g.filename)?;
             let hdu = fits_open_hdu!(&mut fptr, 0)?;

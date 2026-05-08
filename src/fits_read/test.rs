@@ -234,7 +234,7 @@ fn test_get_required_fits_key() {
         let fits_value_i64 = hdu.read_key::<i64>(fptr, "FOO");
         assert!(fits_value_i32.is_ok());
         assert!(fits_value_i64.is_ok());
-        assert_eq!(fits_value_i32.unwrap(), 1);
+        assert_eq!(fits_value_i32.unwrap(), 10);
         assert_eq!(fits_value_i64.unwrap(), 10);
 
         // Despite writing to "fits_value", the key is written as "FOO".
@@ -281,7 +281,7 @@ fn test_get_optional_fits_key() {
         let fits_value_i64 = hdu.read_key::<i64>(fptr, "FOO");
         assert!(fits_value_i32.is_ok());
         assert!(fits_value_i64.is_ok());
-        assert_eq!(fits_value_i32.unwrap(), 1);
+        assert_eq!(fits_value_i32.unwrap(), 10);
         assert_eq!(fits_value_i64.unwrap(), 10);
 
         // Despite writing to "foo", the key is written as "FOO".

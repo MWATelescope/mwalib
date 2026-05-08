@@ -772,13 +772,13 @@ impl MetafitsContext {
                     .as_ref()
                     .unwrap()
                     .iter()
-                    .filter(|b| b.coherent == true)
+                    .filter(|b| b.coherent)
                     .count();
                 num_incoherent_beams = beams
                     .as_ref()
                     .unwrap()
                     .iter()
-                    .filter(|b| b.coherent == false)
+                    .filter(|b| !b.coherent)
                     .count();
             }
             Err(_) => {
@@ -1080,8 +1080,8 @@ impl fmt::Display for MetafitsContext {
     Num fine channels:        {nfc},
     Fine Channels (MHz):      {fc},
 
-    R.A. (tile_pointing):     {rtpc} degrees,
-    Dec. (tile_pointing):     {dtpc} degrees,
+    R.A. (tile_pointing):     {rtpc:.3} degrees,
+    Dec. (tile_pointing):     {dtpc:.3} degrees,
     R.A. (phase center):      {rppc} degrees,
     Dec. (phase center):      {dppc} degrees,
     Azimuth:                  {az} degrees,
@@ -1162,8 +1162,8 @@ impl fmt::Display for MetafitsContext {
                     .collect::<Vec<f32>>(),
                 8
             ),
-            rtpc = format!("{:.3}", self.ra_tile_pointing_degrees),
-            dtpc = format!("{:.3}", self.dec_tile_pointing_degrees),
+            rtpc = self.ra_tile_pointing_degrees,
+            dtpc = self.dec_tile_pointing_degrees,
             rppc = match self.ra_phase_center_degrees {
                 Some(s) => format!("{:.3}", s),
                 None => String::from("None"),

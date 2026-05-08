@@ -82,7 +82,7 @@ fn test_populate_beams_mwax_internal_metafits_old() {
 
     assert_eq!(beams.len(), OBS_BEAMS);
     assert_eq!(beams[0].number, 0);
-    assert_eq!(beams[0].coherent, true);
+    assert!(beams[0].coherent);
     assert_eq!(beams[0].target_name, None);
     assert_eq!(beams[0].start_ra_deg, None);
     assert_eq!(beams[0].start_dec_deg, None);
@@ -90,7 +90,7 @@ fn test_populate_beams_mwax_internal_metafits_old() {
     assert_eq!(beams[0].start_az_deg, None);
 
     assert_eq!(beams[8].number, 8);
-    assert_eq!(beams[8].coherent, true);
+    assert!(beams[8].coherent);
     assert_eq!(beams[8].target_name, None);
     assert_eq!(beams[8].start_ra_deg, None);
     assert_eq!(beams[8].start_dec_deg, None);
@@ -168,7 +168,7 @@ fn test_populate_beams_internal_mwax_metafits() {
 
     assert_eq!(beams.len(), OBS_BEAMS);
     assert_eq!(beams[0].number, 0);
-    assert_eq!(beams[0].coherent, false);
+    assert!(!beams[0].coherent);
     assert_eq!(beams[0].target_name, Some(String::from("PSR J1455-3330")));
     assert_eq!(beams[0].start_ra_deg, Some(223.94990412920006));
     assert_eq!(beams[0].start_dec_deg, Some(-33.5128896667));
@@ -176,7 +176,7 @@ fn test_populate_beams_internal_mwax_metafits() {
     assert_eq!(beams[0].start_az_deg, Some(112.09423355582292));
 
     assert_eq!(beams[1].number, 1);
-    assert_eq!(beams[1].coherent, true);
+    assert!(beams[1].coherent);
     assert_eq!(beams[1].target_name, Some(String::from("PSR J1455-3330")));
     assert_eq!(beams[1].start_ra_deg, Some(223.9499));
     assert_eq!(beams[1].start_dec_deg, Some(-33.51289));

@@ -293,17 +293,17 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     // Populate members
     //
     // Populate antennas
-    let (antennas_ptr, antennas_len) = antenna::ffi::Antenna::populate_array(&metafits_context);
+    let (antennas_ptr, antennas_len) = antenna::ffi::Antenna::populate_array(metafits_context);
 
     // Populate baselines
-    let (baselines_ptr, baselines_len) = baseline::ffi::Baseline::populate_array(&metafits_context);
+    let (baselines_ptr, baselines_len) = baseline::ffi::Baseline::populate_array(metafits_context);
 
     // Populate beams
-    let (beams_ptr, beams_len) = voltage_beam::ffi::VoltageBeam::populate_array(&metafits_context);
+    let (beams_ptr, beams_len) = voltage_beam::ffi::VoltageBeam::populate_array(metafits_context);
 
     // Populate calibration fits
     let (calibration_fits_ptr, calibration_fits_len) =
-        calibration_fit::ffi::CalibrationFit::populate_array(&metafits_context);
+        calibration_fit::ffi::CalibrationFit::populate_array(metafits_context);
 
     // Populate metafits coarse channels
     let (coarse_channels_ptr, coarse_channels_len) =
@@ -314,11 +314,11 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
         timestep::ffi::TimeStep::populate_array(&metafits_context.metafits_timesteps);
 
     // Populate rf_inputs
-    let (rfinputs_ptr, rfinputs_len) = rfinput::ffi::Rfinput::populate_array(&metafits_context);
+    let (rfinputs_ptr, rfinputs_len) = rfinput::ffi::Rfinput::populate_array(metafits_context);
 
     // Populate signal chain corrections
     let (signal_chain_corrections_ptr, signal_chain_corrections_len) =
-        signal_chain_correction::ffi::SignalChainCorrection::populate_array(&metafits_context);
+        signal_chain_correction::ffi::SignalChainCorrection::populate_array(metafits_context);
 
     //
     // Populate primitive arrays
@@ -535,7 +535,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
     // Return ownership to C via raw pointer
     if !out_metafits_metadata_ptr.is_null() {
         *out_metafits_metadata_ptr = Box::into_raw(Box::new(out_metadata));
-        return MWALIB_SUCCESS;
+        MWALIB_SUCCESS
     } else {
         // Cannot write the out pointer; report failure
         set_c_string(
@@ -543,7 +543,7 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             error_message,
             error_message_length,
         );
-        return MWALIB_FAILURE;
+        MWALIB_FAILURE
     }
 }
 
