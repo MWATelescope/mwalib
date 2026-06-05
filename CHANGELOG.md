@@ -8,6 +8,11 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
+## 2.0.5 05-Jun-2026
+
+* Updated some dependencies to latest version
+* CI: Added tests for macos-26 and macos-26-intel
+
 ## 2.0.4 08-May-2026
 
 ### Changed

@@ -23,12 +23,13 @@ jobs:
       matrix:
         # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
         os: [
-            ubuntu-latest,
+            ubuntu-24.04,
             ubuntu-24.04-arm,
-            macos-14,
             macos-15,
             macos-15-intel,
-          ] # macos-14 & 15 are Arm64
+            macos-26,
+            macos-26-intel,
+          ] # macos-26 & 15 are Arm64
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
@@ -40,8 +41,6 @@ jobs:
 
       - name: Install stable minimal toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
 
       - name: Cache cargo dependencies
         uses: Swatinem/rust-cache@v2
@@ -81,12 +80,13 @@ jobs:
       matrix:
         # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
         os: [
-            ubuntu-latest,
-            ubuntu-22.04-arm,
-            macos-14,
+            ubuntu-24.04,
+            ubuntu-24.04-arm,
             macos-15,
             macos-15-intel,
-          ] # macos-14 & 15 are Arm64
+            macos-26,
+            macos-26-intel,
+          ] # macos-15 and 26 are Arm64
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
@@ -98,8 +98,6 @@ jobs:
 
       - name: Install stable minimal toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
 
       - name: Cache cargo dependencies
         uses: Swatinem/rust-cache@v2

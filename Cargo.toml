@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "2.0.4"
+version = "2.0.5"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
@@ -86,10 +86,10 @@ pyo3-stub-gen-derive = { version = "0.22", optional = true }
 
 # Transitive due to latest versions using higher MSRV than mwalib
 # "examples" feature.
-clap = { version = "4.5", features = ["derive"], optional = true }
+clap = { version = "4.6", features = ["derive"], optional = true }
 
 [dev-dependencies]
-criterion = "0.7"
+criterion = "0.8"
 csv = "1.4"
 float-cmp = "0.10"
 tempfile = "3.24"

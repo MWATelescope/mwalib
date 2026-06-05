@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         platform:
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             target: x86_64
           - runner: ubuntu-24.04-arm
             target: aarch64
@@ -50,7 +50,7 @@ jobs:
           manylinux: auto
 
       - name: Upload linux wheels
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: wheels-linux-${{ matrix.platform.target }}
           path: dist
@@ -109,7 +109,7 @@ jobs:
           done
 
       - name: Upload linux tarball
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: linux-${{ matrix.platform.target }}.tar.gz
           path: "*.tar.gz"
@@ -139,7 +139,7 @@ jobs:
           args: --release --features=cfitsio-static,examples,python --out dist -i 3.10 3.11 3.12 3.13 3.14
 
       - name: Upload macos wheels
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.platform.runner }}-${{ matrix.platform.target }}
           path: dist
@@ -187,7 +187,7 @@ jobs:
               ./dist/*.whl
 
       - name: Upload macos tarball
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform.runner }}-${{ matrix.platform.target }}.tar.gz
           path: "*.tar.gz"

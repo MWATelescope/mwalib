@@ -29,8 +29,9 @@ jobs:
             tzdata \
             build-essential \
             pkg-config \
-            git \
+            git \            
             lcov \
+            gpg \
             ;
         env:
           DEBIAN_FRONTEND: noninteractive
