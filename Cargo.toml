@@ -10,7 +10,7 @@ authors = [
 ]
 edition = "2021"
 rust-version = "1.85.0"
-resolver = "2"
+resolver = "3"
 description = "A library to simplify reading Murchison Widefield Array (MWA) raw visibilities, voltages and metadata."
 license = "MPL-2.0"
 keywords = ["radioastronomy", "mwa", "astronomy"]
