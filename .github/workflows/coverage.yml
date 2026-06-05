@@ -24,12 +24,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt update -y
-          sudo apt install -y \
+          sudo apt-get update -y
+          sudo apt-get install -y \
             tzdata \
             build-essential \
             pkg-config \
-            git \            
+            git \
             lcov \
             gpg \
             ;
