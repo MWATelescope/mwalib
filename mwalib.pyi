@@ -1419,34 +1419,46 @@ class MetafitsContext:
         MWA observation mode
         """
     @property
+    def delay_mode(self) -> typing.Optional[DelayMode]:
+        r"""
+        The MWAX real-time correction mode applied by the correlator
+        (DELAYMOD). `None` for older observations where the key is not present.
+        """
+    @delay_mode.setter
+    def delay_mode(self, value: typing.Optional[DelayMode]) -> None:
+        r"""
+        The MWAX real-time correction mode applied by the correlator
+        (DELAYMOD). `None` for older observations where the key is not present.
+        """
+    @property
     def geometric_delays_applied(self) -> GeometricDelaysApplied:
         r"""
-        Which Geometric delays have been applied to the data?
+        Which Geometric delays have been applied to the data by the correlator?
         """
     @geometric_delays_applied.setter
     def geometric_delays_applied(self, value: GeometricDelaysApplied) -> None:
         r"""
-        Which Geometric delays have been applied to the data?
+        Which Geometric delays have been applied to the data by the correlator?
         """
     @property
     def cable_delays_applied(self) -> CableDelaysApplied:
         r"""
-        Have cable delays been applied to the data?
+        Have cable delays been applied to the data by the correlator?
         """
     @cable_delays_applied.setter
     def cable_delays_applied(self, value: CableDelaysApplied) -> None:
         r"""
-        Have cable delays been applied to the data?
+        Have cable delays been applied to the data by the correlator?
         """
     @property
     def calibration_delays_and_gains_applied(self) -> builtins.bool:
         r"""
-        Have calibration delays and gains been applied to the data?
+        Have calibration delays and gains been applied to the data by the correlator?
         """
     @calibration_delays_and_gains_applied.setter
     def calibration_delays_and_gains_applied(self, value: builtins.bool) -> None:
         r"""
-        Have calibration delays and gains been applied to the data?
+        Have calibration delays and gains been applied to the data by the correlator?
         """
     @property
     def signal_chain_corrections_applied(self) -> builtins.bool:
@@ -1456,7 +1468,119 @@ class MetafitsContext:
     @signal_chain_corrections_applied.setter
     def signal_chain_corrections_applied(self, value: builtins.bool) -> None:
         r"""
-        Have signal chain corrections been applied to the data?
+        Have signal chain corrections been applied to the data by the correlator?
+        """
+    @property
+    def digital_gains_applied(self) -> builtins.bool:
+        r"""
+        Has the correlator divided the data stream by the appropriate digital gain
+        value for each tile and coarse channel (DGAINS)?
+        """
+    @digital_gains_applied.setter
+    def digital_gains_applied(self, value: builtins.bool) -> None:
+        r"""
+        Has the correlator divided the data stream by the appropriate digital gain
+        value for each tile and coarse channel (DGAINS)?
+        """
+    @property
+    def delay_mode_description(self) -> typing.Optional[builtins.str]:
+        r"""
+        Human readable description of the correlator delay mode (DELDESC).
+        `None` for older observations where the key is not present.
+        """
+    @delay_mode_description.setter
+    def delay_mode_description(self, value: typing.Optional[builtins.str]) -> None:
+        r"""
+        Human readable description of the correlator delay mode (DELDESC).
+        `None` for older observations where the key is not present.
+        """
+    @property
+    def bf_delay_mode(self) -> typing.Optional[DelayMode]:
+        r"""
+        The MWAX beamformer real-time correction mode (BDELMOD).
+        `None` if the key is not present, in which case callers should fall back
+        to the correlator delay mode fields above. When this is not None, all of
+        the other `bf_` delay fields are also not None.
+        """
+    @bf_delay_mode.setter
+    def bf_delay_mode(self, value: typing.Optional[DelayMode]) -> None:
+        r"""
+        The MWAX beamformer real-time correction mode (BDELMOD).
+        `None` if the key is not present, in which case callers should fall back
+        to the correlator delay mode fields above. When this is not None, all of
+        the other `bf_` delay fields are also not None.
+        """
+    @property
+    def bf_geometric_delays_applied(self) -> typing.Optional[GeometricDelaysApplied]:
+        r"""
+        Which Geometric delays have been applied to the data by the beamformer (BGEODEL)?
+        Expected to be AzElTracking for beamformer observations.
+        """
+    @bf_geometric_delays_applied.setter
+    def bf_geometric_delays_applied(self, value: typing.Optional[GeometricDelaysApplied]) -> None:
+        r"""
+        Which Geometric delays have been applied to the data by the beamformer (BGEODEL)?
+        Expected to be AzElTracking for beamformer observations.
+        """
+    @property
+    def bf_cable_delays_applied(self) -> typing.Optional[CableDelaysApplied]:
+        r"""
+        Have cable delays been applied to the data by the beamformer (BCABDEL)?
+        Expected to be CableAndRecClock (or in future
+        CableAndRecClockAndBeamformerDipoleDelays) for beamformer observations.
+        """
+    @bf_cable_delays_applied.setter
+    def bf_cable_delays_applied(self, value: typing.Optional[CableDelaysApplied]) -> None:
+        r"""
+        Have cable delays been applied to the data by the beamformer (BCABDEL)?
+        Expected to be CableAndRecClock (or in future
+        CableAndRecClockAndBeamformerDipoleDelays) for beamformer observations.
+        """
+    @property
+    def bf_calibration_delays_and_gains_applied(self) -> typing.Optional[builtins.bool]:
+        r"""
+        Have calibration delays and gains been applied to the data by the beamformer
+        (BCALDEL)? Expected to be True for beamformer observations.
+        """
+    @bf_calibration_delays_and_gains_applied.setter
+    def bf_calibration_delays_and_gains_applied(self, value: typing.Optional[builtins.bool]) -> None:
+        r"""
+        Have calibration delays and gains been applied to the data by the beamformer
+        (BCALDEL)? Expected to be True for beamformer observations.
+        """
+    @property
+    def bf_signal_chain_corrections_applied(self) -> typing.Optional[builtins.bool]:
+        r"""
+        Have signal chain corrections been applied to the data by the beamformer (BSIGDEL)?
+        """
+    @bf_signal_chain_corrections_applied.setter
+    def bf_signal_chain_corrections_applied(self, value: typing.Optional[builtins.bool]) -> None:
+        r"""
+        Have signal chain corrections been applied to the data by the beamformer (BSIGDEL)?
+        """
+    @property
+    def bf_digital_gains_applied(self) -> typing.Optional[builtins.bool]:
+        r"""
+        Has the beamformer divided the data stream by the appropriate digital gain
+        value for each tile and coarse channel (BDGAINS)? Expected to be True for
+        beamformer observations.
+        """
+    @bf_digital_gains_applied.setter
+    def bf_digital_gains_applied(self, value: typing.Optional[builtins.bool]) -> None:
+        r"""
+        Has the beamformer divided the data stream by the appropriate digital gain
+        value for each tile and coarse channel (BDGAINS)? Expected to be True for
+        beamformer observations.
+        """
+    @property
+    def bf_delay_mode_description(self) -> typing.Optional[builtins.str]:
+        r"""
+        Human readable description of the beamformer delay mode (BDELDESC).
+        """
+    @bf_delay_mode_description.setter
+    def bf_delay_mode_description(self, value: typing.Optional[builtins.str]) -> None:
+        r"""
+        Human readable description of the beamformer delay mode (BDELDESC).
         """
     @property
     def corr_fine_chan_width_hz(self) -> builtins.int:
@@ -3240,6 +3364,20 @@ class DataFileType(enum.Enum):
     MwaxFits = ...
     Vdif = ...
     Filterbank = ...
+
+@typing.final
+class DelayMode(enum.Enum):
+    r"""
+    The MWAX real-time correction (delay) mode used for this observation
+    """
+    NoDelays = ...
+    CableZenith = ...
+    Cable = ...
+    TileBeam = ...
+    FullTrack = ...
+    SignalChain = ...
+    FullChain = ...
+    FullCal = ...
 
 @typing.final
 class GeometricDelaysApplied(enum.Enum):

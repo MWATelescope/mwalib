@@ -76,7 +76,8 @@ pub use rfinput::{error::RfinputError, Rfinput};
 pub use signal_chain_correction::*;
 pub use timestep::TimeStep;
 pub use types::{
-    CableDelaysApplied, GeometricDelaysApplied, MWAMode, MWAVersion, Pol, ReceiverType, VisPol,
+    CableDelaysApplied, DelayMode, GeometricDelaysApplied, MWAMode, MWAVersion, Pol, ReceiverType,
+    VisPol,
 };
 pub use voltage_beam::VoltageBeam;
 pub use voltage_context::VoltageContext;

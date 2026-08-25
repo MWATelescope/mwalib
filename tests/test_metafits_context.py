@@ -83,6 +83,39 @@ def test_mwax_metafits_context(
     assert mwax_mc.cable_delays_applied == mwalib.CableDelaysApplied.NoCableDelaysApplied
     assert mwax_mc.geometric_delays_applied == mwalib.GeometricDelaysApplied.No
 
+    # This metafits has a DELAYMOD card but with an undefined value, which mwalib
+    # treats the same as the key being absent
+    assert mwax_mc.delay_mode is None
+    assert mwax_mc.delay_mode_description is None
+    assert mwax_mc.digital_gains_applied is False
+
+    # No beamformer delay mode keys in this metafits
+    assert mwax_mc.bf_delay_mode is None
+    assert mwax_mc.bf_geometric_delays_applied is None
+    assert mwax_mc.bf_cable_delays_applied is None
+    assert mwax_mc.bf_calibration_delays_and_gains_applied is None
+    assert mwax_mc.bf_signal_chain_corrections_applied is None
+    assert mwax_mc.bf_digital_gains_applied is None
+    assert mwax_mc.bf_delay_mode_description is None
+
+
+def test_voltage_beam_metafits_context_delay_modes(
+    mwax_vb_mc: mwalib.MetafitsContext,
+):
+    # This beamformer metafits has the correlator delay mode keys populated
+    assert mwax_vb_mc.delay_mode == mwalib.DelayMode.FullTrack
+    assert mwax_vb_mc.delay_mode_description == "Phase up to track source"
+    assert mwax_vb_mc.cable_delays_applied == mwalib.CableDelaysApplied.CableAndRecClock
+    assert (
+        mwax_vb_mc.geometric_delays_applied
+        == mwalib.GeometricDelaysApplied.AzElTracking
+    )
+
+    # But no beamformer (BDELMOD) keys, so callers should fall back to the above
+    assert mwax_vb_mc.bf_delay_mode is None
+    assert mwax_vb_mc.bf_geometric_delays_applied is None
+    assert mwax_vb_mc.bf_cable_delays_applied is None
+
 
 def test_mwax_metafits_context_rf_inputs(
     mwax_mc: mwalib.MetafitsContext,

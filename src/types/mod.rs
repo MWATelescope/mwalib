@@ -235,6 +235,95 @@ impl std::str::FromStr for CableDelaysApplied {
     }
 }
 
+/// The MWAX real-time correction (delay) mode used for this observation
+///
+#[repr(C)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int, from_py_object)
+)]
+pub enum DelayMode {
+    /// No corrections applied
+    NoDelays = 0,
+    /// Cable delays, pointed at zenith
+    CableZenith = 1,
+    /// Cable delays only
+    Cable = 2,
+    /// Cable delays plus tile-pointing geometric delays
+    TileBeam = 3,
+    /// Cable delays plus az/el table tracking geometric delays
+    FullTrack = 4,
+    /// Signal chain corrections
+    SignalChain = 5,
+    /// Full tracking plus signal chain corrections
+    FullChain = 6,
+    /// Full tracking, signal chain corrections plus calibration delays and gains
+    FullCal = 7,
+}
+
+/// Implements fmt::Display for DelayMode enum
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+impl fmt::Display for DelayMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                DelayMode::NoDelays => "NODELAYS",
+                DelayMode::CableZenith => "CABLEZEN",
+                DelayMode::Cable => "CABLE",
+                DelayMode::TileBeam => "TILEBEAM",
+                DelayMode::FullTrack => "FULLTRACK",
+                DelayMode::SignalChain => "SIGCHAIN",
+                DelayMode::FullChain => "FULLCHAIN",
+                DelayMode::FullCal => "FULLCAL",
+            }
+        )
+    }
+}
+
+/// Implements str::FromStr for DelayMode enum
+///
+/// # Arguments
+///
+/// * `input` - A &str which we want to convert to an enum
+///
+///
+/// # Returns
+///
+/// * `Result<DelayMode, Err>` - Result of this method
+///
+///
+impl std::str::FromStr for DelayMode {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<DelayMode, Self::Err> {
+        match input {
+            "NODELAYS" => Ok(DelayMode::NoDelays),
+            "CABLEZEN" => Ok(DelayMode::CableZenith),
+            "CABLE" => Ok(DelayMode::Cable),
+            "TILEBEAM" => Ok(DelayMode::TileBeam),
+            "FULLTRACK" => Ok(DelayMode::FullTrack),
+            "SIGCHAIN" => Ok(DelayMode::SignalChain),
+            "FULLCHAIN" => Ok(DelayMode::FullChain),
+            "FULLCAL" => Ok(DelayMode::FullCal),
+            _ => Err(()),
+        }
+    }
+}
+
 /// The MODE the system was in for this observation
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

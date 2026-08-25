@@ -116,14 +116,46 @@ pub struct MetafitsContext {
     pub obs_name: String,
     /// MWA observation mode
     pub mode: MWAMode,
-    /// Which Geometric delays have been applied to the data?
+    /// The MWAX real-time correction mode applied by the correlator (DELAYMOD).
+    /// `None` for older observations where the key is not present.
+    pub delay_mode: Option<DelayMode>,
+    /// Which Geometric delays have been applied to the data by the correlator?
     pub geometric_delays_applied: GeometricDelaysApplied,
-    /// Have cable delays been applied to the data?
+    /// Have cable delays been applied to the data by the correlator?
     pub cable_delays_applied: CableDelaysApplied,
-    /// Have calibration delays and gains been applied to the data?
+    /// Have calibration delays and gains been applied to the data by the correlator?
     pub calibration_delays_and_gains_applied: bool,
-    /// Have signal chain corrections been applied to the data?
+    /// Have signal chain corrections been applied to the data by the correlator?
     pub signal_chain_corrections_applied: bool,
+    /// Has the correlator divided the data stream by the appropriate digital gain
+    /// value for each tile and coarse channel (DGAINS)?
+    pub digital_gains_applied: bool,
+    /// Human readable description of the correlator delay mode (DELDESC).
+    /// `None` for older observations where the key is not present.
+    pub delay_mode_description: Option<String>,
+    /// The MWAX beamformer real-time correction mode (BDELMOD).
+    /// `None` if the key is not present, in which case callers should fall back
+    /// to the correlator delay mode fields above. When this is `Some`, all of the
+    /// other `bf_` delay fields are also `Some`.
+    pub bf_delay_mode: Option<DelayMode>,
+    /// Which Geometric delays have been applied to the data by the beamformer (BGEODEL)?
+    /// Expected to be `AzElTracking` for beamformer observations.
+    pub bf_geometric_delays_applied: Option<GeometricDelaysApplied>,
+    /// Have cable delays been applied to the data by the beamformer (BCABDEL)?
+    /// Expected to be `CableAndRecClock` (or in future
+    /// `CableAndRecClockAndBeamformerDipoleDelays`) for beamformer observations.
+    pub bf_cable_delays_applied: Option<CableDelaysApplied>,
+    /// Have calibration delays and gains been applied to the data by the beamformer
+    /// (BCALDEL)? Expected to be `true` for beamformer observations.
+    pub bf_calibration_delays_and_gains_applied: Option<bool>,
+    /// Have signal chain corrections been applied to the data by the beamformer (BSIGDEL)?
+    pub bf_signal_chain_corrections_applied: Option<bool>,
+    /// Has the beamformer divided the data stream by the appropriate digital gain
+    /// value for each tile and coarse channel (BDGAINS)? Expected to be `true` for
+    /// beamformer observations.
+    pub bf_digital_gains_applied: Option<bool>,
+    /// Human readable description of the beamformer delay mode (BDELDESC).
+    pub bf_delay_mode_description: Option<String>,
     /// Correlator fine_chan_resolution
     pub corr_fine_chan_width_hz: u32,
     /// Correlator mode dump time
@@ -554,6 +586,16 @@ impl MetafitsContext {
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "FILENAME")?;
         let mode: MWAMode = get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MODE")?;
 
+        // DELAYMOD is the correlator real-time correction mode. It is not present in
+        // older metafits files. An unrecognised value is a hard error, consistent with
+        // how MODE and GEODEL/CABLEDEL are handled.
+        let delay_mode: Option<DelayMode> =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DELAYMOD")?;
+
+        // DELDESC is a human readable description of the correlator delay mode.
+        let delay_mode_description: Option<String> =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DELDESC")?;
+
         let geometric_delays_applied: GeometricDelaysApplied =
             match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "GEODEL")? {
                 Some(g) => match num_traits::FromPrimitive::from_i32(g) {
@@ -598,6 +640,105 @@ impl MetafitsContext {
             (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "SIGCHDEL")?).unwrap_or(0),
             1
         );
+
+        let digital_gains_applied: bool = matches!(
+            (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "DGAINS")?).unwrap_or(0),
+            1
+        );
+
+        // BDELMOD is the beamformer real-time correction mode. It is only present for
+        // (newer) beamformer observations. If it is absent then none of the other B*
+        // keys will exist either and callers should fall back to the correlator delay
+        // mode fields.
+        let bf_delay_mode: Option<DelayMode> =
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "BDELMOD")?;
+
+        // Only populate the remaining bf_ fields if BDELMOD was present, so that a
+        // `None` unambiguously means "this metafits has no beamformer delay mode info"
+        // rather than "the key was there but zero".
+        let has_bf_delay_mode: bool = bf_delay_mode.is_some();
+
+        let bf_geometric_delays_applied: Option<GeometricDelaysApplied> = if has_bf_delay_mode {
+            Some(
+                match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "BGEODEL")? {
+                    Some(g) => match num_traits::FromPrimitive::from_i32(g) {
+                        Some(gda) => gda,
+                        None => {
+                            return Err(MwalibError::Parse {
+                                key: String::from("BGEODEL"),
+                                fits_filename: metafits_filename,
+                                hdu_num: 0,
+                                source_file: String::from(file!()),
+                                source_line: line!(),
+                            })
+                        }
+                    },
+                    None => GeometricDelaysApplied::No,
+                },
+            )
+        } else {
+            None
+        };
+
+        let bf_cable_delays_applied: Option<CableDelaysApplied> = if has_bf_delay_mode {
+            Some(
+                match get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "BCABDEL")? {
+                    Some(c) => match num_traits::FromPrimitive::from_i32(c) {
+                        Some(cda) => cda,
+                        None => {
+                            return Err(MwalibError::Parse {
+                                key: String::from("BCABDEL"),
+                                fits_filename: metafits_filename,
+                                hdu_num: 0,
+                                source_file: String::from(file!()),
+                                source_line: line!(),
+                            })
+                        }
+                    },
+                    None => CableDelaysApplied::NoCableDelaysApplied,
+                },
+            )
+        } else {
+            None
+        };
+
+        // As with the correlator equivalents, these keys are specified as TINT not
+        // TBOOL in the metafits, so we need to translate 0=false, 1=true
+        let bf_calibration_delays_and_gains_applied: Option<bool> = if has_bf_delay_mode {
+            Some(matches!(
+                (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "BCALDEL")?)
+                    .unwrap_or(0),
+                1
+            ))
+        } else {
+            None
+        };
+
+        let bf_signal_chain_corrections_applied: Option<bool> = if has_bf_delay_mode {
+            Some(matches!(
+                (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "BSIGDEL")?)
+                    .unwrap_or(0),
+                1
+            ))
+        } else {
+            None
+        };
+
+        let bf_digital_gains_applied: Option<bool> = if has_bf_delay_mode {
+            Some(matches!(
+                (get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "BDGAINS")?)
+                    .unwrap_or(0),
+                1
+            ))
+        } else {
+            None
+        };
+
+        let bf_delay_mode_description: Option<String> = if has_bf_delay_mode {
+            get_optional_fits_key!(&mut metafits_fptr, &metafits_hdu, "BDELDESC")?
+        } else {
+            None
+        };
 
         // We need to get the correlator integration time
         let integration_time_ms: u64 = {
@@ -826,10 +967,20 @@ impl MetafitsContext {
             project_id,
             obs_name: observation_name,
             mode,
+            delay_mode,
             geometric_delays_applied,
             cable_delays_applied,
             calibration_delays_and_gains_applied,
             signal_chain_corrections_applied,
+            digital_gains_applied,
+            delay_mode_description,
+            bf_delay_mode,
+            bf_geometric_delays_applied,
+            bf_cable_delays_applied,
+            bf_calibration_delays_and_gains_applied,
+            bf_signal_chain_corrections_applied,
+            bf_digital_gains_applied,
+            bf_delay_mode_description,
             corr_fine_chan_width_hz,
             corr_int_time_ms: integration_time_ms,
             corr_raw_scale_factor,
@@ -1014,6 +1165,28 @@ impl MetafitsContext {
     }
 }
 
+/// Formats an `Option<T>` for display, rendering `None` as the string "None".
+///
+/// This matches the convention used elsewhere in this `Display` implementation for
+/// optional values.
+///
+/// # Arguments
+///
+/// * `value` - a reference to the optional value to be formatted
+///
+///
+/// # Returns
+///
+/// * `String` - the `Display` representation of the inner value, or "None"
+///
+///
+fn fmt_optional<T: fmt::Display>(value: &Option<T>) -> String {
+    match value {
+        Some(v) => v.to_string(),
+        None => String::from("None"),
+    }
+}
+
 /// Implements fmt::Display for MetafitsContext struct
 ///
 /// # Arguments
@@ -1043,10 +1216,19 @@ impl fmt::Display for MetafitsContext {
      fine channel resolution:  {vfcw} kHz,
      num fine channels/coarse: {nvfcpc},
 
+    Correlator delay mode             : {delaymod} ({deldesc}),
     Geometric delays applied          : {geodel},
     Cable length corrections applied  : {cabledel},
     Calibration delays & gains applied: {calibdel},
     Signal chain corrections applied  : {sigchdel},
+    Digital gains applied             : {dgains},
+
+    Beamformer delay mode             : {bdelmod} ({bdeldesc}),
+    Beamformer geo delays applied     : {bgeodel},
+    Beamformer cable corrs applied    : {bcabdel},
+    Beamformer cal delays/gains applied: {bcaldel},
+    Beamformer sig chain corrs applied: {bsigdel},
+    Beamformer digital gains applied  : {bdgains},
 
     Creator:                  {creator},
     Project ID:               {project_id},
@@ -1213,10 +1395,20 @@ impl fmt::Display for MetafitsContext {
             vp3 = VisPol::YY,
             freqcent = self.centre_freq_hz as f64 / 1e6,
             mode = self.mode,
+            delaymod = fmt_optional(&self.delay_mode),
             geodel = self.geometric_delays_applied,
             cabledel = self.cable_delays_applied,
             calibdel = self.calibration_delays_and_gains_applied,
             sigchdel = self.signal_chain_corrections_applied,
+            dgains = self.digital_gains_applied,
+            deldesc = fmt_optional(&self.delay_mode_description),
+            bdelmod = fmt_optional(&self.bf_delay_mode),
+            bgeodel = fmt_optional(&self.bf_geometric_delays_applied),
+            bcabdel = fmt_optional(&self.bf_cable_delays_applied),
+            bcaldel = fmt_optional(&self.bf_calibration_delays_and_gains_applied),
+            bsigdel = fmt_optional(&self.bf_signal_chain_corrections_applied),
+            bdgains = fmt_optional(&self.bf_digital_gains_applied),
+            bdeldesc = fmt_optional(&self.bf_delay_mode_description),
             vfcw = self.volt_fine_chan_width_hz as f64 / 1e3,
             nvfcpc = self.num_volt_fine_chans_per_coarse,
             fcw = self.corr_fine_chan_width_hz as f64 / 1e3,

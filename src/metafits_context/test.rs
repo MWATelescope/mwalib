@@ -737,3 +737,124 @@ fn test_mode() {
     let m: MWAMode = MWAMode::from_str("MWAX_CORR_BF").unwrap();
     assert_eq!(m, MWAMode::Mwax_Corr_Bf);
 }
+
+#[test]
+fn test_correlator_delay_mode_keys_absent() {
+    // This old (legacy) metafits has none of the DELAYMOD/DELDESC/DGAINS keys
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrLegacy))
+        .expect("Failed to create MetafitsContext");
+
+    assert_eq!(context.delay_mode, None);
+    assert_eq!(context.delay_mode_description, None);
+    // DGAINS absent defaults to false, consistent with CALIBDEL/SIGCHDEL
+    assert!(!context.digital_gains_applied);
+}
+
+#[test]
+fn test_correlator_delay_mode_keys_present() {
+    // This metafits has DELAYMOD, DELDESC, CABLEDEL, GEODEL, CALIBDEL and SIGCHDEL
+    let metafits_filename = "test_files/1449373456_bf/1449373456_metafits.fits";
+
+    let context =
+        MetafitsContext::new(metafits_filename, None).expect("Failed to create MetafitsContext");
+
+    assert_eq!(context.delay_mode, Some(DelayMode::FullTrack));
+    assert_eq!(
+        context.delay_mode_description.as_deref(),
+        Some("Phase up to track source")
+    );
+    assert_eq!(
+        context.cable_delays_applied,
+        CableDelaysApplied::CableAndRecClock
+    );
+    assert_eq!(
+        context.geometric_delays_applied,
+        GeometricDelaysApplied::AzElTracking
+    );
+    assert!(!context.calibration_delays_and_gains_applied);
+    assert!(!context.signal_chain_corrections_applied);
+    // DGAINS is not in this metafits, so it should default to false
+    assert!(!context.digital_gains_applied);
+}
+
+#[test]
+fn test_bf_delay_mode_keys_absent() {
+    // This metafits has the correlator DELAYMOD keys but no BDELMOD keys, so every
+    // bf_ field must be None. Callers are expected to fall back to the correlator
+    // fields in this case.
+    let metafits_filename = "test_files/1449373456_bf/1449373456_metafits.fits";
+
+    let context =
+        MetafitsContext::new(metafits_filename, None).expect("Failed to create MetafitsContext");
+
+    assert_eq!(context.bf_delay_mode, None);
+    assert_eq!(context.bf_geometric_delays_applied, None);
+    assert_eq!(context.bf_cable_delays_applied, None);
+    assert_eq!(context.bf_calibration_delays_and_gains_applied, None);
+    assert_eq!(context.bf_signal_chain_corrections_applied, None);
+    assert_eq!(context.bf_digital_gains_applied, None);
+    assert_eq!(context.bf_delay_mode_description, None);
+}
+
+#[test]
+fn test_bf_delay_mode_keys_absent_legacy() {
+    // A legacy metafits has neither the correlator nor the beamformer delay keys
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrLegacy))
+        .expect("Failed to create MetafitsContext");
+
+    assert_eq!(context.bf_delay_mode, None);
+    assert_eq!(context.bf_geometric_delays_applied, None);
+    assert_eq!(context.bf_cable_delays_applied, None);
+    assert_eq!(context.bf_calibration_delays_and_gains_applied, None);
+    assert_eq!(context.bf_signal_chain_corrections_applied, None);
+    assert_eq!(context.bf_digital_gains_applied, None);
+    assert_eq!(context.bf_delay_mode_description, None);
+}
+
+#[test]
+#[ignore = "requires a test metafits containing the BDELMOD keys - see comment"]
+fn test_bf_delay_mode_keys_present() {
+    // TODO: point this at a real beamformer metafits containing BDELMOD, BCABDEL,
+    // BGEODEL, BSIGDEL, BCALDEL, BDGAINS and BDELDESC, then remove the #[ignore].
+    // The expected values below assume the documented invariants for a beamformer
+    // observation: BCABDEL=1, BGEODEL=3, BCALDEL=1, BDGAINS=1.
+    let metafits_filename = "test_files/metafits_tests/bf_delay_modes.fits";
+
+    let context =
+        MetafitsContext::new(metafits_filename, None).expect("Failed to create MetafitsContext");
+
+    assert!(context.bf_delay_mode.is_some());
+    assert_eq!(
+        context.bf_cable_delays_applied,
+        Some(CableDelaysApplied::CableAndRecClock)
+    );
+    assert_eq!(
+        context.bf_geometric_delays_applied,
+        Some(GeometricDelaysApplied::AzElTracking)
+    );
+    assert_eq!(context.bf_calibration_delays_and_gains_applied, Some(true));
+    assert_eq!(context.bf_digital_gains_applied, Some(true));
+    assert!(context.bf_signal_chain_corrections_applied.is_some());
+    assert!(context.bf_delay_mode_description.is_some());
+}
+
+#[test]
+fn test_delay_mode_display() {
+    // Check that both the correlator and beamformer delay mode blocks appear in the
+    // Display output, and that absent bf_ values render as "None"
+    let metafits_filename = "test_files/1449373456_bf/1449373456_metafits.fits";
+
+    let context =
+        MetafitsContext::new(metafits_filename, None).expect("Failed to create MetafitsContext");
+
+    let output = format!("{}", context);
+
+    assert!(output.contains("Correlator delay mode"));
+    assert!(output.contains("FULLTRACK"));
+    assert!(output.contains("Phase up to track source"));
+    assert!(output.contains("Beamformer delay mode             : None"));
+}
