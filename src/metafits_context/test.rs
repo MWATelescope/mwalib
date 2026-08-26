@@ -780,6 +780,26 @@ fn test_correlator_delay_mode_keys_present() {
 }
 
 #[test]
+fn test_bf_delay_mode_subkeys_absent() {
+    // This metafits has the correlator DELAYMOD keys and BDELMOD key (but it is blank), 
+    // but no other BF delmod keys, so every bf_ field must be None. 
+    // Callers are expected to fall back to the correlator
+    // fields in this case.
+    let metafits_filename = "test_files/1471287880_bf_bdelmod_none/1471287880_metafits.fits";
+
+    let context =
+        MetafitsContext::new(metafits_filename, None).expect("Failed to create MetafitsContext");
+
+    assert_eq!(context.bf_delay_mode, None);
+    assert_eq!(context.bf_geometric_delays_applied, None);
+    assert_eq!(context.bf_cable_delays_applied, None);
+    assert_eq!(context.bf_calibration_delays_and_gains_applied, None);
+    assert_eq!(context.bf_signal_chain_corrections_applied, None);
+    assert_eq!(context.bf_digital_gains_applied, None);
+    assert_eq!(context.bf_delay_mode_description, None);
+}
+
+#[test]
 fn test_bf_delay_mode_keys_absent() {
     // This metafits has the correlator DELAYMOD keys but no BDELMOD keys, so every
     // bf_ field must be None. Callers are expected to fall back to the correlator
@@ -816,18 +836,19 @@ fn test_bf_delay_mode_keys_absent_legacy() {
 }
 
 #[test]
-#[ignore = "requires a test metafits containing the BDELMOD keys - see comment"]
-fn test_bf_delay_mode_keys_present() {
-    // TODO: point this at a real beamformer metafits containing BDELMOD, BCABDEL,
-    // BGEODEL, BSIGDEL, BCALDEL, BDGAINS and BDELDESC, then remove the #[ignore].
+fn test_bf_delay_mode_keys_present() {    
     // The expected values below assume the documented invariants for a beamformer
     // observation: BCABDEL=1, BGEODEL=3, BCALDEL=1, BDGAINS=1.
-    let metafits_filename = "test_files/metafits_tests/bf_delay_modes.fits";
+    let metafits_filename = "test_files/1471184504_bf_fullcal/1471184504_metafits.fits";
 
     let context =
         MetafitsContext::new(metafits_filename, None).expect("Failed to create MetafitsContext");
 
     assert!(context.bf_delay_mode.is_some());
+    assert_eq!(
+        context.bf_delay_mode,
+        Some(DelayMode::FullCal)
+    );
     assert_eq!(
         context.bf_cable_delays_applied,
         Some(CableDelaysApplied::CableAndRecClock)

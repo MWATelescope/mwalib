@@ -671,17 +671,14 @@ fn test_mwalib_metafits_metadata_correlator_delay_mode_present() {
 }
 
 #[test]
-#[ignore = "requires a test metafits containing the BDELMOD keys - see comment"]
-fn test_mwalib_metafits_metadata_bf_delay_mode_present() {
-    // TODO: point this at a real beamformer metafits containing BDELMOD, BCABDEL,
-    // BGEODEL, BSIGDEL, BCALDEL, BDGAINS and BDELDESC, then remove the #[ignore].
+fn test_mwalib_metafits_metadata_bf_delay_mode_present() {    
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *mut c_char;
 
     let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context_ext(
         MWAVersion::BeamformerMWAXv2,
-        String::from("test_files/metafits_tests/bf_delay_modes.fits"),
+        String::from("test_files/1471184504_bf_fullcal/1471184504_metafits.fits"),
     );
 
     unsafe {
