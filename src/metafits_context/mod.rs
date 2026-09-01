@@ -3,8 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! The main interface to MWA data.
-use chrono::{DateTime, Duration, FixedOffset};
 use fitsio::hdu::FitsHdu;
+use jiff::{Timestamp, ToSpan};
 use num_traits::ToPrimitive;
 use std::fmt;
 use std::path::Path;
@@ -58,9 +58,9 @@ pub struct MetafitsContext {
     /// Scheduled end (UNIX time) of observation
     pub sched_end_unix_time_ms: u64,
     /// Scheduled start (UTC) of observation
-    pub sched_start_utc: DateTime<FixedOffset>,
+    pub sched_start_utc: PyTimestamp,
     /// Scheduled end (UTC) of observation
-    pub sched_end_utc: DateTime<FixedOffset>,
+    pub sched_end_utc: PyTimestamp,
     /// Scheduled start (MJD) of observation
     pub sched_start_mjd: f64,
     /// Scheduled end (MJD) of observation
@@ -521,9 +521,9 @@ impl MetafitsContext {
 
         let scheduled_start_utc_string_with_offset: String = scheduled_start_utc_string + "+00:00";
 
-        let scheduled_start_utc =
-            DateTime::parse_from_rfc3339(&scheduled_start_utc_string_with_offset)
-                .expect("Unable to parse DATE-OBS into a date time");
+        let scheduled_start_utc = scheduled_start_utc_string_with_offset
+            .parse::<Timestamp>()
+            .expect("Unable to parse DATE-OBS into a date time");
         let scheduled_start_mjd: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MJD")?;
         let scheduled_duration_ms: u64 = {
@@ -537,8 +537,8 @@ impl MetafitsContext {
         let metafits_timesteps: Vec<TimeStep> = Vec::new();
 
         let scheduled_end_utc = scheduled_start_utc
-            + Duration::try_milliseconds(scheduled_duration_ms as i64)
-                .expect("scheduled_duration_ms is out of range");
+            .checked_add((scheduled_duration_ms as i64).milliseconds())
+            .expect("scheduled_duration_ms is out of range");
 
         // To increment the mjd we need to fractional proportion of the day that the duration represents
         let scheduled_end_mjd =
@@ -938,8 +938,8 @@ impl MetafitsContext {
             sched_end_gps_time_ms: scheduled_end_gpstime_ms,
             sched_start_unix_time_ms: scheduled_start_unix_time_ms,
             sched_end_unix_time_ms: scheduled_end_unix_time_ms,
-            sched_start_utc: scheduled_start_utc,
-            sched_end_utc: scheduled_end_utc,
+            sched_start_utc: PyTimestamp(scheduled_start_utc),
+            sched_end_utc: PyTimestamp(scheduled_end_utc),
             sched_start_mjd: scheduled_start_mjd,
             sched_end_mjd: scheduled_end_mjd,
             sched_duration_ms: scheduled_duration_ms,
@@ -1316,8 +1316,8 @@ impl fmt::Display for MetafitsContext {
             sched_end_unix = self.sched_end_unix_time_ms as f64 / 1e3,
             sched_start_gps = self.sched_start_gps_time_ms as f64 / 1e3,
             sched_end_gps = self.sched_end_gps_time_ms as f64 / 1e3,
-            sched_start_utc = self.sched_start_utc.to_rfc3339(),
-            sched_end_utc = self.sched_end_utc.to_rfc3339(),
+            sched_start_utc = self.sched_start_utc.0,
+            sched_end_utc = self.sched_end_utc.0,
             sched_start_mjd = self.sched_start_mjd,
             sched_end_mjd = self.sched_end_mjd,
             sched_duration = self.sched_duration_ms as f64 / 1e3,

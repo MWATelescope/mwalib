@@ -159,7 +159,7 @@ impl VoltageBeam {
                         ),
                         data_file_type: *data_file_type as DataFileType,
                         creator: ffi_create_c_string(creator),
-                        modtime: chrono::DateTime::<chrono::Utc>::from(*modtime).timestamp(),
+                        modtime: modtime.as_second() as time_t,
                         beam_index: match beam_index {
                             Some(idx) => *idx as i32,
                             None => -1,

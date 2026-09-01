@@ -94,10 +94,10 @@ fn test_metafits_context_new_corrlegacy_valid() {
     // Global attenuation:       1 dB,
     assert_eq!(context.global_analogue_attenuation_db as i16, 1);
 
-    // Scheduled start (utc)     2014-12-01 21:08:16 +00:00,
+    // Scheduled start (utc)     2014-12-01T21:08:16Z,
     assert_eq!(
         context.sched_start_utc,
-        DateTime::parse_from_rfc3339("2014-12-01T21:08:16+00:00").unwrap()
+        "2014-12-01T21:08:16+00:00".parse::<jiff::Timestamp>().unwrap()
     );
 
     // Scheduled start (MJD)     56992.88074074074,

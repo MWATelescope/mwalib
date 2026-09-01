@@ -57,10 +57,10 @@ opt-level = 3
 
 [dependencies]
 bytemuck = "1.24"
-chrono = "0.4"
 fitsio = "0.21"
 fitsio-sys = "0.5"
 hifitime = "4.3"
+jiff = "0.2"
 libc = "0.2"
 log = "0.4"
 num-derive = "0.5"
@@ -76,8 +76,8 @@ env_logger = { version = "0.11", optional = true }
 ndarray = { version = "0.17", optional = true }
 numpy = { version = "0.29", optional = true }
 pyo3 = { version = "0.29", features = [
-    "chrono",
     "extension-module",
+    "jiff-02",
     "macros",
 ], optional = true }
 

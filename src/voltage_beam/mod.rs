@@ -6,12 +6,12 @@ use std::fmt;
 
 use crate::{
     get_optional_fits_key, read_cell_array_u32, read_cell_value, read_optional_cell_value,
-    types::DataFileType, Antenna, MAX_ANTENNAS,
+    types::DataFileType, Antenna, PyTimestamp, MAX_ANTENNAS,
 };
 use crate::{read_optional_cell_string_value, CoarseChannel};
-use chrono::{DateTime, FixedOffset};
 use fitsio::hdu::{FitsHdu, HduInfo};
 use fitsio::FitsFile;
+use jiff::Timestamp;
 use num_traits::FromPrimitive;
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::prelude::*;
@@ -62,7 +62,7 @@ pub struct VoltageBeam {
     /// creator - arbitrary string describing the person or script that scheduled this voltage beam.
     pub creator: String,
     /// modtime - ISO format timestamp for this voltage beam record.
-    pub modtime: DateTime<FixedOffset>,
+    pub modtime: PyTimestamp,
     /// beam_index - Starts at zero for the first coherent beam in this observation, and increments by one for each coherent beam. Used to index into the BeamAltAz
     pub beam_index: Option<usize>,
     /// target_name - optional name for the target of this beam
@@ -144,7 +144,7 @@ pub(crate) fn populate_voltage_beams(
         let creator: String = read_cell_value(metafits_fptr, voltagebeams_hdu, "creator", row)?;
         let modtime_string: String =
             read_cell_value(metafits_fptr, voltagebeams_hdu, "modtime", row)?;
-        let modtime = DateTime::parse_from_rfc3339(&modtime_string).unwrap();
+        let modtime = modtime_string.parse::<Timestamp>().unwrap();
         let beam_index: Option<u64> =
             read_optional_cell_value(metafits_fptr, voltagebeams_hdu, "beam_index", row)?;
         let data_file_type = match DataFileType::from_u32(data_file_type_index) {
@@ -233,7 +233,7 @@ pub(crate) fn populate_voltage_beams(
             polarisation,
             data_file_type,
             creator,
-            modtime,
+            modtime: PyTimestamp(modtime),
             beam_index: beam_index.map(|bi| bi as usize),
             target_name,
             start_ra_deg,
