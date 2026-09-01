@@ -74,16 +74,16 @@ env_logger = { version = "0.11", optional = true }
 
 # "python" feature
 ndarray = { version = "0.17", optional = true }
-numpy = { version = "0.28", optional = true }
-pyo3 = { version = "0.28", features = [
+numpy = { version = "0.29", optional = true }
+pyo3 = { version = "0.29", features = [
     "chrono",
     "extension-module",
     "macros",
 ], optional = true }
 
 # "python-stubgen" feature
-pyo3-stub-gen = { version = "0.22", optional = true }
-pyo3-stub-gen-derive = { version = "0.22", optional = true }
+pyo3-stub-gen = { version = "0.23", optional = true }
+pyo3-stub-gen-derive = { version = "0.23", optional = true }
 
 # Transitive due to latest versions using higher MSRV than mwalib
 # "examples" feature.

@@ -13,6 +13,7 @@ Notes:
 ### Breaking
 
 * `convert_gpstime_to_unixtime` and `convert_unixtime_to_gpstime` (in `misc`, and re-exported at the crate root) no longer take `mwa_start_gpstime_ms`/`mwa_start_unixtime_ms` reference parameters - they are now `convert_gpstime_to_unixtime(gpstime_ms: u64)` and `convert_unixtime_to_gpstime(unixtime_ms: u64)`. Internally they now convert via `hifitime`'s leap-second table instead of a flat per-observation offset, which also removes the previous assumption that an observation could never span a leap second boundary.
+* `MetafitsContext`'s `Display` output now prints `Scheduled start (utc)` and `Scheduled end (utc)` in actual RFC3339 format (e.g. `2014-12-01T21:08:16+00:00`) instead of `chrono`'s default `Display` format (`2014-12-01 21:08:16 +00:00`, space-separated and not itself RFC3339-compliant). This is a deliberate move to a standards-compliant format, done ahead of and independently from the upcoming `chrono` removal - both the current `chrono` type and its future `hifitime` replacement expose an equivalent `to_rfc3339()` method, so this format is stable across that migration.
 
 ### Changed
 
