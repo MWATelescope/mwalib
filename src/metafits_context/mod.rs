@@ -1103,8 +1103,6 @@ impl MetafitsContext {
             mwa_version,
             self.sched_start_gps_time_ms,
             self.sched_duration_ms,
-            self.sched_start_gps_time_ms,
-            self.sched_start_unix_time_ms,
         ));
 
         self.num_metafits_timesteps = self.metafits_timesteps.len();

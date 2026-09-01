@@ -16,8 +16,7 @@ use std::collections::BTreeMap;
 /// * Option, containing a populated Vector of correlator timesteps (or None). This is what we are checking for validity.
 ///
 fn create_corr_timestep_testdata(
-    scheduled_start_unix_ms: u64,
-    scheduled_start_gpstime_ms: u64,
+    scheduled_start_unix_ms: u64,    
     scheduled_duration_ms: u64,
     corr_int_time_ms: u64,
     data_timesteps_unix_ms: Vec<u64>,
@@ -55,8 +54,6 @@ fn create_corr_timestep_testdata(
     let correlator_timesteps = TimeStep::populate_correlator_timesteps(
         &gpubox_time_map,
         &metafits_timesteps,
-        scheduled_start_gpstime_ms,
-        scheduled_start_unix_ms,
         corr_int_time_ms,
     );
 
@@ -71,7 +68,6 @@ fn test_populate_correlator_timesteps_simple() {
     //
     let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
         1_381_844_923_000,
-        1_065_880_139_000,
         3000,
         500,
         vec![
@@ -109,7 +105,6 @@ fn test_populate_correlator_timesteps_data_earlier_and_later_than_metafits() {
     //
     let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
         1_381_844_923_000,
-        1_065_880_139_000,
         3000,
         500,
         vec![
@@ -154,7 +149,6 @@ fn test_populate_correlator_timesteps_data_between_metafits_start_and_end() {
     //
     let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
         1_381_844_923_000,
-        1_065_880_139_000,
         3000,
         500,
         vec![
@@ -191,7 +185,6 @@ fn test_populate_correlator_timesteps_data_between_metafits_start_and_end_gaps()
     //
     let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
         1_381_844_923_000,
-        1_065_880_139_000,
         3000,
         500,
         vec![1_381_844_923_500, 1_381_844_925_000],
@@ -224,7 +217,6 @@ fn test_populate_correlator_timesteps_data_earlier_and_later_than_metafits_with_
     //
     let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
         1_381_844_923_000,
-        1_065_880_139_000,
         12000,
         2000,
         vec![
@@ -271,7 +263,6 @@ fn test_populate_correlator_timesteps_data_between_metafits_start_and_end_with_o
     //
     let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
         1_381_844_923_000,
-        1_065_880_139_000,
         12000,
         2000,
         vec![
@@ -307,7 +298,6 @@ fn test_populate_correlator_timesteps_no_overlap_with_metafits() {
     //
     let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
         1_381_844_923_000,
-        1_065_880_139_000,
         3000,
         500,
         vec![1_381_844_926_500],
@@ -339,15 +329,11 @@ fn test_populate_correlator_timesteps_none() {
     let metafits_timesteps: Vec<TimeStep> = Vec::new();
 
     // Get a vector timesteps
-    let scheduled_start_gpstime_ms = 0;
-    let scheduled_start_unix_ms = 0;
     let corr_int_time_ms = 500;
 
     let timesteps = TimeStep::populate_correlator_timesteps(
         &gpubox_time_map,
         &metafits_timesteps,
-        scheduled_start_gpstime_ms,
-        scheduled_start_unix_ms,
         corr_int_time_ms,
     );
 
@@ -388,8 +374,6 @@ fn test_populate_timesteps_metafits_corr() {
             mwa_version,
             metafits_context.sched_start_gps_time_ms,
             metafits_context.sched_duration_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
         );
 
         assert_eq!(timesteps.len(), 56);
@@ -416,8 +400,6 @@ fn test_populate_timesteps_metafits_vcs_legacy_recombined() {
         MWAVersion::VCSLegacyRecombined,
         metafits_context.sched_start_gps_time_ms,
         metafits_context.sched_duration_ms,
-        metafits_context.sched_start_gps_time_ms,
-        metafits_context.sched_start_unix_time_ms,
     );
 
     assert_eq!(timesteps.len(), 112);
@@ -443,8 +425,6 @@ fn test_populate_timesteps_metafits_vcs_mwaxv2() {
         MWAVersion::VCSMWAXv2,
         metafits_context.sched_start_gps_time_ms,
         metafits_context.sched_duration_ms,
-        metafits_context.sched_start_gps_time_ms,
-        metafits_context.sched_start_unix_time_ms,
     );
 
     assert_eq!(timesteps.len(), 14);

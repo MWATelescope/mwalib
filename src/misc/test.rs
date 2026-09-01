@@ -62,11 +62,9 @@ where
 fn test_convert_gpstime_to_unixtime() {
     // Tested using https://www.andrews.edu/~tzs/timeconv/timedisplay.php
     let gpstime_ms = 1_298_013_490_000;
-    let mwa_start_gpstime_ms = 1_242_552_568_000;
-    let mwa_start_unixtime_ms = 1_558_517_350_000;
-
+    
     let new_unixtime_ms =
-        convert_gpstime_to_unixtime(gpstime_ms, mwa_start_gpstime_ms, mwa_start_unixtime_ms);
+        convert_gpstime_to_unixtime(gpstime_ms);
     assert_eq!(new_unixtime_ms, 1_613_978_272_000);
 }
 
@@ -74,12 +72,52 @@ fn test_convert_gpstime_to_unixtime() {
 fn test_convert_unixtime_to_gpstime() {
     // Tested using https://www.andrews.edu/~tzs/timeconv/timedisplay.php
     let unixtime_ms = 1_613_978_272_000;
-    let mwa_start_gpstime_ms = 1_242_552_568_000;
-    let mwa_start_unixtime_ms = 1_558_517_350_000;
-
+    
     let new_unixtime_ms =
-        convert_unixtime_to_gpstime(unixtime_ms, mwa_start_gpstime_ms, mwa_start_unixtime_ms);
+        convert_unixtime_to_gpstime(unixtime_ms);
     assert_eq!(new_unixtime_ms, 1_298_013_490_000);
+}
+
+#[test]
+fn test_convert_gpstime_to_unixtime_at_gps_epoch() {
+    // The GPS epoch itself: 1980-01-06T00:00:00 UTC, where GPS-UTC offset is 0 by definition.
+    // This UNIX timestamp (315964800) is a fixed, well-known constant.
+    let gpstime_ms = 0;
+    let new_unixtime_ms = convert_gpstime_to_unixtime(gpstime_ms);
+    assert_eq!(new_unixtime_ms, 315_964_800_000);
+}
+
+#[test]
+fn test_convert_unixtime_to_gpstime_at_gps_epoch() {
+    // Round trip of the GPS epoch reference point above.
+    let unixtime_ms = 315_964_800_000;
+    let new_gpstime_ms = convert_unixtime_to_gpstime(unixtime_ms);
+    assert_eq!(new_gpstime_ms, 0);
+}
+
+#[test]
+fn test_convert_gpstime_to_unixtime_after_2016_leap_second() {
+    // 2020-01-01T00:00:00 UTC, well after the most recent (2016-12-31) leap second, at which
+    // point the GPS-UTC offset is 18 seconds. UNIX 1577836800 is a well-known fixed constant
+    // for this instant.
+    let gpstime_ms = 1_261_872_018_000;
+    let new_unixtime_ms = convert_gpstime_to_unixtime(gpstime_ms);
+    assert_eq!(new_unixtime_ms, 1_577_836_800_000);
+}
+
+#[test]
+fn test_convert_unixtime_to_gpstime_after_2016_leap_second() {
+    // Round trip of the post-2016-leap-second reference point above.
+    let unixtime_ms = 1_577_836_800_000;
+    let new_gpstime_ms = convert_unixtime_to_gpstime(unixtime_ms);
+    assert_eq!(new_gpstime_ms, 1_261_872_018_000);
+}
+
+#[test]
+fn test_convert_unixtime_to_gpstime_zero_is_special_cased() {
+    // A UNIX time of 0 is treated as "no time" and maps to a GPS time of 0, rather than being
+    // passed through the epoch conversion.
+    assert_eq!(convert_unixtime_to_gpstime(0), 0);
 }
 
 #[test]

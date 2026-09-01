@@ -6,6 +6,7 @@
 
 use crate::antenna;
 use crate::MWAVersion;
+use hifitime::Epoch;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{Error, Write};
@@ -180,76 +181,44 @@ pub fn get_baseline_from_antenna_names(
 
 /// Returns a UNIX time given a GPStime
 ///
-/// NOTE: this method relies on the fact that metafits files have the following information, which we use to
-/// determine the UNIX vs GPS offset in seconds, which has already been corrected for leap seconds:assert_eq!
-///
-/// GOODTIME = the first UNIX time of "good" data (after receivers, beamformers, etc have settled down)
-/// QUACKTIM = the number of seconds added to the scheduled UNIX start time to skip "bad" data.
-/// GPSTIME  = the GPS scheduled start time of an observation
-///
-/// Thus we can subtract QUACKTIM from GOODTIME to get the UNIX scheduled start time.assert_eq!
-/// Know things and that we have the GPSTIME for the same instant, we can compute and offset and
-/// use THAT to adjust any times in THIS OBSERVATION. NOTE: this only works because the telescope garauntees
-/// that we will never observe OVER a leap second change.
+/// This uses `hifitime`'s leap-second table to convert directly between the GPS and UTC/UNIX
+/// time scales, so it is correct across leap second boundaries. It no longer needs an
+/// observation-relative GPS/UNIX reference pair (as earlier versions did): the previous
+/// implementation computed a single flat offset from one such pair and applied it to every
+/// timestamp in the observation, which relied on the telescope never observing across a leap
+/// second change. That assumption is no longer required.
 ///
 /// # Arguments
 ///
 /// * `gpstime_ms` - GPS time (in ms) you want to convert to UNIX timestamp
 ///
-/// * `mwa_start_gps_time_ms` - Scheduled GPS start time (in ms) of observation according to metafits.
-///
-/// * `mwa_start_unix_time_ms` - Scheduled UNIX start time (in ms) according to the metafits (GOODTIM-QUACKTIM).
-///    
-///
 /// # Returns
 ///
 /// * The UNIX time (in ms) converted from the `gpstime_ms`.
 ///
-pub fn convert_gpstime_to_unixtime(
-    gpstime_ms: u64,
-    mwa_start_gpstime_ms: u64,
-    mwa_start_unixtime_ms: u64,
-) -> u64 {
-    // We have a UNIX time reference and a gpstime reference
-    // Compute an offset
-    let offset_ms = mwa_start_unixtime_ms - mwa_start_gpstime_ms;
-
-    // The new converted Unix time is gpstime + offset
-    gpstime_ms + offset_ms
+pub fn convert_gpstime_to_unixtime(gpstime_ms: u64) -> u64 {
+    Epoch::from_gpst_seconds(gpstime_ms as f64 / 1_000.0)
+        .to_unix_milliseconds()
+        .round() as u64
 }
 
-/// Returns a UNIX time given a GPStime
+/// Returns a GPS time given a UNIX time
 ///
 /// NOTE: see `convert_gpstime_to_unixtime` for more details.
 ///
 /// # Arguments
 ///
-/// * `unixtime_ms` - GPS time (in ms) you want to convert to UNIX timestamp
-///
-/// * `mwa_start_gps_time_ms` - Scheduled GPS start time (in ms) of observation according to metafits.
-///
-/// * `mwa_start_unix_time_ms` - Scheduled UNIX start time (in ms) according to the metafits (GOODTIM-QUACKTIM).
-///    
+/// * `unixtime_ms` - UNIX time (in ms) you want to convert to GPS time
 ///
 /// # Returns
 ///
 /// * The GPS time (in ms) converted from the `unixtime_ms`.
 ///
-pub fn convert_unixtime_to_gpstime(
-    unixtime_ms: u64,
-    mwa_start_gpstime_ms: u64,
-    mwa_start_unixtime_ms: u64,
-) -> u64 {
+pub fn convert_unixtime_to_gpstime(unixtime_ms: u64) -> u64 {
     match unixtime_ms {
         0 => 0,
-        _ => {
-            // We have a UNIX time reference and a gpstime reference
-            // Compute an offset
-            let offset_ms = mwa_start_unixtime_ms - mwa_start_gpstime_ms;
-
-            // The new converted gps time is unix time - offset
-            unixtime_ms - offset_ms
-        }
+        _ => (Epoch::from_unix_milliseconds(unixtime_ms as f64).to_gpst_seconds() * 1_000.0)
+            .round() as u64,
     }
 }
 

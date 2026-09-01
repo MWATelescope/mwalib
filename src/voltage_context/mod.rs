@@ -225,8 +225,6 @@ impl VoltageContext {
         let timesteps = TimeStep::populate_voltage_timesteps(
             &voltage_info.time_map,
             &metafits_context.metafits_timesteps,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
             voltage_info.voltage_file_interval_ms,
         )
         .unwrap();
@@ -277,16 +275,8 @@ impl VoltageContext {
         };
 
         // Convert the real start and end times to GPS time
-        let common_start_unix_time_ms = misc::convert_gpstime_to_unixtime(
-            common_start_gps_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
-        let common_end_unix_time_ms = misc::convert_gpstime_to_unixtime(
-            common_end_gps_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
+        let common_start_unix_time_ms = misc::convert_gpstime_to_unixtime(common_start_gps_time_ms);
+        let common_end_unix_time_ms = misc::convert_gpstime_to_unixtime(common_end_gps_time_ms);
 
         // Populate the common coarse_chan indices vector
         let common_coarse_chan_indices: Vec<usize> =
@@ -328,16 +318,10 @@ impl VoltageContext {
         };
 
         // Convert the real start and end times to GPS time
-        let common_good_start_unix_time_ms = misc::convert_gpstime_to_unixtime(
-            common_good_start_gps_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
-        let common_good_end_unix_time_ms = misc::convert_gpstime_to_unixtime(
-            common_good_end_gps_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
+        let common_good_start_unix_time_ms =
+            misc::convert_gpstime_to_unixtime(common_good_start_gps_time_ms);
+        let common_good_end_unix_time_ms =
+            misc::convert_gpstime_to_unixtime(common_good_end_gps_time_ms);
 
         // Populate the common coarse_chan indices vector
         let common_good_coarse_chan_indices: Vec<usize> = CoarseChannel::get_coarse_chan_indicies(

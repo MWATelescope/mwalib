@@ -66,10 +66,6 @@ impl TimeStep {
     ///
     /// * `metafits_timesteps' - Reference to populated metafits timesteps.
     ///
-    /// * `scheduled_starttime_gps_ms` - Scheduled start time of the observation based on GPSTIME in the metafits (obsid).
-    ///
-    /// * `scheduled_starttime_unix_ms` - Scheduled start time of the observation based on GOODTIME-QUACKTIM in the metafits.
-    ///
     /// * `corr_int_time_ms` The correlator integration time in ms between each timestep.
     ///
     /// # Returns
@@ -80,8 +76,6 @@ impl TimeStep {
     pub(crate) fn populate_correlator_timesteps(
         gpubox_time_map: &GpuboxTimeMap,
         metafits_timesteps: &[TimeStep],
-        scheduled_starttime_gps_ms: u64,
-        scheduled_starttime_unix_ms: u64,
         corr_int_time_ms: u64,
     ) -> Option<Vec<Self>> {
         if gpubox_time_map.is_empty() {
@@ -92,11 +86,7 @@ impl TimeStep {
 
         // Iterate through the gpubox map and insert all timesteps
         for (unix_time_ms, _) in gpubox_time_map.iter() {
-            let gps_time_ms = misc::convert_unixtime_to_gpstime(
-                *unix_time_ms,
-                scheduled_starttime_gps_ms,
-                scheduled_starttime_unix_ms,
-            );
+            let gps_time_ms = misc::convert_unixtime_to_gpstime(*unix_time_ms);
             timesteps.push(Self::new(*unix_time_ms, gps_time_ms));
         }
 
@@ -105,8 +95,6 @@ impl TimeStep {
         Some(TimeStep::populate_metafits_provided_superset_of_timesteps(
             timesteps,
             metafits_timesteps,
-            scheduled_starttime_gps_ms,
-            scheduled_starttime_unix_ms,
             corr_int_time_ms,
         ))
     }
@@ -120,10 +108,6 @@ impl TimeStep {
     ///
     /// * `metafits_timesteps' - Reference to populated metafits timesteps.
     ///
-    /// * `scheduled_starttime_gps_ms` - Scheduled start time of the observation based on GPSTIME in the metafits (obsid).
-    ///
-    /// * `scheduled_starttime_unix_ms` - Scheduled start time of the observation based on GOODTIME-QUACKTIM in the metafits.
-    ///
     /// * `voltage_timestep_duration_ms` The time in ms between each timestep.
     ///
     /// # Returns
@@ -134,8 +118,6 @@ impl TimeStep {
     pub(crate) fn populate_voltage_timesteps(
         voltage_time_map: &VoltageFileTimeMap,
         metafits_timesteps: &[TimeStep],
-        scheduled_starttime_gps_ms: u64,
-        scheduled_starttime_unix_ms: u64,
         voltage_timestep_duration_ms: u64,
     ) -> Option<Vec<Self>> {
         if voltage_time_map.is_empty() {
@@ -146,11 +128,7 @@ impl TimeStep {
 
         // Iterate through the voltage time map and insert all timesteps
         for (gps_time_seconds, _) in voltage_time_map.iter() {
-            let unix_time_ms = misc::convert_gpstime_to_unixtime(
-                *gps_time_seconds * 1000,
-                scheduled_starttime_gps_ms,
-                scheduled_starttime_unix_ms,
-            );
+            let unix_time_ms = misc::convert_gpstime_to_unixtime(*gps_time_seconds * 1000);
             timesteps.push(Self::new(unix_time_ms, *gps_time_seconds * 1000));
         }
 
@@ -159,8 +137,6 @@ impl TimeStep {
         Some(TimeStep::populate_metafits_provided_superset_of_timesteps(
             timesteps,
             metafits_timesteps,
-            scheduled_starttime_gps_ms,
-            scheduled_starttime_unix_ms,
             voltage_timestep_duration_ms,
         ))
     }
@@ -184,10 +160,6 @@ impl TimeStep {
     ///
     /// * `metafits_timesteps' - Reference to populated metafits timesteps.
     ///
-    /// * `scheduled_starttime_gps_ms` - Scheduled start time of the observation based on GPSTIME in the metafits (obsid).
-    ///
-    /// * `scheduled_starttime_unix_ms` - Scheduled start time of the observation based on GOODTIME-QUACKTIM in the metafits.
-    ///
     /// * `timestep_duration_ms` The time in ms between each timestep.
     ///
     /// # Returns
@@ -197,8 +169,6 @@ impl TimeStep {
     fn populate_metafits_provided_superset_of_timesteps(
         provided_timesteps: Vec<TimeStep>,
         metafits_timesteps: &[TimeStep],
-        scheduled_starttime_gps_ms: u64,
-        scheduled_starttime_unix_ms: u64,
         timestep_duration_ms: u64,
     ) -> Vec<TimeStep> {
         let mut timesteps: Vec<TimeStep> = provided_timesteps;
@@ -214,11 +184,7 @@ impl TimeStep {
 
             while current_timestep_unix_ms >= metafits_timesteps[0].unix_time_ms {
                 // Create a new timestep
-                let gps_time_ms = misc::convert_unixtime_to_gpstime(
-                    current_timestep_unix_ms,
-                    scheduled_starttime_gps_ms,
-                    scheduled_starttime_unix_ms,
-                );
+                let gps_time_ms = misc::convert_unixtime_to_gpstime(current_timestep_unix_ms);
                 timesteps.push(Self::new(current_timestep_unix_ms, gps_time_ms));
 
                 // Move back by the correlator integration time
@@ -238,11 +204,7 @@ impl TimeStep {
                 <= metafits_timesteps[metafits_timesteps.len() - 1].unix_time_ms
             {
                 // Create a new timestep
-                let gps_time_ms = misc::convert_unixtime_to_gpstime(
-                    current_timestep_unix_ms,
-                    scheduled_starttime_gps_ms,
-                    scheduled_starttime_unix_ms,
-                );
+                let gps_time_ms = misc::convert_unixtime_to_gpstime(current_timestep_unix_ms);
                 timesteps.push(Self::new(current_timestep_unix_ms, gps_time_ms));
 
                 // Move forward by the correlator integration time
@@ -263,11 +225,7 @@ impl TimeStep {
                 .iter()
                 .any(|t| t.unix_time_ms == timestep_unix_time_ms)
             {
-                let gps_time_ms = misc::convert_unixtime_to_gpstime(
-                    timestep_unix_time_ms,
-                    scheduled_starttime_gps_ms,
-                    scheduled_starttime_unix_ms,
-                );
+                let gps_time_ms = misc::convert_unixtime_to_gpstime(timestep_unix_time_ms);
                 timesteps.push(Self::new(timestep_unix_time_ms, gps_time_ms));
             }
         }
@@ -290,10 +248,6 @@ impl TimeStep {
     ///
     /// * `duration_ms` - Duration (in ms).        
     ///
-    /// * `scheduled_starttime_gps_ms` - Scheduled start time of the observation based on GPSTIME in the metafits (obsid).
-    ///
-    /// * `scheduled_starttime_unix_ms` - Scheduled start time of the observation based on GOODTIME-QUACKTIM in the metafits.
-    ///
     /// # Returns
     ///
     /// * A populated vector of TimeStep structs from start to end.
@@ -303,8 +257,6 @@ impl TimeStep {
         mwa_version: MWAVersion,
         start_gps_time_ms: u64,
         duration_ms: u64,
-        scheduled_starttime_gps_ms: u64,
-        scheduled_starttime_unix_ms: u64,
     ) -> Vec<Self> {
         // Init our vector
         let mut timesteps_vec: Vec<Self> = vec![];
@@ -327,11 +279,7 @@ impl TimeStep {
         for gps_time in
             (start_gps_time_ms..start_gps_time_ms + duration_ms).step_by(interval_ms as usize)
         {
-            let unix_time_ms = misc::convert_gpstime_to_unixtime(
-                gps_time,
-                scheduled_starttime_gps_ms,
-                scheduled_starttime_unix_ms,
-            );
+            let unix_time_ms = misc::convert_gpstime_to_unixtime(gps_time);
 
             timesteps_vec.push(Self::new(unix_time_ms, gps_time));
         }

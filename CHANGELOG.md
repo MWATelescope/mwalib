@@ -8,6 +8,16 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
+## Unreleased
+
+### Breaking
+
+* `convert_gpstime_to_unixtime` and `convert_unixtime_to_gpstime` (in `misc`, and re-exported at the crate root) no longer take `mwa_start_gpstime_ms`/`mwa_start_unixtime_ms` reference parameters - they are now `convert_gpstime_to_unixtime(gpstime_ms: u64)` and `convert_unixtime_to_gpstime(unixtime_ms: u64)`. Internally they now convert via `hifitime`'s leap-second table instead of a flat per-observation offset, which also removes the previous assumption that an observation could never span a leap second boundary.
+
+### Changed
+
+* Added `hifitime` as a dependency (unconditionally, not gated behind the `python` feature) to back the above leap-second-aware conversions.
+
 ## 2.1.0 01-Sep-2026
 
 ### Added
