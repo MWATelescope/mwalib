@@ -15,6 +15,7 @@ __all__ = [
     "CoarseChannel",
     "CorrelatorContext",
     "DataFileType",
+    "DelayMode",
     "GeometricDelaysApplied",
     "GpuBoxBatch",
     "GpuBoxFile",
@@ -268,7 +269,7 @@ class CalibrationFit:
         channels. May be missing or all ones in some metafits files.
         """
     @gains.setter
-    def gains(self, value: builtins.list[builtins.float]) -> None:
+    def gains(self, value: typing.Sequence[builtins.float]) -> None:
         r"""
         The calibration gain multiplier (not in dB) for each of the N channels (normally 24) in this observation,
         for this input. Derived from the most recently processed calibrator observation with the same coarse
@@ -284,7 +285,7 @@ class CalibrationFit:
         polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
         """
     @gain_polynomial_fit0.setter
-    def gain_polynomial_fit0(self, value: builtins.list[builtins.float]) -> None:
+    def gain_polynomial_fit0(self, value: typing.Sequence[builtins.float]) -> None:
         r"""
         polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
         """
@@ -304,7 +305,7 @@ class CalibrationFit:
         polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
         """
     @gain_polynomial_fit1.setter
-    def gain_polynomial_fit1(self, value: builtins.list[builtins.float]) -> None:
+    def gain_polynomial_fit1(self, value: typing.Sequence[builtins.float]) -> None:
         r"""
         polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
         """
@@ -453,7 +454,7 @@ class CorrelatorContext:
         offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
         """
     @timesteps.setter
-    def timesteps(self, value: builtins.list[TimeStep]) -> None:
+    def timesteps(self, value: typing.Sequence[TimeStep]) -> None:
         r"""
         This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
         offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
@@ -474,7 +475,7 @@ class CorrelatorContext:
         Vector of coarse channel structs which is the same as the metafits provided coarse channels
         """
     @coarse_chans.setter
-    def coarse_chans(self, value: builtins.list[CoarseChannel]) -> None:
+    def coarse_chans(self, value: typing.Sequence[CoarseChannel]) -> None:
         r"""
         Vector of coarse channel structs which is the same as the metafits provided coarse channels
         """
@@ -494,7 +495,7 @@ class CorrelatorContext:
         Vector of (in)common timestep indices
         """
     @common_timestep_indices.setter
-    def common_timestep_indices(self, value: builtins.list[builtins.int]) -> None:
+    def common_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common timestep indices
         """
@@ -514,7 +515,7 @@ class CorrelatorContext:
         Vector of (in)common coarse channel indices
         """
     @common_coarse_chan_indices.setter
-    def common_coarse_chan_indices(self, value: builtins.list[builtins.int]) -> None:
+    def common_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common coarse channel indices
         """
@@ -598,7 +599,7 @@ class CorrelatorContext:
         Vector of (in)common timestep indices only including timesteps after the quack time
         """
     @common_good_timestep_indices.setter
-    def common_good_timestep_indices(self, value: builtins.list[builtins.int]) -> None:
+    def common_good_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common timestep indices only including timesteps after the quack time
         """
@@ -618,7 +619,7 @@ class CorrelatorContext:
         Vector of (in)common coarse channel indices only including timesteps after the quack time
         """
     @common_good_coarse_chan_indices.setter
-    def common_good_coarse_chan_indices(self, value: builtins.list[builtins.int]) -> None:
+    def common_good_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common coarse channel indices only including timesteps after the quack time
         """
@@ -702,7 +703,7 @@ class CorrelatorContext:
         The indices of any timesteps which we have *some* data for
         """
     @provided_timestep_indices.setter
-    def provided_timestep_indices(self, value: builtins.list[builtins.int]) -> None:
+    def provided_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         The indices of any timesteps which we have *some* data for
         """
@@ -722,7 +723,7 @@ class CorrelatorContext:
         The indices of any coarse channels which we have *some* data for
         """
     @provided_coarse_chan_indices.setter
-    def provided_coarse_chan_indices(self, value: builtins.list[builtins.int]) -> None:
+    def provided_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         The indices of any coarse channels which we have *some* data for
         """
@@ -786,7 +787,7 @@ class CorrelatorContext:
         `gpubox_batches[batch][filename]`.
         """
     @gpubox_batches.setter
-    def gpubox_batches(self, value: builtins.list[GpuBoxBatch]) -> None:
+    def gpubox_batches(self, value: typing.Sequence[GpuBoxBatch]) -> None:
         r"""
         `gpubox_batches` *must* be sorted appropriately. See
         `gpubox::determine_gpubox_batches`. The order of the filenames
@@ -805,7 +806,7 @@ class CorrelatorContext:
         correct HDU out of all gpubox files.
         """
     @gpubox_time_map.setter
-    def gpubox_time_map(self, value: builtins.dict[builtins.int, builtins.dict[builtins.int, tuple[builtins.int, builtins.int]]]) -> None:
+    def gpubox_time_map(self, value: typing.Mapping[builtins.int, typing.Mapping[builtins.int, tuple[builtins.int, builtins.int]]]) -> None:
         r"""
         We assume as little as possible about the data layout in the gpubox
         files; here, a `BTreeMap` contains each unique UNIX time from every
@@ -820,7 +821,7 @@ class CorrelatorContext:
         A conversion table to optimise reading of legacy MWA HDUs
         """
     @legacy_conversion_table.setter
-    def legacy_conversion_table(self, value: builtins.list[LegacyConversionBaseline]) -> None:
+    def legacy_conversion_table(self, value: typing.Sequence[LegacyConversionBaseline]) -> None:
         r"""
         A conversion table to optimise reading of legacy MWA HDUs
         """
@@ -889,7 +890,7 @@ class CorrelatorContext:
             data (numpy.typing.NDArray[numpy.float32]): A 2 dimensional ndarray of 32 bit floats containing the data in [baseline],[pol] order, if Ok.
         """
     def __repr__(self) -> builtins.str: ...
-    def __enter__(self, slf: CorrelatorContext) -> CorrelatorContext: ...
+    def __enter__(self) -> CorrelatorContext: ...
     def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...
 
 @typing.final
@@ -914,7 +915,7 @@ class GpuBoxBatch:
         Vector storing the details of each gpubox file in this batch
         """
     @gpubox_files.setter
-    def gpubox_files(self, value: builtins.list[GpuBoxFile]) -> None:
+    def gpubox_files(self, value: typing.Sequence[GpuBoxFile]) -> None:
         r"""
         Vector storing the details of each gpubox file in this batch
         """
@@ -1421,14 +1422,14 @@ class MetafitsContext:
     @property
     def delay_mode(self) -> typing.Optional[DelayMode]:
         r"""
-        The MWAX real-time correction mode applied by the correlator
-        (DELAYMOD). `None` for older observations where the key is not present.
+        The MWAX real-time correction mode applied by the correlator (DELAYMOD).
+        `None` for older observations where the key is not present.
         """
     @delay_mode.setter
     def delay_mode(self, value: typing.Optional[DelayMode]) -> None:
         r"""
-        The MWAX real-time correction mode applied by the correlator
-        (DELAYMOD). `None` for older observations where the key is not present.
+        The MWAX real-time correction mode applied by the correlator (DELAYMOD).
+        `None` for older observations where the key is not present.
         """
     @property
     def geometric_delays_applied(self) -> GeometricDelaysApplied:
@@ -1463,7 +1464,7 @@ class MetafitsContext:
     @property
     def signal_chain_corrections_applied(self) -> builtins.bool:
         r"""
-        Have signal chain corrections been applied to the data?
+        Have signal chain corrections been applied to the data by the correlator?
         """
     @signal_chain_corrections_applied.setter
     def signal_chain_corrections_applied(self, value: builtins.bool) -> None:
@@ -1499,54 +1500,54 @@ class MetafitsContext:
         r"""
         The MWAX beamformer real-time correction mode (BDELMOD).
         `None` if the key is not present, in which case callers should fall back
-        to the correlator delay mode fields above. When this is not None, all of
-        the other `bf_` delay fields are also not None.
+        to the correlator delay mode fields above. When this is `Some`, all of the
+        other `bf_` delay fields are also `Some`.
         """
     @bf_delay_mode.setter
     def bf_delay_mode(self, value: typing.Optional[DelayMode]) -> None:
         r"""
         The MWAX beamformer real-time correction mode (BDELMOD).
         `None` if the key is not present, in which case callers should fall back
-        to the correlator delay mode fields above. When this is not None, all of
-        the other `bf_` delay fields are also not None.
+        to the correlator delay mode fields above. When this is `Some`, all of the
+        other `bf_` delay fields are also `Some`.
         """
     @property
     def bf_geometric_delays_applied(self) -> typing.Optional[GeometricDelaysApplied]:
         r"""
         Which Geometric delays have been applied to the data by the beamformer (BGEODEL)?
-        Expected to be AzElTracking for beamformer observations.
+        Expected to be `AzElTracking` for beamformer observations.
         """
     @bf_geometric_delays_applied.setter
     def bf_geometric_delays_applied(self, value: typing.Optional[GeometricDelaysApplied]) -> None:
         r"""
         Which Geometric delays have been applied to the data by the beamformer (BGEODEL)?
-        Expected to be AzElTracking for beamformer observations.
+        Expected to be `AzElTracking` for beamformer observations.
         """
     @property
     def bf_cable_delays_applied(self) -> typing.Optional[CableDelaysApplied]:
         r"""
         Have cable delays been applied to the data by the beamformer (BCABDEL)?
-        Expected to be CableAndRecClock (or in future
-        CableAndRecClockAndBeamformerDipoleDelays) for beamformer observations.
+        Expected to be `CableAndRecClock` (or in future
+        `CableAndRecClockAndBeamformerDipoleDelays`) for beamformer observations.
         """
     @bf_cable_delays_applied.setter
     def bf_cable_delays_applied(self, value: typing.Optional[CableDelaysApplied]) -> None:
         r"""
         Have cable delays been applied to the data by the beamformer (BCABDEL)?
-        Expected to be CableAndRecClock (or in future
-        CableAndRecClockAndBeamformerDipoleDelays) for beamformer observations.
+        Expected to be `CableAndRecClock` (or in future
+        `CableAndRecClockAndBeamformerDipoleDelays`) for beamformer observations.
         """
     @property
     def bf_calibration_delays_and_gains_applied(self) -> typing.Optional[builtins.bool]:
         r"""
         Have calibration delays and gains been applied to the data by the beamformer
-        (BCALDEL)? Expected to be True for beamformer observations.
+        (BCALDEL)? Expected to be `true` for beamformer observations.
         """
     @bf_calibration_delays_and_gains_applied.setter
     def bf_calibration_delays_and_gains_applied(self, value: typing.Optional[builtins.bool]) -> None:
         r"""
         Have calibration delays and gains been applied to the data by the beamformer
-        (BCALDEL)? Expected to be True for beamformer observations.
+        (BCALDEL)? Expected to be `true` for beamformer observations.
         """
     @property
     def bf_signal_chain_corrections_applied(self) -> typing.Optional[builtins.bool]:
@@ -1562,14 +1563,14 @@ class MetafitsContext:
     def bf_digital_gains_applied(self) -> typing.Optional[builtins.bool]:
         r"""
         Has the beamformer divided the data stream by the appropriate digital gain
-        value for each tile and coarse channel (BDGAINS)? Expected to be True for
+        value for each tile and coarse channel (BDGAINS)? Expected to be `true` for
         beamformer observations.
         """
     @bf_digital_gains_applied.setter
     def bf_digital_gains_applied(self, value: typing.Optional[builtins.bool]) -> None:
         r"""
         Has the beamformer divided the data stream by the appropriate digital gain
-        value for each tile and coarse channel (BDGAINS)? Expected to be True for
+        value for each tile and coarse channel (BDGAINS)? Expected to be `true` for
         beamformer observations.
         """
     @property
@@ -1648,7 +1649,7 @@ class MetafitsContext:
         Array of receiver numbers
         """
     @receivers.setter
-    def receivers(self, value: builtins.list[builtins.int]) -> None:
+    def receivers(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Array of receiver numbers
         """
@@ -1668,7 +1669,7 @@ class MetafitsContext:
         Array of beamformer delays
         """
     @delays.setter
-    def delays(self, value: builtins.list[builtins.int]) -> None:
+    def delays(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Array of beamformer delays
         """
@@ -1758,7 +1759,7 @@ class MetafitsContext:
         We also have just the antennas
         """
     @antennas.setter
-    def antennas(self, value: builtins.list[Antenna]) -> None:
+    def antennas(self, value: typing.Sequence[Antenna]) -> None:
         r"""
         We also have just the antennas
         """
@@ -1778,7 +1779,7 @@ class MetafitsContext:
         The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
         """
     @rf_inputs.setter
-    def rf_inputs(self, value: builtins.list[Rfinput]) -> None:
+    def rf_inputs(self, value: typing.Sequence[Rfinput]) -> None:
         r"""
         The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
         """
@@ -1808,7 +1809,7 @@ class MetafitsContext:
         Vector of timesteps based on the metafits file
         """
     @metafits_timesteps.setter
-    def metafits_timesteps(self, value: builtins.list[TimeStep]) -> None:
+    def metafits_timesteps(self, value: typing.Sequence[TimeStep]) -> None:
         r"""
         Vector of timesteps based on the metafits file
         """
@@ -1828,7 +1829,7 @@ class MetafitsContext:
         Vector of coarse channels based on the metafits file
         """
     @metafits_coarse_chans.setter
-    def metafits_coarse_chans(self, value: builtins.list[CoarseChannel]) -> None:
+    def metafits_coarse_chans(self, value: typing.Sequence[CoarseChannel]) -> None:
         r"""
         Vector of coarse channels based on the metafits file
         """
@@ -1848,7 +1849,7 @@ class MetafitsContext:
         Vector of fine channel frequencies for the whole observation
         """
     @metafits_fine_chan_freqs_hz.setter
-    def metafits_fine_chan_freqs_hz(self, value: builtins.list[builtins.float]) -> None:
+    def metafits_fine_chan_freqs_hz(self, value: typing.Sequence[builtins.float]) -> None:
         r"""
         Vector of fine channel frequencies for the whole observation
         """
@@ -1898,7 +1899,7 @@ class MetafitsContext:
         Baslines
         """
     @baselines.setter
-    def baselines(self, value: builtins.list[Baseline]) -> None:
+    def baselines(self, value: typing.Sequence[Baseline]) -> None:
         r"""
         Baslines
         """
@@ -2030,7 +2031,7 @@ class MetafitsContext:
         Signal Chain corrections
         """
     @signal_chain_corrections.setter
-    def signal_chain_corrections(self, value: typing.Optional[builtins.list[SignalChainCorrection]]) -> None:
+    def signal_chain_corrections(self, value: typing.Optional[typing.Sequence[SignalChainCorrection]]) -> None:
         r"""
         Signal Chain corrections
         """
@@ -2050,7 +2051,7 @@ class MetafitsContext:
         Calibration fits
         """
     @calibration_fits.setter
-    def calibration_fits(self, value: typing.Optional[builtins.list[CalibrationFit]]) -> None:
+    def calibration_fits(self, value: typing.Optional[typing.Sequence[CalibrationFit]]) -> None:
         r"""
         Calibration fits
         """
@@ -2070,7 +2071,7 @@ class MetafitsContext:
         Beamformer beams
         """
     @metafits_voltage_beams.setter
-    def metafits_voltage_beams(self, value: typing.Optional[builtins.list[VoltageBeam]]) -> None:
+    def metafits_voltage_beams(self, value: typing.Optional[typing.Sequence[VoltageBeam]]) -> None:
         r"""
         Beamformer beams
         """
@@ -2116,7 +2117,7 @@ class MetafitsContext:
             metafits_contex (MetafitsContex): a populated MetafitsContext object if Ok.
         """
     def __repr__(self) -> builtins.str: ...
-    def __enter__(self, slf: MetafitsContext) -> MetafitsContext: ...
+    def __enter__(self) -> MetafitsContext: ...
     def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...
 
 class MwalibError(builtins.Exception):
@@ -2265,7 +2266,7 @@ class Rfinput:
         Digital gains are in mwalib metafits coarse channel order (ascending sky frequency order)
         """
     @digital_gains.setter
-    def digital_gains(self, value: builtins.list[builtins.float]) -> None:
+    def digital_gains(self, value: typing.Sequence[builtins.float]) -> None:
         r"""
         Digital gains
         metafits digital gains will be divided by 64
@@ -2282,7 +2283,7 @@ class Rfinput:
         are made floats for easy use in beam code.
         """
     @dipole_gains.setter
-    def dipole_gains(self, value: builtins.list[builtins.float]) -> None:
+    def dipole_gains(self, value: typing.Sequence[builtins.float]) -> None:
         r"""
         Dipole gains.
         
@@ -2297,7 +2298,7 @@ class Rfinput:
         Dipole delays
         """
     @dipole_delays.setter
-    def dipole_delays(self, value: builtins.list[builtins.int]) -> None:
+    def dipole_delays(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Dipole delays
         """
@@ -2376,7 +2377,7 @@ class Rfinput:
         Make sure you understand [how NaNs work in Rust](https://doc.rust-lang.org/std/primitive.f32.html) if you will be using this field!
         """
     @calib_gains.setter
-    def calib_gains(self, value: typing.Optional[builtins.list[builtins.float]]) -> None:
+    def calib_gains(self, value: typing.Optional[typing.Sequence[builtins.float]]) -> None:
         r"""
         Calibration gains (vector- 1 per coarse channel) if provided.  Channels are in `MetafitsContext.course_chans` order.
         If calibration solution information is not present in the metafits it will be `None`.
@@ -2429,7 +2430,7 @@ class SignalChainCorrection:
         Corrections
         """
     @corrections.setter
-    def corrections(self, value: builtins.list[builtins.float]) -> None:
+    def corrections(self, value: typing.Sequence[builtins.float]) -> None:
         r"""
         Corrections
         """
@@ -2557,7 +2558,7 @@ class VoltageBeam:
         channel_set - list of up to 24 coarse channels to include in the output data. If not present, include all 24 coarse channels.
         """
     @coarse_channels.setter
-    def coarse_channels(self, value: builtins.list[CoarseChannel]) -> None:
+    def coarse_channels(self, value: typing.Sequence[CoarseChannel]) -> None:
         r"""
         channel_set - list of up to 24 coarse channels to include in the output data. If not present, include all 24 coarse channels.
         """
@@ -2577,7 +2578,7 @@ class VoltageBeam:
         tileset - Array of antennas which are the tiles used for this beam. Must be the same as, or a subset of, the main observation tileset.
         """
     @antennas.setter
-    def antennas(self, value: builtins.list[Antenna]) -> None:
+    def antennas(self, value: typing.Sequence[Antenna]) -> None:
         r"""
         tileset - Array of antennas which are the tiles used for this beam. Must be the same as, or a subset of, the main observation tileset.
         """
@@ -2724,7 +2725,7 @@ class VoltageContext:
         offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
         """
     @timesteps.setter
-    def timesteps(self, value: builtins.list[TimeStep]) -> None:
+    def timesteps(self, value: typing.Sequence[TimeStep]) -> None:
         r"""
         This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
         offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
@@ -2755,7 +2756,7 @@ class VoltageContext:
         Vector of coarse channel structs which is the same as the metafits provided coarse channels
         """
     @coarse_chans.setter
-    def coarse_chans(self, value: builtins.list[CoarseChannel]) -> None:
+    def coarse_chans(self, value: typing.Sequence[CoarseChannel]) -> None:
         r"""
         Vector of coarse channel structs which is the same as the metafits provided coarse channels
         """
@@ -2775,7 +2776,7 @@ class VoltageContext:
         Vector of (in)common timestep indices
         """
     @common_timestep_indices.setter
-    def common_timestep_indices(self, value: builtins.list[builtins.int]) -> None:
+    def common_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common timestep indices
         """
@@ -2795,7 +2796,7 @@ class VoltageContext:
         Vector of (in)common coarse channel indices
         """
     @common_coarse_chan_indices.setter
-    def common_coarse_chan_indices(self, value: builtins.list[builtins.int]) -> None:
+    def common_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common coarse channel indices
         """
@@ -2879,7 +2880,7 @@ class VoltageContext:
         Vector of (in)common timestep indices only including timesteps after the quack time
         """
     @common_good_timestep_indices.setter
-    def common_good_timestep_indices(self, value: builtins.list[builtins.int]) -> None:
+    def common_good_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common timestep indices only including timesteps after the quack time
         """
@@ -2899,7 +2900,7 @@ class VoltageContext:
         Vector of (in)common coarse channel indices only including timesteps after the quack time
         """
     @common_good_coarse_chan_indices.setter
-    def common_good_coarse_chan_indices(self, value: builtins.list[builtins.int]) -> None:
+    def common_good_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common coarse channel indices only including timesteps after the quack time
         """
@@ -2983,7 +2984,7 @@ class VoltageContext:
         The indices of any timesteps which we have *some* data for
         """
     @provided_timestep_indices.setter
-    def provided_timestep_indices(self, value: builtins.list[builtins.int]) -> None:
+    def provided_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         The indices of any timesteps which we have *some* data for
         """
@@ -3003,7 +3004,7 @@ class VoltageContext:
         The indices of any coarse channels which we have *some* data for
         """
     @provided_coarse_chan_indices.setter
-    def provided_coarse_chan_indices(self, value: builtins.list[builtins.int]) -> None:
+    def provided_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         The indices of any coarse channels which we have *some* data for
         """
@@ -3137,7 +3138,7 @@ class VoltageContext:
         `voltage_batches[batch][filename]`.
         """
     @voltage_batches.setter
-    def voltage_batches(self, value: builtins.list[VoltageFileBatch]) -> None:
+    def voltage_batches(self, value: typing.Sequence[VoltageFileBatch]) -> None:
         r"""
         `voltage_batches` *must* be sorted appropriately. See
         `voltage::determine_voltage_batches`. The order of the filenames
@@ -3156,7 +3157,7 @@ class VoltageContext:
         correct HDU out of all voltage files.
         """
     @voltage_time_map.setter
-    def voltage_time_map(self, value: builtins.dict[builtins.int, builtins.dict[builtins.int, builtins.str]]) -> None:
+    def voltage_time_map(self, value: typing.Mapping[builtins.int, typing.Mapping[builtins.int, builtins.str]]) -> None:
         r"""
         We assume as little as possible about the data layout in the voltage
         files; here, a `BTreeMap` contains each unique GPS time from every
@@ -3220,7 +3221,7 @@ class VoltageContext:
         MWAX  : [second],[voltage_block],[antenna],[pol],[sample],[r,i]
         """
     def __repr__(self) -> builtins.str: ...
-    def __enter__(self, slf: VoltageContext) -> VoltageContext: ...
+    def __enter__(self) -> VoltageContext: ...
     def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...
 
 class VoltageErro(builtins.Exception):
@@ -3324,7 +3325,7 @@ class VoltageFileBatch:
         Vector storing the details of each voltage file in this batch
         """
     @voltage_files.setter
-    def voltage_files(self, value: builtins.list[VoltageFile]) -> None:
+    def voltage_files(self, value: typing.Sequence[VoltageFile]) -> None:
         r"""
         Vector storing the details of each voltage file in this batch
         """
@@ -3371,13 +3372,37 @@ class DelayMode(enum.Enum):
     The MWAX real-time correction (delay) mode used for this observation
     """
     NoDelays = ...
+    r"""
+    No corrections applied
+    """
     CableZenith = ...
+    r"""
+    Cable delays, pointed at zenith
+    """
     Cable = ...
+    r"""
+    Cable delays only
+    """
     TileBeam = ...
+    r"""
+    Cable delays plus tile-pointing geometric delays
+    """
     FullTrack = ...
+    r"""
+    Cable delays plus az/el table tracking geometric delays
+    """
     SignalChain = ...
+    r"""
+    Signal chain corrections
+    """
     FullChain = ...
+    r"""
+    Full tracking plus signal chain corrections
+    """
     FullCal = ...
+    r"""
+    Full tracking, signal chain corrections plus calibration delays and gains
+    """
 
 @typing.final
 class GeometricDelaysApplied(enum.Enum):
