@@ -10,7 +10,7 @@ use crate::{
         set_c_string, MWALIB_FAILURE, MWALIB_SUCCESS,
     },
     rfinput, signal_chain_correction, timestep, voltage_beam, CableDelaysApplied,
-    CorrelatorContext, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext,
+    CorrelatorContext, DelayMode, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext,
     VoltageContext,
 };
 use libc::size_t;
@@ -106,6 +106,12 @@ pub struct MetafitsMetadata {
     pub best_cal_fit_timestamp: *mut c_char,
     /// Best calibration fit creator
     pub best_cal_creator: *mut c_char,
+    /// Human readable description of the correlator delay mode (DELDESC). Empty string
+    /// if not present in the metafits.
+    pub delay_mode_description: *mut c_char,
+    /// Human readable description of the beamformer delay mode (BDELDESC). Empty string
+    /// if not present in the metafits.
+    pub bf_delay_mode_description: *mut c_char,
 
     /// Array of receiver numbers
     pub receivers: *mut usize,
@@ -185,16 +191,46 @@ pub struct MetafitsMetadata {
     pub mwa_version: MWAVersion,
     /// MWA observation mode
     pub mode: MWAMode,
-    /// Which Geometric delays have been applied to the data
+    /// The correlator real-time correction mode (DELAYMOD).
+    /// Only meaningful if `delay_mode_provided` is true.
+    pub delay_mode: DelayMode,
+    /// The beamformer real-time correction mode (BDELMOD).
+    /// Only meaningful if `bf_delay_mode_provided` is true.
+    pub bf_delay_mode: DelayMode,
+    /// Which Geometric delays have been applied to the data by the correlator
     pub geometric_delays_applied: GeometricDelaysApplied,
-    /// Have cable delays been applied to the data?
+    /// Have cable delays been applied to the data by the correlator?
     pub cable_delays_applied: CableDelaysApplied,
+    /// Which Geometric delays have been applied to the data by the beamformer.
+    /// Only meaningful if `bf_delay_mode_provided` is true.
+    pub bf_geometric_delays_applied: GeometricDelaysApplied,
+    /// Have cable delays been applied to the data by the beamformer?
+    /// Only meaningful if `bf_delay_mode_provided` is true.
+    pub bf_cable_delays_applied: CableDelaysApplied,
 
     // ---- Booleans ----
-    /// Have calibration delays and gains been applied to the data?
+    /// Have calibration delays and gains been applied to the data by the correlator?
     pub calibration_delays_and_gains_applied: bool,
-    /// Have signal chain corrections been applied to the data?
+    /// Have signal chain corrections been applied to the data by the correlator?
     pub signal_chain_corrections_applied: bool,
+    /// Has the correlator divided the data stream by the appropriate digital gain?
+    pub digital_gains_applied: bool,
+    /// Was the correlator delay mode key (DELAYMOD) present in the metafits? If false,
+    /// `delay_mode` holds a default value.
+    pub delay_mode_provided: bool,
+    /// Were beamformer delay mode keys (BDELMOD and friends) present in the metafits?
+    /// If false, all of the other `bf_` delay fields hold default values and the
+    /// caller should fall back to the correlator delay mode fields.
+    pub bf_delay_mode_provided: bool,
+    /// Have calibration delays and gains been applied to the data by the beamformer?
+    /// Only meaningful if `bf_delay_mode_provided` is true.
+    pub bf_calibration_delays_and_gains_applied: bool,
+    /// Have signal chain corrections been applied to the data by the beamformer?
+    /// Only meaningful if `bf_delay_mode_provided` is true.
+    pub bf_signal_chain_corrections_applied: bool,
+    /// Has the beamformer divided the data stream by the appropriate digital gain?
+    /// Only meaningful if `bf_delay_mode_provided` is true.
+    pub bf_digital_gains_applied: bool,
     /// Intended for calibration
     pub calibrator: bool,
     /// Was this observation using oversampled coarse channels?
@@ -375,10 +411,20 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             project_id,
             obs_name,
             mode,
+            delay_mode,
             geometric_delays_applied,
             cable_delays_applied,
             calibration_delays_and_gains_applied,
             signal_chain_corrections_applied,
+            digital_gains_applied,
+            delay_mode_description,
+            bf_delay_mode,
+            bf_geometric_delays_applied,
+            bf_cable_delays_applied,
+            bf_calibration_delays_and_gains_applied,
+            bf_signal_chain_corrections_applied,
+            bf_digital_gains_applied,
+            bf_delay_mode_description,
             corr_fine_chan_width_hz,
             corr_int_time_ms,
             corr_raw_scale_factor,
@@ -460,10 +506,32 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_get(
             project_id: ffi_create_c_string(project_id),
             obs_name: ffi_create_c_string(obs_name),
             mode: *mode,
+            delay_mode_provided: delay_mode.is_some(),
+            delay_mode: delay_mode.unwrap_or(DelayMode::NoDelays),
             geometric_delays_applied: *geometric_delays_applied,
             cable_delays_applied: *cable_delays_applied,
             calibration_delays_and_gains_applied: *calibration_delays_and_gains_applied,
             signal_chain_corrections_applied: *signal_chain_corrections_applied,
+            digital_gains_applied: *digital_gains_applied,
+            delay_mode_description: ffi_create_c_string(
+                delay_mode_description.as_deref().unwrap_or_default(),
+            ),
+            // Option<T> is not representable in C, so flatten to defaults and expose
+            // bf_delay_mode_provided so the caller can tell "absent" from "present but 0"
+            bf_delay_mode_provided: bf_delay_mode.is_some(),
+            bf_delay_mode: bf_delay_mode.unwrap_or(DelayMode::NoDelays),
+            bf_geometric_delays_applied: bf_geometric_delays_applied
+                .unwrap_or(GeometricDelaysApplied::No),
+            bf_cable_delays_applied: bf_cable_delays_applied
+                .unwrap_or(CableDelaysApplied::NoCableDelaysApplied),
+            bf_calibration_delays_and_gains_applied: bf_calibration_delays_and_gains_applied
+                .unwrap_or_default(),
+            bf_signal_chain_corrections_applied: bf_signal_chain_corrections_applied
+                .unwrap_or_default(),
+            bf_digital_gains_applied: bf_digital_gains_applied.unwrap_or_default(),
+            bf_delay_mode_description: ffi_create_c_string(
+                bf_delay_mode_description.as_deref().unwrap_or_default(),
+            ),
             corr_fine_chan_width_hz: *corr_fine_chan_width_hz,
             corr_int_time_ms: *corr_int_time_ms,
             corr_raw_scale_factor: *corr_raw_scale_factor,
@@ -641,6 +709,8 @@ pub unsafe extern "C" fn mwalib_metafits_metadata_free(m_ptr: *mut MetafitsMetad
     ffi_free_rust_c_string(boxed.best_cal_code_ver);
     ffi_free_rust_c_string(boxed.best_cal_fit_timestamp);
     ffi_free_rust_c_string(boxed.best_cal_creator);
+    ffi_free_rust_c_string(boxed.delay_mode_description);
+    ffi_free_rust_c_string(boxed.bf_delay_mode_description);
 
     // Free main metadata struct
     drop(boxed);

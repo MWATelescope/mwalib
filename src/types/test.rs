@@ -186,3 +186,44 @@ fn test_data_file_type_enum() {
     };
     assert_eq!(dft, DataFileType::Filterbank);
 }
+
+#[test]
+fn test_delay_mode_enum() {
+    // Every variant, in metafits DELAYMOD/BDELMOD string form, paired with its
+    // documented integer value
+    let all = [
+        (DelayMode::NoDelays, "NODELAYS", 0),
+        (DelayMode::CableZenith, "CABLEZEN", 1),
+        (DelayMode::Cable, "CABLE", 2),
+        (DelayMode::TileBeam, "TILEBEAM", 3),
+        (DelayMode::FullTrack, "FULLTRACK", 4),
+        (DelayMode::SignalChain, "SIGCHAIN", 5),
+        (DelayMode::FullChain, "FULLCHAIN", 6),
+        (DelayMode::FullCal, "FULLCAL", 7),
+    ];
+
+    for (variant, text, value) in all {
+        // Display
+        assert_eq!(format!("{}", variant), text);
+
+        // FromStr, and round trip back through Display
+        assert_eq!(DelayMode::from_str(text), Ok(variant));
+        assert_eq!(
+            DelayMode::from_str(&format!("{}", variant)).unwrap(),
+            variant
+        );
+
+        // FromPrimitive
+        let from_i32: DelayMode = num_traits::FromPrimitive::from_i32(value).unwrap();
+        assert_eq!(from_i32, variant);
+    }
+
+    // Unrecognised values are rejected rather than silently mapped
+    assert!(DelayMode::from_str("something invalid").is_err());
+    assert!(DelayMode::from_str("").is_err());
+    // Matching is case sensitive, as the metafits values are always upper case
+    assert!(DelayMode::from_str("fulltrack").is_err());
+
+    let out_of_range: Option<DelayMode> = num_traits::FromPrimitive::from_i32(8);
+    assert!(out_of_range.is_none());
+}

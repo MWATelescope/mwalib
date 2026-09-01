@@ -8,6 +8,20 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
+## 2.1.0 01-Sep-2026
+
+### Added
+
+* New `DelayMode` enum representing the finite set of MWAX real-time correction modes (`NODELAYS`, `CABLEZEN`, `CABLE`, `TILEBEAM`, `FULLTRACK`, `SIGCHAIN`, `FULLCHAIN`, `FULLCAL`). An unrecognised `DELAYMOD`/`BDELMOD` value is a parse error, consistent with how `MODE` is handled.
+* `MetafitsContext` now exposes the beamformer real-time correction mode from the metafits (if present): `bf_delay_mode` (`BDELMOD`), `bf_cable_delays_applied` (`BCABDEL`), `bf_geometric_delays_applied` (`BGEODEL`), `bf_signal_chain_corrections_applied` (`BSIGDEL`), `bf_calibration_delays_and_gains_applied` (`BCALDEL`), `bf_digital_gains_applied` (`BDGAINS`) and `bf_delay_mode_description` (`BDELDESC`). These are all `Option`s and are `None` when `BDELMOD` is absent from the metafits, in which case callers should fall back to the correlator delay mode fields.
+* `MetafitsContext` now also exposes the three correlator delay mode keys which were previously read but not surfaced: `delay_mode` (`DELAYMOD`), `digital_gains_applied` (`DGAINS`) and `delay_mode_description` (`DELDESC`).
+* FFI/C: `MetafitsMetadata` gained the equivalent fields. Since `Option` is not representable in C, the `bf_` fields hold default values when the metafits has no beamformer delay mode - use the new `delay_mode_provided` and `bf_delay_mode_provided` booleans to tell "absent" apart from "present but zero". Absent description strings are returned as empty strings. Note that the new fields are inserted into the existing size-ordered groupings within the `repr(C)` struct, so the layout has changed and C/C++ callers must be recompiled against the regenerated `mwalib.h`.
+
+### Changed
+
+* Documentation for the existing `geometric_delays_applied`, `cable_delays_applied`, `calibration_delays_and_gains_applied` and `signal_chain_corrections_applied` fields now states explicitly that they refer to corrections applied by the correlator. The fields themselves are unchanged.
+* The `MetafitsContext` `Display` output now includes the correlator and beamformer delay mode blocks.
+
 ## 2.0.5 05-Jun-2026
 
 * Updated some dependencies to latest version

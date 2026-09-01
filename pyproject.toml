@@ -28,6 +28,14 @@ dependencies = [
     "numpy",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "toml",
+    "ty",
+]
+
 [project.urls] # Optional
 "Homepage" = "https://github.com/MWATelescope/mwalib"
 "Bug Reports" = "https://github.com/MWATelescope/mwalib/issues"
@@ -37,6 +45,14 @@ dependencies = [
 requires = ["setuptools", "wheel", "maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "**/*.rs" }
+]
+
 [tool.maturin]
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
-features = ["pyo3/extension-module"]
+# and "python" is the mwalib feature to add python bindings
+features = ["python","pyo3/extension-module"]

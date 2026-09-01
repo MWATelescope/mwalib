@@ -36,7 +36,15 @@ Be sure to also check out these related repositories which make use of mwalib:
 
 * [`Birli`](https://github.com/MWATelescope/Birli) - A Murchison Widefield Array (MWA) pre-processing pipeline.
 * [`Marlu`](https://github.com/MWATelescope/Marlu) - Convenience Rust code that handles coordinate transformations, Jones matrices, etc.
+* [`Hyperbeam`](https://github.com/MWATelescope/mwa_hyperbeam) - Primary beam code for the Murchison Widefield Array (MWA) radio telescope.
 * [`Hyperdrive`](https://github.com/MWATelescope/mwa_hyperdrive) - Calibration software for the Murchison Widefield Array (MWA) radio telescope.
+
+When releasing a new version of mwalib and related repositories, this is the required dependency/build order:
+1. `mwalib`
+2. `Marlu` (depends on: mwalib)
+3. `Birli` (depends on: Marlu)
+4. `hyperbeam` (depends on: Marlu)
+5. `hyperdrive` (depends on: mwalib, Marlu, Birli, hyperbeam)
 
 ## Example test output
 

@@ -22,8 +22,8 @@ use crate::{
     types::{DataFileType, Pol, ReceiverType},
     voltage_files::error::*,
     Antenna, Baseline, CableDelaysApplied, CalibrationFit, CoarseChannel, CorrelatorContext,
-    GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, Rfinput, SignalChainCorrection,
-    VisPol, VoltageBeam, VoltageContext,
+    DelayMode, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, Rfinput,
+    SignalChainCorrection, VisPol, VoltageBeam, VoltageContext,
 };
 
 // Add a python exception for MmwalibError.
@@ -103,6 +103,7 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Enums
     m.add_class::<CableDelaysApplied>()?;
     m.add_class::<DataFileType>()?;
+    m.add_class::<DelayMode>()?;
     m.add_class::<GeometricDelaysApplied>()?;
     m.add_class::<MWAVersion>()?;
     m.add_class::<MWAMode>()?;

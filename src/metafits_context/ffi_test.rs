@@ -5,7 +5,7 @@ use super::*;
 use crate::{
     ffi::ffi_test_helpers::{
         ffi_boxed_slice_to_array, get_test_ffi_correlator_context_legacy,
-        get_test_ffi_metafits_context,
+        get_test_ffi_metafits_context, get_test_ffi_metafits_context_ext,
     },
     metafits_context::ffi::{
         mwalib_metafits_context_display, mwalib_metafits_context_free, mwalib_metafits_context_new,
@@ -546,5 +546,175 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
 
         // Now ensure we don't panic if we try to free a null pointer
         assert_eq!(mwalib_metafits_metadata_free(std::ptr::null_mut()), 0);
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_metadata_delay_modes_absent() {
+    // The legacy test metafits has no DELAYMOD and no BDELMOD keys, so both
+    // delay_mode_provided and bf_delay_mode_provided should be false, the description
+    // strings should be empty, and the enums should hold their default values.
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+
+    let metafits_context_ptr: *mut MetafitsContext =
+        get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
+
+    unsafe {
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
+        let retval = mwalib_metafits_metadata_get(
+            metafits_context_ptr,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut metafits_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+        assert_eq!(retval, 0, "mwalib_metafits_metadata_get failure");
+
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
+
+        // Correlator delay mode keys are absent
+        assert!(!metafits_metadata.delay_mode_provided);
+        assert_eq!(
+            CStr::from_ptr(metafits_metadata.delay_mode_description)
+                .to_str()
+                .unwrap(),
+            ""
+        );
+        assert!(!metafits_metadata.digital_gains_applied);
+
+        // Beamformer delay mode keys are absent
+        assert!(!metafits_metadata.bf_delay_mode_provided);
+        assert_eq!(
+            CStr::from_ptr(metafits_metadata.bf_delay_mode_description)
+                .to_str()
+                .unwrap(),
+            ""
+        );
+        // Flattened defaults, only meaningful when the *_provided flags are true
+        assert_eq!(metafits_metadata.delay_mode, DelayMode::NoDelays);
+        assert_eq!(metafits_metadata.bf_delay_mode, DelayMode::NoDelays);
+        assert_eq!(
+            metafits_metadata.bf_geometric_delays_applied,
+            GeometricDelaysApplied::No
+        );
+        assert_eq!(
+            metafits_metadata.bf_cable_delays_applied,
+            CableDelaysApplied::NoCableDelaysApplied
+        );
+        assert!(!metafits_metadata.bf_calibration_delays_and_gains_applied);
+        assert!(!metafits_metadata.bf_signal_chain_corrections_applied);
+        assert!(!metafits_metadata.bf_digital_gains_applied);
+
+        // Hand the pointer back so it is freed properly (also exercises the new
+        // ffi_free_rust_c_string calls for the four delay mode strings)
+        let raw = Box::into_raw(metafits_metadata);
+        assert_eq!(mwalib_metafits_metadata_free(raw), 0);
+
+        mwalib_metafits_context_free(metafits_context_ptr);
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_metadata_correlator_delay_mode_present() {
+    // This beamformer metafits has the correlator DELAYMOD/DELDESC keys but no BDELMOD
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+
+    let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context_ext(
+        MWAVersion::BeamformerMWAXv2,
+        String::from("test_files/1449373456_bf/1449373456_metafits.fits"),
+    );
+
+    unsafe {
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
+        let retval = mwalib_metafits_metadata_get(
+            metafits_context_ptr,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut metafits_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+        assert_eq!(retval, 0, "mwalib_metafits_metadata_get failure");
+
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
+
+        assert!(metafits_metadata.delay_mode_provided);
+        assert_eq!(metafits_metadata.delay_mode, DelayMode::FullTrack);
+        assert_eq!(
+            CStr::from_ptr(metafits_metadata.delay_mode_description)
+                .to_str()
+                .unwrap(),
+            "Phase up to track source"
+        );
+        assert_eq!(
+            metafits_metadata.geometric_delays_applied,
+            GeometricDelaysApplied::AzElTracking
+        );
+        assert_eq!(
+            metafits_metadata.cable_delays_applied,
+            CableDelaysApplied::CableAndRecClock
+        );
+
+        // No beamformer delay mode keys in this metafits
+        assert!(!metafits_metadata.bf_delay_mode_provided);
+
+        let raw = Box::into_raw(metafits_metadata);
+        assert_eq!(mwalib_metafits_metadata_free(raw), 0);
+
+        mwalib_metafits_context_free(metafits_context_ptr);
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_metadata_bf_delay_mode_present() {    
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+
+    let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context_ext(
+        MWAVersion::BeamformerMWAXv2,
+        String::from("test_files/1471184504_bf_fullcal/1471184504_metafits.fits"),
+    );
+
+    unsafe {
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
+        let retval = mwalib_metafits_metadata_get(
+            metafits_context_ptr,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut metafits_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+        assert_eq!(retval, 0, "mwalib_metafits_metadata_get failure");
+
+        let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
+
+        assert!(metafits_metadata.bf_delay_mode_provided);
+        assert_eq!(metafits_metadata.bf_delay_mode, DelayMode::FullCal);
+        assert!(!CStr::from_ptr(metafits_metadata.bf_delay_mode_description)
+            .to_str()
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            metafits_metadata.bf_geometric_delays_applied,
+            GeometricDelaysApplied::AzElTracking
+        );
+        assert_eq!(
+            metafits_metadata.bf_cable_delays_applied,
+            CableDelaysApplied::CableAndRecClock
+        );
+        assert!(metafits_metadata.bf_calibration_delays_and_gains_applied);
+        assert!(metafits_metadata.bf_digital_gains_applied);
+
+        let raw = Box::into_raw(metafits_metadata);
+        assert_eq!(mwalib_metafits_metadata_free(raw), 0);
+
+        mwalib_metafits_context_free(metafits_context_ptr);
     }
 }
