@@ -20,8 +20,8 @@ Notes:
 
 ### Changed
 
-* Added `hifitime` as a dependency (unconditionally, not gated behind the `python` feature) to back the above leap-second-aware conversions.
-* Added `jiff` as a dependency (unconditionally, not gated behind the `python` feature, so the field types on `MetafitsContext`/`VoltageBeam` are consistent regardless of which features are enabled) to back the `chrono` removal above. `hifitime` and `jiff` serve different purposes in mwalib: `hifitime` for leap-second/GPS-time-scale-aware arithmetic, `jiff` for the plain UTC timestamp fields that need to interoperate cleanly with Python's `datetime.datetime`.
+* Added `hifitime` as a dependency to back the above leap-second-aware conversions.
+* Added `jiff` as a dependency so the field types on `MetafitsContext`/`VoltageBeam` are consistent regardless of which features are enabled to back the `chrono` removal above. `hifitime` and `jiff` serve different purposes in mwalib: `hifitime` for leap-second/GPS-time-scale-aware arithmetic, `jiff` for the plain UTC timestamp fields that need to interoperate cleanly with Python's `datetime.datetime`.
 
 ## 2.1.0 01-Sep-2026
 
