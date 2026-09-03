@@ -217,8 +217,10 @@ pub fn convert_gpstime_to_unixtime(gpstime_ms: u64) -> u64 {
 pub fn convert_unixtime_to_gpstime(unixtime_ms: u64) -> u64 {
     match unixtime_ms {
         0 => 0,
-        _ => (Epoch::from_unix_milliseconds(unixtime_ms as f64).to_gpst_seconds() * 1_000.0)
-            .round() as u64,
+        _ => {
+            (Epoch::from_unix_milliseconds(unixtime_ms as f64).to_gpst_seconds() * 1_000.0).round()
+                as u64
+        }
     }
 }
 

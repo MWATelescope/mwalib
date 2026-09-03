@@ -56,7 +56,7 @@ pub struct MetafitsContext {
     /// Scheduled start (UNIX time) of observation
     pub sched_start_unix_time_ms: u64,
     /// Scheduled end (UNIX time) of observation
-    pub sched_end_unix_time_ms: u64,            
+    pub sched_end_unix_time_ms: u64,
     /// Scheduled start (UTC) of observation    
     pub sched_start_utc: Timestamp,
     /// Scheduled end (UTC) of observation

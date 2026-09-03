@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 /// * Option, containing a populated Vector of correlator timesteps (or None). This is what we are checking for validity.
 ///
 fn create_corr_timestep_testdata(
-    scheduled_start_unix_ms: u64,    
+    scheduled_start_unix_ms: u64,
     scheduled_duration_ms: u64,
     corr_int_time_ms: u64,
     data_timesteps_unix_ms: Vec<u64>,
@@ -296,12 +296,8 @@ fn test_populate_correlator_timesteps_no_overlap_with_metafits() {
     // metafits: [1_381_844_923_000, 1_381_844_923_500, 1_381_844_924_000, 1_381_844_924_500, 1_381_844_925_000, 1_381_844_925_500]
     // data:                                                                                                                                           [1_381_844_926_500]
     //
-    let (metafits_timesteps, _, correlator_timesteps) = create_corr_timestep_testdata(
-        1_381_844_923_000,
-        3000,
-        500,
-        vec![1_381_844_926_500],
-    );
+    let (metafits_timesteps, _, correlator_timesteps) =
+        create_corr_timestep_testdata(1_381_844_923_000, 3000, 500, vec![1_381_844_926_500]);
 
     // First check metafits is what we expect- this is testing the helper code!
     assert_eq!(metafits_timesteps.len(), 6);

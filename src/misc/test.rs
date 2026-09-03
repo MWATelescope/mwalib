@@ -62,9 +62,8 @@ where
 fn test_convert_gpstime_to_unixtime() {
     // Tested using https://www.andrews.edu/~tzs/timeconv/timedisplay.php
     let gpstime_ms = 1_298_013_490_000;
-    
-    let new_unixtime_ms =
-        convert_gpstime_to_unixtime(gpstime_ms);
+
+    let new_unixtime_ms = convert_gpstime_to_unixtime(gpstime_ms);
     assert_eq!(new_unixtime_ms, 1_613_978_272_000);
 }
 
@@ -72,9 +71,8 @@ fn test_convert_gpstime_to_unixtime() {
 fn test_convert_unixtime_to_gpstime() {
     // Tested using https://www.andrews.edu/~tzs/timeconv/timedisplay.php
     let unixtime_ms = 1_613_978_272_000;
-    
-    let new_unixtime_ms =
-        convert_unixtime_to_gpstime(unixtime_ms);
+
+    let new_unixtime_ms = convert_unixtime_to_gpstime(unixtime_ms);
     assert_eq!(new_unixtime_ms, 1_298_013_490_000);
 }
 
