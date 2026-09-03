@@ -56,11 +56,11 @@ pub struct MetafitsContext {
     /// Scheduled start (UNIX time) of observation
     pub sched_start_unix_time_ms: u64,
     /// Scheduled end (UNIX time) of observation
-    pub sched_end_unix_time_ms: u64,
-    /// Scheduled start (UTC) of observation
-    pub sched_start_utc: PyTimestamp,
+    pub sched_end_unix_time_ms: u64,            
+    /// Scheduled start (UTC) of observation    
+    pub sched_start_utc: Timestamp,
     /// Scheduled end (UTC) of observation
-    pub sched_end_utc: PyTimestamp,
+    pub sched_end_utc: Timestamp,
     /// Scheduled start (MJD) of observation
     pub sched_start_mjd: f64,
     /// Scheduled end (MJD) of observation
@@ -938,8 +938,8 @@ impl MetafitsContext {
             sched_end_gps_time_ms: scheduled_end_gpstime_ms,
             sched_start_unix_time_ms: scheduled_start_unix_time_ms,
             sched_end_unix_time_ms: scheduled_end_unix_time_ms,
-            sched_start_utc: PyTimestamp(scheduled_start_utc),
-            sched_end_utc: PyTimestamp(scheduled_end_utc),
+            sched_start_utc: scheduled_start_utc,
+            sched_end_utc: scheduled_end_utc,
             sched_start_mjd: scheduled_start_mjd,
             sched_end_mjd: scheduled_end_mjd,
             sched_duration_ms: scheduled_duration_ms,
@@ -1316,8 +1316,8 @@ impl fmt::Display for MetafitsContext {
             sched_end_unix = self.sched_end_unix_time_ms as f64 / 1e3,
             sched_start_gps = self.sched_start_gps_time_ms as f64 / 1e3,
             sched_end_gps = self.sched_end_gps_time_ms as f64 / 1e3,
-            sched_start_utc = self.sched_start_utc.0,
-            sched_end_utc = self.sched_end_utc.0,
+            sched_start_utc = self.sched_start_utc,
+            sched_end_utc = self.sched_end_utc,
             sched_start_mjd = self.sched_start_mjd,
             sched_end_mjd = self.sched_end_mjd,
             sched_duration = self.sched_duration_ms as f64 / 1e3,

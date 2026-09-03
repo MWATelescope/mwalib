@@ -7,9 +7,10 @@
 #
 # See README.md on how to build and run the tests.
 #
-import mwalib
 import numpy as np
 import pytest
+
+import mwalib
 
 MWAX_CORRELATOR_METAFITS = "test_files/1244973688_1_timestep/1244973688.metafits"
 MWAX_CORRELATOR_GPUBOX_FILES = [

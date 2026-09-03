@@ -7,7 +7,6 @@
 use crate::antenna;
 use crate::MWAVersion;
 use hifitime::Epoch;
-use jiff::Timestamp;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{Error, Write};
@@ -15,52 +14,6 @@ use std::{fmt::Debug, mem, slice};
 
 #[cfg(test)]
 pub(crate) mod test;
-
-#[cfg(any(feature = "python", feature = "python-stubgen"))]
-mod python;
-
-/// A thin wrapper around [`jiff::Timestamp`], used for struct fields that need to surface
-/// to Python as `datetime.datetime` and appear correctly in `pyo3-stub-gen`'s generated
-/// `.pyi` output.
-///
-/// `jiff::Timestamp` already has working `IntoPyObject`/`FromPyObject` via `pyo3`'s own
-/// `jiff-02` feature (the same mechanism `chrono` previously used), so this wrapper's
-/// conversion impls (in `misc::python`) are thin delegations to those - the wrapper exists
-/// purely to supply a `PyStubType` implementation, since neither `jiff` nor `pyo3-stub-gen`
-/// implement that trait for `Timestamp` anywhere, and mwalib cannot implement a foreign
-/// trait for a foreign type itself (Rust's orphan rule). A hand-written per-field
-/// getter/setter approach was tried instead of a wrapper, but ran into a further, more
-/// fundamental limitation: a field- or argument-level attribute that needs to be
-/// conditionally present (`#[cfg_attr(feature = "...", ...)]`) does not resolve correctly
-/// when the enclosing struct/impl is itself the target of another, also feature-gated,
-/// attribute macro (`#[pyclass(...)]`/`#[gen_stub_pyclass]` in this crate) - confirmed by
-/// real build failures for both `#[gen_stub(...)]` and even plain `#[pyo3(get, set)]`.
-///
-/// `PyTimestamp` derefs to `Timestamp`, so Rust-side code can call any `Timestamp` method on
-/// it directly (e.g. `some_py_timestamp.as_second()`) exactly as if it were a plain
-/// `Timestamp`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PyTimestamp(pub Timestamp);
-
-impl std::ops::Deref for PyTimestamp {
-    type Target = Timestamp;
-
-    fn deref(&self) -> &Timestamp {
-        &self.0
-    }
-}
-
-impl PartialEq<Timestamp> for PyTimestamp {
-    fn eq(&self, other: &Timestamp) -> bool {
-        self.0 == *other
-    }
-}
-
-impl From<Timestamp> for PyTimestamp {
-    fn from(timestamp: Timestamp) -> Self {
-        PyTimestamp(timestamp)
-    }
-}
 
 /// Function to take d m s and return the decimal degrees.
 ///

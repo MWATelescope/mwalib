@@ -6,7 +6,7 @@ use std::fmt;
 
 use crate::{
     get_optional_fits_key, read_cell_array_u32, read_cell_value, read_optional_cell_value,
-    types::DataFileType, Antenna, PyTimestamp, MAX_ANTENNAS,
+    types::DataFileType, Antenna, MAX_ANTENNAS,
 };
 use crate::{read_optional_cell_string_value, CoarseChannel};
 use fitsio::hdu::{FitsHdu, HduInfo};
@@ -62,7 +62,7 @@ pub struct VoltageBeam {
     /// creator - arbitrary string describing the person or script that scheduled this voltage beam.
     pub creator: String,
     /// modtime - ISO format timestamp for this voltage beam record.
-    pub modtime: PyTimestamp,
+    pub modtime: Timestamp,
     /// beam_index - Starts at zero for the first coherent beam in this observation, and increments by one for each coherent beam. Used to index into the BeamAltAz
     pub beam_index: Option<usize>,
     /// target_name - optional name for the target of this beam
@@ -233,7 +233,7 @@ pub(crate) fn populate_voltage_beams(
             polarisation,
             data_file_type,
             creator,
-            modtime: PyTimestamp(modtime),
+            modtime,
             beam_index: beam_index.map(|bi| bi as usize),
             target_name,
             start_ra_deg,
