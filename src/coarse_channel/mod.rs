@@ -411,7 +411,7 @@ impl CoarseChannel {
         };
 
         // We need a factor based on whether the number of fine channels per coarse is even or odd
-        let odd_even_adjustment: f64 = match num_fine_chans_per_coarse % 2 == 0 {
+        let odd_even_adjustment: f64 = match num_fine_chans_per_coarse.is_multiple_of(2) {
             true => 0.0,  // Even
             false => 0.5, // Odd
         };
