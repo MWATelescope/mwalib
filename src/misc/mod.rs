@@ -367,19 +367,19 @@ where
 
     let return_str = if vec_len <= (num_elements * 2) {
         let full_str = vec.iter().fold(String::new(), |acc, num| {
-            acc + format!("{}", &num).as_str() + ","
+            acc + format!("{}", num).as_str() + ","
         });
 
         format!("[{}]", full_str.strip_suffix(",").unwrap_or(&full_str))
     } else {
         let start_str = vec[0..num_elements].iter().fold(String::new(), |acc, num| {
-            acc + format!("{}", &num).as_str() + ","
+            acc + format!("{}", num).as_str() + ","
         });
 
         let end_str = vec[vec_len - num_elements..]
             .iter()
             .fold(String::new(), |acc, num| {
-                acc + format!("{}", &num).as_str() + ","
+                acc + format!("{}", num).as_str() + ","
             });
 
         format!(

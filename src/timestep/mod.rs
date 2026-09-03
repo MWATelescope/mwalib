@@ -85,7 +85,7 @@ impl TimeStep {
         let mut timesteps: Vec<TimeStep> = Vec::new();
 
         // Iterate through the gpubox map and insert all timesteps
-        for (unix_time_ms, _) in gpubox_time_map.iter() {
+        for unix_time_ms in gpubox_time_map.keys() {
             let gps_time_ms = misc::convert_unixtime_to_gpstime(*unix_time_ms);
             timesteps.push(Self::new(*unix_time_ms, gps_time_ms));
         }
@@ -127,7 +127,7 @@ impl TimeStep {
         let mut timesteps: Vec<TimeStep> = Vec::new();
 
         // Iterate through the voltage time map and insert all timesteps
-        for (gps_time_seconds, _) in voltage_time_map.iter() {
+        for gps_time_seconds in voltage_time_map.keys() {
             let unix_time_ms = misc::convert_gpstime_to_unixtime(*gps_time_seconds * 1000);
             timesteps.push(Self::new(unix_time_ms, *gps_time_seconds * 1000));
         }
