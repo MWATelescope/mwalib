@@ -20,6 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     environment: CI
     steps:
+      - name: Debug secret presence
+        env:
+          U: ${{ secrets.DOCKERHUB_USERNAME }}
+          T: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "username length: ${#U}"
+          echo "token length: ${#T}"
+      
       - name: Checkout
         uses: actions/checkout@v6
 
