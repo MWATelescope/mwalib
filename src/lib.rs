@@ -86,6 +86,9 @@ pub use voltage_files::error::VoltageFileError;
 // So that callers don't use a different version of fitsio, export them here.
 pub use fitsio;
 pub use fitsio_sys;
+// jiff::Timestamp appears directly in MetafitsContext/VoltageBeam's public fields, so
+// export it too, for the same reason.
+pub use jiff;
 
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 pub mod python;

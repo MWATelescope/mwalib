@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "2.1.0"
+version = "3.0.0"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
@@ -9,7 +9,7 @@ authors = [
     "Christopher H. Jordan <christopherjordan87@gmail.com>",
 ]
 edition = "2021"
-rust-version = "1.85.0"
+rust-version = "1.88.0"
 resolver = "3"
 description = "A library to simplify reading Murchison Widefield Array (MWA) raw visibilities, voltages and metadata."
 license = "MPL-2.0"
@@ -57,9 +57,10 @@ opt-level = 3
 
 [dependencies]
 bytemuck = "1.24"
-chrono = "0.4"
 fitsio = "0.21"
 fitsio-sys = "0.5"
+hifitime = "4.3"
+jiff = "0.2"
 libc = "0.2"
 log = "0.4"
 num-derive = "0.5"
@@ -73,23 +74,23 @@ env_logger = { version = "0.11", optional = true }
 
 # "python" feature
 ndarray = { version = "0.17", optional = true }
-numpy = { version = "0.28", optional = true }
-pyo3 = { version = "0.28", features = [
-    "chrono",
+numpy = { version = "0.29", optional = true }
+pyo3 = { version = "0.29", features = [
     "extension-module",
+    "jiff-02",
     "macros",
 ], optional = true }
 
 # "python-stubgen" feature
-pyo3-stub-gen = { version = "0.22", optional = true }
-pyo3-stub-gen-derive = { version = "0.22", optional = true }
+pyo3-stub-gen = { version = "=0.23.1", optional = true, features = ["jiff-02"] }
+pyo3-stub-gen-derive = { version = "0.23", optional = true }
 
 # Transitive due to latest versions using higher MSRV than mwalib
 # "examples" feature.
 clap = { version = "4.6", features = ["derive"], optional = true }
 
 [dev-dependencies]
-criterion = "0.7"
+criterion = "0.8"
 csv = "1.4"
 float-cmp = "0.10"
 tempfile = "3.24"
@@ -125,3 +126,7 @@ required-features = ["examples"]
 [[example]]
 name = "mwalib-sum-first-fine-channel-gpubox-hdus"
 required-features = ["examples"]
+
+[patch.crates-io]
+# Use a specific commit of pyo3-stub-gen to enable compatibibility with jiff (remove this patch once this PR https://github.com/Jij-Inc/pyo3-stub-gen/pull/496 is merged)
+pyo3-stub-gen = { git = "https://github.com/cjdsellers/pyo3-stub-gen", rev = "1b4f1cc566cb58e16e19c79045d67f345e9ef8e6" }

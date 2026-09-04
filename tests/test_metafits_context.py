@@ -8,9 +8,11 @@
 # See README.md on how to build and run the tests.
 #
 import datetime
-import mwalib
-import pytest
 import math
+
+import pytest
+
+import mwalib
 
 MWAX_CORRELATOR_METAFITS = "test_files/1244973688_1_timestep/1244973688.metafits"
 SIGNAL_CHAIN_LEGACY_CORRELATOR_METAFITS = "test_files/metafits_signal_chain_corr/1096952256_metafits.fits"
@@ -106,10 +108,7 @@ def test_voltage_beam_metafits_context_delay_modes(
     assert mwax_vb_mc.delay_mode == mwalib.DelayMode.FullTrack
     assert mwax_vb_mc.delay_mode_description == "Phase up to track source"
     assert mwax_vb_mc.cable_delays_applied == mwalib.CableDelaysApplied.CableAndRecClock
-    assert (
-        mwax_vb_mc.geometric_delays_applied
-        == mwalib.GeometricDelaysApplied.AzElTracking
-    )
+    assert mwax_vb_mc.geometric_delays_applied == mwalib.GeometricDelaysApplied.AzElTracking
 
     # But no beamformer (BDELMOD) keys, so callers should fall back to the above
     assert mwax_vb_mc.bf_delay_mode is None

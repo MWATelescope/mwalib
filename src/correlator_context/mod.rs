@@ -214,8 +214,6 @@ impl CorrelatorContext {
         let timesteps = TimeStep::populate_correlator_timesteps(
             &gpubox_info.time_map,
             &metafits_context.metafits_timesteps,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
             metafits_context.corr_int_time_ms,
         )
         .unwrap();
@@ -279,16 +277,8 @@ impl CorrelatorContext {
         };
 
         // Convert the real start and end times to GPS time
-        let common_start_gps_time_ms = misc::convert_unixtime_to_gpstime(
-            common_start_unix_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
-        let common_end_gps_time_ms = misc::convert_unixtime_to_gpstime(
-            common_end_unix_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
+        let common_start_gps_time_ms = misc::convert_unixtime_to_gpstime(common_start_unix_time_ms);
+        let common_end_gps_time_ms = misc::convert_unixtime_to_gpstime(common_end_unix_time_ms);
 
         // Populate the common coarse_chan indices vector
         let common_coarse_chan_indices: Vec<usize> = CoarseChannel::get_coarse_chan_indicies(
@@ -353,16 +343,10 @@ impl CorrelatorContext {
             (num_common_good_coarse_chans as u32) * metafits_context.coarse_chan_width_hz;
 
         // Convert the real start and end times to GPS time
-        let common_good_start_gps_time_ms = misc::convert_unixtime_to_gpstime(
-            common_good_start_unix_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
-        let common_good_end_gps_time_ms = misc::convert_unixtime_to_gpstime(
-            common_good_end_unix_time_ms,
-            metafits_context.sched_start_gps_time_ms,
-            metafits_context.sched_start_unix_time_ms,
-        );
+        let common_good_start_gps_time_ms =
+            misc::convert_unixtime_to_gpstime(common_good_start_unix_time_ms);
+        let common_good_end_gps_time_ms =
+            misc::convert_unixtime_to_gpstime(common_good_end_unix_time_ms);
 
         // Prepare the conversion array to convert legacy correlator format into mwax format
         // or just leave it empty if we're in any other format

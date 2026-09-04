@@ -7,9 +7,10 @@
 #
 # See README.md on how to build and run the tests.
 #
-import mwalib
 import numpy as np
 import pytest
+
+import mwalib
 
 MWAX_VCS_METAFITS = "test_files/1101503312_mwax_vcs/1101503312.metafits"
 MWAX_VCS_VOLTAGE_FILES = [
@@ -116,9 +117,7 @@ def test_mwax_vcs_context_read_data(mwax_vc: mwalib.VoltageContext):
     )
 
     # Check the sums are equial
-    assert np.sum(data_by_file, dtype=np.float64) == np.sum(
-        data_by_gpsecond, dtype=np.float64
-    )
+    assert np.sum(data_by_file, dtype=np.float64) == np.sum(data_by_gpsecond, dtype=np.float64)
 
     # Check data detail
     # second: 0, block: 0, ant: 0, pol: 0, sample: 0, value: 0
@@ -163,7 +162,7 @@ def test_legacy_vcs_context_read_data(legacy_vc: mwalib.VoltageContext):
     gps_start = 1101503312
     gps_seconds = 1
 
-    data_by_gpsecond = legacy_vc.read_second(gps_start, gps_seconds, coarse_chan)    
+    data_by_gpsecond = legacy_vc.read_second(gps_start, gps_seconds, coarse_chan)
 
     assert data_by_gpsecond.shape == (
         gps_seconds,
@@ -175,9 +174,7 @@ def test_legacy_vcs_context_read_data(legacy_vc: mwalib.VoltageContext):
     )
 
     # Check the sums are equial
-    assert np.sum(data_by_file, dtype=np.float64) == np.sum(
-        data_by_gpsecond, dtype=np.float64
-    )
+    assert np.sum(data_by_file, dtype=np.float64) == np.sum(data_by_gpsecond, dtype=np.float64)
 
     # Check detailed data
     # second: 0, sample: 0, fine_chan: 0, ant: 0, pol: 0, sample

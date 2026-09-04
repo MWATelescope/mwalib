@@ -8,6 +8,23 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
+## 3.0.0 04-Sep-2026
+
+### Breaking
+
+* Bumped MSRV to 1.88.0
+* `convert_gpstime_to_unixtime` and `convert_unixtime_to_gpstime` (in `misc`, and re-exported at the crate root) no longer take `mwa_start_gpstime_ms`/`mwa_start_unixtime_ms` reference parameters - they are now `convert_gpstime_to_unixtime(gpstime_ms: u64)` and `convert_unixtime_to_gpstime(unixtime_ms: u64)`. Internally they now convert via `hifitime`'s leap-second table instead of a flat per-observation offset, which also removes the previous assumption that an observation could never span a leap second boundary.
+* `chrono` has been removed entirely. `MetafitsContext::sched_start_utc`/`sched_end_utc` and `VoltageBeam::modtime` are now `jiff::Timestamp` instead of `chrono::DateTime<FixedOffset>`. `jiff::Timestamp`.
+  * `MetafitsContext`'s `Display` output now prints `Scheduled start (utc)` and `Scheduled end (utc)` using `jiff::Timestamp`'s own `Display`, which is genuine RFC3339 (e.g. `2014-12-01T21:08:16Z`) - unlike `chrono`'s default `Display` format (`2014-12-01 21:08:16 +00:00`, space-separated and not itself RFC3339-compliant). This is a deliberate move to a standards-compliant format.
+  * Python: these fields continue to surface as native `datetime.datetime` objects with no change to the Python-visible type or semantics. `jiff::Timestamp` already has working `IntoPyObject`/`FromPyObject` via `pyo3`'s own `jiff-02` feature (the same mechanism `chrono` previously used).
+  * FFI/C: no change - these fields were already exposed as `time_t`, computed the same way (seconds since the UNIX epoch, now via `Timestamp::as_second()` instead of `chrono`'s `.timestamp()`).
+
+### Changed
+
+* Added `hifitime` as a dependency to back the above leap-second-aware conversions.
+* Added `jiff` as a dependency so the field types on `MetafitsContext`/`VoltageBeam` are consistent regardless of which features are enabled to back the `chrono` removal above. `hifitime` and `jiff` serve different purposes in mwalib: `hifitime` for leap-second/GPS-time-scale-aware arithmetic, `jiff` for the plain UTC timestamp fields that need to interoperate cleanly with Python's `datetime.datetime`.
+* Updated Dockerfile and added Docker build CI
+
 ## 2.1.0 01-Sep-2026
 
 ### Added

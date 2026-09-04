@@ -94,10 +94,12 @@ fn test_metafits_context_new_corrlegacy_valid() {
     // Global attenuation:       1 dB,
     assert_eq!(context.global_analogue_attenuation_db as i16, 1);
 
-    // Scheduled start (utc)     2014-12-01 21:08:16 +00:00,
+    // Scheduled start (utc)     2014-12-01T21:08:16Z,
     assert_eq!(
         context.sched_start_utc,
-        DateTime::parse_from_rfc3339("2014-12-01T21:08:16+00:00").unwrap()
+        "2014-12-01T21:08:16+00:00"
+            .parse::<jiff::Timestamp>()
+            .unwrap()
     );
 
     // Scheduled start (MJD)     56992.88074074074,
@@ -781,8 +783,8 @@ fn test_correlator_delay_mode_keys_present() {
 
 #[test]
 fn test_bf_delay_mode_subkeys_absent() {
-    // This metafits has the correlator DELAYMOD keys and BDELMOD key (but it is blank), 
-    // but no other BF delmod keys, so every bf_ field must be None. 
+    // This metafits has the correlator DELAYMOD keys and BDELMOD key (but it is blank),
+    // but no other BF delmod keys, so every bf_ field must be None.
     // Callers are expected to fall back to the correlator
     // fields in this case.
     let metafits_filename = "test_files/1471287880_bf_bdelmod_none/1471287880_metafits.fits";
@@ -836,7 +838,7 @@ fn test_bf_delay_mode_keys_absent_legacy() {
 }
 
 #[test]
-fn test_bf_delay_mode_keys_present() {    
+fn test_bf_delay_mode_keys_present() {
     // The expected values below assume the documented invariants for a beamformer
     // observation: BCABDEL=1, BGEODEL=3, BCALDEL=1, BDGAINS=1.
     let metafits_filename = "test_files/1471184504_bf_fullcal/1471184504_metafits.fits";
@@ -845,10 +847,7 @@ fn test_bf_delay_mode_keys_present() {
         MetafitsContext::new(metafits_filename, None).expect("Failed to create MetafitsContext");
 
     assert!(context.bf_delay_mode.is_some());
-    assert_eq!(
-        context.bf_delay_mode,
-        Some(DelayMode::FullCal)
-    );
+    assert_eq!(context.bf_delay_mode, Some(DelayMode::FullCal));
     assert_eq!(
         context.bf_cable_delays_applied,
         Some(CableDelaysApplied::CableAndRecClock)

@@ -3,8 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! The main interface to MWA data.
-use chrono::{DateTime, Duration, FixedOffset};
 use fitsio::hdu::FitsHdu;
+use jiff::{Timestamp, ToSpan};
 use num_traits::ToPrimitive;
 use std::fmt;
 use std::path::Path;
@@ -57,10 +57,10 @@ pub struct MetafitsContext {
     pub sched_start_unix_time_ms: u64,
     /// Scheduled end (UNIX time) of observation
     pub sched_end_unix_time_ms: u64,
-    /// Scheduled start (UTC) of observation
-    pub sched_start_utc: DateTime<FixedOffset>,
+    /// Scheduled start (UTC) of observation    
+    pub sched_start_utc: Timestamp,
     /// Scheduled end (UTC) of observation
-    pub sched_end_utc: DateTime<FixedOffset>,
+    pub sched_end_utc: Timestamp,
     /// Scheduled start (MJD) of observation
     pub sched_start_mjd: f64,
     /// Scheduled end (MJD) of observation
@@ -521,9 +521,9 @@ impl MetafitsContext {
 
         let scheduled_start_utc_string_with_offset: String = scheduled_start_utc_string + "+00:00";
 
-        let scheduled_start_utc =
-            DateTime::parse_from_rfc3339(&scheduled_start_utc_string_with_offset)
-                .expect("Unable to parse DATE-OBS into a date time");
+        let scheduled_start_utc = scheduled_start_utc_string_with_offset
+            .parse::<Timestamp>()
+            .expect("Unable to parse DATE-OBS into a date time");
         let scheduled_start_mjd: f64 =
             get_required_fits_key!(&mut metafits_fptr, &metafits_hdu, "MJD")?;
         let scheduled_duration_ms: u64 = {
@@ -537,8 +537,8 @@ impl MetafitsContext {
         let metafits_timesteps: Vec<TimeStep> = Vec::new();
 
         let scheduled_end_utc = scheduled_start_utc
-            + Duration::try_milliseconds(scheduled_duration_ms as i64)
-                .expect("scheduled_duration_ms is out of range");
+            .checked_add((scheduled_duration_ms as i64).milliseconds())
+            .expect("scheduled_duration_ms is out of range");
 
         // To increment the mjd we need to fractional proportion of the day that the duration represents
         let scheduled_end_mjd =
@@ -1103,8 +1103,6 @@ impl MetafitsContext {
             mwa_version,
             self.sched_start_gps_time_ms,
             self.sched_duration_ms,
-            self.sched_start_gps_time_ms,
-            self.sched_start_unix_time_ms,
         ));
 
         self.num_metafits_timesteps = self.metafits_timesteps.len();

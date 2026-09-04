@@ -671,7 +671,7 @@ fn test_mwalib_metafits_metadata_correlator_delay_mode_present() {
 }
 
 #[test]
-fn test_mwalib_metafits_metadata_bf_delay_mode_present() {    
+fn test_mwalib_metafits_metadata_bf_delay_mode_present() {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
     let error_message_ptr = error_message.as_ptr() as *mut c_char;
