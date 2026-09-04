@@ -554,15 +554,9 @@ fn test_mwalib_voltage_context_mwaxv2_read_second_valid() {
         // Ensure the call succeeded before using the metadata pointer.
         assert_eq!(retval, 0);
 
-        // Verify that the metadata pointer was actually set by the FFI call.
-        assert!(
-            !voltage_metadata_ptr.is_null(),
-            "mwalib_voltage_metadata_get returned success but voltage_metadata_ptr is null"
-        );
-
-        // At this point we have asserted that voltage_metadata_ptr is non-null,
-        // so it is safe to create a reference and use it below.
-        let voltage_metadata = &*voltage_metadata_ptr;
+        // Convert the raw pointer into a reference in a single checked step
+        // This avoids direct raw-pointer dereference and makes the null case explicit.
+        let voltage_metadata = voltage_metadata_ptr.as_ref().expect("mwalib_voltage_metadata_get returned success but voltage_metadata_ptr is null");
 
         // 2 pols x 1 fine chans x 1 tile * 81920 samples * 160 blocks * 2 bytes per sample
         let buffer_len = (voltage_metadata.voltage_block_size_bytes
