@@ -16,8 +16,9 @@ permissions:
   contents: read
 
 jobs:
-  docker:
+  docker:    
     runs-on: ubuntu-latest
+    environment: CI
     steps:
       - name: Checkout
         uses: actions/checkout@v6
