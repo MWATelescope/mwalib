@@ -8,7 +8,7 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
-## 3.0.0 03-Sep-2026
+## 3.0.0 04-Sep-2026
 
 ### Breaking
 
@@ -23,6 +23,7 @@ Notes:
 
 * Added `hifitime` as a dependency to back the above leap-second-aware conversions.
 * Added `jiff` as a dependency so the field types on `MetafitsContext`/`VoltageBeam` are consistent regardless of which features are enabled to back the `chrono` removal above. `hifitime` and `jiff` serve different purposes in mwalib: `hifitime` for leap-second/GPS-time-scale-aware arithmetic, `jiff` for the plain UTC timestamp fields that need to interoperate cleanly with Python's `datetime.datetime`.
+* Updated Dockerfile and added Docker build CI
 
 ## 2.1.0 01-Sep-2026
 

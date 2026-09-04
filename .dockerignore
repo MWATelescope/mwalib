@@ -1,0 +1,11 @@
+.coverage/
+.dist/
+.git/
+.github/
+.idea/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.vscode/
+__pycache_/
+target/
