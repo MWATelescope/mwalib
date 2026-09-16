@@ -227,3 +227,16 @@ fn test_delay_mode_enum() {
     let out_of_range: Option<DelayMode> = num_traits::FromPrimitive::from_i32(8);
     assert!(out_of_range.is_none());
 }
+
+#[test]
+fn test_receiver_type_enum() {
+    assert_eq!(ReceiverType::Pseudo, ReceiverType::from_str("PSEUDO").unwrap());
+    assert_eq!(ReceiverType::SHAO, ReceiverType::from_str("SHAO").unwrap());
+    assert_eq!(ReceiverType::EDA2, ReceiverType::from_str("EDA2").unwrap());
+    assert_eq!(ReceiverType::CIRA, ReceiverType::from_str("CIRA").unwrap());
+    assert_eq!(ReceiverType::RRI, ReceiverType::from_str("RRI").unwrap());
+    assert_eq!(ReceiverType::NI, ReceiverType::from_str("NI").unwrap());
+    assert_eq!(ReceiverType::Unknown, ReceiverType::from_str("something unknown").unwrap());
+    assert_eq!(ReceiverType::Unknown, ReceiverType::from_str("").unwrap());
+    assert_eq!(ReceiverType::Unknown, ReceiverType::from_str("1234").unwrap());
+}

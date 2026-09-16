@@ -494,6 +494,7 @@ pub enum ReceiverType {
     Pseudo,
     SHAO,
     EDA2,
+    CIRA
 }
 
 /// Implements fmt::Display for ReceiverType
@@ -520,6 +521,7 @@ impl fmt::Display for ReceiverType {
                 ReceiverType::Pseudo => "Pseudo",
                 ReceiverType::SHAO => "SHAO",
                 ReceiverType::EDA2 => "EDA2",
+                ReceiverType::CIRA => "CIRA",
             }
         )
     }
@@ -548,6 +550,7 @@ impl std::str::FromStr for ReceiverType {
             "PSEUDO" => Ok(ReceiverType::Pseudo),
             "SHAO" => Ok(ReceiverType::SHAO),
             "EDA2" => Ok(ReceiverType::EDA2),
+            "CIRA" => Ok(ReceiverType::CIRA),
             _ => Ok(ReceiverType::Unknown),
         }
     }
