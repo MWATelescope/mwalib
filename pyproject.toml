@@ -62,5 +62,4 @@ profile = "release-python"
 # Editable installs (`uv sync`, `maturin develop`) use the dev profile, which
 # builds much faster. The dev profile also unwinds on panic.
 editable-profile = "dev"
-locked = true
 strip = true
