@@ -45,30 +45,26 @@ jobs:
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
 
-      - name: Set up latest Python3 stable version
-        uses: actions/setup-python@v6
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v10.2.0
         with:
-          python-version: "3.x"
+          python-version: "3.14"
 
       - name: Generate test lcov coverage into coverage/ dir
+        env:
+          MATURIN_PEP517_ARGS: --features=cfitsio-static,examples,python,pyo3/extension-module
         run: |
-          pip3 install --upgrade pip
-          python3 -m venv env
-          source env/bin/activate
-
-          pip3 install maturin pytest pytest-cov
-
           mkdir -p coverage
-          cargo llvm-cov clean --workspace      
+          cargo llvm-cov clean --workspace
 
           # Run rust tests to generate test data
           cargo test --features=cfitsio-static,examples,python
 
-          # build python
-          maturin develop --features=cfitsio-static,examples,python
+          # Build python module and install dev dependencies
+          uv sync --locked
 
           # Coverage for python tests
-          pytest tests --cov=mwalib --cov-report xml:coverage/coverage.xml tests
+          uv run --no-sync --with pytest-cov pytest tests --cov=mwalib --cov-report xml:coverage/coverage.xml
 
           # Coverage for rust tests
           cargo llvm-cov --features=cfitsio-static,examples,python --lcov --output-path coverage/coverage.lcov

@@ -8,6 +8,17 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
+## 3.0.2 01-Oct-2026
+
+### Changed
+
+* Bumped pyo3-stubgen to 0.23.1 for jiff support.
+* Updated other minor dependencies.
+* Changed release profile to be fat (only a small increase in binary size).
+* Added a python release profile to bubble up unwinds as exceptions rather than aborts.
+* Updated releases CI to use uv publish instead of deprecated maturin publish to PyPi.
+* Updated run_python_tests and coverage CI to use uv instead of setup_python.
+
 ## 3.0.1 16-Sep-2026
 
 ### Added

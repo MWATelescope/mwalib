@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
-import mwalib
 
+import mwalib
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -48,13 +48,16 @@
 # * mwalib and pyuvdata differ from cotter: Cotter sets XY to 0+0j for all cases where ant1==ant2.
 #
 import argparse
-from mwalib import CorrelatorContext
-from pyuvdata import UVData
+
 import casacore.tables
+from pyuvdata import UVData
+
+from mwalib import CorrelatorContext
+
 
 def get_baseline_from_antennas(antenna1, antenna2, num_antennas):
     baseline_index = 0
-    for ant1 in range(0,num_antennas):
+    for ant1 in range(num_antennas):
         for ant2 in range(ant1, num_antennas):
             if ant1 == antenna1 and ant2 == antenna2:
                 return baseline_index
@@ -126,7 +129,7 @@ def dump_pyuvdata(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, 
                   f"YY: {data[timestep_index, chan, 3].real:.2f} {data[timestep_index, chan, 3].imag:.2f}")
     else:
         with open(out_filename, "w") as out_file:
-            for a1 in range(0, 128):
+            for a1 in range(128):
                 for a2 in range(a1, 128):
                     data = UV.get_data(a1, a2)
 
@@ -166,7 +169,7 @@ def dump_casa(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, ms_f
             # Rows in the ms include baseline AND time. So we need to move down the table by n_bls x timestep
             n_bls = int((128 * 129) / 2)
 
-            for baseline_index in range(0, n_bls):
+            for baseline_index in range(n_bls):
                 row_index = int(n_bls * timestep_index) + baseline_index
 
                 data = tr[row_index]['DATA']
@@ -195,19 +198,18 @@ def compare_lines(line1, line2):
 
 def compare_csv(filename1, filename2):
     print(f"Comparing {filename1} with {filename2}")
-    with open(filename1, "r") as file1:
-        with open(filename2, "r") as file2:
-            line_no = 1
-            num_bl = int(128*129/2)
-            num_fine_chans = 32
+    with open(filename1, "r") as file1, open(filename2, "r") as file2:
+        line_no = 1
+        num_bl = int(128*129/2)
+        num_fine_chans = 32
 
-            while line_no < num_bl * num_fine_chans:
-                line1 = file1.readline()
-                line2 = file2.readline()
+        while line_no < num_bl * num_fine_chans:
+            line1 = file1.readline()
+            line2 = file2.readline()
 
-                if compare_lines(line1, line2):
-                    print(f"Line: {line_no} mismatch:\n>>{line1}<<{line2}")
-                line_no += 1
+            if compare_lines(line1, line2):
+                print(f"Line: {line_no} mismatch:\n>>{line1}<<{line2}")
+            line_no += 1
 
     print(f"Finished comparing {filename1} with {filename2}")
 

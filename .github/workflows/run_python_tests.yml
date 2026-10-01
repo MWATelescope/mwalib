@@ -52,20 +52,15 @@ jobs:
           cargo update
           cargo test --features cfitsio-static,examples
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+      - name: Install uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Setup python environment and build mwalib Python module
-        run: |
-          echo "Install Python deps"
-          pip3 install --upgrade pip
-          python3 -m venv env
-          source env/bin/activate
-          pip3 install --upgrade pip
-          pip3 install maturin pytest
+      - name: Build mwalib Python module and install dev dependencies
+        env:
+          MATURIN_PEP517_ARGS: --features=cfitsio-static,examples,python,pyo3/extension-module --strip
+        run: uv sync --locked
 
-          echo "Build mwalib python module and test"
-          maturin develop --features=cfitsio-static,examples,python --strip
-          pytest
+      - name: Run Python tests
+        run: uv run --no-sync pytest

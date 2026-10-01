@@ -1,8 +1,10 @@
 import argparse
+import math
+
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import math
+
 import mwalib
 
 # Allow X windows support- but you need to
@@ -58,7 +60,7 @@ class ViewFITSArgs:
 
         self.validate_params()
 
-    def validate_params(self):  # noqa: C901
+    def validate_params(self):
         # Read fits file
         print(f"Opening with mwalib using metafits file {self.metafits_filename} and data file {self.filename}...")
         self.context = mwalib.CorrelatorContext(
@@ -210,7 +212,7 @@ def meets_criteria(i, j, a1, a2, mode):
 
 # v1 = baseline, freq, pol
 # v2 = freq,baseline,pol
-def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
+def peek_fits(program_args: ViewFITSArgs):
     print("Initialising data structures...")
 
     plot_ppd_data_x = None
@@ -310,16 +312,10 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
         elif program_args.ppd_plot2:
             plot_dump_file.write("plot_number, time_index, fine_chan, x, y\n")
 
-        elif program_args.grid_plot:
+        elif program_args.grid_plot or program_args.grid_plot2:
             plot_dump_file.write("unix_time, tile1, tile2, log10_scaled_power\n")
 
-        elif program_args.grid_plot2:
-            plot_dump_file.write("unix_time, tile1, tile2, log10_scaled_power\n")
-
-        elif program_args.phase_plot_one:
-            plot_dump_file.write("time_index, baseline, x, y\n")
-
-        elif program_args.phase_plot_all:
+        elif program_args.phase_plot_one or program_args.phase_plot_all:
             plot_dump_file.write("time_index, baseline, x, y\n")
 
     # print a csv header for the raw dump
@@ -362,7 +358,7 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
 
             print("\nUnflagged tiles:")
             print("================")
-            for i in range(0, len(program_args.context.metafits_context.antennas)):
+            for i in range(len(program_args.context.metafits_context.antennas)):
                 if (
                     program_args.context.metafits_context.antennas[i].rfinput_x.flagged is False
                     and program_args.context.metafits_context.antennas[i].rfinput_y.flagged is False
@@ -376,7 +372,7 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
 
             print("\nFlagged tiles:")
             print("================")
-            for i in range(0, len(program_args.context.metafits_context.antennas)):
+            for i in range(len(program_args.context.metafits_context.antennas)):
                 if (
                     program_args.context.metafits_context.antennas[i].rfinput_x.flagged
                     or program_args.context.metafits_context.antennas[i].rfinput_y.flagged
@@ -388,7 +384,7 @@ def peek_fits(program_args: ViewFITSArgs):  # noqa: C901
                         f"slot:{program_args.context.metafits_context.antennas[i].rfinput_x.rec_slot_number})"
                     )
 
-        for i in range(0, program_args.tile2 + 1):
+        for i in range(program_args.tile2 + 1):
             for j in range(i, program_args.fits_tiles):
                 # Explaining this if:
                 # Line 1. Check for autos if that's what we asked for
@@ -591,8 +587,8 @@ def do_ppd_plot(
 
     # Convert to a dB figure
     if convert_to_db:
-        for t in range(0, program_args.time_step_count):
-            for c in range(0, program_args.channel_count):
+        for t in range(program_args.time_step_count):
+            for c in range(program_args.channel_count):
                 plot_ppd_data_x[c][t] = math.log10(plot_ppd_data_x[c][t] + 1) * 10
                 plot_ppd_data_y[c][t] = math.log10(plot_ppd_data_y[c][t] + 1) * 10
 
@@ -611,11 +607,11 @@ def do_ppd_plot(
     )
     fig.suptitle(title)
 
-    for t in range(0, program_args.time_step_count):
+    for t in range(program_args.time_step_count):
         print(f"Adding data points for time ({t})...")
 
         # Step down the dB by the min so we have a 0 base
-        for c in range(0, program_args.channel_count):
+        for c in range(program_args.channel_count):
             plot_ppd_data_x[c][t] = plot_ppd_data_x[c][t] - min_db
             plot_ppd_data_y[c][t] = plot_ppd_data_y[c][t] - min_db
 
@@ -655,7 +651,7 @@ def do_ppd_plot2(
     plot_ppd_data_x,
     plot_ppd_data_y,
     convert_to_db,
-):  # noqa: C901
+):
     print("Preparing ppd plot2...")
 
     # Work out layout of plots
@@ -668,9 +664,9 @@ def do_ppd_plot2(
 
     # Convert to a dB figure
     if convert_to_db:
-        for t in range(0, program_args.time_step_count):
-            for c in range(0, program_args.channel_count):
-                for b in range(0, program_args.baseline_count):
+        for t in range(program_args.time_step_count):
+            for c in range(program_args.channel_count):
+                for b in range(program_args.baseline_count):
                     plot_ppd_data_x[t][b][c] = math.log10(plot_ppd_data_x[t][b][c] + 1) * 10
                     plot_ppd_data_y[t][b][c] = math.log10(plot_ppd_data_y[t][b][c] + 1) * 10
 
@@ -690,13 +686,13 @@ def do_ppd_plot2(
     )
     fig.suptitle(title)
 
-    for t in range(0, program_args.time_step_count):
+    for t in range(program_args.time_step_count):
         # print(f"Adding data points for plot({t})...")
 
         # Step down the dB by the min so we have a 0 base
         if min_db != 0:
-            for c in range(0, program_args.channel_count):
-                for b in range(0, program_args.baseline_count):
+            for c in range(program_args.channel_count):
+                for b in range(program_args.baseline_count):
                     plot_ppd_data_x[t][b][c] = plot_ppd_data_x[t][b][c] - min_db
                     plot_ppd_data_y[t][b][c] = plot_ppd_data_y[t][b][c] - min_db
 
@@ -704,7 +700,7 @@ def do_ppd_plot2(
         plot = ax[plot_row][plot_col]
 
         # Draw this plot
-        for b in range(0, program_args.baseline_count):
+        for b in range(program_args.baseline_count):
             plot.plot(plot_ppd_data_x[t][b], "o", markersize=1, color="blue")
             plot.plot(plot_ppd_data_y[t][b], "o", markersize=1, color="green")
 
@@ -738,7 +734,7 @@ def do_ppd_plot2(
     plt.show()
 
 
-def do_grid_plot(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C901
+def do_grid_plot(title, program_args: ViewFITSArgs, plot_grid_data):
     print("Preparing grid plot...")
 
     # Work out layout of plots
@@ -749,8 +745,8 @@ def do_grid_plot(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C9
     plot_col = 0
 
     if 1 == 1:
-        for time_index in range(0, program_args.time_step_count):
-            for t1 in range(0, program_args.tile_count):
+        for time_index in range(program_args.time_step_count):
+            for t1 in range(program_args.tile_count):
                 for t2 in range(t1, program_args.tile_count):
                     plot_grid_data[time_index][t2][t1] = math.log10(plot_grid_data[time_index][t2][t1] + 1) * 10
 
@@ -786,11 +782,10 @@ def do_grid_plot(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C9
     else:
         n_step = n_step * 2
 
-    if n_step > 16:
-        n_step = 16
+    n_step = min(n_step, 16)
 
-    for time_index in range(0, program_args.time_step_count):
-        for t1 in range(0, program_args.tile_count):
+    for time_index in range(program_args.time_step_count):
+        for t1 in range(program_args.tile_count):
             for t2 in range(t1, program_args.tile_count):
                 print(
                     time_index,
@@ -846,7 +841,7 @@ def do_grid_plot(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C9
     plt.show()
 
 
-def do_grid_plot2(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C901
+def do_grid_plot2(title, program_args: ViewFITSArgs, plot_grid_data):
     print("Preparing grid plot2...")
 
     # Work out layout of plots
@@ -860,8 +855,8 @@ def do_grid_plot2(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C
     scaling_value: float = np.max(plot_grid_data)
 
     # Apply log10 and scaling value
-    for time_index in range(0, program_args.time_step_count):
-        for t1 in range(0, program_args.tile_count):
+    for time_index in range(program_args.time_step_count):
+        for t1 in range(program_args.tile_count):
             for t2 in range(t1, program_args.tile_count):
                 value: float = plot_grid_data[time_index][t2][t1] / scaling_value
                 try:
@@ -893,7 +888,7 @@ def do_grid_plot2(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C
 
     n_step = 1
 
-    for time_index in range(0, program_args.time_step_count):
+    for time_index in range(program_args.time_step_count):
         # for t1 in range(0, program_args.tile_count):
         #    for t2 in range(t1, program_args.tile_count):
         #        print(time_index, program_args.tile1 + t1,
@@ -947,7 +942,7 @@ def do_grid_plot2(title, program_args: ViewFITSArgs, plot_grid_data):  # noqa: C
     plt.show()
 
 
-def do_phase_plot(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_phase_data_y):  # noqa: C901
+def do_phase_plot(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_phase_data_y):
     print("Preparing phase plot...")
 
     # Work out layout of plots
@@ -979,7 +974,7 @@ def do_phase_plot(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_pha
     )
     fig.suptitle(title)
 
-    for i in range(0, program_args.tile_count):
+    for i in range(program_args.tile_count):
         for j in range(i, program_args.tile_count):
             if program_args.phase_plot_one:
                 if not (i == 0 and j == (program_args.tile_count - 1)):
@@ -995,7 +990,7 @@ def do_phase_plot(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_pha
             plot = ax[plot_row][plot_col]
 
             # Do plots
-            for t in range(0, program_args.time_step_count):
+            for t in range(program_args.time_step_count):
                 # print(program_args.context.num_timesteps)
                 # print(f"Time {t}")
                 # print("X")
@@ -1056,7 +1051,7 @@ def do_phase_plot(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_pha
     plt.show()
 
 
-def do_phase_plot1(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_phase_data_y):  # noqa: C901
+def do_phase_plot1(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_phase_data_y):
     print("Preparing phase plot1...")
 
     plots = program_args.channel_count
@@ -1095,8 +1090,8 @@ def do_phase_plot1(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_ph
     print("Adding data points for plot...")
     timestep_list = range(program_args.time_step1, program_args.time_step2 + 1)
 
-    for plot_row in range(0, plot_rows):
-        for plot_col in range(0, plot_cols):
+    for plot_row in range(plot_rows):
+        for plot_col in range(plot_cols):
             plot_data_x = plot_phase_data_x[0 : program_args.time_step_count, baseline, fine_chan]
             plot_data_y = plot_phase_data_y[0 : program_args.time_step_count, baseline, fine_chan]
 

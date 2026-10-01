@@ -1,8 +1,9 @@
-import subprocess
-import sys
-import toml
 import json
 import re
+import subprocess
+import sys
+
+import toml
 
 
 def get_msrv(path_to_cargo_toml: str):

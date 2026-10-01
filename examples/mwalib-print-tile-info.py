@@ -8,6 +8,7 @@
 #
 #
 import argparse
+
 import mwalib
 
 if __name__ == "__main__":
