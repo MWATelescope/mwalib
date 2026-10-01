@@ -13,8 +13,10 @@
 import argparse
 import os
 import time
+
 import numpy as np
 from joblib import Parallel, delayed
+
 import mwalib
 
 
@@ -32,7 +34,7 @@ def sum_parallel_by_bl(
                 f"and coarse channel index {coarse_chan_index}..."
             )
 
-            for t in range(0, context.num_timesteps):
+            for t in range(context.num_timesteps):
                 try:
                     data = context.read_by_baseline(t, coarse_chan_index)
                     chan_sum += np.sum(data, dtype=np.float64)
@@ -61,7 +63,7 @@ def sum_parallel_by_freq(
                 f"and coarse channel index {coarse_chan_index}..."
             )
 
-            for t in range(0, context.num_timesteps):
+            for t in range(context.num_timesteps):
                 try:
                     data = context.read_by_frequency(t, coarse_chan_index)
                     chan_sum += np.sum(data, dtype=np.float64)

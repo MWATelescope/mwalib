@@ -1,3 +1,10 @@
+# The Python package `mwalib` (`import mwalib`), built from
+# this crate's "python" feature by maturin. 
+#
+#   uv sync                 # build the module and install it, with the dev tools
+#   uv run pytest           # run the Python tests
+#   maturin build --release # build a wheel
+
 [project]
 name = "mwalib"
 description = "A library to work with raw data and metadata from the Murchison Widefield Array (MWA)"
@@ -24,17 +31,10 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: 3 :: Only",
 ]
-dependencies = [
-    "numpy",
-]
+dependencies = ["numpy"]
 
 [dependency-groups]
-dev = [
-    "pytest",
-    "ruff",
-    "toml",
-    "ty",
-]
+dev = ["pytest", "ruff", "toml", "ty"]
 
 [project.urls] # Optional
 "Homepage" = "https://github.com/MWATelescope/mwalib"
@@ -42,17 +42,25 @@ dev = [
 "Source" = "https://github.com/MWATelescope/mwalib"
 
 [build-system]
-requires = ["setuptools", "wheel", "maturin>=1.0,<2.0"]
+requires = ["maturin>=1.9.4,<2.0"]
 build-backend = "maturin"
 
 [tool.uv]
 cache-keys = [
-    { file = "pyproject.toml" },
-    { file = "Cargo.toml" },
-    { file = "**/*.rs" }
+  { file = "pyproject.toml" },
+  { file = "Cargo.toml" },
+  { file = "**/*.rs" },
 ]
 
 [tool.maturin]
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
 # and "python" is the mwalib feature to add python bindings
-features = ["python","pyo3/extension-module"]
+bindings = "pyo3"
+features = ["python", "pyo3/extension-module"]
+# Unwinds on panic, so a Rust panic is a Python exception (see Cargo.toml).
+profile = "release-python"
+# Editable installs (`uv sync`, `maturin develop`) use the dev profile, which
+# builds much faster. The dev profile also unwinds on panic.
+editable-profile = "dev"
+locked = true
+strip = true

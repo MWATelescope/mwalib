@@ -1,6 +1,6 @@
 [package]
 name = "mwalib"
-version = "3.0.1"
+version = "3.0.2"
 homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
@@ -52,8 +52,30 @@ harness = false
 name = "correlator_context_benches"
 harness = false
 
-[profile.bench]
+[profile.release]
 opt-level = 3
+lto = "fat"       # "thin" if build time hurts CI
+codegen-units = 1
+strip = "symbols" # shipped cdylib/staticlib/wheels only
+debug = false
+panic = "abort"
+
+# The profile maturin uses for the Python module (see pyproject.toml). A
+# Python extension must unwind: pyo3 turns a Rust panic into a Python
+# `PanicException`, but with `panic = 'abort'` a panic stops the whole
+# Python process.
+[profile.release-python]
+inherits = "release"
+panic = "unwind"
+
+[profile.bench]
+inherits = "release"
+
+[profile.dev]
+opt-level = 1 # debug builds are too slow for real data sets
+
+[profile.test]
+opt-level = 1 # or 3 if tests read large files
 
 [dependencies]
 bytemuck = "1.24"
@@ -82,7 +104,10 @@ pyo3 = { version = "0.29", features = [
 ], optional = true }
 
 # "python-stubgen" feature
-pyo3-stub-gen = { version = "=0.23.1", optional = true, features = ["jiff-02"] }
+pyo3-stub-gen = { version = "0.23.1", optional = true, features = [
+    "jiff-02",
+    "infer_signature",
+] }
 pyo3-stub-gen-derive = { version = "0.23", optional = true }
 
 # Transitive due to latest versions using higher MSRV than mwalib
@@ -127,6 +152,4 @@ required-features = ["examples"]
 name = "mwalib-sum-first-fine-channel-gpubox-hdus"
 required-features = ["examples"]
 
-[patch.crates-io]
-# Use a specific commit of pyo3-stub-gen to enable compatibibility with jiff (remove this patch once this PR https://github.com/Jij-Inc/pyo3-stub-gen/pull/496 is merged)
-pyo3-stub-gen = { git = "https://github.com/cjdsellers/pyo3-stub-gen", rev = "1b4f1cc566cb58e16e19c79045d67f345e9ef8e6" }
+#[patch.crates-io]

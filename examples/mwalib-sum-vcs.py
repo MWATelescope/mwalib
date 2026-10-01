@@ -12,13 +12,13 @@
 #
 import argparse
 import time
+
 import numpy as np
+
 import mwalib
 
 
-def sum_by_file(
-    context: mwalib.VoltageContext, timestep_index: int, coarse_chan_index: int
-) -> int:
+def sum_by_file(context: mwalib.VoltageContext, timestep_index: int, coarse_chan_index: int) -> int:
     total_sum = 0
 
     start_gpstime_sec = int(context.timesteps[t].gps_time_ms / 1000)
@@ -59,10 +59,7 @@ def sum_by_gps_second(
     total_sum = 0
 
     print(
-        (
-            f"...Summing {gps_start_sec} to {gps_end_sec} ({gps_seconds_count} seconds)"
-            f" and chan: {coarse_chan_index}..."
-        ),
+        (f"...Summing {gps_start_sec} to {gps_end_sec} ({gps_seconds_count} seconds) and chan: {coarse_chan_index}..."),
         end="",
     )
     try:
@@ -82,9 +79,7 @@ def sum_by_gps_second(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=f"Using mwalib {mwalib.__version__}")
-    parser.add_argument(
-        "-m", "--metafits", required=True, help="Path to the metafits file."
-    )
+    parser.add_argument("-m", "--metafits", required=True, help="Path to the metafits file.")
     parser.add_argument("datafiles", nargs="*", help="Paths to the vcs data files.")
     args = parser.parse_args()
 
@@ -104,14 +99,10 @@ if __name__ == "__main__":
     print(f"Sum is: {total_sum_by_file} in {stop_time - start_time} seconds.\n")
 
     # sum by gps second
-    start_gpstime_sec = int(
-        context.timesteps[context.provided_timestep_indices[0]].gps_time_ms / 1000
-    )
+    start_gpstime_sec = int(context.timesteps[context.provided_timestep_indices[0]].gps_time_ms / 1000)
     end_gpstime_sec = int(
         (
-            context.timesteps[
-                context.provided_timestep_indices[context.num_provided_timesteps - 1]
-            ].gps_time_ms
+            context.timesteps[context.provided_timestep_indices[context.num_provided_timesteps - 1]].gps_time_ms
             + context.timestep_duration_ms
         )
         / 1000
@@ -126,8 +117,6 @@ if __name__ == "__main__":
     total_sum_by_gps = 0
     start_time = time.time()
     for c in context.provided_coarse_chan_indices:
-        total_sum_by_gps += sum_by_gps_second(
-            context, start_gpstime_sec, end_gpstime_sec, gps_second_count, c
-        )
+        total_sum_by_gps += sum_by_gps_second(context, start_gpstime_sec, end_gpstime_sec, gps_second_count, c)
     stop_time = time.time()
     print(f"Sum is: {total_sum_by_gps} in {stop_time - start_time} seconds.")
