@@ -854,3 +854,153 @@ fn test_mwalib_correlator_metadata_get_null_context() {
         assert_ne!(ret_val, 0);
     }
 }
+
+//
+// Reads: errors and results for all of the read functions
+//
+
+/// The type of the C functions which read from a correlator context
+type FfiReadFn = unsafe extern "C" fn(
+    *mut CorrelatorContext,
+    size_t,
+    size_t,
+    *mut f32,
+    size_t,
+    *mut c_char,
+    size_t,
+) -> i32;
+
+/// All of the C read functions, and the number of floats each one writes for the test (128T) data
+fn all_ffi_read_functions() -> [(&'static str, FfiReadFn, usize); 3] {
+    [
+        (
+            "read_by_baseline",
+            mwalib_correlator_context_read_by_baseline,
+            8256 * 128 * 8,
+        ),
+        (
+            "read_by_frequency",
+            mwalib_correlator_context_read_by_frequency,
+            8256 * 128 * 8,
+        ),
+        (
+            "read_weights_by_baseline",
+            mwalib_correlator_context_read_weights_by_baseline,
+            8256 * 4,
+        ),
+    ]
+}
+
+/// Call a C read function. Returns the return value and the error message.
+fn call_ffi_read(
+    read_fn: FfiReadFn,
+    context_ptr: *mut CorrelatorContext,
+    timestep_index: usize,
+    coarse_chan_index: usize,
+    buffer: &mut [f32],
+) -> (i32, String) {
+    let error_message_length: size_t = 256;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.into_raw();
+
+    let retval = unsafe {
+        read_fn(
+            context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer.as_mut_ptr(),
+            buffer.len(),
+            error_message_ptr,
+            error_message_length,
+        )
+    };
+
+    let message = unsafe { CStr::from_ptr(error_message_ptr) }
+        .to_string_lossy()
+        .trim()
+        .to_string();
+    unsafe { drop(CString::from_raw(error_message_ptr)) };
+
+    (retval, message)
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_invalid_timestep_index() {
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+
+    for (name, read_fn, len) in all_ffi_read_functions() {
+        let mut buffer = vec![0.0; len];
+        let (retval, message) = call_ffi_read(read_fn, context_ptr, 999_999, 0, &mut buffer);
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains("Invalid timestep index"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_invalid_coarse_chan_index() {
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+
+    for (name, read_fn, len) in all_ffi_read_functions() {
+        let mut buffer = vec![0.0; len];
+        let (retval, message) = call_ffi_read(read_fn, context_ptr, 0, 999_999, &mut buffer);
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains("Invalid coarse chan index"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_no_data_for_coarse_chan() {
+    // The legacy test data only has coarse channel 0, so coarse channel 1 is valid, but has no data
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+
+    for (name, read_fn, len) in all_ffi_read_functions() {
+        let mut buffer = vec![0.0; len];
+        let (retval, message) = call_ffi_read(read_fn, context_ptr, 0, 1, &mut buffer);
+
+        assert_eq!(
+            retval,
+            crate::ffi::MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN,
+            "{name}"
+        );
+        assert!(
+            message.contains("No data exists"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_matches_rust_read() {
+    // (context, timestep, coarse chan)
+    for (context_ptr, timestep, coarse_chan) in [
+        (get_test_ffi_correlator_context_legacy(), 0, 0),
+        (get_test_ffi_correlator_context_mwax(), 0, 10),
+    ] {
+        let context = unsafe { &*context_ptr };
+
+        let expected = [
+            context.read_by_baseline(timestep, coarse_chan).unwrap(),
+            context.read_by_frequency(timestep, coarse_chan).unwrap(),
+            context
+                .read_weights_by_baseline(timestep, coarse_chan)
+                .unwrap(),
+        ];
+
+        for ((name, read_fn, _), expected) in all_ffi_read_functions().into_iter().zip(expected) {
+            let mut buffer = vec![0.0; expected.len()];
+            let (retval, message) =
+                call_ffi_read(read_fn, context_ptr, timestep, coarse_chan, &mut buffer);
+
+            assert_eq!(retval, crate::ffi::MWALIB_SUCCESS, "{name}: {message}");
+            assert_eq!(buffer, expected, "{name}");
+        }
+    }
+}

@@ -7,7 +7,9 @@
 #
 # See README.md on how to build and run the tests.
 #
+import hashlib
 import itertools
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pytest
@@ -310,3 +312,63 @@ def test_voltage_context_fine_chan_freqs(any_vc: mwalib.VoltageContext):
 
 def test_voltage_context_fine_chan_freqs_empty(any_vc: mwalib.VoltageContext):
     assert any_vc.get_fine_chan_freqs_hz_array([]) == []
+
+
+#
+# Regression tests for reading voltages.
+#
+# These check every element of the data (rather than just a sum), that reads can be done from many threads at once,
+# and the layout of what is returned.
+#
+
+# Golden values: the SHA-256 of the data read from the test files, as read by the current implementation.
+# If one of these changes, the data we return has changed (e.g. the order of the data).
+GOLDEN_VOLTAGE_SHA256 = {
+    ("mwax", 14): "a68004258cfc5cc0d542b48c13637cbe79102a7fae7925960a7c34e664b83e00",
+    ("mwax", 15): "3f7c4a964dca93a031494110ac833291521936473fd07f73e59ae919653615b8",
+    ("legacy", 14): "c4cf71e052d3e7002f730dd93a7e407908227516c100f7532ce311e84429cfbf",
+}
+
+
+@pytest.mark.parametrize(("kind", "coarse_chan"), list(GOLDEN_VOLTAGE_SHA256))
+def test_voltage_context_read_file_golden(kind: str, coarse_chan: int, request):
+    vc: mwalib.VoltageContext = request.getfixturevalue(f"{kind}_vc")
+
+    data = vc.read_file(0, coarse_chan)
+
+    assert data.dtype == np.int8
+    assert data.flags.c_contiguous
+    assert data.flags.writeable
+    assert hashlib.sha256(data.tobytes()).hexdigest() == GOLDEN_VOLTAGE_SHA256[(kind, coarse_chan)]
+
+
+def test_voltage_context_read_returns_independent_arrays(mwax_vc: mwalib.VoltageContext):
+    first = mwax_vc.read_file(0, 14)
+    first[...] = np.int8(-1)
+
+    # Changing what we were given does not change what we get next time
+    second = mwax_vc.read_file(0, 14)
+
+    assert hashlib.sha256(second.tobytes()).hexdigest() == GOLDEN_VOLTAGE_SHA256[("mwax", 14)]
+
+
+def test_voltage_context_read_from_many_threads(mwax_vc: mwalib.VoltageContext):
+    gps_start = 1101503312
+    expected_by_file = {c: mwax_vc.read_file(0, c) for c in (14, 15)}
+    expected_by_second = mwax_vc.read_second(gps_start, 8, 14)
+
+    def read_file(coarse_chan: int):
+        return mwax_vc.read_file(0, coarse_chan)
+
+    def read_second(_: int):
+        return mwax_vc.read_second(gps_start, 8, 14)
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        files = list(executor.map(read_file, [14, 15] * 4))
+        seconds = list(executor.map(read_second, range(8)))
+
+    for coarse_chan, data in zip([14, 15] * 4, files):
+        assert np.array_equal(data, expected_by_file[coarse_chan])
+
+    for data in seconds:
+        assert np.array_equal(data, expected_by_second)
