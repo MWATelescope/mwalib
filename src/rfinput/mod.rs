@@ -10,7 +10,6 @@ use crate::signal_chain_correction::SignalChainCorrection;
 use crate::types::{HeightCode, Pol, ReceiverType};
 use crate::{fits_open_hdu_by_name, fits_read::*};
 
-use core::f32;
 use error::RfinputError;
 use fitsio::FitsFile;
 use std::fmt;

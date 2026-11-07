@@ -22,7 +22,6 @@ use crate::vec_compare_f64;
 use crate::HeightCode;
 use crate::Pol;
 use crate::ReceiverType;
-use core::f32;
 use float_cmp::*;
 use tempfile::Builder;
 
