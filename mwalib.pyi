@@ -42,6 +42,7 @@ __all__ = [
     "GpuboxErrorUnequalHduSizes",
     "GpuboxErrorUnevenCountInBatches",
     "GpuboxErrorUnrecognised",
+    "HeightCode",
     "LegacyConversionBaseline",
     "MWAMode",
     "MWAVersion",
@@ -182,12 +183,24 @@ class Antenna:
     @property
     def height_m(self) -> builtins.float:
         r"""
-        Antenna height from the array centre (metres)
+        Antenna height (metres). See `height_code` for what this value is relative to.
         """
     @height_m.setter
     def height_m(self, value: builtins.float) -> None:
         r"""
-        Antenna height from the array centre (metres)
+        Antenna height (metres). See `height_code` for what this value is relative to.
+        """
+    @property
+    def height_code(self) -> HeightCode:
+        r"""
+        What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+        See `Rfinput::height_code` for the default used when the metafits has no `Height_Code` column.
+        """
+    @height_code.setter
+    def height_code(self, value: HeightCode) -> None:
+        r"""
+        What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+        See `Rfinput::height_code` for the default used when the metafits has no `Height_Code` column.
         """
 
 @typing.final
@@ -2220,12 +2233,12 @@ class Rfinput:
     @property
     def height_m(self) -> builtins.float:
         r"""
-        Antenna height from the array centre (metres)
+        Antenna height (metres). See `height_code` for what this value is relative to.
         """
     @height_m.setter
     def height_m(self, value: builtins.float) -> None:
         r"""
-        Antenna height from the array centre (metres)
+        Antenna height (metres). See `height_code` for what this value is relative to.
         """
     @property
     def vcs_order(self) -> builtins.int:
@@ -2396,6 +2409,20 @@ class Rfinput:
         Signal chain correction index
         This is the index into the MetafitsContext.signal_chain_corrections vector, or None if not applicable/not found for the
         receiver type and whitening filter combination
+        """
+    @property
+    def height_code(self) -> HeightCode:
+        r"""
+        What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+        If the metafits has no `Height_Code` column, this is `HeightCode::ArrayCentreOffset`, except for Low Band tiles (tile name
+        starts with "LB") which get `HeightCode::EllipsoidHeight`.
+        """
+    @height_code.setter
+    def height_code(self, value: HeightCode) -> None:
+        r"""
+        What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+        If the metafits has no `Height_Code` column, this is `HeightCode::ArrayCentreOffset`, except for Low Band tiles (tile name
+        starts with "LB") which get `HeightCode::EllipsoidHeight`.
         """
 
 @typing.final
@@ -3411,6 +3438,21 @@ class GeometricDelaysApplied(enum.Enum):
     Zenith = ...
     TilePointing = ...
     AzElTracking = ...
+
+@typing.final
+class HeightCode(enum.Enum):
+    r"""
+    HeightCode enum. Describes what the height value of a tile (`height_m`) is relative to.
+    This is the "Height_Code" column in the metafits TILEDATA table.
+    """
+    EllipsoidHeight = ...
+    r"""
+    Code 0: the raw height above the ellipsoid, in metres (this includes the curvature of the Earth).
+    """
+    ArrayCentreOffset = ...
+    r"""
+    Code 1: the height above the array centre, plus `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` (377.8269 m).
+    """
 
 @typing.final
 class MWAMode(enum.Enum):

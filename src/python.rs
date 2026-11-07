@@ -19,7 +19,7 @@ use pyo3_stub_gen::define_stub_info_gatherer;
 
 use crate::{
     gpubox_files::error::*,
-    types::{DataFileType, Pol, ReceiverType},
+    types::{DataFileType, HeightCode, Pol, ReceiverType},
     voltage_files::error::*,
     Antenna, Baseline, CableDelaysApplied, CalibrationFit, CoarseChannel, CorrelatorContext,
     DelayMode, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, Rfinput,
@@ -105,6 +105,7 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<DataFileType>()?;
     m.add_class::<DelayMode>()?;
     m.add_class::<GeometricDelaysApplied>()?;
+    m.add_class::<HeightCode>()?;
     m.add_class::<MWAVersion>()?;
     m.add_class::<MWAMode>()?;
     m.add_class::<Pol>()?;

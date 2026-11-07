@@ -7,7 +7,7 @@ use std::ffi::c_char;
 use crate::{
     antenna::{self, ffi},
     ffi::{ffi_create_c_array, ffi_create_c_string, ffi_free_c_array, ffi_free_rust_c_string},
-    MetafitsContext,
+    HeightCode, MetafitsContext,
 };
 
 /// Representation in C of an `Antenna` struct
@@ -38,8 +38,10 @@ pub struct Antenna {
     pub north_m: f64,
     /// Antenna position East from the array centre (metres)
     pub east_m: f64,
-    /// Antenna height from the array centre (metres)
+    /// Antenna height (metres). See `height_code` for what this value is relative to.
     pub height_m: f64,
+    /// What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+    pub height_code: HeightCode,
 }
 
 impl Antenna {
@@ -72,6 +74,7 @@ impl Antenna {
                     north_m,
                     east_m,
                     height_m,
+                    height_code,
                 } = item;
 
                 let tile_name_c_str = ffi_create_c_string(&item.tile_name);
@@ -94,6 +97,7 @@ impl Antenna {
                     north_m: *north_m,
                     east_m: *east_m,
                     height_m: *height_m,
+                    height_code: *height_code,
                 }
             };
 

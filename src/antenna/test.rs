@@ -4,7 +4,7 @@
 
 //! Unit tests for antenna metadata
 use super::*;
-use crate::types::ReceiverType;
+use crate::types::{HeightCode, ReceiverType};
 use float_cmp::*;
 
 #[test]
@@ -35,6 +35,7 @@ fn test_populate_antennas() {
             calib_delay: None,
             calib_gains: None,
             signal_chain_corrections_index: None,
+            height_code: HeightCode::ArrayCentreOffset,
         },
         Rfinput {
             input: 1,
@@ -60,6 +61,7 @@ fn test_populate_antennas() {
             calib_delay: None,
             calib_gains: None,
             signal_chain_corrections_index: None,
+            height_code: HeightCode::ArrayCentreOffset,
         },
         Rfinput {
             input: 2,
@@ -85,6 +87,7 @@ fn test_populate_antennas() {
             calib_delay: None,
             calib_gains: None,
             signal_chain_corrections_index: None,
+            height_code: HeightCode::ArrayCentreOffset,
         },
         Rfinput {
             input: 3,
@@ -110,6 +113,7 @@ fn test_populate_antennas() {
             calib_delay: None,
             calib_gains: None,
             signal_chain_corrections_index: None,
+            height_code: HeightCode::ArrayCentreOffset,
         },
         Rfinput {
             input: 4,
@@ -135,6 +139,7 @@ fn test_populate_antennas() {
             calib_delay: None,
             calib_gains: None,
             signal_chain_corrections_index: None,
+            height_code: HeightCode::ArrayCentreOffset,
         },
         Rfinput {
             input: 5,
@@ -160,6 +165,7 @@ fn test_populate_antennas() {
             calib_delay: None,
             calib_gains: None,
             signal_chain_corrections_index: None,
+            height_code: HeightCode::ArrayCentreOffset,
         },
         Rfinput {
             input: 6,
@@ -185,6 +191,7 @@ fn test_populate_antennas() {
             calib_delay: None,
             calib_gains: None,
             signal_chain_corrections_index: None,
+            height_code: HeightCode::ArrayCentreOffset,
         },
         Rfinput {
             input: 7,
@@ -210,6 +217,7 @@ fn test_populate_antennas() {
             calib_delay: None,
             calib_gains: None,
             signal_chain_corrections_index: None,
+            height_code: HeightCode::ArrayCentreOffset,
         },
     ];
 
@@ -279,6 +287,7 @@ fn test_antenna_display() {
             calib_delay: None,
             calib_gains: None,
             signal_chain_corrections_index: None,
+            height_code: HeightCode::ArrayCentreOffset,
         },
         Rfinput {
             input: 1,
@@ -304,6 +313,7 @@ fn test_antenna_display() {
             calib_delay: None,
             calib_gains: None,
             signal_chain_corrections_index: None,
+            height_code: HeightCode::ArrayCentreOffset,
         },
     ];
 

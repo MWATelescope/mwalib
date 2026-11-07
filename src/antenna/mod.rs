@@ -3,7 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Structs and helper methods for antenna metadata
-use crate::{rfinput::*, types::Pol};
+use crate::{
+    rfinput::*,
+    types::{HeightCode, Pol},
+};
 pub mod ffi;
 use std::fmt;
 
@@ -48,8 +51,11 @@ pub struct Antenna {
     pub north_m: f64,
     /// Antenna position East from the array centre (metres)
     pub east_m: f64,
-    /// Antenna height from the array centre (metres)
+    /// Antenna height (metres). See `height_code` for what this value is relative to.
     pub height_m: f64,
+    /// What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+    /// See `Rfinput::height_code` for the default used when the metafits has no `Height_Code` column.
+    pub height_code: HeightCode,
 }
 
 impl Antenna {
@@ -77,6 +83,7 @@ impl Antenna {
             north_m: x_pol.north_m,
             east_m: x_pol.east_m,
             height_m: x_pol.height_m,
+            height_code: x_pol.height_code,
         }
     }
 

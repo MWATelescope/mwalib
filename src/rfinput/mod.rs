@@ -7,8 +7,9 @@
 pub mod error;
 use crate::misc::{has_whitening_filter, vec_compare_f32, vec_compare_f64};
 use crate::signal_chain_correction::SignalChainCorrection;
-use crate::types::{Pol, ReceiverType};
+use crate::types::{HeightCode, Pol, ReceiverType};
 use crate::{fits_open_hdu_by_name, fits_read::*};
+
 use core::f32;
 use error::RfinputError;
 use fitsio::FitsFile;
@@ -23,6 +24,32 @@ use pyo3_stub_gen_derive::gen_stub_pyclass;
 
 #[cfg(test)]
 mod test;
+
+/// Tile names of the MWA "Low Band" tiles start with this prefix.
+const LOW_BAND_TILE_NAME_PREFIX: &str = "LB";
+
+/// Name of the (optional) metafits TILEDATA column holding the height code.
+const HEIGHT_CODE_COLUMN_NAME: &str = "Height_Code";
+
+/// Returns the height code to use for a tile when the metafits has no `Height_Code` column.
+/// Low Band tiles (name starts with "LB") have raw heights above the ellipsoid. All other tiles have heights
+/// relative to the array centre.
+///
+/// # Arguments
+///
+/// `tile_name` - Value from the "TileName" column in the metafits TILEDATA table.
+///
+/// # Returns
+///
+/// * The default `HeightCode` for this tile.
+///
+fn get_default_height_code(tile_name: &str) -> HeightCode {
+    if tile_name.starts_with(LOW_BAND_TILE_NAME_PREFIX) {
+        HeightCode::EllipsoidHeight
+    } else {
+        HeightCode::ArrayCentreOffset
+    }
+}
 
 /// VCS_ORDER is the order that comes out of PFB and into the correlator (for legacy observations)
 /// It can be calculated, so we do that, rather than make the user get a newer metafits (only metafits after mid 2018
@@ -115,8 +142,10 @@ struct RfInputMetafitsTableRow {
     north_m: f64,
     /// Antenna position East from the array centre (metres)
     east_m: f64,
-    /// Antenna height from the array centre (metres)
+    /// Antenna height (metres). See `height_code` for what this is relative to.
     height_m: f64,
+    /// What `height_m` is relative to
+    height_code: HeightCode,
     /// Is this rf_input flagged out (due to tile error, etc from metafits)
     flag: i32,
     /// Digital gains
@@ -183,7 +212,7 @@ pub struct Rfinput {
     pub north_m: f64,
     /// Antenna position East from the array centre (metres)
     pub east_m: f64,
-    /// Antenna height from the array centre (metres)
+    /// Antenna height (metres). See `height_code` for what this value is relative to.
     pub height_m: f64,
     /// AKA PFB to correlator input order (only relevant for pre V2 correlator)
     pub vcs_order: u32,
@@ -228,6 +257,10 @@ pub struct Rfinput {
     /// This is the index into the MetafitsContext.signal_chain_corrections vector, or None if not applicable/not found for the
     /// receiver type and whitening filter combination
     pub signal_chain_corrections_index: Option<usize>,
+    /// What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+    /// If the metafits has no `Height_Code` column, this is `HeightCode::ArrayCentreOffset`, except for Low Band tiles (tile name
+    /// starts with "LB") which get `HeightCode::EllipsoidHeight`.
+    pub height_code: HeightCode,
 }
 
 impl PartialEq for Rfinput {
@@ -251,7 +284,8 @@ impl PartialEq for Rfinput {
             && self.dipole_delays == other.dipole_delays
             && self.flavour == other.flavour
             && self.has_whitening_filter == other.has_whitening_filter
-            && self.signal_chain_corrections_index == other.signal_chain_corrections_index;
+            && self.signal_chain_corrections_index == other.signal_chain_corrections_index
+            && self.height_code == other.height_code;
 
         // however calib_delay could be Some(NaN) and calib_gains could be Some(Vec<32>) which may have NaNs
         let calib_gains_eq: bool = if self.calib_gains.is_some() && other.calib_gains.is_some() {
@@ -273,6 +307,29 @@ impl PartialEq for Rfinput {
 }
 
 impl Rfinput {
+    /// Returns true if the metafits TILEDATA table has a `Height_Code` column.
+    ///
+    /// # Arguments
+    ///
+    /// * `metafits_tile_table_hdu` - reference to the HDU containing the TILEDATA table.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * true if the column exists, otherwise false.
+    ///
+    fn has_height_code_column(metafits_tile_table_hdu: &fitsio::hdu::FitsHdu) -> bool {
+        match &metafits_tile_table_hdu.info {
+            fitsio::hdu::HduInfo::TableInfo {
+                column_descriptions,
+                ..
+            } => column_descriptions
+                .iter()
+                .any(|c| c.name.eq_ignore_ascii_case(HEIGHT_CODE_COLUMN_NAME)),
+            _ => false,
+        }
+    }
+
     /// This method just reads a row from the metafits tiledata table and returns the values in a struct
     ///
     /// # Arguments
@@ -321,6 +378,33 @@ impl Rfinput {
         let north_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "North", row)?;
         let east_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "East", row)?;
         let height_m = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Height", row)?;
+
+        // Older metafits do not have the Height_Code column. If the column is missing, use the default code for this tile.
+        // Any other problem reading the column is an error.
+        let height_code = if Self::has_height_code_column(metafits_tile_table_hdu) {
+            let code: i32 = read_cell_value(
+                metafits_fptr,
+                metafits_tile_table_hdu,
+                HEIGHT_CODE_COLUMN_NAME,
+                row,
+            )?;
+
+            match code {
+                0 => HeightCode::EllipsoidHeight,
+                1 => HeightCode::ArrayCentreOffset,
+                _ => {
+                    return Err(RfinputError::UnrecognisedHeightCode {
+                        fits_filename: metafits_fptr.file_path().to_path_buf(),
+                        hdu_num: metafits_tile_table_hdu.number + 1,
+                        row_num: row,
+                        got: code,
+                    })
+                }
+            }
+        } else {
+            get_default_height_code(&tile_name)
+        };
+
         let flag = read_cell_value(metafits_fptr, metafits_tile_table_hdu, "Flag", row)?;
 
         // Digital gains values in metafits need to be divided by 64
@@ -384,6 +468,7 @@ impl Rfinput {
             north_m,
             east_m,
             height_m,
+            height_code,
             flag,
             digital_gains,
             dipole_delays,
@@ -582,6 +667,7 @@ impl Rfinput {
                 calib_delay,
                 calib_gains,
                 signal_chain_corrections_index,
+                height_code: metafits_row.height_code,
             })
         }
         Ok(rf_inputs)

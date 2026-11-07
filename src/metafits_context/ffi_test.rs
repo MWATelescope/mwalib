@@ -718,3 +718,72 @@ fn test_mwalib_metafits_metadata_bf_delay_mode_present() {
         mwalib_metafits_context_free(metafits_context_ptr);
     }
 }
+
+#[test]
+fn test_mwalib_metafits_metadata_get_height_code() {
+    // This metafits has the Height_Code column (LB tiles are 0, all others are 1)
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+
+    let metafits_file =
+        CString::new("test_files/metafits_tests/1478034080_metafits_height_code.fits").unwrap();
+
+    unsafe {
+        let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
+        let retval = mwalib_metafits_context_new(
+            metafits_file.as_ptr(),
+            MWAVersion::CorrMWAXv2,
+            &mut metafits_context_ptr,
+            error_message_ptr,
+            error_len,
+        );
+        assert_eq!(retval, 0, "mwalib_metafits_context_new failure");
+
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
+        let retval = mwalib_metafits_metadata_get(
+            metafits_context_ptr,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut metafits_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+        assert_eq!(retval, 0, "mwalib_metafits_metadata_get failure");
+
+        let metafits_metadata = metafits_metadata_ptr.as_ref().unwrap();
+
+        let rf_inputs: Vec<rfinput::ffi::Rfinput> =
+            ffi_boxed_slice_to_array(metafits_metadata.rf_inputs, metafits_metadata.num_rf_inputs);
+        assert_eq!(rf_inputs.len(), 480);
+        // LB tiles are 0 (EllipsoidHeight), all others are 1 (ArrayCentreOffset)
+        for r in rf_inputs.iter() {
+            let tile_name = CStr::from_ptr(r.tile_name).to_str().unwrap();
+            if tile_name.starts_with("LB") {
+                assert_eq!(r.height_code, crate::HeightCode::EllipsoidHeight);
+            } else {
+                assert_eq!(r.height_code, crate::HeightCode::ArrayCentreOffset);
+            }
+        }
+        assert_eq!(
+            rf_inputs
+                .iter()
+                .filter(|r| r.height_code == crate::HeightCode::EllipsoidHeight)
+                .count(),
+            80
+        );
+
+        let antennas: Vec<antenna::ffi::Antenna> =
+            ffi_boxed_slice_to_array(metafits_metadata.antennas, metafits_metadata.num_ants);
+        assert_eq!(antennas.len(), 240);
+        assert_eq!(
+            antennas
+                .iter()
+                .filter(|a| a.height_code == crate::HeightCode::EllipsoidHeight)
+                .count(),
+            40
+        );
+
+        // Note- don't free the metadata here: the arrays were reconstituted above, so a free would be a double free
+    }
+}

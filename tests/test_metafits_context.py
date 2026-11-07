@@ -18,6 +18,7 @@ MWAX_CORRELATOR_METAFITS = "test_files/1244973688_1_timestep/1244973688.metafits
 SIGNAL_CHAIN_LEGACY_CORRELATOR_METAFITS = "test_files/metafits_signal_chain_corr/1096952256_metafits.fits"
 LEGACY_CORRELATOR_METAFITS = "test_files/1101503312_1_timestep/1101503312.metafits"
 VOLTAGE_BEAM_METAFITS = "test_files/1458492896_bf/1458492896_metafits.fits"
+HEIGHT_CODE_METAFITS = "test_files/metafits_tests/1478034080_metafits_height_code.fits"
 
 
 @pytest.fixture
@@ -33,6 +34,11 @@ def mwax_sc_mc() -> mwalib.MetafitsContext:
 @pytest.fixture
 def mwax_vb_mc() -> mwalib.MetafitsContext:
     return mwalib.MetafitsContext(VOLTAGE_BEAM_METAFITS, None)
+
+
+@pytest.fixture
+def height_code_mc() -> mwalib.MetafitsContext:
+    return mwalib.MetafitsContext(HEIGHT_CODE_METAFITS, None)
 
 
 @pytest.fixture
@@ -236,3 +242,31 @@ def test_mwax_metafits_context_voltage_beams(mwax_vb_mc: mwalib.MetafitsContext)
     assert mwax_vb_mc.metafits_voltage_beams[1].start_dec_deg == -33.51289
     assert mwax_vb_mc.metafits_voltage_beams[1].start_alt_deg == 62.54499492637739
     assert mwax_vb_mc.metafits_voltage_beams[1].start_az_deg == 112.09423510597645
+
+
+def test_height_code_in_metafits(height_code_mc: mwalib.MetafitsContext):
+    # LB tiles have raw heights (code 0), all other tiles have code 1
+    assert len(height_code_mc.rf_inputs) == 480
+    for rfinput in height_code_mc.rf_inputs:
+        if rfinput.tile_name.startswith("LB"):
+            assert rfinput.height_code == mwalib.HeightCode.EllipsoidHeight
+        else:
+            assert rfinput.height_code == mwalib.HeightCode.ArrayCentreOffset
+
+    assert len(height_code_mc.antennas) == 240
+    for ant in height_code_mc.antennas:
+        assert ant.height_code == ant.rfinput_x.height_code
+        assert ant.height_code == ant.rfinput_y.height_code
+    assert sum(a.height_code == mwalib.HeightCode.EllipsoidHeight for a in height_code_mc.antennas) == 40
+
+
+def test_height_code_default_when_no_column(mwax_mc: mwalib.MetafitsContext):
+    # This metafits has no Height_Code column, so the default rule is used:
+    # ArrayCentreOffset, unless the tile name starts with "LB" (EllipsoidHeight)
+    for rfinput in mwax_mc.rf_inputs:
+        if rfinput.tile_name.startswith("LB"):
+            assert rfinput.height_code == mwalib.HeightCode.EllipsoidHeight
+        else:
+            assert rfinput.height_code == mwalib.HeightCode.ArrayCentreOffset
+    for ant in mwax_mc.antennas:
+        assert ant.height_code == ant.rfinput_x.height_code

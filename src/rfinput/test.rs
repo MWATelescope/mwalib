@@ -467,3 +467,141 @@ fn test_populate_rf_inputs_sig_chain_not_in_metafits() {
 
     assert_eq!(rfinput[5].signal_chain_corrections_index, None); // RRI, whitening filter
 }
+
+const HEIGHT_CODE_METAFITS: &str = "test_files/metafits_tests/1478034080_metafits_height_code.fits";
+
+#[test]
+fn test_get_default_height_code() {
+    assert_eq!(get_default_height_code("LBA4"), HeightCode::EllipsoidHeight);
+    assert_eq!(get_default_height_code("LBG8"), HeightCode::EllipsoidHeight);
+    assert_eq!(
+        get_default_height_code("Tile104"),
+        HeightCode::ArrayCentreOffset
+    );
+    assert_eq!(
+        get_default_height_code("HexE12"),
+        HeightCode::ArrayCentreOffset
+    );
+    assert_eq!(get_default_height_code(""), HeightCode::ArrayCentreOffset);
+}
+
+#[test]
+fn test_read_metafits_tiledata_values_height_code_column() {
+    let mut metafits_fptr = fits_open!(&HEIGHT_CODE_METAFITS).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+
+    assert!(Rfinput::has_height_code_column(&metafits_tile_table_hdu));
+
+    // (row, tile name, expected code)
+    for (row, tile_name, expected) in [
+        (0, "Tile104", HeightCode::ArrayCentreOffset),
+        (64, "LBA4", HeightCode::EllipsoidHeight),
+        (256, "HexE12", HeightCode::ArrayCentreOffset),
+    ] {
+        let r = Rfinput::read_metafits_tiledata_values(
+            &mut metafits_fptr,
+            &metafits_tile_table_hdu,
+            row,
+            24,
+        )
+        .unwrap();
+        assert_eq!(r.tile_name, tile_name);
+        assert_eq!(r.height_code, expected, "row {row}");
+    }
+}
+
+#[test]
+fn test_read_metafits_tiledata_values_no_height_code_column() {
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+    let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+
+    assert!(!Rfinput::has_height_code_column(&metafits_tile_table_hdu));
+
+    // No column, so the default for a non Low Band tile is used
+    let row =
+        Rfinput::read_metafits_tiledata_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0, 24)
+            .unwrap();
+    assert_eq!(row.tile_name, "Tile104");
+    assert_eq!(row.height_code, HeightCode::ArrayCentreOffset);
+}
+
+#[test]
+fn test_populate_rf_inputs_height_code_metafits_context() {
+    let context = MetafitsContext::new(HEIGHT_CODE_METAFITS, None).unwrap();
+
+    assert_eq!(context.rf_inputs.len(), 480);
+    assert_eq!(context.antennas.len(), 240);
+
+    for rf_input in context.rf_inputs.iter() {
+        if rf_input.tile_name.starts_with("LB") {
+            assert_eq!(rf_input.height_code, HeightCode::EllipsoidHeight);
+        } else {
+            assert_eq!(rf_input.height_code, HeightCode::ArrayCentreOffset);
+        }
+    }
+
+    assert_eq!(
+        context
+            .rf_inputs
+            .iter()
+            .filter(|r| r.height_code == HeightCode::EllipsoidHeight)
+            .count(),
+        80
+    );
+
+    // Antennas take the value from the rf_inputs
+    for antenna in context.antennas.iter() {
+        assert_eq!(antenna.height_code, antenna.rfinput_x.height_code);
+        assert_eq!(antenna.height_code, antenna.rfinput_y.height_code);
+    }
+}
+
+#[test]
+fn test_populate_rf_inputs_height_code_default_metafits_context() {
+    // This metafits has no Height_Code column
+    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrLegacy)).unwrap();
+
+    assert!(context
+        .rf_inputs
+        .iter()
+        .all(|r| r.height_code == HeightCode::ArrayCentreOffset));
+    assert!(context
+        .antennas
+        .iter()
+        .all(|a| a.height_code == HeightCode::ArrayCentreOffset));
+}
+
+#[test]
+fn test_read_metafits_tiledata_values_unrecognised_height_code() {
+    // Copy the metafits and put an invalid height code in row 0
+    let temp_dir = tempfile::Builder::new()
+        .prefix("mwalib_height_code")
+        .tempdir()
+        .unwrap();
+    let temp_metafits = temp_dir.path().join("bad_height_code.metafits");
+    std::fs::copy(HEIGHT_CODE_METAFITS, &temp_metafits).unwrap();
+
+    {
+        let mut fptr = fitsio::FitsFile::edit(&temp_metafits).unwrap();
+        let hdu = fptr.hdu(1).unwrap();
+        hdu.write_col_range(&mut fptr, "Height_Code", &[2_i32], &(0..1))
+            .unwrap();
+    }
+
+    let mut metafits_fptr = fits_open!(&temp_metafits).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+
+    let result =
+        Rfinput::read_metafits_tiledata_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0, 24);
+
+    assert!(matches!(
+        result,
+        Err(RfinputError::UnrecognisedHeightCode {
+            row_num: 0,
+            got: 2,
+            ..
+        })
+    ));
+}

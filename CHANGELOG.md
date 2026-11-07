@@ -10,6 +10,13 @@ Notes:
 
 ## 3.1.0 Unreleased
 
+### Added
+
+* Added `HeightCode` enum (`EllipsoidHeight` = 0, `ArrayCentreOffset` = 1) and a `height_code` field to `Rfinput` and `Antenna`. It is read from the optional `Height_Code` column of the metafits TILEDATA table and says what `height_m` is relative to. mwalib does not convert `height_m`. If the metafits has no `Height_Code` column, `height_code` is `ArrayCentreOffset`, unless the tile name starts with "LB", in which case it is `EllipsoidHeight`. A value other than 0 or 1 returns `RfinputError::UnrecognisedHeightCode`.
+  * Added the constant `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` (377.8269).
+  * Python: `mwalib.HeightCode`, and `height_code` on `Rfinput` and `Antenna`.
+  * FFI/C: `HeightCode` enum, and `height_code` as the last field of the C `Rfinput` and `Antenna` structs.
+
 ### Changed
 
 * Bumped pyo3-stubgen to 0.23.2.
