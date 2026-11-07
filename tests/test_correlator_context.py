@@ -220,10 +220,10 @@ def test_corr_context_read_bad_argument_types(mwax_cc: mwalib.CorrelatorContext)
         mwax_cc.read_by_baseline(-1, 10)
 
     with pytest.raises(TypeError):
-        mwax_cc.read_by_baseline("0", 10)  # type: ignore[arg-type]
+        mwax_cc.read_by_baseline("0", 10)  # ty: ignore[invalid-argument-type]
 
     with pytest.raises(TypeError):
-        mwax_cc.read_by_baseline(0.5, 10)  # type: ignore[arg-type]
+        mwax_cc.read_by_baseline(0.5, 10)  # ty: ignore[invalid-argument-type]
 
 
 @pytest.mark.parametrize("coarse_chans", [[0], [10, 11], [0, 5, 23]])

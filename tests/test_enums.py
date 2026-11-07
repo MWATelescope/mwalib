@@ -56,8 +56,9 @@ def test_enum_has_expected_members(enum_type, expected_members: set[str]):
 def test_enum_members_equal_themselves_only(enum_type, expected_members: set[str]):
     for name in expected_members:
         member = getattr(enum_type, name)
-        assert member == member
-        assert not member != member
+        same_member = getattr(enum_type, name)
+        assert member == same_member
+        assert (member != same_member) is False
 
         for other_name in expected_members - {name}:
             assert member != getattr(enum_type, other_name)

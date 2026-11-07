@@ -81,20 +81,18 @@ def dump_mwalib(ant1, ant2, timestep_index, fine_chan_index, fine_chan_count, gp
             print(
                 f"Timestep[{timestep_index}]          = Unix time {cc.timesteps[timestep_index].unix_time_ms / 1000.0} GPS: {cc.timesteps[timestep_index].gps_time_ms / 1000.0}")
             print(
-                f"Coarse Channel[{coarse_chan_index}]    = Reciever Chan {cc.coarse_channels[coarse_chan_index].rec_chan_number}, GPUBOX number {cc.coarse_channels[coarse_chan_index].gpubox_number}")
+                f"Coarse Channel[{coarse_chan_index}]    = Reciever Chan {cc.coarse_chans[coarse_chan_index].rec_chan_number}, GPUBOX number {cc.coarse_chans[coarse_chan_index].gpubox_number}")
             print(f"Fine channels[{fine_chan_index}:10]")
             print(
                 f"Baseline[{baseline_index}]           = Antenna[ant1] {cc.metafits_context.antennas[ant1].tile_id}, {cc.metafits_context.antennas[ant1].tile_name} vs Antenna[ant2] {cc.metafits_context.antennas[ant2].tile_id}, {cc.metafits_context.antennas[ant2].tile_name}")
 
-            data_bl_index = baseline_index * (
-                        cc.metafits_context.num_corr_fine_chans_per_coarse * cc.metafits_context.num_visibility_pols * 2)
-
-            for chan, chan_data in enumerate(data[data_bl_index, :, :]):
+            # data is [baseline][fine_chan][pol, r|i]
+            for chan, chan_data in enumerate(data[baseline_index].reshape((-1, 8))):
                 print(f"chan {chan} "
-                      f"XX: {chan_data[chan, 0]:.2f} {chan_data[chan, 1]:.2f},\t"
-                      f"XY: {chan_data[chan, 2]:.2f} {chan_data[chan, 3]:.2f},\t"
-                      f"YX: {chan_data[chan, 4]:.2f} {chan_data[chan, 5]:.2f},\t"
-                      f"YY: {chan_data[chan, 6]:.2f} {chan_data[chan, 7]:.2f}")
+                      f"XX: {chan_data[0]:.2f} {chan_data[1]:.2f},\t"
+                      f"XY: {chan_data[2]:.2f} {chan_data[3]:.2f},\t"
+                      f"YX: {chan_data[4]:.2f} {chan_data[5]:.2f},\t"
+                      f"YY: {chan_data[6]:.2f} {chan_data[7]:.2f}")
         else:
             with open(out_filename, "w") as out_file:
                 for chan_data in data.reshape((-1, 8)):

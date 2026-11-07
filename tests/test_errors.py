@@ -36,15 +36,15 @@ def test_metafits_context_filename_is_a_directory():
 
 def test_metafits_context_filename_wrong_type():
     with pytest.raises(TypeError):
-        mwalib.MetafitsContext(None, None)  # type: ignore[arg-type]
+        mwalib.MetafitsContext(None, None)  # ty: ignore[invalid-argument-type]
 
     with pytest.raises(TypeError):
-        mwalib.MetafitsContext(1234, None)  # type: ignore[arg-type]
+        mwalib.MetafitsContext(1234, None)  # ty: ignore[invalid-argument-type]
 
 
 def test_metafits_context_version_wrong_type():
     with pytest.raises(TypeError):
-        mwalib.MetafitsContext(MWAX_CORRELATOR_METAFITS, "CorrMWAXv2")  # type: ignore[arg-type]
+        mwalib.MetafitsContext(MWAX_CORRELATOR_METAFITS, "CorrMWAXv2")  # ty: ignore[invalid-argument-type]
 
 
 def test_correlator_context_metafits_not_found():
@@ -64,7 +64,7 @@ def test_correlator_context_unrecognised_gpubox_filename():
 
 def test_correlator_context_gpubox_files_wrong_type():
     with pytest.raises(TypeError):
-        mwalib.CorrelatorContext(MWAX_CORRELATOR_METAFITS, MWAX_CORRELATOR_GPUBOX_FILES[0])  # type: ignore[arg-type]
+        mwalib.CorrelatorContext(MWAX_CORRELATOR_METAFITS, MWAX_CORRELATOR_GPUBOX_FILES[0])
 
 
 def test_voltage_context_metafits_not_found():

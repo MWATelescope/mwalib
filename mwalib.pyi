@@ -79,6 +79,7 @@ __all__ = [
     "VoltageFileBatch",
 ]
 
+__version__: builtins.str
 @typing.final
 class Antenna:
     r"""

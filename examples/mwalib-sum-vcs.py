@@ -11,6 +11,7 @@
 #      pip install joblib
 #
 import argparse
+import sys
 import time
 
 import numpy as np
@@ -36,15 +37,15 @@ def sum_by_file(context: mwalib.VoltageContext, timestep_index: int, coarse_chan
 
     try:
         data = context.read_file(timestep_index, coarse_chan_index)
-        total_sum = data.sum(dtype=np.int64)
+        total_sum = int(data.sum(dtype=np.int64))
         print(f"{total_sum}")
 
     except mwalib.VoltageErrorNoDataForTimeStepCoarseChannel:
         pass
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 (CLI example: report any error and exit)
         print(f"Error: {e}")
-        exit(-1)
+        sys.exit(-1)
 
     return total_sum
 
@@ -64,15 +65,15 @@ def sum_by_gps_second(
     )
     try:
         data = context.read_second(gps_start_sec, gps_seconds_count, coarse_chan_index)
-        total_sum = data.sum(dtype=np.int64)
+        total_sum = int(data.sum(dtype=np.int64))
         print(f"{total_sum}")
 
     except mwalib.VoltageErrorNoDataForTimeStepCoarseChannel:
         pass
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 (CLI example: report any error and exit)
         print(f"Error: {e}")
-        exit(-1)
+        sys.exit(-1)
 
     return total_sum
 

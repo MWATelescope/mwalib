@@ -465,6 +465,7 @@ def test_mwax_metafits_context_has_no_calibration(mwax_mc: mwalib.MetafitsContex
 
 
 def test_metafits_context_calibration_fits(cal_sol_mc: mwalib.MetafitsContext):
+    assert cal_sol_mc.calibration_fits is not None
     assert cal_sol_mc.num_calibration_fits == len(cal_sol_mc.calibration_fits)
     assert cal_sol_mc.num_calibration_fits > 0
 

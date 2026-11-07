@@ -274,5 +274,9 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+// `__version__` is added to the module in the `mwalib` function above. Tell the stub generator about it too.
+#[cfg(feature = "python-stubgen")]
+pyo3_stub_gen::module_variable!("mwalib", "__version__", String);
+
 #[cfg(feature = "python-stubgen")]
 define_stub_info_gatherer!(stub_info);

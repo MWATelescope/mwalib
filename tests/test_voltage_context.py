@@ -290,7 +290,7 @@ def test_voltage_context_read_bad_argument_types(mwax_vc: mwalib.VoltageContext)
         mwax_vc.read_file(-1, 0)
 
     with pytest.raises(TypeError):
-        mwax_vc.read_file("0", 0)  # type: ignore[arg-type]
+        mwax_vc.read_file("0", 0)  # ty: ignore[invalid-argument-type]
 
 
 def test_voltage_context_fine_chan_freqs(any_vc: mwalib.VoltageContext):
