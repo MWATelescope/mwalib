@@ -7,6 +7,8 @@
 #
 # See README.md on how to build and run the tests.
 #
+import itertools
+
 import numpy as np
 import pytest
 
@@ -194,3 +196,117 @@ def test_legacy_vcs_context_read_data(legacy_vc: mwalib.VoltageContext):
 
     # second: 0, sample: 9999, fine_chan: 127, ant: 0, pol: 1, sample
     assert data_by_gpsecond[0, 9999, 127, 0, 1, 0] == -69
+
+
+@pytest.fixture(params=["legacy_vc", "mwax_vc"])
+def any_vc(request) -> mwalib.VoltageContext:
+    return request.getfixturevalue(request.param)
+
+
+def test_voltage_context_is_a_context_manager(any_vc: mwalib.VoltageContext):
+    with any_vc as vc:
+        assert vc is any_vc
+
+
+def test_voltage_context_indices_are_consistent(any_vc: mwalib.VoltageContext):
+    assert len(any_vc.common_timestep_indices) == any_vc.num_common_timesteps
+    assert len(any_vc.common_coarse_chan_indices) == any_vc.num_common_coarse_chans
+    assert len(any_vc.provided_timestep_indices) == any_vc.num_provided_timesteps
+    assert len(any_vc.provided_coarse_chan_indices) == any_vc.num_provided_coarse_chans
+
+    # The common indices are always provided, and all indices are valid
+    assert set(any_vc.common_timestep_indices) <= set(any_vc.provided_timestep_indices)
+    assert set(any_vc.common_coarse_chan_indices) <= set(any_vc.provided_coarse_chan_indices)
+    assert all(0 <= i < any_vc.num_timesteps for i in any_vc.provided_timestep_indices)
+    assert all(0 <= i < any_vc.num_coarse_chans for i in any_vc.provided_coarse_chan_indices)
+
+    assert any_vc.num_common_timesteps > 0
+    assert any_vc.num_common_coarse_chans > 0
+
+
+def test_voltage_context_read_file_dtype_and_shape(any_vc: mwalib.VoltageContext):
+    timestep = any_vc.common_timestep_indices[0]
+    coarse_chan = any_vc.common_coarse_chan_indices[0]
+    mc = any_vc.metafits_context
+
+    data = any_vc.read_file(timestep, coarse_chan)
+
+    # Signed bytes. The shape is not the same between legacy and mwax, but the antenna and pol axes are
+    assert data.dtype == np.int8
+    assert data.ndim == 6 or data.ndim == 5
+    assert mc.num_ants in data.shape
+    assert mc.num_ant_pols in data.shape
+
+
+def test_mwax_vcs_context_read_file_matches_read_second_for_each_coarse_chan(mwax_vc: mwalib.VoltageContext):
+    gps_start = 1101503312
+    gps_seconds = 8
+
+    for coarse_chan in mwax_vc.provided_coarse_chan_indices:
+        by_file = mwax_vc.read_file(0, coarse_chan)
+        by_second = mwax_vc.read_second(gps_start, gps_seconds, coarse_chan)
+
+        assert np.array_equal(by_file, by_second)
+
+
+def test_mwax_vcs_context_read_second_part_of_a_file(mwax_vc: mwalib.VoltageContext):
+    gps_start = 1101503312
+    coarse_chan = mwax_vc.provided_coarse_chan_indices[0]
+
+    whole_file = mwax_vc.read_file(0, coarse_chan)
+
+    # Reading seconds 2 and 3 only is the same as slicing those seconds out of the whole file
+    two_seconds = mwax_vc.read_second(gps_start + 2, 2, coarse_chan)
+
+    assert two_seconds.shape[0] == 2
+    assert np.array_equal(two_seconds, whole_file[2:4])
+
+
+def test_voltage_context_read_file_invalid_timestep(any_vc: mwalib.VoltageContext):
+    with pytest.raises(mwalib.VoltageErrorInvalidTimeStepIndex):
+        any_vc.read_file(any_vc.num_timesteps, 0)
+
+
+def test_voltage_context_read_file_invalid_coarse_chan(any_vc: mwalib.VoltageContext):
+    with pytest.raises(mwalib.VoltageErrorInvalidCoarseChanIndex):
+        any_vc.read_file(0, any_vc.num_coarse_chans)
+
+
+def test_voltage_context_read_second_invalid_start(mwax_vc: mwalib.VoltageContext):
+    coarse_chan = mwax_vc.provided_coarse_chan_indices[0]
+
+    # The start must be inside the observation
+    with pytest.raises(mwalib.VoltageErrorInvalidGpsSecondStart):
+        mwax_vc.read_second(0, 1, coarse_chan)
+
+
+def test_voltage_context_read_second_invalid_coarse_chan(mwax_vc: mwalib.VoltageContext):
+    with pytest.raises(mwalib.VoltageErrorInvalidCoarseChanIndex):
+        mwax_vc.read_second(1101503312, 1, mwax_vc.num_coarse_chans)
+
+
+def test_voltage_context_read_bad_argument_types(mwax_vc: mwalib.VoltageContext):
+    with pytest.raises(OverflowError):
+        mwax_vc.read_file(-1, 0)
+
+    with pytest.raises(TypeError):
+        mwax_vc.read_file("0", 0)  # type: ignore[arg-type]
+
+
+def test_voltage_context_fine_chan_freqs(any_vc: mwalib.VoltageContext):
+    mc = any_vc.metafits_context
+    coarse_chans = any_vc.provided_coarse_chan_indices
+
+    freqs = any_vc.get_fine_chan_freqs_hz_array(coarse_chans)
+
+    assert len(freqs) == len(coarse_chans) * mc.num_volt_fine_chans_per_coarse
+
+    # Within a coarse channel the fine channels are evenly spaced
+    per_coarse = mc.num_volt_fine_chans_per_coarse
+    for i in range(len(coarse_chans)):
+        chan_freqs = freqs[i * per_coarse : (i + 1) * per_coarse]
+        assert all(upper - lower == mc.volt_fine_chan_width_hz for lower, upper in itertools.pairwise(chan_freqs))
+
+
+def test_voltage_context_fine_chan_freqs_empty(any_vc: mwalib.VoltageContext):
+    assert any_vc.get_fine_chan_freqs_hz_array([]) == []
