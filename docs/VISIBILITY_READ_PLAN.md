@@ -1,12 +1,12 @@
 # Plan: safer and faster reading of visibilities
 
-Status: phase 1 (tests) is done. Phases 2 to 4 are not started.
+Status: phase 1 (tests) is done. The MWAX benchmarks from phase 3 are added. The rest of phases 2 to 4 is not started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
 (also in `VoltageContext`), and their C and Python wrappers.
 
-Nothing here was benchmarked yet. Every performance item is a hypothesis until phase 3 measures it.
+Only a first, rough set of benchmark numbers exists (see Benchmarks). Every performance item is a hypothesis until phase 3 measures it properly, on a real machine.
 
 ## Decisions (made by Greg)
 
@@ -74,6 +74,42 @@ Performance (all unmeasured):
 - Each read opens the file and moves to HDU n. Probably small next to a 34 MB read; measure before changing.
 - Check whether cfitsio applies BSCALE/BZERO per element inside `ffgpv`.
 
+## Benchmarks
+
+`benches/correlator_context_benches.rs`:
+- Group `mwax` (new): `test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits`, timestep 0, coarse
+  channel 10. `read_by_baseline`, `read_by_frequency`, both `_into_buffer`, `read_weights_by_baseline`, and its
+  `_into_buffer`. MiB/s is reported. Results are dropped inside the timed code, so allocation is included.
+- Group `my_group` (existing): the legacy file. The two `_into_buffer` benchmarks sized their buffer with
+  `num_timestep_coarse_chan_bytes` (4 times too many floats); now `num_timestep_coarse_chan_floats`. An oversized buffer
+  is also an error for MWAX by baseline today, which is why this mattered.
+- Still to add: benchmarks of each converter alone (so conversion time can be separated from the cfitsio read), and a
+  file with many HDUs (to see the cost of moving to a late HDU).
+- Run: `cargo bench --bench correlator_context_benches -- mwax`. Compare before and after on the same machine. The
+  files are read from the OS file cache after the first read, so disk speed is not measured.
+
+First numbers, to orient only: a shared single-CPU sandbox, `lto = false`, noisy (some intervals overlap). Re-run on a
+real machine before using them.
+
+| mwax benchmark | time (middle of range) | MiB/s |
+|---|---|---|
+| `read_by_baseline` | 76 ms | 423 |
+| `read_by_baseline_into_buffer` | 67 ms | 484 |
+| `read_by_frequency` | 84 ms | 385 |
+| `read_by_frequency_into_buffer` | 93 ms | 347 |
+| `read_weights_by_baseline` | 3.0 ms | 41 |
+| `read_weights_by_baseline_into_buffer` | 2.9 ms | 43 |
+
+What this suggests, to confirm on a real machine:
+- By baseline for MWAX has no conversion, yet it takes about 70 ms for 34 MB. The cfitsio read (`ffgpv`: byte swap,
+  possibly scaling, copy) looks like the biggest cost, bigger than the frequency-order transpose (about 15 to 25 ms
+  more than by baseline). If so, look at the read first (check BSCALE/BZERO handling, reading in larger pieces)
+  before the converters.
+- A weights read of only 132 KB takes about 3 ms, so opening the file and moving to the HDU is a fixed cost of
+  about 3 ms per read here. Small next to 70 ms, but it matters for many small reads, and a file with many HDUs
+  may be worse (not measured).
+- Allocating the result (read compared to `_into_buffer`) is within the noise for by baseline.
+
 ## Phases
 
 Each phase is one diff. `cargo test` and `uv run pytest` must pass with the diff applied on its own. Outputs of the
@@ -93,9 +129,9 @@ converters and the reads must not change (the golden and reference tests enforce
 2. **Safety and breaking changes, version 4.0.0.** Findings 1 to 8 above, V1 to V3, V4. Add tests first for each
    (too small buffer, bad index, count 0, 120-tile legacy metafits if one can be made, assignment raises
    `AttributeError`). Update `mwalib.pyi` (`tools/generate_stubs.sh`; see Notes), CHANGELOG, `Cargo.toml` version.
-3. **Performance.** First add criterion benchmarks for MWAX reads and for each converter alone (existing benchmarks only
-   cover legacy `read_by_baseline`, `_into_buffer`, `read_by_frequency`) and record numbers here. Then, one at a time,
-   measuring each: release the GIL (`py.detach`), `out=`, scratch buffer, converter loop order and blocking, sign table.
+3. **Performance.** MWAX benchmarks are added (see Benchmarks). Add benchmarks for each converter alone, and record real
+   numbers here. Then, one at a time, measuring each: the cfitsio read itself (first, see above), release the GIL
+   (`py.detach`), `out=`, scratch buffer, converter loop order and blocking, sign table.
 4. **Opt-in threads (V5).** `set_conversion_threads(n)`, default 1. Split the output with `chunks_mut` (one fine
    channel or one baseline per chunk) so no `unsafe` is needed. Keep the setting in an atomic so it can be changed
    through `&self` (a `&mut self` setter would conflict with concurrent reads in Python). C function and Python method.
