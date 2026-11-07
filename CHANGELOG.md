@@ -8,6 +8,16 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
+## 3.1.0 Unreleased
+
+### Changed
+
+* Bumped pyo3-stubgen to 0.23.2.
+* Bumped pyo3 and numpy (Rust crates) to 0.30.
+* Bumped minimum versions of bytemuck (1.25), regex (1.13) and tempfile (3.27).
+* Updated the Python dev dependencies in `uv.lock` and `tools/uv.lock`.
+* Fixed the file name in the header comment of `tools/generate_stubs.sh`.
+
 ## 3.0.2 01-Oct-2026
 
 ### Changed

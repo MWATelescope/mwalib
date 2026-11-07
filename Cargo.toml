@@ -78,7 +78,7 @@ opt-level = 1 # debug builds are too slow for real data sets
 opt-level = 1 # or 3 if tests read large files
 
 [dependencies]
-bytemuck = "1.24"
+bytemuck = "1.25"
 fitsio = "0.21"
 fitsio-sys = "0.5"
 hifitime = "4.3"
@@ -87,7 +87,7 @@ libc = "0.2"
 log = "0.4"
 num-derive = "0.5"
 num-traits = "0.2"
-regex = "1.12"
+regex = "1.13"
 thiserror = "2.0"
 
 # "python" and examples features
@@ -96,19 +96,19 @@ env_logger = { version = "0.11", optional = true }
 
 # "python" feature
 ndarray = { version = "0.17", optional = true }
-numpy = { version = "0.29", optional = true }
-pyo3 = { version = "0.29", features = [
+numpy = { version = "0.30", optional = true }
+pyo3 = { version = "0.30", features = [
     "extension-module",
     "jiff-02",
     "macros",
 ], optional = true }
 
 # "python-stubgen" feature
-pyo3-stub-gen = { version = "0.23.1", optional = true, features = [
+pyo3-stub-gen = { version = "0.23.2", optional = true, features = [
     "jiff-02",
     "infer_signature",
 ] }
-pyo3-stub-gen-derive = { version = "0.23", optional = true }
+pyo3-stub-gen-derive = { version = "0.23.2", optional = true }
 
 # Transitive due to latest versions using higher MSRV than mwalib
 # "examples" feature.
@@ -118,7 +118,7 @@ clap = { version = "4.6", features = ["derive"], optional = true }
 criterion = "0.8"
 csv = "1.4"
 float-cmp = "0.10"
-tempfile = "3.24"
+tempfile = "3.27"
 
 [build-dependencies]
 built = "0.8"
