@@ -6,7 +6,8 @@ Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
 (also in `VoltageContext`), and their C and Python wrappers.
 
-Only a first, rough set of benchmark numbers exists (see Benchmarks). Every performance item is a hypothesis until phase 3 measures it properly, on a real machine.
+Benchmark numbers from one laptop exist (see Benchmarks). Every performance item is still a hypothesis until phase 3
+measures it, ideally on more than one machine.
 
 ## Decisions (made by Greg)
 
@@ -67,7 +68,7 @@ Safety:
 Performance (all unmeasured):
 - Python wrappers hold the GIL during the whole read. `CorrelatorContext` is `Send + Sync` (checked by a test).
 - Each read allocates about 34 MB (8256 x 128 x 8 x 4 bytes), and `read_by_frequency` and the legacy baseline path
-  allocate a second temp buffer.
+  allocate a second temp buffer. Measured on a laptop: about 28 % of a by baseline read (see Benchmarks).
 - `convert_mwax_hdu_to_frequency_order` is a transpose that strides the output by about 264 KB in its inner loop.
   The legacy converters write with a large stride and gather through the table. Both undo and redo a double
   conjugation (`-x` then `*= -1.0`); a precomputed +1.0 / -1.0 per entry would remove the branch and the extra pass.
@@ -88,27 +89,48 @@ Performance (all unmeasured):
 - Run: `cargo bench --bench correlator_context_benches -- mwax`. Compare before and after on the same machine. The
   files are read from the OS file cache after the first read, so disk speed is not measured.
 
-First numbers, to orient only: a shared single-CPU sandbox, `lto = false`, noisy (some intervals overlap). Re-run on a
-real machine before using them.
+Results on Greg's laptop (release profile, middle of the range; the sandbox numbers agreed on the file read but not on
+allocation, so they are not kept):
 
-| mwax benchmark | time (middle of range) | MiB/s |
+| benchmark | time | MiB/s |
 |---|---|---|
-| `read_by_baseline` | 76 ms | 423 |
-| `read_by_baseline_into_buffer` | 67 ms | 484 |
-| `read_by_frequency` | 84 ms | 385 |
-| `read_by_frequency_into_buffer` | 93 ms | 347 |
-| `read_weights_by_baseline` | 3.0 ms | 41 |
-| `read_weights_by_baseline_into_buffer` | 2.9 ms | 43 |
+| `mwax/read_by_baseline` | 77.1 ms | 418 |
+| `mwax/read_by_baseline_into_buffer` | 55.4 ms | 583 |
+| `mwax/read_by_frequency` | 99.6 ms | 324 |
+| `mwax/read_by_frequency_into_buffer` | 81.3 ms | 397 |
+| `mwax/read_weights_by_baseline` | 2.70 ms | 47 |
+| `mwax/read_weights_by_baseline_into_buffer` | 2.70 ms | 47 |
+| `my_group/read_by_baseline` (legacy) | 108.1 ms | |
+| `my_group/read_by_baseline_into_buffer` (legacy) | 90.3 ms | |
+| `my_group/read_by_frequency` (legacy) | 99.9 ms | |
+| `my_group/read_by_frequency_into_buffer` (legacy) | 83.3 ms | |
+| `voltage_context_benches` `mwaxvcs_read_file` | 400 ms | about 100 MB/s |
+| `voltage_context_benches` `mwaxvcs_read_second` | 457 ms (400 to 569) | |
 
-What this suggests, to confirm on a real machine:
-- By baseline for MWAX has no conversion, yet it takes about 70 ms for 34 MB. The cfitsio read (`ffgpv`: byte swap,
-  possibly scaling, copy) looks like the biggest cost, bigger than the frequency-order transpose (about 15 to 25 ms
-  more than by baseline). If so, look at the read first (check BSCALE/BZERO handling, reading in larger pieces)
-  before the converters.
-- A weights read of only 132 KB takes about 3 ms, so opening the file and moving to the HDU is a fixed cost of
-  about 3 ms per read here. Small next to 70 ms, but it matters for many small reads, and a file with many HDUs
-  may be worse (not measured).
-- Allocating the result (read compared to `_into_buffer`) is within the noise for by baseline.
+(The legacy `_into_buffer` numbers were taken after the buffer size fix. `mwaxvcs_read_second` warned that 10 samples
+did not fit in the target time.)
+
+What the numbers say:
+- **Allocating the result costs about 22 ms of 77 ms (28 %)** for MWAX by baseline (77.1 against 55.4). Legacy by
+  baseline is about 18 ms (108.1 against 90.3), by frequency about 17 to 18 ms. The result is 33.8 MB, just over
+  32 MiB. A guess (not measured): glibc then uses a fresh `mmap` and `munmap` for every call, so each read pays about
+  8,000 page faults. Check with `perf stat -e page-faults` or by reusing a buffer.
+- **`read_by_frequency_into_buffer` is 26 ms slower than `read_by_baseline_into_buffer`** (81.3 against 55.4). It still
+  allocates a 34 MB temp buffer on every call, so that 26 ms is the temp allocation plus the transpose. If the
+  allocation costs about 20 ms (like the result), the transpose itself is only about 5 ms. Not measured; needs the
+  converter-only benchmarks.
+- **The cfitsio read is the floor: about 55 ms for 34 MB (583 MiB/s)** with no conversion at all (open, `ffgpv`, byte
+  swap, copy). It is the biggest piece left after allocation. Check BSCALE/BZERO handling and the read size.
+- **Fixed cost of a read is about 2.7 ms** (the 132 KB weights read: open the file and move to the HDU), about 5 % of a
+  data read. A file with many HDUs may cost more (not measured).
+- **Voltage reads look slow: `mwaxvcs_read_file` reads about 41 MB in 400 ms, about 5 times slower per byte than a
+  correlator read, and `read_second` is very variable.** The voltage code was not read for this plan, so the cause is
+  unknown. It is outside this plan; worth its own look.
+
+Before trusting the allocation story, do these first:
+1. Converter-only benchmarks (each converter, on an in-memory buffer).
+2. A throwaway experiment that reuses the temp buffer in `read_by_frequency_into_buffer`, and see whether it falls
+   toward 60 ms.
 
 ## Phases
 
@@ -129,9 +151,14 @@ converters and the reads must not change (the golden and reference tests enforce
 2. **Safety and breaking changes, version 4.0.0.** Findings 1 to 8 above, V1 to V3, V4. Add tests first for each
    (too small buffer, bad index, count 0, 120-tile legacy metafits if one can be made, assignment raises
    `AttributeError`). Update `mwalib.pyi` (`tools/generate_stubs.sh`; see Notes), CHANGELOG, `Cargo.toml` version.
-3. **Performance.** MWAX benchmarks are added (see Benchmarks). Add benchmarks for each converter alone, and record real
-   numbers here. Then, one at a time, measuring each: the cfitsio read itself (first, see above), release the GIL
-   (`py.detach`), `out=`, scratch buffer, converter loop order and blocking, sign table.
+3. **Performance.** MWAX benchmarks are added (see Benchmarks). Order, by what the numbers say:
+   1. Add converter-only benchmarks, and the temp buffer experiment above.
+   2. Avoid the allocations: optional `out=` in Python, and a reusable scratch buffer for the temp (expected to be the
+      biggest win: about 20 ms of 77 ms by baseline, about 40 ms of 100 ms by frequency).
+   3. The cfitsio read itself (scaling, read size).
+   4. Release the GIL (`py.detach`).
+   5. Converter loop order and blocking, and the sign table. Last: the transpose may only be about 5 ms.
+   Measure each one on its own, and record numbers here.
 4. **Opt-in threads (V5).** `set_conversion_threads(n)`, default 1. Split the output with `chunks_mut` (one fine
    channel or one baseline per chunk) so no `unsafe` is needed. Keep the setting in an atomic so it can be changed
    through `&self` (a `&mut self` setter would conflict with concurrent reads in Python). C function and Python method.
@@ -148,6 +175,7 @@ converters and the reads must not change (the golden and reference tests enforce
   `pyproject.toml`). It then runs `ruff format` at the default line length (88), which would reformat the whole stub.
   Either run the steps by hand (`cargo build --features python,python-stubgen`, `target/debug/stub_gen`,
   `ruff check --fix`) or set `line-length = 120` first.
-- Other things seen, not part of this plan: `examples/mwalib-sum-vcs.py` uses an undefined `t` in
-  `context.timesteps[t]`; the MWAX test metafits `1244973688.metafits` is guessed as `CorrLegacy` when no MWA version
-  is given.
+- Other things seen, not part of this plan:
+  - voltage reads are about 5 times slower per byte than correlator reads (see Benchmarks);
+  - `examples/mwalib-sum-vcs.py` uses an undefined `t` in `context.timesteps[t]`;
+  - the MWAX test metafits `1244973688.metafits` is guessed as `CorrLegacy` when no MWA version is given.
