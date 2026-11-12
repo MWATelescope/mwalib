@@ -1,6 +1,7 @@
 # Plan: safer and faster reading of visibilities
 
-Status: phase 1 (tests) is done. The MWAX benchmarks from phase 3 are added. The rest of phases 2 to 4 is not started.
+Status: phase 1 (tests) is done. Phase 3 is in progress: the MWAX benchmarks are added. Phases 2, 4 and 5 are not
+started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -127,6 +128,14 @@ What the numbers say:
   correlator read, and `read_second` is very variable.** The voltage code was not read for this plan, so the cause is
   unknown. It is outside this plan; worth its own look.
 
+Hints from the sandbox (1 CPU, throwaway code, not kept as benchmarks). Use them only to decide what to measure on the
+laptop:
+- `convert_mwax_hdu_to_frequency_order` alone, on in-memory buffers: about 13 ms. This is more than the 5 ms guess.
+- A new 34 MB buffer is free to allocate, but the first write into it costs about 12 ms (alloc, fill and free 15 ms;
+  copy into an existing buffer 3 ms). So the cost is page faults on first touch, not the allocation call.
+- Reusing the temp buffer in `read_by_frequency_into_buffer` did not change its time in the sandbox (73.4 ms before,
+  74.2 ms after). The sandbox does not show the laptop's allocation cost, so this must be run on the laptop.
+
 Before trusting the allocation story, do these first:
 1. Converter-only benchmarks (each converter, on an in-memory buffer).
 2. A throwaway experiment that reuses the temp buffer in `read_by_frequency_into_buffer`, and see whether it falls
@@ -163,6 +172,9 @@ converters and the reads must not change (the golden and reference tests enforce
    channel or one baseline per chunk) so no `unsafe` is needed. Keep the setting in an atomic so it can be changed
    through `&self` (a `&mut self` setter would conflict with concurrent reads in Python). C function and Python method.
    Check there is no oversubscription surprise: default stays 1.
+5. **Tile position from the height code.** Adjust the tile position based on `height_code`. How is not decided yet;
+   Greg and Claude discuss it when this phase starts. Note: this changes the 3.1.0 decision that mwalib does not
+   convert `height_m`.
 
 ## Notes for whoever continues
 
