@@ -871,41 +871,71 @@ class CorrelatorContext:
         Returns:
             fine_chan_freqs_hz_array (list[float]): a vector of floats containing the centre sky frequencies of all the fine channels for the given coarse channels.
         """
-    def read_by_baseline(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int, out: numpy.typing.NDArray[numpy.float32] | None = None) -> numpy.typing.NDArray[numpy.float32]:
+    def read_by_baseline(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.float32]:
         r"""
         Read a single timestep for a single coarse channel. The output visibilities are in order: baseline,frequency,pol,r,i
         
         Args:
             corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
             corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
-            out (numpy.typing.NDArray[numpy.float32] | None): optional array to read into, instead of a new array. It must be float32, C contiguous, writeable and have the shape of the result. Reusing one array for many reads is faster.
         
         Returns:
-            data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [baseline],[frequency],[pol,r,i] order, if Ok. If out is given, this is out.
+            data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [baseline],[frequency],[pol,r,i] order, if Ok.
         """
-    def read_by_frequency(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int, out: numpy.typing.NDArray[numpy.float32] | None = None) -> numpy.typing.NDArray[numpy.float32]:
+    def read_by_frequency(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.float32]:
         r"""
         Read a single timestep for a single coarse channel. The output visibilities are in order: frequency,baseline,pol,r,i
         
         Args:
             corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
             corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
-            out (numpy.typing.NDArray[numpy.float32] | None): optional array to read into, instead of a new array. It must be float32, C contiguous, writeable and have the shape of the result. Reusing one array for many reads is faster.
         
         Returns:
-            data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [frequency],[baseline],[pol,r,i] order, if Ok. If out is given, this is out.
+            data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [frequency],[baseline],[pol,r,i] order, if Ok.
         """
-    def read_weights_by_baseline(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int, out: numpy.typing.NDArray[numpy.float32] | None = None) -> numpy.typing.NDArray[numpy.float32]:
+    def read_weights_by_baseline(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.float32]:
         r"""
         Read weights for a single timestep for a single coarse channel. The output weights are in order: baseline,pol
         
         Args:
             corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
             corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
-            out (numpy.typing.NDArray[numpy.float32] | None): optional array to read into, instead of a new array. It must be float32, C contiguous, writeable and have the shape of the result.
         
         Returns:
-            data (numpy.typing.NDArray[numpy.float32]): A 2 dimensional ndarray of 32 bit floats containing the data in [baseline],[pol] order, if Ok. If out is given, this is out.
+            data (numpy.typing.NDArray[numpy.float32]): A 2 dimensional ndarray of 32 bit floats containing the data in [baseline],[pol] order, if Ok.
+        """
+    def read_by_baseline_into_buffer(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.float32]) -> None:
+        r"""
+        Read a single timestep for a single coarse channel into an existing array. The output visibilities are in order: baseline,frequency,pol,r,i
+        
+        This does not make a new array, so reading many times into one array is faster than `read_by_baseline`.
+        
+        Args:
+            corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
+            corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
+            buffer (numpy.typing.NDArray[numpy.float32]): 3 dimensional array to read into, in [baseline],[frequency],[pol,r,i] order. It must be float32, C contiguous, writeable and have exactly this shape, else ValueError is raised.
+        """
+    def read_by_frequency_into_buffer(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.float32]) -> None:
+        r"""
+        Read a single timestep for a single coarse channel into an existing array. The output visibilities are in order: frequency,baseline,pol,r,i
+        
+        This does not make a new array, so reading many times into one array is faster than `read_by_frequency`.
+        
+        Args:
+            corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
+            corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
+            buffer (numpy.typing.NDArray[numpy.float32]): 3 dimensional array to read into, in [frequency],[baseline],[pol,r,i] order. It must be float32, C contiguous, writeable and have exactly this shape, else ValueError is raised.
+        """
+    def read_weights_by_baseline_into_buffer(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.float32]) -> None:
+        r"""
+        Read a single timestep for a single coarse channel into an existing array. The output weights are in order: baseline,pol
+        
+        This does not make a new array, so reading many times into one array is faster than `read_weights_by_baseline`.
+        
+        Args:
+            corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
+            corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
+            buffer (numpy.typing.NDArray[numpy.float32]): 2 dimensional array to read into, in [baseline],[pol] order. It must be float32, C contiguous, writeable and have exactly this shape, else ValueError is raised.
         """
     def __enter__(self) -> CorrelatorContext: ...
     def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...

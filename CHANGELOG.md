@@ -17,7 +17,7 @@ Notes:
   * Python: `mwalib.HeightCode`, and `height_code` on `Rfinput` and `Antenna`.
   * FFI/C: `HeightCode` enum, and `height_code` as the last field of the C `Rfinput` and `Antenna` structs.
 * Added benchmarks of the visibility converters (`benches/convert_benches.rs`). They need the new internal `bench-internals` feature, which is not part of the public API.
-* Python: `read_by_baseline`, `read_by_frequency` and `read_weights_by_baseline` of `CorrelatorContext` take an optional `out` argument, a numpy array to read into instead of a new array. It must be float32, C contiguous, writeable and have the shape of the result, or a `ValueError` (`TypeError` for the wrong dtype or number of dimensions) is raised. The method returns `out`. Reusing one array saves about 15 ms per read.
+* Python: `CorrelatorContext.read_by_baseline_into_buffer`, `read_by_frequency_into_buffer` and `read_weights_by_baseline_into_buffer`, like the Rust and C functions of the same names. They read into an existing numpy array (`buffer`) instead of making a new one, and return `None`. `buffer` must be float32, C contiguous, writeable and have exactly the shape of the result of the matching read method, or `ValueError` is raised (`TypeError` for the wrong dtype or number of dimensions). Reusing one array saves about 15 ms per read.
 
 ### Changed
 

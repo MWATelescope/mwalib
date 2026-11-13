@@ -1,7 +1,7 @@
 # Plan: safer and faster reading of visibilities
 
 Status: phase 1 (tests) is done. Phase 3 is in progress: steps 1 (benchmarks and the temp buffer experiment) and 2
-(thread-local temp buffer, Python `out=`) are done. Phases 2, 4 and 5 are not started.
+(thread-local temp buffer, Python `*_into_buffer` methods) are done. Phases 2, 4 and 5 are not started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -41,7 +41,9 @@ Python:
 - `get_fine_chan_freqs_hz_array` with a bad index raises `GpuboxErrorInvalidCoarseChanIndex` (voltage equivalent for
   `VoltageContext`), not `PanicException`. `VoltageContext.read_second` with a count of 0 raises
   `VoltageErrorInvalidGpsSecondCount`.
-- Additive: optional `out=` argument on the read methods, reads release the GIL, `set_conversion_threads` method.
+- Additive: `read_by_baseline_into_buffer`, `read_by_frequency_into_buffer` and `read_weights_by_baseline_into_buffer`
+  (argument `buffer`, exact shape, return `None`; done in phase 3 step 2), reads release the GIL,
+  `set_conversion_threads` method.
 
 ## Findings
 
@@ -114,6 +116,25 @@ because they cannot be compared. "Scratch" is the throwaway experiment that reus
 
 (`mwaxvcs_read_second` warned that 10 samples did not fit in the target time.)
 
+After phase 3 step 2 (thread-local temp buffer), on the same laptop. "Change" is against the "now" column above:
+
+| benchmark | after step 2 | change |
+|---|---|---|
+| `mwax/read_by_baseline` | 59.8 ms | +2 % (path not changed) |
+| `mwax/read_by_baseline_into_buffer` | 43.0 ms | -4 % (path not changed) |
+| `mwax/read_by_frequency` | 61.3 ms | -21 % |
+| `mwax/read_by_frequency_into_buffer` | 48.8 ms | -23 % |
+| `mwax/read_weights_by_baseline` | 2.16 ms | +7 % (path not changed) |
+| `mwax/read_weights_by_baseline_into_buffer` | 2.15 ms | +6 % (path not changed) |
+| `my_group/read_by_baseline` (legacy) | 72.5 ms | -14 % |
+| `my_group/read_by_baseline_into_buffer` (legacy) | 57.7 ms | -18 % |
+| `my_group/read_by_frequency` (legacy) | 64.1 ms | -15 % |
+| `my_group/read_by_frequency_into_buffer` (legacy) | 52.6 ms | -21 % |
+
+Criterion compared these with the last run (the scratch experiment), so it reported `mwax/read_by_baseline` as a 9 %
+regression. Against the "now" column it is +2 %; that path does not use the temp buffer. The weights reads do not use
+it either, so their +6 to 7 % is not from step 2; run them again before step 3 to see whether it is noise.
+
 `convert` group (laptop, and the sandbox with 1 CPU for comparison):
 
 | benchmark | laptop | sandbox |
@@ -168,11 +189,11 @@ converters and the reads must not change (the golden and reference tests enforce
    `AttributeError`). Update `mwalib.pyi` (`tools/generate_stubs.sh`; see Notes), CHANGELOG, `Cargo.toml` version.
 3. **Performance.** MWAX benchmarks are added (see Benchmarks). Order, by what the numbers say:
    1. Add converter-only benchmarks, and the temp buffer experiment above (done, see Benchmarks).
-   2. Avoid the allocations (done; measure on the laptop): a thread-local temp buffer (`with_read_scratch` in
-      `src/correlator_context/mod.rs`) for legacy by baseline and both by frequency reads, and optional `out=` on the
-      three Python reads (exact shape, C contiguous, writeable, else `ValueError`). Expected: about 15 ms less for
-      each `_into_buffer` read that converts, and for Python reads with `out=`. Cost: one temp buffer (34 MB for 128
-      tiles) kept per thread that has read.
+   2. Avoid the allocations (done): a thread-local temp buffer (`with_read_scratch` in
+      `src/correlator_context/mod.rs`) for legacy by baseline and both by frequency reads, and new Python methods
+      `read_by_baseline_into_buffer`, `read_by_frequency_into_buffer` and `read_weights_by_baseline_into_buffer`
+      (argument `buffer`, as in Rust and C; exact shape, C contiguous, writeable, else `ValueError`). Cost: one temp
+      buffer (34 MB for 128 tiles) kept per thread that has read. Measured: see "After phase 3 step 2".
    3. The cfitsio read itself (scaling, read size).
    4. Release the GIL (`py.detach`).
    5. Converter loop order and blocking, and the sign table. Last: the MWAX transpose is about 6 ms; check

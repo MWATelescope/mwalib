@@ -25,11 +25,64 @@ use pyo3_stub_gen_derive::gen_stub_pymethods;
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 const FLOATS_PER_COMPLEX: usize = 2;
 
-/// Check that an `out` array has the shape `expected_shape` and is C contiguous, then borrow it for writing.
+/// Shape of the visibilities of one timestep and coarse channel in [baseline][frequency][pol,r,i] order.
 ///
 /// # Arguments
 ///
-/// * `out` - The array the caller gave to read into.
+/// * `mc` - The metafits context.
+///
+/// # Returns
+///
+/// * The shape.
+///
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+fn by_baseline_shape(mc: &MetafitsContext) -> (usize, usize, usize) {
+    (
+        mc.num_baselines,
+        mc.num_corr_fine_chans_per_coarse,
+        mc.num_visibility_pols * FLOATS_PER_COMPLEX,
+    )
+}
+
+/// Shape of the visibilities of one timestep and coarse channel in [frequency][baseline][pol,r,i] order.
+///
+/// # Arguments
+///
+/// * `mc` - The metafits context.
+///
+/// # Returns
+///
+/// * The shape.
+///
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+fn by_frequency_shape(mc: &MetafitsContext) -> (usize, usize, usize) {
+    (
+        mc.num_corr_fine_chans_per_coarse,
+        mc.num_baselines,
+        mc.num_visibility_pols * FLOATS_PER_COMPLEX,
+    )
+}
+
+/// Shape of the weights of one timestep and coarse channel in [baseline][pol] order.
+///
+/// # Arguments
+///
+/// * `mc` - The metafits context.
+///
+/// # Returns
+///
+/// * The shape.
+///
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+fn weights_shape(mc: &MetafitsContext) -> (usize, usize) {
+    (mc.num_baselines, mc.num_visibility_pols)
+}
+
+/// Check that a `buffer` array has the shape `expected_shape` and is C contiguous, then borrow it for writing.
+///
+/// # Arguments
+///
+/// * `buffer` - The array the caller gave to read into.
 ///
 /// * `expected_shape` - The shape the read gives.
 ///
@@ -39,25 +92,26 @@ const FLOATS_PER_COMPLEX: usize = 2;
 ///   already borrowed.
 ///
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
-fn borrow_out_array<'py, D: Dimension>(
-    out: &Bound<'py, PyArray<f32, D>>,
+fn borrow_buffer<'py, D: Dimension>(
+    buffer: &Bound<'py, PyArray<f32, D>>,
     expected_shape: &[usize],
 ) -> PyResult<PyReadwriteArray<'py, f32, D>> {
-    if out.shape() != expected_shape {
+    if buffer.shape() != expected_shape {
         return Err(PyValueError::new_err(format!(
-            "out has shape {:?}, expected {:?}",
-            out.shape(),
+            "buffer has shape {:?}, expected {:?}",
+            buffer.shape(),
             expected_shape
         )));
     }
 
     // A Fortran ordered array is also contiguous, but its elements would be in the wrong order
-    if !out.is_c_contiguous() {
-        return Err(PyValueError::new_err("out must be C contiguous"));
+    if !buffer.is_c_contiguous() {
+        return Err(PyValueError::new_err("buffer must be C contiguous"));
     }
 
-    out.try_readwrite()
-        .map_err(|e| PyValueError::new_err(format!("out cannot be written to: {e}")))
+    buffer
+        .try_readwrite()
+        .map_err(|e| PyValueError::new_err(format!("buffer cannot be written to: {e}")))
 }
 
 #[cfg_attr(feature = "python-stubgen", gen_stub_pymethods)]
@@ -101,44 +155,23 @@ impl CorrelatorContext {
     /// Args:
     ///     corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
     ///     corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
-    ///     out (numpy.typing.NDArray[numpy.float32] | None): optional array to read into, instead of a new array. It must be float32, C contiguous, writeable and have the shape of the result. Reusing one array for many reads is faster.
     ///
     /// Returns:
-    ///     data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [baseline],[frequency],[pol,r,i] order, if Ok. If out is given, this is out.
+    ///     data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [baseline],[frequency],[pol,r,i] order, if Ok.
     #[pyo3(
         name = "read_by_baseline",
-        signature = (corr_timestep_index, corr_coarse_chan_index, out = None),
-        text_signature = "(self, corr_timestep_index, corr_coarse_chan_index, out=None)"
+        text_signature = "(self, corr_timestep_index, corr_coarse_chan_index)"
     )]
     fn pyo3_read_by_baseline<'py>(
         &self,
         py: Python<'py>,
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
-        out: Option<Bound<'py, PyArray3<f32>>>,
     ) -> PyResult<Bound<'py, PyArray3<f32>>> {
-        let shape = (
-            self.metafits_context.num_baselines,
-            self.metafits_context.num_corr_fine_chans_per_coarse,
-            self.metafits_context.num_visibility_pols * FLOATS_PER_COMPLEX,
-        );
-
-        if let Some(out) = out {
-            {
-                let mut out_rw = borrow_out_array(&out, &[shape.0, shape.1, shape.2])?;
-                self.read_by_baseline_into_buffer(
-                    corr_timestep_index,
-                    corr_coarse_chan_index,
-                    out_rw.as_slice_mut()?,
-                )?;
-            }
-            return Ok(out);
-        }
-
         // Use the existing Rust method.
         let data = self.read_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
         // Convert the vector to a 3D array (this is free).
-        let data = Array3::from_shape_vec(shape, data)
+        let data = Array3::from_shape_vec(by_baseline_shape(&self.metafits_context), data)
         .expect("shape of data should match expected dimensions (num_baselines, num_corr_fine_chans_per_coarse, visibility_pols * 2)");
         // Convert to a numpy array.
         let data = PyArray3::from_owned_array(py, data);
@@ -150,44 +183,23 @@ impl CorrelatorContext {
     /// Args:
     ///     corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
     ///     corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
-    ///     out (numpy.typing.NDArray[numpy.float32] | None): optional array to read into, instead of a new array. It must be float32, C contiguous, writeable and have the shape of the result. Reusing one array for many reads is faster.
     ///
     /// Returns:
-    ///     data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [frequency],[baseline],[pol,r,i] order, if Ok. If out is given, this is out.
+    ///     data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [frequency],[baseline],[pol,r,i] order, if Ok.
     #[pyo3(
         name = "read_by_frequency",
-        signature = (corr_timestep_index, corr_coarse_chan_index, out = None),
-        text_signature = "(self, corr_timestep_index, corr_coarse_chan_index, out=None)"
+        text_signature = "(self, corr_timestep_index, corr_coarse_chan_index)"
     )]
     fn pyo3_read_by_frequency<'py>(
         &self,
         py: Python<'py>,
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
-        out: Option<Bound<'py, PyArray3<f32>>>,
     ) -> PyResult<Bound<'py, PyArray3<f32>>> {
-        let shape = (
-            self.metafits_context.num_corr_fine_chans_per_coarse,
-            self.metafits_context.num_baselines,
-            self.metafits_context.num_visibility_pols * FLOATS_PER_COMPLEX,
-        );
-
-        if let Some(out) = out {
-            {
-                let mut out_rw = borrow_out_array(&out, &[shape.0, shape.1, shape.2])?;
-                self.read_by_frequency_into_buffer(
-                    corr_timestep_index,
-                    corr_coarse_chan_index,
-                    out_rw.as_slice_mut()?,
-                )?;
-            }
-            return Ok(out);
-        }
-
         // Use the existing Rust method.
         let data = self.read_by_frequency(corr_timestep_index, corr_coarse_chan_index)?;
         // Convert the vector to a 3D array (this is free).
-        let data = Array3::from_shape_vec(shape, data)
+        let data = Array3::from_shape_vec(by_frequency_shape(&self.metafits_context), data)
         .expect("shape of data should match expected dimensions (num_corr_fine_chans_per_coarse, num_baselines, visibility_pols * 2)");
         // Convert to a numpy array.
         let data = PyArray3::from_owned_array(py, data);
@@ -199,48 +211,112 @@ impl CorrelatorContext {
     /// Args:
     ///     corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
     ///     corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
-    ///     out (numpy.typing.NDArray[numpy.float32] | None): optional array to read into, instead of a new array. It must be float32, C contiguous, writeable and have the shape of the result.
     ///
     /// Returns:
-    ///     data (numpy.typing.NDArray[numpy.float32]): A 2 dimensional ndarray of 32 bit floats containing the data in [baseline],[pol] order, if Ok. If out is given, this is out.
+    ///     data (numpy.typing.NDArray[numpy.float32]): A 2 dimensional ndarray of 32 bit floats containing the data in [baseline],[pol] order, if Ok.
     #[pyo3(
         name = "read_weights_by_baseline",
-        signature = (corr_timestep_index, corr_coarse_chan_index, out = None),
-        text_signature = "(self, corr_timestep_index, corr_coarse_chan_index, out=None)"
+        text_signature = "(self, corr_timestep_index, corr_coarse_chan_index)"
     )]
     fn pyo3_read_weights_by_baseline<'py>(
         &self,
         py: Python<'py>,
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
-        out: Option<Bound<'py, PyArray2<f32>>>,
     ) -> PyResult<Bound<'py, PyArray2<f32>>> {
-        let shape = (
-            self.metafits_context.num_baselines,
-            self.metafits_context.num_visibility_pols,
-        );
-
-        if let Some(out) = out {
-            {
-                let mut out_rw = borrow_out_array(&out, &[shape.0, shape.1])?;
-                self.read_weights_by_baseline_into_buffer(
-                    corr_timestep_index,
-                    corr_coarse_chan_index,
-                    out_rw.as_slice_mut()?,
-                )?;
-            }
-            return Ok(out);
-        }
-
         // Use the existing Rust method.
         let data = self.read_weights_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
         // Convert the vector to a 2D array (this is free).
-        let data = Array2::from_shape_vec(shape, data).expect(
+        let data = Array2::from_shape_vec(weights_shape(&self.metafits_context), data).expect(
             "shape of data should match expected dimensions (num_baselines, visibility_pols)",
         );
         // Convert to a numpy array.
         let data = PyArray2::from_owned_array(py, data);
         Ok(data)
+    }
+
+    /// Read a single timestep for a single coarse channel into an existing array. The output visibilities are in order: baseline,frequency,pol,r,i
+    ///
+    /// This does not make a new array, so reading many times into one array is faster than `read_by_baseline`.
+    ///
+    /// Args:
+    ///     corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
+    ///     corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
+    ///     buffer (numpy.typing.NDArray[numpy.float32]): 3 dimensional array to read into, in [baseline],[frequency],[pol,r,i] order. It must be float32, C contiguous, writeable and have exactly this shape, else ValueError is raised.
+    #[pyo3(
+        name = "read_by_baseline_into_buffer",
+        text_signature = "(self, corr_timestep_index, corr_coarse_chan_index, buffer)"
+    )]
+    fn pyo3_read_by_baseline_into_buffer<'py>(
+        &self,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
+        buffer: Bound<'py, PyArray3<f32>>,
+    ) -> PyResult<()> {
+        let (d0, d1, d2) = by_baseline_shape(&self.metafits_context);
+        let mut buffer_rw = borrow_buffer(&buffer, &[d0, d1, d2])?;
+        self.read_by_baseline_into_buffer(
+            corr_timestep_index,
+            corr_coarse_chan_index,
+            buffer_rw.as_slice_mut()?,
+        )?;
+        Ok(())
+    }
+
+    /// Read a single timestep for a single coarse channel into an existing array. The output visibilities are in order: frequency,baseline,pol,r,i
+    ///
+    /// This does not make a new array, so reading many times into one array is faster than `read_by_frequency`.
+    ///
+    /// Args:
+    ///     corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
+    ///     corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
+    ///     buffer (numpy.typing.NDArray[numpy.float32]): 3 dimensional array to read into, in [frequency],[baseline],[pol,r,i] order. It must be float32, C contiguous, writeable and have exactly this shape, else ValueError is raised.
+    #[pyo3(
+        name = "read_by_frequency_into_buffer",
+        text_signature = "(self, corr_timestep_index, corr_coarse_chan_index, buffer)"
+    )]
+    fn pyo3_read_by_frequency_into_buffer<'py>(
+        &self,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
+        buffer: Bound<'py, PyArray3<f32>>,
+    ) -> PyResult<()> {
+        let (d0, d1, d2) = by_frequency_shape(&self.metafits_context);
+        let mut buffer_rw = borrow_buffer(&buffer, &[d0, d1, d2])?;
+        self.read_by_frequency_into_buffer(
+            corr_timestep_index,
+            corr_coarse_chan_index,
+            buffer_rw.as_slice_mut()?,
+        )?;
+        Ok(())
+    }
+
+    /// Read a single timestep for a single coarse channel into an existing array. The output weights are in order: baseline,pol
+    ///
+    /// This does not make a new array, so reading many times into one array is faster than `read_weights_by_baseline`.
+    ///
+    /// Args:
+    ///     corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
+    ///     corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
+    ///     buffer (numpy.typing.NDArray[numpy.float32]): 2 dimensional array to read into, in [baseline],[pol] order. It must be float32, C contiguous, writeable and have exactly this shape, else ValueError is raised.
+    #[pyo3(
+        name = "read_weights_by_baseline_into_buffer",
+        text_signature = "(self, corr_timestep_index, corr_coarse_chan_index, buffer)"
+    )]
+    fn pyo3_read_weights_by_baseline_into_buffer<'py>(
+        &self,
+        corr_timestep_index: usize,
+        corr_coarse_chan_index: usize,
+        buffer: Bound<'py, PyArray2<f32>>,
+    ) -> PyResult<()> {
+        let (d0, d1) = weights_shape(&self.metafits_context);
+        let mut buffer_rw = borrow_buffer(&buffer, &[d0, d1])?;
+        self.read_weights_by_baseline_into_buffer(
+            corr_timestep_index,
+            corr_coarse_chan_index,
+            buffer_rw.as_slice_mut()?,
+        )?;
+        Ok(())
     }
 
     // https://pyo3.rs/v0.17.3/class/object.html#string-representations

@@ -383,7 +383,7 @@ def test_corr_context_fine_chan_freqs_every_coarse_chan(any_cc: mwalib.Correlato
 
 
 #
-# Tests for the optional `out` argument of the read methods
+# Tests for the read methods that read into an existing array (`*_into_buffer`)
 #
 
 
@@ -404,37 +404,41 @@ def read_shapes(cc: mwalib.CorrelatorContext) -> dict[str, tuple[int, ...]]:
     }
 
 
-# Value used to fill `out` arrays, so we can see that the read overwrote them
-OUT_SENTINEL = np.float32(-1234.5)
+# Suffix of the read methods that read into an existing array
+INTO_BUFFER = "_into_buffer"
+
+# Value used to fill buffers, so we can see whether the read overwrote them
+BUFFER_SENTINEL = np.float32(-1234.5)
 
 
 @pytest.mark.parametrize("read_method", READ_METHODS)
 @pytest.mark.parametrize("kind", ["legacy", "mwax"])
-def test_corr_context_read_into_out(kind: str, read_method: str, request):
+def test_corr_context_read_into_buffer(kind: str, read_method: str, request):
     cc: mwalib.CorrelatorContext = request.getfixturevalue(f"{kind}_cc")
     timestep, coarse_chan = READ_INDICES[kind]
-    out = np.full(read_shapes(cc)[read_method], OUT_SENTINEL, dtype=np.float32)
+    buffer = np.full(read_shapes(cc)[read_method], BUFFER_SENTINEL, dtype=np.float32)
 
     # Twice, so the second read overwrites the data of the first one
     for _ in range(2):
-        result = getattr(cc, read_method)(timestep, coarse_chan, out=out)
+        result = getattr(cc, read_method + INTO_BUFFER)(timestep, coarse_chan, buffer)
 
-        # We get the same array back, with the golden data in it
-        assert result is out
-        assert sha256_of(out) == GOLDEN_SHA256[(kind, read_method)]
+        # Like Rust and C, nothing is returned; the data is in the buffer
+        assert result is None
+        assert sha256_of(buffer) == GOLDEN_SHA256[(kind, read_method)]
 
 
 @pytest.mark.parametrize("read_method", READ_METHODS)
-def test_corr_context_read_into_out_as_positional_argument(mwax_cc: mwalib.CorrelatorContext, read_method: str):
+def test_corr_context_read_into_buffer_as_keyword_argument(mwax_cc: mwalib.CorrelatorContext, read_method: str):
     timestep, coarse_chan = READ_INDICES["mwax"]
-    out = np.zeros(read_shapes(mwax_cc)[read_method], dtype=np.float32)
+    buffer = np.zeros(read_shapes(mwax_cc)[read_method], dtype=np.float32)
 
-    assert getattr(mwax_cc, read_method)(timestep, coarse_chan, out) is out
-    assert sha256_of(out) == GOLDEN_SHA256[("mwax", read_method)]
+    getattr(mwax_cc, read_method + INTO_BUFFER)(timestep, coarse_chan, buffer=buffer)
+
+    assert sha256_of(buffer) == GOLDEN_SHA256[("mwax", read_method)]
 
 
 @pytest.mark.parametrize("read_method", READ_METHODS)
-def test_corr_context_read_into_out_with_wrong_shape(mwax_cc: mwalib.CorrelatorContext, read_method: str):
+def test_corr_context_read_into_buffer_with_wrong_shape(mwax_cc: mwalib.CorrelatorContext, read_method: str):
     timestep, coarse_chan = READ_INDICES["mwax"]
     shape = read_shapes(mwax_cc)[read_method]
 
@@ -446,83 +450,84 @@ def test_corr_context_read_into_out_with_wrong_shape(mwax_cc: mwalib.CorrelatorC
     ]
 
     for wrong_shape in wrong_shapes:
-        out = np.full(wrong_shape, OUT_SENTINEL, dtype=np.float32)
+        buffer = np.full(wrong_shape, BUFFER_SENTINEL, dtype=np.float32)
 
         with pytest.raises(ValueError, match="shape"):
-            getattr(mwax_cc, read_method)(timestep, coarse_chan, out=out)
+            getattr(mwax_cc, read_method + INTO_BUFFER)(timestep, coarse_chan, buffer)
 
         # Nothing was written
-        assert np.all(out == OUT_SENTINEL)
+        assert np.all(buffer == BUFFER_SENTINEL)
 
 
 @pytest.mark.parametrize("read_method", READ_METHODS)
-def test_corr_context_read_into_out_with_wrong_number_of_dimensions(
+def test_corr_context_read_into_buffer_with_wrong_number_of_dimensions(
     mwax_cc: mwalib.CorrelatorContext, read_method: str
 ):
     timestep, coarse_chan = READ_INDICES["mwax"]
-    out = np.zeros(int(np.prod(read_shapes(mwax_cc)[read_method])), dtype=np.float32)
+    buffer = np.zeros(int(np.prod(read_shapes(mwax_cc)[read_method])), dtype=np.float32)
 
     with pytest.raises(TypeError):
-        getattr(mwax_cc, read_method)(timestep, coarse_chan, out=out)
+        getattr(mwax_cc, read_method + INTO_BUFFER)(timestep, coarse_chan, buffer)
 
 
 @pytest.mark.parametrize("read_method", READ_METHODS)
-def test_corr_context_read_into_out_with_wrong_dtype(mwax_cc: mwalib.CorrelatorContext, read_method: str):
+def test_corr_context_read_into_buffer_with_wrong_dtype(mwax_cc: mwalib.CorrelatorContext, read_method: str):
     timestep, coarse_chan = READ_INDICES["mwax"]
-    out = np.zeros(read_shapes(mwax_cc)[read_method], dtype=np.float64)
+    buffer = np.zeros(read_shapes(mwax_cc)[read_method], dtype=np.float64)
 
     with pytest.raises(TypeError):
-        getattr(mwax_cc, read_method)(timestep, coarse_chan, out=out)
+        getattr(mwax_cc, read_method + INTO_BUFFER)(timestep, coarse_chan, buffer)
 
 
 @pytest.mark.parametrize("read_method", READ_METHODS)
-def test_corr_context_read_into_out_that_is_not_c_contiguous(mwax_cc: mwalib.CorrelatorContext, read_method: str):
+def test_corr_context_read_into_buffer_that_is_not_c_contiguous(mwax_cc: mwalib.CorrelatorContext, read_method: str):
     timestep, coarse_chan = READ_INDICES["mwax"]
     shape = read_shapes(mwax_cc)[read_method]
 
     # Fortran order is contiguous, but in the wrong order; a strided view is not contiguous at all
-    fortran = np.full(shape, OUT_SENTINEL, dtype=np.float32, order="F")
-    strided = np.full((shape[0] * 2, *shape[1:]), OUT_SENTINEL, dtype=np.float32)[::2]
+    fortran = np.full(shape, BUFFER_SENTINEL, dtype=np.float32, order="F")
+    strided = np.full((shape[0] * 2, *shape[1:]), BUFFER_SENTINEL, dtype=np.float32)[::2]
     assert strided.shape == shape
 
-    for out in [fortran, strided]:
+    for buffer in [fortran, strided]:
         with pytest.raises(ValueError, match="C contiguous"):
-            getattr(mwax_cc, read_method)(timestep, coarse_chan, out=out)
+            getattr(mwax_cc, read_method + INTO_BUFFER)(timestep, coarse_chan, buffer)
 
-        assert np.all(out == OUT_SENTINEL)
+        assert np.all(buffer == BUFFER_SENTINEL)
 
 
 @pytest.mark.parametrize("read_method", READ_METHODS)
-def test_corr_context_read_into_out_that_is_read_only(mwax_cc: mwalib.CorrelatorContext, read_method: str):
+def test_corr_context_read_into_buffer_that_is_read_only(mwax_cc: mwalib.CorrelatorContext, read_method: str):
     timestep, coarse_chan = READ_INDICES["mwax"]
-    out = np.full(read_shapes(mwax_cc)[read_method], OUT_SENTINEL, dtype=np.float32)
-    out.flags.writeable = False
+    buffer = np.full(read_shapes(mwax_cc)[read_method], BUFFER_SENTINEL, dtype=np.float32)
+    buffer.flags.writeable = False
 
     with pytest.raises(ValueError, match="written"):
-        getattr(mwax_cc, read_method)(timestep, coarse_chan, out=out)
+        getattr(mwax_cc, read_method + INTO_BUFFER)(timestep, coarse_chan, buffer)
 
-    assert np.all(out == OUT_SENTINEL)
+    assert np.all(buffer == BUFFER_SENTINEL)
 
 
-def test_corr_context_read_into_out_with_invalid_timestep(mwax_cc: mwalib.CorrelatorContext):
+def test_corr_context_read_into_buffer_with_invalid_timestep(mwax_cc: mwalib.CorrelatorContext):
     _, coarse_chan = READ_INDICES["mwax"]
-    out = np.full(read_shapes(mwax_cc)["read_by_baseline"], OUT_SENTINEL, dtype=np.float32)
+    buffer = np.full(read_shapes(mwax_cc)["read_by_baseline"], BUFFER_SENTINEL, dtype=np.float32)
 
     with pytest.raises(mwalib.GpuboxErrorInvalidTimeStepIndex):
-        mwax_cc.read_by_baseline(len(mwax_cc.timesteps), coarse_chan, out=out)
+        mwax_cc.read_by_baseline_into_buffer(len(mwax_cc.timesteps), coarse_chan, buffer)
 
-    assert np.all(out == OUT_SENTINEL)
+    assert np.all(buffer == BUFFER_SENTINEL)
 
 
 @pytest.mark.parametrize("kind", ["legacy", "mwax"])
-def test_corr_context_read_into_out_from_many_threads(kind: str, request):
+def test_corr_context_read_into_buffer_from_many_threads(kind: str, request):
     cc: mwalib.CorrelatorContext = request.getfixturevalue(f"{kind}_cc")
     timestep, coarse_chan = READ_INDICES[kind]
     shapes = read_shapes(cc)
 
     def read(read_method: str) -> np.ndarray:
-        out = np.zeros(shapes[read_method], dtype=np.float32)
-        return getattr(cc, read_method)(timestep, coarse_chan, out=out)
+        buffer = np.zeros(shapes[read_method], dtype=np.float32)
+        getattr(cc, read_method + INTO_BUFFER)(timestep, coarse_chan, buffer)
+        return buffer
 
     # Many reads at once, of each of the read methods, each into its own array
     methods = READ_METHODS * 8
