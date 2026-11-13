@@ -6,7 +6,7 @@ The format (from Jan 2026 onwards) is based on [Keep a Changelog](https://keepac
 
 Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
-* Changed taged with "Python" are only relevant if you are using mwalib via Python.
+* Changes tagged with "Python" are only relevant if you are using mwalib via Python.
 
 ## 4.0.0 Unreleased
 

@@ -22,7 +22,7 @@ import mwalib
 def sum_by_file(context: mwalib.VoltageContext, timestep_index: int, coarse_chan_index: int) -> int:
     total_sum = 0
 
-    start_gpstime_sec = int(context.timesteps[t].gps_time_ms / 1000)
+    start_gpstime_sec = int(context.timesteps[timestep_index].gps_time_ms / 1000)
     gps_seconds_count = int(context.timestep_duration_ms / 1000)
     end_gpstime_sec = start_gpstime_sec + gps_seconds_count
 

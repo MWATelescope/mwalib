@@ -534,16 +534,21 @@ impl VoltageContext {
         gps_second_start: u64,
         gps_second_count: usize,
     ) -> Result<u64, VoltageFileError> {
-        // Validate the gpstime
-        let gps_time_observation_max_ms =
-            self.timesteps[self.num_timesteps - 1].gps_time_ms + self.timestep_duration_ms;
+        // Validate the gpstime. Use the first and last timesteps (not `num_timesteps - 1`, which underflows if there are
+        // none); with no timesteps there is no data to read.
+        let (first_timestep, last_timestep) = match (self.timesteps.first(), self.timesteps.last())
+        {
+            (Some(first), Some(last)) => (first, last),
+            _ => return Err(VoltageFileError::NoVoltageFiles),
+        };
+        let gps_time_observation_max_ms = last_timestep.gps_time_ms + self.timestep_duration_ms;
 
         // Validate the start time
-        if gps_second_start * 1000 < self.timesteps[0].gps_time_ms
+        if gps_second_start * 1000 < first_timestep.gps_time_ms
             || gps_second_start * 1000 > gps_time_observation_max_ms
         {
             return Err(VoltageFileError::InvalidGpsSecondStart(
-                self.timesteps[0].gps_time_ms / 1000,
+                first_timestep.gps_time_ms / 1000,
                 gps_time_observation_max_ms / 1000,
             ));
         }
@@ -551,7 +556,7 @@ impl VoltageContext {
         // A count of 0 has no end second (and would underflow below)
         if gps_second_count == 0 {
             return Err(VoltageFileError::InvalidGpsSecondCount(
-                self.timesteps[0].gps_time_ms / 1000,
+                first_timestep.gps_time_ms / 1000,
                 gps_second_count,
                 gps_time_observation_max_ms / 1000,
             ));
@@ -561,7 +566,7 @@ impl VoltageContext {
         let gps_second_end: u64 = gps_second_start + gps_second_count as u64 - 1;
         if gps_second_end * 1000 > gps_time_observation_max_ms {
             return Err(VoltageFileError::InvalidGpsSecondCount(
-                self.timesteps[0].gps_time_ms / 1000,
+                first_timestep.gps_time_ms / 1000,
                 gps_second_count,
                 gps_time_observation_max_ms / 1000,
             ));

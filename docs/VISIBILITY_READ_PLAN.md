@@ -2,7 +2,8 @@
 
 Status: phases 1 (tests), 2 (safety and 4.0.0: diffs 2a, 2b, 2c) and 3 (performance: steps 1 to 5) are done. Phase 3
 step 3 found that the test files are Rice compressed (see "Compressed test files") and added benchmarks of
-uncompressed copies. Phase 5 (tile position from the height code) is done. Phase 4 (opt-in threads) is not started.
+uncompressed copies. Phase 5 (tile position from the height code) is done. Phase 4 (opt-in threads) is skipped for
+now (Greg's decision; the conversion left is 5 to 8 ms per read).
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -305,6 +306,14 @@ What was changed (Greg's decisions):
   `read_file`, `read_second_8s` and `read_second_1s` (738 MB), with throughput. The names changed, so there is no
   comparison with earlier runs.
 
+Laptop, new `mwaxvcs` group (second run, file already made): `read_second_1s` 81.7 ms (8.4 GiB/s),
+`read_second_8s` 744 ms (7.4 GiB/s), `read_file` 1.3 s with a very wide range (0.77 to 2.2 s). This is slower than the
+earlier 378 ms / 406 ms for the same 5.9 GB on the same laptop, and it is not explained: neither read changed in a way
+that should cost time (`read_exact` makes the same calls for whole blocks), and the second run rules out a file that
+was still being written. The wide `read_file` range suggests the 5.9 GB file does not stay in the file cache next to
+the 5.9 GB buffer. To check: free memory during the run, and `dd if=<file> of=/dev/null bs=64M` twice for the cache
+read speed. Greg decided not to look further for now.
+
 ## Phases
 
 Each phase is one diff. `cargo test` and `uv run pytest` must pass with the diff applied on its own. Outputs of the
@@ -360,7 +369,7 @@ converters and the reads must not change (the golden and reference tests enforce
    5. Converter loop order and blocking, and the sign table (done; see "Phase 3 step 5" in Benchmarks). Outputs
       are unchanged (the reference and golden tests pass without change).
    Measure each one on its own, and record numbers here.
-4. **Opt-in threads (V5).** `set_conversion_threads(n)`, default 1. Split the output with `chunks_mut` (one fine
+4. **Opt-in threads (V5) (skipped for now).** `set_conversion_threads(n)`, default 1. Split the output with `chunks_mut` (one fine
    channel or one baseline per chunk) so no `unsafe` is needed. Keep the setting in an atomic so it can be changed
    through `&self` (a `&mut self` setter would conflict with concurrent reads in Python). C function and Python method.
    Check there is no oversubscription surprise: default stays 1.
@@ -386,5 +395,6 @@ converters and the reads must not change (the golden and reference tests enforce
   Either run the steps by hand (`cargo build --features python,python-stubgen`, `target/debug/stub_gen`,
   `ruff check --fix`) or set `line-length = 120` first.
 - Other things seen, not part of this plan:
-  - `examples/mwalib-sum-vcs.py` uses an undefined `t` in `context.timesteps[t]`;
-  - the MWAX test metafits `1244973688.metafits` is guessed as `CorrLegacy` when no MWA version is given.
+  - (fixed) `examples/mwalib-sum-vcs.py` used an undefined `t` in `context.timesteps[t]`;
+  - the MWAX test metafits `1244973688.metafits` is guessed as `CorrLegacy` when no MWA version is given. Not a
+    bug: its `MODE` is `HW_LFILES` (a 2019, legacy era metafits used with MWAX test gpubox files).
