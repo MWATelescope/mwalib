@@ -2,7 +2,8 @@
 
 Status: phase 1 (tests) is done. Phase 3 is in progress: steps 1 (benchmarks and the temp buffer experiment) and 2
 (thread-local temp buffer, Python `*_into_buffer` methods) are done. Step 3 found that the test files are Rice
-compressed (see "Compressed test files") and added benchmarks of uncompressed copies. Phases 2, 4 and 5 are not started.
+compressed (see "Compressed test files") and added benchmarks of uncompressed copies. Step 5 (converter loops) is
+done; step 4 (GIL) is not. Phases 2, 4 and 5 are not started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -52,7 +53,8 @@ Safety:
 1. `convert_legacy_hdu_to_mwax_*_order` use `get_unchecked` (48 places). Only the buffer lengths are asserted. The
    table length and each entry's `xx_index` etc. are not. The table was settable from Python. Fix: validate the table
    once at construction (length equals number of baselines, `index + 2 <= floats_per_fine_chan`), and read-only
-   Python (V3) so it cannot change after.
+   Python (V3) so it cannot change after. Since phase 3 step 5 the converters use checked indexing (no `unsafe`), so
+   a bad table panics instead of reading out of bounds. Validation at construction is still to do.
 2. `*_into_buffer` do not check the buffer length. MWAX by baseline reads `buffer.len()` floats with `ffgpv`
    (short buffer = silent partial read). Legacy and frequency paths `assert!` (panic; abort with the release profile).
 3. `get_fits_filename_and_batch_and_hdu` uses `self.num_timesteps - 1` (underflow if 0) and `num_*` counters instead of
@@ -230,6 +232,33 @@ What this says, for uncompressed files:
 - For legacy, the converters and cfitsio's 32-bit integer to float scaling are most of the cost.
 
 
+### Phase 3 step 5: converter loops
+
+Changes in `src/convert/mod.rs` (signatures unchanged):
+- Legacy: each call makes a compact table (`LegacyGather`, 32 bytes per baseline instead of about 80): the input
+  index of each polarisation and a factor (+1.0 or -1.0) for its imaginary part. This replaces the two negations and
+  the branch. The values are the same for every value that is not a NaN (a NaN may get a different sign bit).
+- `legacy_to_baseline_order` does 4 fine channels per pass over the baselines (`LEGACY_BASELINE_ORDER_FINE_CHAN_BLOCK`),
+  so each baseline gets 4 fine channels written in a row and the input being read (about 1 MB) stays in cache.
+- `mwax_to_frequency_order` does 32 baselines per pass over the fine channels (`MWAX_FREQUENCY_ORDER_BASELINE_BLOCK`).
+- No `unsafe` and no `get_unchecked` remain in the converters.
+
+Block sizes were chosen with a throwaway sweep in the sandbox (1 CPU):
+
+| converter | before | block 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 |
+|---|---|---|---|---|---|---|---|---|---|
+| `legacy_to_baseline_order` (fine channels per block) | 18.6 ms | 14.4 | 8.7 | **6.4** | 7.4 | 8.1 | | | 9.7 |
+| `mwax_to_frequency_order` (baselines per block) | 11.3 ms | | | 5.8 | 5.3 | 4.5 | **4.2** | 5.1 | |
+
+`legacy_to_frequency_order` has no block: 5.5 ms before, 4.3 ms with the compact table.
+
+`convert` group in the sandbox, before and after: `mwax_to_frequency_order` 10.1 to 4.6 ms, `legacy_to_baseline_order`
+13.2 to 7.5 ms, `legacy_to_frequency_order` 5.4 to 4.3 ms. Reads in the sandbox: `mwax_uncompressed` by frequency into
+buffer 21.9 to 12.0 ms, `legacy_uncompressed` by frequency into buffer 21.7 to 16.0 ms. `legacy_uncompressed` by
+baseline into buffer did not change in the sandbox (31.0 to 31.8 ms), although its converter did; check on the laptop.
+The best block sizes can be different on other machines; check them on the laptop.
+
+
 ## Phases
 
 Each phase is one diff. `cargo test` and `uv run pytest` must pass with the diff applied on its own. Outputs of the
@@ -260,8 +289,8 @@ converters and the reads must not change (the golden and reference tests enforce
       close to a memory copy, so only the legacy 32-bit integer to float scaling (`BSCALE`) is left. Benchmarks of
       uncompressed copies are added (done); the order of the rest is to be decided with the laptop numbers.
    4. Release the GIL (`py.detach`).
-   5. Converter loop order and blocking, and the sign table. `legacy_to_baseline_order` is the slowest converter, and
-      the MWAX transpose is most of an uncompressed MWAX by frequency read.
+   5. Converter loop order and blocking, and the sign table (done; see "Phase 3 step 5" in Benchmarks). Outputs
+      are unchanged (the reference and golden tests pass without change).
    Measure each one on its own, and record numbers here.
 4. **Opt-in threads (V5).** `set_conversion_threads(n)`, default 1. Split the output with `chunks_mut` (one fine
    channel or one baseline per chunk) so no `unsafe` is needed. Keep the setting in an atomic so it can be changed
