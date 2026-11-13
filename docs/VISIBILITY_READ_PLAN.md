@@ -3,7 +3,7 @@
 Status: phase 1 (tests) is done. Phase 3 is in progress: steps 1 (benchmarks and the temp buffer experiment) and 2
 (thread-local temp buffer, Python `*_into_buffer` methods) are done. Step 3 found that the test files are Rice
 compressed (see "Compressed test files") and added benchmarks of uncompressed copies. Steps 4 (GIL) and 5
-(converter loops) are done, so phase 3 is done. Phase 2 is in progress (2a done, see Phases). Phases 4 and 5 are not
+(converter loops) are done, so phase 3 is done. Phase 2 is in progress (2a and 2b done, see Phases). Phases 4 and 5 are not
 started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
@@ -315,7 +315,11 @@ converters and the reads must not change (the golden and reference tests enforce
      `get_fine_chan_freqs_hz_array` returns `Result` (both contexts, C and Python). `read_second` with a count of 0 is
      `InvalidGpsSecondCount`. The float image read moves cfitsio to its HDU first. The first MWAX weights HDU is checked
      at construction. Greg allowed `.unwrap()` on the existing test calls of `get_fine_chan_freqs_hz_array`.
-   - 2b: findings 6 and 7, V3 (read-only Python classes, Python and C wrapper fixes).
+   - 2b (done): findings 6 and 7, V3. `set_all` is removed from every `pyclass` (16 classes); the Python tests check
+     that every public attribute of each class raises `AttributeError` when set (`tests/read_only_helpers.py`). The
+     Python wrappers return `RuntimeError` instead of panicking on a shape mismatch. The C read and fine channel
+     functions use `&*` (shared) instead of `&mut *`, with a test that reads from 4 C threads at once, and a null
+     `buffer_ptr` sets the error message. Also fixed the `InvalidGpsSecondCount` message (`{2}` for the maximum).
    - 2c: version 4.0.0, CHANGELOG "Breaking" section, stubs.
 3. **Performance.** MWAX benchmarks are added (see Benchmarks). Order, by what the numbers say:
    1. Add converter-only benchmarks, and the temp buffer experiment above (done, see Benchmarks).

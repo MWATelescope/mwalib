@@ -149,7 +149,7 @@ fn legacy_gather_table(conversion_table: &[LegacyConversionBaseline]) -> Vec<Leg
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all, from_py_object)
+    pyclass(get_all, from_py_object)
 )]
 #[derive(Clone)]
 pub(crate) struct LegacyConversionBaseline {

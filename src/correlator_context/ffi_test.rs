@@ -1039,3 +1039,93 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_invalid_coarse_ch
         assert!(message.contains("coarse chan index"), "{message}");
     }
 }
+
+#[test]
+fn test_mwalib_correlator_context_read_null_buffer_sets_the_error_message() {
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+
+    for (name, read_fn, _) in all_ffi_read_functions() {
+        let error_message_length: size_t = 256;
+        let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+        let error_message_ptr = error_message.into_raw();
+
+        let retval = unsafe {
+            read_fn(
+                context_ptr,
+                0,
+                0,
+                std::ptr::null_mut(),
+                0,
+                error_message_ptr,
+                error_message_length,
+            )
+        };
+
+        let message = unsafe { CStr::from_ptr(error_message_ptr) }
+            .to_string_lossy()
+            .trim()
+            .to_string();
+        unsafe { drop(CString::from_raw(error_message_ptr)) };
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains("null pointer for buffer_ptr"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_buffer_too_small() {
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+
+    for (name, read_fn, len) in all_ffi_read_functions() {
+        let mut buffer = vec![0.0; len - 1];
+        let (retval, message) = call_ffi_read(read_fn, context_ptr, 0, 0, &mut buffer);
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains("floats"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_from_many_c_threads_at_once() {
+    // The C read functions only take a shared reference to the context, so many threads can read at once
+    const NUM_THREADS: usize = 4;
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+    // Raw pointers are not Send, so pass the address
+    let context_address = context_ptr as usize;
+
+    for (name, read_fn, len) in all_ffi_read_functions() {
+        let mut expected = vec![0.0; len];
+        let (retval, _) = call_ffi_read(read_fn, context_ptr, 0, 0, &mut expected);
+        assert_eq!(retval, crate::ffi::MWALIB_SUCCESS, "{name}");
+
+        let results: Vec<Vec<f32>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..NUM_THREADS)
+                .map(|_| {
+                    scope.spawn(move || {
+                        let mut buffer = vec![0.0; len];
+                        let (retval, message) = call_ffi_read(
+                            read_fn,
+                            context_address as *mut CorrelatorContext,
+                            0,
+                            0,
+                            &mut buffer,
+                        );
+                        assert_eq!(retval, crate::ffi::MWALIB_SUCCESS, "{name}: {message}");
+                        buffer
+                    })
+                })
+                .collect();
+            handles.into_iter().map(|h| h.join().unwrap()).collect()
+        });
+
+        for result in results {
+            assert_eq!(result, expected, "{name}");
+        }
+    }
+}

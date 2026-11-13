@@ -468,7 +468,8 @@ pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
         );
         return MWALIB_FAILURE;
     } else {
-        &mut *voltage_context_ptr
+        // Shared reference: these calls only read, and C may call them from many threads at once
+        &*voltage_context_ptr
     };
 
     // Don't do anything if the input pointer is null.
@@ -756,11 +757,17 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
         );
         return MWALIB_FAILURE;
     } else {
-        &mut *voltage_context_ptr
+        // Shared reference: these calls only read, and C may call them from many threads at once
+        &*voltage_context_ptr
     };
 
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
+        set_c_string(
+            "mwalib_voltage_context_read_file() ERROR: null pointer for buffer_ptr passed in",
+            error_message as *mut c_char,
+            error_message_length,
+        );
         return MWALIB_FAILURE;
     }
 
@@ -891,11 +898,17 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
         );
         return MWALIB_FAILURE;
     } else {
-        &mut *voltage_context_ptr
+        // Shared reference: these calls only read, and C may call them from many threads at once
+        &*voltage_context_ptr
     };
 
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
+        set_c_string(
+            "mwalib_voltage_context_read_second() ERROR: null pointer for buffer_ptr passed in",
+            error_message as *mut c_char,
+            error_message_length,
+        );
         return MWALIB_FAILURE;
     }
 

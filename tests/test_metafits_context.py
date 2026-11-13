@@ -12,6 +12,7 @@ import itertools
 import math
 
 import pytest
+from read_only_helpers import assert_read_only
 
 import mwalib
 
@@ -496,3 +497,34 @@ def test_deripple_metafits_context():
 def test_metafits_context_without_deripple(mwax_mc: mwalib.MetafitsContext):
     assert not mwax_mc.deripple_applied
     assert not mwax_mc.oversampled
+
+
+#
+# Phase 2 (safety): all classes are read-only
+#
+
+
+def test_metafits_context_classes_are_read_only():
+    mc = mwalib.MetafitsContext(SIGNAL_CHAIN_LEGACY_CORRELATOR_METAFITS, None)
+    assert mc.signal_chain_corrections is not None
+
+    for obj in (
+        mc,
+        mc.antennas[0],
+        mc.baselines[0],
+        mc.rf_inputs[0],
+        mc.metafits_coarse_chans[0],
+        mc.metafits_timesteps[0],
+        mc.signal_chain_corrections[0],
+    ):
+        assert_read_only(obj)
+
+
+def test_metafits_context_voltage_beam_and_calibration_fit_are_read_only():
+    vb_mc = mwalib.MetafitsContext(VOLTAGE_BEAM_METAFITS, None)
+    cal_mc = mwalib.MetafitsContext(CAL_SOL_METAFITS, None)
+    assert vb_mc.metafits_voltage_beams is not None
+    assert cal_mc.calibration_fits is not None
+
+    assert_read_only(vb_mc.metafits_voltage_beams[0])
+    assert_read_only(cal_mc.calibration_fits[0])

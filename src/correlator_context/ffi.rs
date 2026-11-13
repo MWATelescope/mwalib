@@ -540,11 +540,17 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_baseline(
         );
         return MWALIB_FAILURE;
     } else {
-        &mut *correlator_context_ptr
+        // Shared reference: these calls only read, and C may call them from many threads at once
+        &*correlator_context_ptr
     };
 
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
+        set_c_string(
+            "mwalib_correlator_context_read_by_baseline() ERROR: null pointer for buffer_ptr passed in",
+            error_message as *mut c_char,
+            error_message_length,
+        );
         return MWALIB_FAILURE;
     }
 
@@ -634,10 +640,16 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_by_frequency(
         );
         return MWALIB_FAILURE;
     } else {
-        &mut *correlator_context_ptr
+        // Shared reference: these calls only read, and C may call them from many threads at once
+        &*correlator_context_ptr
     };
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
+        set_c_string(
+            "mwalib_correlator_context_read_by_frequency() ERROR: null pointer for buffer_ptr passed in",
+            error_message as *mut c_char,
+            error_message_length,
+        );
         return MWALIB_FAILURE;
     }
 
@@ -725,11 +737,17 @@ pub unsafe extern "C" fn mwalib_correlator_context_read_weights_by_baseline(
         );
         return MWALIB_FAILURE;
     } else {
-        &mut *correlator_context_ptr
+        // Shared reference: these calls only read, and C may call them from many threads at once
+        &*correlator_context_ptr
     };
 
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
+        set_c_string(
+            "mwalib_correlator_context_read_weights_by_baseline() ERROR: null pointer for buffer_ptr passed in",
+            error_message as *mut c_char,
+            error_message_length,
+        );
         return MWALIB_FAILURE;
     }
 
@@ -812,7 +830,8 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
         );
         return MWALIB_FAILURE;
     } else {
-        &mut *correlator_context_ptr
+        // Shared reference: these calls only read, and C may call them from many threads at once
+        &*correlator_context_ptr
     };
 
     // Don't do anything if the input pointer is null.

@@ -36,10 +36,7 @@ mod test;
 /// This represents the basic metadata and methods for an MWA correlator observation.
 ///
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all)
-)]
+#[cfg_attr(any(feature = "python", feature = "python-stubgen"), pyclass(get_all))]
 #[derive(Debug)]
 pub struct CorrelatorContext {
     /// Observation Metadata obtained from the metafits file

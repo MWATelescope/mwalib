@@ -1896,3 +1896,13 @@ fn test_validate_gps_time_parameters_gps_second_count_of_zero_is_an_error() {
         "{result:?}"
     );
 }
+
+#[test]
+fn test_invalid_gps_second_count_message() {
+    let error = VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 3, 1_101_503_424);
+
+    assert_eq!(
+        error.to_string(),
+        "Invalid gps_second_count (gps second start 1101503312 + count 3 - 1 cannot be greater than 1101503424)"
+    );
+}

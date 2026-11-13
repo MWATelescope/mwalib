@@ -97,22 +97,8 @@ class Antenna:
         X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
         e.g. 0...N-1
         """
-    @ant.setter
-    def ant(self, value: builtins.int) -> None:
-        r"""
-        This is the antenna number.
-        Nominally this is the field we sort by to get the desired output order of antenna.
-        X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
-        e.g. 0...N-1
-        """
     @property
     def tile_id(self) -> builtins.int:
-        r"""
-        Numeric part of tile_name for the antenna. Each pol has the same value
-        e.g. tile_name "tile011" hsa tile_id of 11
-        """
-    @tile_id.setter
-    def tile_id(self, value: builtins.int) -> None:
         r"""
         Numeric part of tile_name for the antenna. Each pol has the same value
         e.g. tile_name "tile011" hsa tile_id of 11
@@ -123,29 +109,13 @@ class Antenna:
         Human readable name of the antenna
         X and Y have the same name
         """
-    @tile_name.setter
-    def tile_name(self, value: builtins.str) -> None:
-        r"""
-        Human readable name of the antenna
-        X and Y have the same name
-        """
     @property
     def rfinput_x(self) -> Rfinput:
         r"""
         Reference to the X pol rf_input
         """
-    @rfinput_x.setter
-    def rfinput_x(self, value: Rfinput) -> None:
-        r"""
-        Reference to the X pol rf_input
-        """
     @property
     def rfinput_y(self) -> Rfinput:
-        r"""
-        Reference to the Y pol rf_input
-        """
-    @rfinput_y.setter
-    def rfinput_y(self, value: Rfinput) -> None:
         r"""
         Reference to the Y pol rf_input
         """
@@ -157,21 +127,8 @@ class Antenna:
         
         Electrical length in metres for this antenna and polarisation to the receiver.
         """
-    @electrical_length_m.setter
-    def electrical_length_m(self, value: builtins.float) -> None:
-        r"""
-        Note: the next 4 values are from the rfinput of which we have X and Y, however these values are the same for each pol so can be safely placed in the antenna struct
-        for efficiency
-        
-        Electrical length in metres for this antenna and polarisation to the receiver.
-        """
     @property
     def north_m(self) -> builtins.float:
-        r"""
-        Antenna position North from the array centre (metres)
-        """
-    @north_m.setter
-    def north_m(self, value: builtins.float) -> None:
         r"""
         Antenna position North from the array centre (metres)
         """
@@ -180,29 +137,13 @@ class Antenna:
         r"""
         Antenna position East from the array centre (metres)
         """
-    @east_m.setter
-    def east_m(self, value: builtins.float) -> None:
-        r"""
-        Antenna position East from the array centre (metres)
-        """
     @property
     def height_m(self) -> builtins.float:
         r"""
         Antenna height (metres). See `height_code` for what this value is relative to.
         """
-    @height_m.setter
-    def height_m(self, value: builtins.float) -> None:
-        r"""
-        Antenna height (metres). See `height_code` for what this value is relative to.
-        """
     @property
     def height_code(self) -> HeightCode:
-        r"""
-        What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
-        See `Rfinput::height_code` for the default used when the metafits has no `Height_Code` column.
-        """
-    @height_code.setter
-    def height_code(self, value: HeightCode) -> None:
         r"""
         What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
         See `Rfinput::height_code` for the default used when the metafits has no `Height_Code` column.
@@ -218,18 +159,8 @@ class Baseline:
         r"""
         Index in the mwalibContext.antenna array for antenna1 for this baseline
         """
-    @ant1_index.setter
-    def ant1_index(self, value: builtins.int) -> None:
-        r"""
-        Index in the mwalibContext.antenna array for antenna1 for this baseline
-        """
     @property
     def ant2_index(self) -> builtins.int:
-        r"""
-        Index in the mwalibContext.antenna array for antenna2 for this baseline
-        """
-    @ant2_index.setter
-    def ant2_index(self, value: builtins.int) -> None:
         r"""
         Index in the mwalibContext.antenna array for antenna2 for this baseline
         """
@@ -247,22 +178,8 @@ class CalibrationFit:
         r"""
         rf_input (ant, pol)
         """
-    @rf_input.setter
-    def rf_input(self, value: Rfinput) -> None:
-        r"""
-        rf_input (ant, pol)
-        """
     @property
     def delay_metres(self) -> builtins.float:
-        r"""
-        The calibration offset, in metres, for that input,
-        derived from the most recently processed calibrator
-        observation with the same coarse channels.
-        May be missing or all zeros in some metafits files.
-        Used to generate the slope (versus frequency) for the phase correction.
-        """
-    @delay_metres.setter
-    def delay_metres(self, value: builtins.float) -> None:
         r"""
         The calibration offset, in metres, for that input,
         derived from the most recently processed calibrator
@@ -275,11 +192,6 @@ class CalibrationFit:
         r"""
         Used, with the phase slope above to generate the phase correction for each fine channel, for this tile.
         """
-    @intercept_metres.setter
-    def intercept_metres(self, value: builtins.float) -> None:
-        r"""
-        Used, with the phase slope above to generate the phase correction for each fine channel, for this tile.
-        """
     @property
     def gains(self) -> builtins.list[builtins.float]:
         r"""
@@ -287,24 +199,10 @@ class CalibrationFit:
         for this input. Derived from the most recently processed calibrator observation with the same coarse
         channels. May be missing or all ones in some metafits files.
         """
-    @gains.setter
-    def gains(self, value: typing.Sequence[builtins.float]) -> None:
-        r"""
-        The calibration gain multiplier (not in dB) for each of the N channels (normally 24) in this observation,
-        for this input. Derived from the most recently processed calibrator observation with the same coarse
-        channels. May be missing or all ones in some metafits files.
-        """
     @property
     def num_gains(self) -> builtins.int: ...
-    @num_gains.setter
-    def num_gains(self, value: builtins.int) -> None: ...
     @property
     def gain_polynomial_fit0(self) -> builtins.list[builtins.float]:
-        r"""
-        polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
-        """
-    @gain_polynomial_fit0.setter
-    def gain_polynomial_fit0(self, value: typing.Sequence[builtins.float]) -> None:
         r"""
         polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
         """
@@ -313,18 +211,8 @@ class CalibrationFit:
         r"""
         number of gain_polynomial_fit0 elements
         """
-    @num_gain_polynomial_fit0.setter
-    def num_gain_polynomial_fit0(self, value: builtins.int) -> None:
-        r"""
-        number of gain_polynomial_fit0 elements
-        """
     @property
     def gain_polynomial_fit1(self) -> builtins.list[builtins.float]:
-        r"""
-        polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
-        """
-    @gain_polynomial_fit1.setter
-    def gain_polynomial_fit1(self, value: typing.Sequence[builtins.float]) -> None:
         r"""
         polynomial fit parameter for a more accurate gain correction solution for each of the N channels (normally 24) in this observation
         """
@@ -333,28 +221,13 @@ class CalibrationFit:
         r"""
         number of gain_polynomial_fit1 elements
         """
-    @num_gain_polynomial_fit1.setter
-    def num_gain_polynomial_fit1(self, value: builtins.int) -> None:
-        r"""
-        number of gain_polynomial_fit1 elements
-        """
     @property
     def phase_fit_quality(self) -> builtins.float:
         r"""
         dimensionless quality parameter (0-1.0) for the phase fit
         """
-    @phase_fit_quality.setter
-    def phase_fit_quality(self, value: builtins.float) -> None:
-        r"""
-        dimensionless quality parameter (0-1.0) for the phase fit
-        """
     @property
     def gain_fit_quality(self) -> builtins.float:
-        r"""
-        dimensionless quality parameter (0-1.0) for the gain fit
-        """
-    @gain_fit_quality.setter
-    def gain_fit_quality(self, value: builtins.float) -> None:
         r"""
         dimensionless quality parameter (0-1.0) for the gain fit
         """
@@ -369,18 +242,8 @@ class CoarseChannel:
         r"""
         Correlator channel is 0 indexed (0..N-1)
         """
-    @corr_chan_number.setter
-    def corr_chan_number(self, value: builtins.int) -> None:
-        r"""
-        Correlator channel is 0 indexed (0..N-1)
-        """
     @property
     def rec_chan_number(self) -> builtins.int:
-        r"""
-        Receiver channel is 0-255 in the RRI recivers
-        """
-    @rec_chan_number.setter
-    def rec_chan_number(self, value: builtins.int) -> None:
         r"""
         Receiver channel is 0-255 in the RRI recivers
         """
@@ -392,21 +255,8 @@ class CoarseChannel:
         Legacy e.g. obsid_datetime_gpuboxXX_00
         v2     e.g. obsid_datetime_gpuboxXXX_00
         """
-    @gpubox_number.setter
-    def gpubox_number(self, value: builtins.int) -> None:
-        r"""
-        gpubox channel number
-        This is better described as the identifier which would be in the filename of visibility files
-        Legacy e.g. obsid_datetime_gpuboxXX_00
-        v2     e.g. obsid_datetime_gpuboxXXX_00
-        """
     @property
     def chan_width_hz(self) -> builtins.int:
-        r"""
-        Width of a coarse channel in Hz
-        """
-    @chan_width_hz.setter
-    def chan_width_hz(self, value: builtins.int) -> None:
         r"""
         Width of a coarse channel in Hz
         """
@@ -415,28 +265,13 @@ class CoarseChannel:
         r"""
         Starting frequency of coarse channel in Hz
         """
-    @chan_start_hz.setter
-    def chan_start_hz(self, value: builtins.int) -> None:
-        r"""
-        Starting frequency of coarse channel in Hz
-        """
     @property
     def chan_centre_hz(self) -> builtins.int:
         r"""
         Centre frequency of coarse channel in Hz
         """
-    @chan_centre_hz.setter
-    def chan_centre_hz(self, value: builtins.int) -> None:
-        r"""
-        Centre frequency of coarse channel in Hz
-        """
     @property
     def chan_end_hz(self) -> builtins.int:
-        r"""
-        Ending frequency of coarse channel in Hz
-        """
-    @chan_end_hz.setter
-    def chan_end_hz(self, value: builtins.int) -> None:
         r"""
         Ending frequency of coarse channel in Hz
         """
@@ -451,18 +286,8 @@ class CorrelatorContext:
         r"""
         Observation Metadata obtained from the metafits file
         """
-    @metafits_context.setter
-    def metafits_context(self, value: MetafitsContext) -> None:
-        r"""
-        Observation Metadata obtained from the metafits file
-        """
     @property
     def mwa_version(self) -> MWAVersion:
-        r"""
-        MWA version, derived from the files passed in
-        """
-    @mwa_version.setter
-    def mwa_version(self, value: MWAVersion) -> None:
         r"""
         MWA version, derived from the files passed in
         """
@@ -472,19 +297,8 @@ class CorrelatorContext:
         This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
         offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
         """
-    @timesteps.setter
-    def timesteps(self, value: typing.Sequence[TimeStep]) -> None:
-        r"""
-        This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
-        offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
-        """
     @property
     def num_timesteps(self) -> builtins.int:
-        r"""
-        Number of timesteps in the timesteps vector
-        """
-    @num_timesteps.setter
-    def num_timesteps(self, value: builtins.int) -> None:
         r"""
         Number of timesteps in the timesteps vector
         """
@@ -493,18 +307,8 @@ class CorrelatorContext:
         r"""
         Vector of coarse channel structs which is the same as the metafits provided coarse channels
         """
-    @coarse_chans.setter
-    def coarse_chans(self, value: typing.Sequence[CoarseChannel]) -> None:
-        r"""
-        Vector of coarse channel structs which is the same as the metafits provided coarse channels
-        """
     @property
     def num_coarse_chans(self) -> builtins.int:
-        r"""
-        Number of coarse channels in the coarse channel vector
-        """
-    @num_coarse_chans.setter
-    def num_coarse_chans(self, value: builtins.int) -> None:
         r"""
         Number of coarse channels in the coarse channel vector
         """
@@ -513,18 +317,8 @@ class CorrelatorContext:
         r"""
         Vector of (in)common timestep indices
         """
-    @common_timestep_indices.setter
-    def common_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
-        r"""
-        Vector of (in)common timestep indices
-        """
     @property
     def num_common_timesteps(self) -> builtins.int:
-        r"""
-        Number of common timesteps
-        """
-    @num_common_timesteps.setter
-    def num_common_timesteps(self, value: builtins.int) -> None:
         r"""
         Number of common timesteps
         """
@@ -533,29 +327,13 @@ class CorrelatorContext:
         r"""
         Vector of (in)common coarse channel indices
         """
-    @common_coarse_chan_indices.setter
-    def common_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
-        r"""
-        Vector of (in)common coarse channel indices
-        """
     @property
     def num_common_coarse_chans(self) -> builtins.int:
         r"""
         Number of common coarse channels
         """
-    @num_common_coarse_chans.setter
-    def num_common_coarse_chans(self, value: builtins.int) -> None:
-        r"""
-        Number of common coarse channels
-        """
     @property
     def common_start_unix_time_ms(self) -> builtins.int:
-        r"""
-        The start of the observation (the time that is common to all
-        provided gpubox files).
-        """
-    @common_start_unix_time_ms.setter
-    def common_start_unix_time_ms(self, value: builtins.int) -> None:
         r"""
         The start of the observation (the time that is common to all
         provided gpubox files).
@@ -566,19 +344,8 @@ class CorrelatorContext:
         `end_unix_time_ms` is the common end time of the observation
         i.e. start time of last common timestep plus integration time.
         """
-    @common_end_unix_time_ms.setter
-    def common_end_unix_time_ms(self, value: builtins.int) -> None:
-        r"""
-        `end_unix_time_ms` is the common end time of the observation
-        i.e. start time of last common timestep plus integration time.
-        """
     @property
     def common_start_gps_time_ms(self) -> builtins.int:
-        r"""
-        `start_unix_time_ms` but in GPS milliseconds
-        """
-    @common_start_gps_time_ms.setter
-    def common_start_gps_time_ms(self, value: builtins.int) -> None:
         r"""
         `start_unix_time_ms` but in GPS milliseconds
         """
@@ -587,18 +354,8 @@ class CorrelatorContext:
         r"""
         `end_unix_time_ms` but in GPS milliseconds
         """
-    @common_end_gps_time_ms.setter
-    def common_end_gps_time_ms(self, value: builtins.int) -> None:
-        r"""
-        `end_unix_time_ms` but in GPS milliseconds
-        """
     @property
     def common_duration_ms(self) -> builtins.int:
-        r"""
-        Total duration of common timesteps
-        """
-    @common_duration_ms.setter
-    def common_duration_ms(self, value: builtins.int) -> None:
         r"""
         Total duration of common timesteps
         """
@@ -607,18 +364,8 @@ class CorrelatorContext:
         r"""
         Total bandwidth of the common coarse channels
         """
-    @common_bandwidth_hz.setter
-    def common_bandwidth_hz(self, value: builtins.int) -> None:
-        r"""
-        Total bandwidth of the common coarse channels
-        """
     @property
     def common_good_timestep_indices(self) -> builtins.list[builtins.int]:
-        r"""
-        Vector of (in)common timestep indices only including timesteps after the quack time
-        """
-    @common_good_timestep_indices.setter
-    def common_good_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common timestep indices only including timesteps after the quack time
         """
@@ -627,18 +374,8 @@ class CorrelatorContext:
         r"""
         Number of common timesteps only including timesteps after the quack time
         """
-    @num_common_good_timesteps.setter
-    def num_common_good_timesteps(self, value: builtins.int) -> None:
-        r"""
-        Number of common timesteps only including timesteps after the quack time
-        """
     @property
     def common_good_coarse_chan_indices(self) -> builtins.list[builtins.int]:
-        r"""
-        Vector of (in)common coarse channel indices only including timesteps after the quack time
-        """
-    @common_good_coarse_chan_indices.setter
-    def common_good_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common coarse channel indices only including timesteps after the quack time
         """
@@ -647,19 +384,8 @@ class CorrelatorContext:
         r"""
         Number of common coarse channels only including timesteps after the quack time
         """
-    @num_common_good_coarse_chans.setter
-    def num_common_good_coarse_chans(self, value: builtins.int) -> None:
-        r"""
-        Number of common coarse channels only including timesteps after the quack time
-        """
     @property
     def common_good_start_unix_time_ms(self) -> builtins.int:
-        r"""
-        The start of the observation (the time that is common to all
-        provided gpubox files) only including timesteps after the quack time
-        """
-    @common_good_start_unix_time_ms.setter
-    def common_good_start_unix_time_ms(self, value: builtins.int) -> None:
         r"""
         The start of the observation (the time that is common to all
         provided gpubox files) only including timesteps after the quack time
@@ -670,19 +396,8 @@ class CorrelatorContext:
         `end_unix_time_ms` is the common end time of the observation only including timesteps after the quack time
         i.e. start time of last common timestep plus integration time.
         """
-    @common_good_end_unix_time_ms.setter
-    def common_good_end_unix_time_ms(self, value: builtins.int) -> None:
-        r"""
-        `end_unix_time_ms` is the common end time of the observation only including timesteps after the quack time
-        i.e. start time of last common timestep plus integration time.
-        """
     @property
     def common_good_start_gps_time_ms(self) -> builtins.int:
-        r"""
-        `common_good_start_unix_time_ms` but in GPS milliseconds
-        """
-    @common_good_start_gps_time_ms.setter
-    def common_good_start_gps_time_ms(self, value: builtins.int) -> None:
         r"""
         `common_good_start_unix_time_ms` but in GPS milliseconds
         """
@@ -691,18 +406,8 @@ class CorrelatorContext:
         r"""
         `common_good_end_unix_time_ms` but in GPS milliseconds
         """
-    @common_good_end_gps_time_ms.setter
-    def common_good_end_gps_time_ms(self, value: builtins.int) -> None:
-        r"""
-        `common_good_end_unix_time_ms` but in GPS milliseconds
-        """
     @property
     def common_good_duration_ms(self) -> builtins.int:
-        r"""
-        Total duration of common_good timesteps
-        """
-    @common_good_duration_ms.setter
-    def common_good_duration_ms(self, value: builtins.int) -> None:
         r"""
         Total duration of common_good timesteps
         """
@@ -711,18 +416,8 @@ class CorrelatorContext:
         r"""
         Total bandwidth of the common coarse channels only including timesteps after the quack time
         """
-    @common_good_bandwidth_hz.setter
-    def common_good_bandwidth_hz(self, value: builtins.int) -> None:
-        r"""
-        Total bandwidth of the common coarse channels only including timesteps after the quack time
-        """
     @property
     def provided_timestep_indices(self) -> builtins.list[builtins.int]:
-        r"""
-        The indices of any timesteps which we have *some* data for
-        """
-    @provided_timestep_indices.setter
-    def provided_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         The indices of any timesteps which we have *some* data for
         """
@@ -731,18 +426,8 @@ class CorrelatorContext:
         r"""
         Number of provided timestep indices we have at least *some* data for
         """
-    @num_provided_timesteps.setter
-    def num_provided_timesteps(self, value: builtins.int) -> None:
-        r"""
-        Number of provided timestep indices we have at least *some* data for
-        """
     @property
     def provided_coarse_chan_indices(self) -> builtins.list[builtins.int]:
-        r"""
-        The indices of any coarse channels which we have *some* data for
-        """
-    @provided_coarse_chan_indices.setter
-    def provided_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         The indices of any coarse channels which we have *some* data for
         """
@@ -751,18 +436,8 @@ class CorrelatorContext:
         r"""
         Number of provided coarse channel indices we have at least *some* data for
         """
-    @num_provided_coarse_chans.setter
-    def num_provided_coarse_chans(self, value: builtins.int) -> None:
-        r"""
-        Number of provided coarse channel indices we have at least *some* data for
-        """
     @property
     def num_timestep_coarse_chan_bytes(self) -> builtins.int:
-        r"""
-        The number of bytes taken up by a scan/timestep in each gpubox file.
-        """
-    @num_timestep_coarse_chan_bytes.setter
-    def num_timestep_coarse_chan_bytes(self, value: builtins.int) -> None:
         r"""
         The number of bytes taken up by a scan/timestep in each gpubox file.
         """
@@ -771,18 +446,8 @@ class CorrelatorContext:
         r"""
         The number of floats in each gpubox visibility HDU.
         """
-    @num_timestep_coarse_chan_floats.setter
-    def num_timestep_coarse_chan_floats(self, value: builtins.int) -> None:
-        r"""
-        The number of floats in each gpubox visibility HDU.
-        """
     @property
     def num_timestep_coarse_chan_weight_floats(self) -> builtins.int:
-        r"""
-        The number of floats in each gpubox weights HDU.
-        """
-    @num_timestep_coarse_chan_weight_floats.setter
-    def num_timestep_coarse_chan_weight_floats(self, value: builtins.int) -> None:
         r"""
         The number of floats in each gpubox weights HDU.
         """
@@ -791,22 +456,8 @@ class CorrelatorContext:
         r"""
         This is the number of gpubox files *per batch*.
         """
-    @num_gpubox_files.setter
-    def num_gpubox_files(self, value: builtins.int) -> None:
-        r"""
-        This is the number of gpubox files *per batch*.
-        """
     @property
     def gpubox_batches(self) -> builtins.list[GpuBoxBatch]:
-        r"""
-        `gpubox_batches` *must* be sorted appropriately. See
-        `gpubox::determine_gpubox_batches`. The order of the filenames
-        corresponds directly to other gpubox-related objects
-        (e.g. `gpubox_hdu_limits`). Structured:
-        `gpubox_batches[batch][filename]`.
-        """
-    @gpubox_batches.setter
-    def gpubox_batches(self, value: typing.Sequence[GpuBoxBatch]) -> None:
         r"""
         `gpubox_batches` *must* be sorted appropriately. See
         `gpubox::determine_gpubox_batches`. The order of the filenames
@@ -824,33 +475,13 @@ class CorrelatorContext:
         number, batch number and HDU index are everything needed to find the
         correct HDU out of all gpubox files.
         """
-    @gpubox_time_map.setter
-    def gpubox_time_map(self, value: typing.Mapping[builtins.int, typing.Mapping[builtins.int, tuple[builtins.int, builtins.int]]]) -> None:
-        r"""
-        We assume as little as possible about the data layout in the gpubox
-        files; here, a `BTreeMap` contains each unique UNIX time from every
-        gpubox, which is associated with another `BTreeMap`, associating each
-        gpubox number with a gpubox batch number and HDU index. The gpubox
-        number, batch number and HDU index are everything needed to find the
-        correct HDU out of all gpubox files.
-        """
     @property
     def legacy_conversion_table(self) -> builtins.list[LegacyConversionBaseline]:
         r"""
         A conversion table to optimise reading of legacy MWA HDUs
         """
-    @legacy_conversion_table.setter
-    def legacy_conversion_table(self, value: typing.Sequence[LegacyConversionBaseline]) -> None:
-        r"""
-        A conversion table to optimise reading of legacy MWA HDUs
-        """
     @property
     def bscale(self) -> builtins.float:
-        r"""
-        BSCALE- FITS BSCALE or SCALEFAC value set on the visibility HDUs (used in Legacy Correlator only)
-        """
-    @bscale.setter
-    def bscale(self, value: builtins.float) -> None:
         r"""
         BSCALE- FITS BSCALE or SCALEFAC value set on the visibility HDUs (used in Legacy Correlator only)
         """
@@ -961,18 +592,8 @@ class GpuBoxBatch:
         r"""
         Batch number: 00,01,02..n.
         """
-    @batch_number.setter
-    def batch_number(self, value: builtins.int) -> None:
-        r"""
-        Batch number: 00,01,02..n.
-        """
     @property
     def gpubox_files(self) -> builtins.list[GpuBoxFile]:
-        r"""
-        Vector storing the details of each gpubox file in this batch
-        """
-    @gpubox_files.setter
-    def gpubox_files(self, value: typing.Sequence[GpuBoxFile]) -> None:
         r"""
         Vector storing the details of each gpubox file in this batch
         """
@@ -987,18 +608,8 @@ class GpuBoxFile:
         r"""
         Filename of gpubox file
         """
-    @filename.setter
-    def filename(self, value: builtins.str) -> None:
-        r"""
-        Filename of gpubox file
-        """
     @property
     def channel_identifier(self) -> builtins.int:
-        r"""
-        channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
-        """
-    @channel_identifier.setter
-    def channel_identifier(self, value: builtins.int) -> None:
         r"""
         channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
         """
@@ -1088,48 +699,26 @@ class LegacyConversionBaseline:
     """
     @property
     def baseline(self) -> builtins.int: ...
-    @baseline.setter
-    def baseline(self, value: builtins.int) -> None: ...
     @property
     def ant1(self) -> builtins.int: ...
-    @ant1.setter
-    def ant1(self, value: builtins.int) -> None: ...
     @property
     def ant2(self) -> builtins.int: ...
-    @ant2.setter
-    def ant2(self, value: builtins.int) -> None: ...
     @property
     def xx_index(self) -> builtins.int: ...
-    @xx_index.setter
-    def xx_index(self, value: builtins.int) -> None: ...
     @property
     def xx_conjugate(self) -> builtins.bool: ...
-    @xx_conjugate.setter
-    def xx_conjugate(self, value: builtins.bool) -> None: ...
     @property
     def xy_index(self) -> builtins.int: ...
-    @xy_index.setter
-    def xy_index(self, value: builtins.int) -> None: ...
     @property
     def xy_conjugate(self) -> builtins.bool: ...
-    @xy_conjugate.setter
-    def xy_conjugate(self, value: builtins.bool) -> None: ...
     @property
     def yx_index(self) -> builtins.int: ...
-    @yx_index.setter
-    def yx_index(self, value: builtins.int) -> None: ...
     @property
     def yx_conjugate(self) -> builtins.bool: ...
-    @yx_conjugate.setter
-    def yx_conjugate(self, value: builtins.bool) -> None: ...
     @property
     def yy_index(self) -> builtins.int: ...
-    @yy_index.setter
-    def yy_index(self, value: builtins.int) -> None: ...
     @property
     def yy_conjugate(self) -> builtins.bool: ...
-    @yy_conjugate.setter
-    def yy_conjugate(self, value: builtins.bool) -> None: ...
 
 @typing.final
 class MetafitsContext:
@@ -1141,18 +730,8 @@ class MetafitsContext:
         r"""
         mwa version
         """
-    @mwa_version.setter
-    def mwa_version(self, value: MWAVersion | None) -> None:
-        r"""
-        mwa version
-        """
     @property
     def obs_id(self) -> builtins.int:
-        r"""
-        Observation id
-        """
-    @obs_id.setter
-    def obs_id(self, value: builtins.int) -> None:
         r"""
         Observation id
         """
@@ -1161,18 +740,8 @@ class MetafitsContext:
         r"""
         Scheduled start (gps time) of observation
         """
-    @sched_start_gps_time_ms.setter
-    def sched_start_gps_time_ms(self, value: builtins.int) -> None:
-        r"""
-        Scheduled start (gps time) of observation
-        """
     @property
     def sched_end_gps_time_ms(self) -> builtins.int:
-        r"""
-        Scheduled end (gps time) of observation
-        """
-    @sched_end_gps_time_ms.setter
-    def sched_end_gps_time_ms(self, value: builtins.int) -> None:
         r"""
         Scheduled end (gps time) of observation
         """
@@ -1181,18 +750,8 @@ class MetafitsContext:
         r"""
         Scheduled start (UNIX time) of observation
         """
-    @sched_start_unix_time_ms.setter
-    def sched_start_unix_time_ms(self, value: builtins.int) -> None:
-        r"""
-        Scheduled start (UNIX time) of observation
-        """
     @property
     def sched_end_unix_time_ms(self) -> builtins.int:
-        r"""
-        Scheduled end (UNIX time) of observation
-        """
-    @sched_end_unix_time_ms.setter
-    def sched_end_unix_time_ms(self, value: builtins.int) -> None:
         r"""
         Scheduled end (UNIX time) of observation
         """
@@ -1201,18 +760,8 @@ class MetafitsContext:
         r"""
         Scheduled start (UTC) of observation
         """
-    @sched_start_utc.setter
-    def sched_start_utc(self, value: datetime.datetime) -> None:
-        r"""
-        Scheduled start (UTC) of observation
-        """
     @property
     def sched_end_utc(self) -> datetime.datetime:
-        r"""
-        Scheduled end (UTC) of observation
-        """
-    @sched_end_utc.setter
-    def sched_end_utc(self, value: datetime.datetime) -> None:
         r"""
         Scheduled end (UTC) of observation
         """
@@ -1221,28 +770,13 @@ class MetafitsContext:
         r"""
         Scheduled start (MJD) of observation
         """
-    @sched_start_mjd.setter
-    def sched_start_mjd(self, value: builtins.float) -> None:
-        r"""
-        Scheduled start (MJD) of observation
-        """
     @property
     def sched_end_mjd(self) -> builtins.float:
         r"""
         Scheduled end (MJD) of observation
         """
-    @sched_end_mjd.setter
-    def sched_end_mjd(self, value: builtins.float) -> None:
-        r"""
-        Scheduled end (MJD) of observation
-        """
     @property
     def sched_duration_ms(self) -> builtins.int:
-        r"""
-        Scheduled duration of observation
-        """
-    @sched_duration_ms.setter
-    def sched_duration_ms(self, value: builtins.int) -> None:
         r"""
         Scheduled duration of observation
         """
@@ -1252,19 +786,8 @@ class MetafitsContext:
         DUT1 (i.e. UTC-UT1). The UTC of the obsid is used to determine this
         value. Calculated by astropy. Made optional for compatibility.
         """
-    @dut1.setter
-    def dut1(self, value: builtins.float | None) -> None:
-        r"""
-        DUT1 (i.e. UTC-UT1). The UTC of the obsid is used to determine this
-        value. Calculated by astropy. Made optional for compatibility.
-        """
     @property
     def ra_tile_pointing_degrees(self) -> builtins.float:
-        r"""
-        RA tile pointing
-        """
-    @ra_tile_pointing_degrees.setter
-    def ra_tile_pointing_degrees(self, value: builtins.float) -> None:
         r"""
         RA tile pointing
         """
@@ -1273,18 +796,8 @@ class MetafitsContext:
         r"""
         DEC tile pointing
         """
-    @dec_tile_pointing_degrees.setter
-    def dec_tile_pointing_degrees(self, value: builtins.float) -> None:
-        r"""
-        DEC tile pointing
-        """
     @property
     def ra_phase_center_degrees(self) -> builtins.float | None:
-        r"""
-        RA phase centre
-        """
-    @ra_phase_center_degrees.setter
-    def ra_phase_center_degrees(self, value: builtins.float | None) -> None:
         r"""
         RA phase centre
         """
@@ -1293,18 +806,8 @@ class MetafitsContext:
         r"""
         DEC phase centre
         """
-    @dec_phase_center_degrees.setter
-    def dec_phase_center_degrees(self, value: builtins.float | None) -> None:
-        r"""
-        DEC phase centre
-        """
     @property
     def az_deg(self) -> builtins.float:
-        r"""
-        AZIMUTH of the pointing centre in degrees
-        """
-    @az_deg.setter
-    def az_deg(self, value: builtins.float) -> None:
         r"""
         AZIMUTH of the pointing centre in degrees
         """
@@ -1313,18 +816,8 @@ class MetafitsContext:
         r"""
         ALTITUDE (a.k.a. elevation) of the pointing centre in degrees
         """
-    @alt_deg.setter
-    def alt_deg(self, value: builtins.float) -> None:
-        r"""
-        ALTITUDE (a.k.a. elevation) of the pointing centre in degrees
-        """
     @property
     def za_deg(self) -> builtins.float:
-        r"""
-        Zenith angle of the pointing centre in degrees
-        """
-    @za_deg.setter
-    def za_deg(self, value: builtins.float) -> None:
         r"""
         Zenith angle of the pointing centre in degrees
         """
@@ -1333,18 +826,8 @@ class MetafitsContext:
         r"""
         AZIMUTH of the pointing centre in radians
         """
-    @az_rad.setter
-    def az_rad(self, value: builtins.float) -> None:
-        r"""
-        AZIMUTH of the pointing centre in radians
-        """
     @property
     def alt_rad(self) -> builtins.float:
-        r"""
-        ALTITUDE (a.k.a. elevation) of the pointing centre in radians
-        """
-    @alt_rad.setter
-    def alt_rad(self, value: builtins.float) -> None:
         r"""
         ALTITUDE (a.k.a. elevation) of the pointing centre in radians
         """
@@ -1353,18 +836,8 @@ class MetafitsContext:
         r"""
         Zenith angle of the pointing centre in radians
         """
-    @za_rad.setter
-    def za_rad(self, value: builtins.float) -> None:
-        r"""
-        Zenith angle of the pointing centre in radians
-        """
     @property
     def sun_alt_deg(self) -> builtins.float | None:
-        r"""
-        Altitude of Sun
-        """
-    @sun_alt_deg.setter
-    def sun_alt_deg(self, value: builtins.float | None) -> None:
         r"""
         Altitude of Sun
         """
@@ -1373,18 +846,8 @@ class MetafitsContext:
         r"""
         Distance from pointing center to Sun
         """
-    @sun_distance_deg.setter
-    def sun_distance_deg(self, value: builtins.float | None) -> None:
-        r"""
-        Distance from pointing center to Sun
-        """
     @property
     def moon_distance_deg(self) -> builtins.float | None:
-        r"""
-        Distance from pointing center to the Moon
-        """
-    @moon_distance_deg.setter
-    def moon_distance_deg(self, value: builtins.float | None) -> None:
         r"""
         Distance from pointing center to the Moon
         """
@@ -1393,18 +856,8 @@ class MetafitsContext:
         r"""
         Distance from pointing center to Jupiter
         """
-    @jupiter_distance_deg.setter
-    def jupiter_distance_deg(self, value: builtins.float | None) -> None:
-        r"""
-        Distance from pointing center to Jupiter
-        """
     @property
     def lst_deg(self) -> builtins.float:
-        r"""
-        Local Sidereal Time in degrees (at the midpoint of the observation)
-        """
-    @lst_deg.setter
-    def lst_deg(self, value: builtins.float) -> None:
         r"""
         Local Sidereal Time in degrees (at the midpoint of the observation)
         """
@@ -1413,18 +866,8 @@ class MetafitsContext:
         r"""
         Local Sidereal Time in radians (at the midpoint of the observation)
         """
-    @lst_rad.setter
-    def lst_rad(self, value: builtins.float) -> None:
-        r"""
-        Local Sidereal Time in radians (at the midpoint of the observation)
-        """
     @property
     def hour_angle_string(self) -> builtins.str:
-        r"""
-        Hour Angle of pointing center (as a string)
-        """
-    @hour_angle_string.setter
-    def hour_angle_string(self, value: builtins.str) -> None:
         r"""
         Hour Angle of pointing center (as a string)
         """
@@ -1433,18 +876,8 @@ class MetafitsContext:
         r"""
         GRIDNAME
         """
-    @grid_name.setter
-    def grid_name(self, value: builtins.str) -> None:
-        r"""
-        GRIDNAME
-        """
     @property
     def grid_number(self) -> builtins.int:
-        r"""
-        GRIDNUM
-        """
-    @grid_number.setter
-    def grid_number(self, value: builtins.int) -> None:
         r"""
         GRIDNUM
         """
@@ -1453,18 +886,8 @@ class MetafitsContext:
         r"""
         CREATOR
         """
-    @creator.setter
-    def creator(self, value: builtins.str) -> None:
-        r"""
-        CREATOR
-        """
     @property
     def project_id(self) -> builtins.str:
-        r"""
-        PROJECT
-        """
-    @project_id.setter
-    def project_id(self, value: builtins.str) -> None:
         r"""
         PROJECT
         """
@@ -1473,18 +896,8 @@ class MetafitsContext:
         r"""
         Observation name
         """
-    @obs_name.setter
-    def obs_name(self, value: builtins.str) -> None:
-        r"""
-        Observation name
-        """
     @property
     def mode(self) -> MWAMode:
-        r"""
-        MWA observation mode
-        """
-    @mode.setter
-    def mode(self, value: MWAMode) -> None:
         r"""
         MWA observation mode
         """
@@ -1494,19 +907,8 @@ class MetafitsContext:
         The MWAX real-time correction mode applied by the correlator (DELAYMOD).
         `None` for older observations where the key is not present.
         """
-    @delay_mode.setter
-    def delay_mode(self, value: DelayMode | None) -> None:
-        r"""
-        The MWAX real-time correction mode applied by the correlator (DELAYMOD).
-        `None` for older observations where the key is not present.
-        """
     @property
     def geometric_delays_applied(self) -> GeometricDelaysApplied:
-        r"""
-        Which Geometric delays have been applied to the data by the correlator?
-        """
-    @geometric_delays_applied.setter
-    def geometric_delays_applied(self, value: GeometricDelaysApplied) -> None:
         r"""
         Which Geometric delays have been applied to the data by the correlator?
         """
@@ -1515,28 +917,13 @@ class MetafitsContext:
         r"""
         Have cable delays been applied to the data by the correlator?
         """
-    @cable_delays_applied.setter
-    def cable_delays_applied(self, value: CableDelaysApplied) -> None:
-        r"""
-        Have cable delays been applied to the data by the correlator?
-        """
     @property
     def calibration_delays_and_gains_applied(self) -> builtins.bool:
         r"""
         Have calibration delays and gains been applied to the data by the correlator?
         """
-    @calibration_delays_and_gains_applied.setter
-    def calibration_delays_and_gains_applied(self, value: builtins.bool) -> None:
-        r"""
-        Have calibration delays and gains been applied to the data by the correlator?
-        """
     @property
     def signal_chain_corrections_applied(self) -> builtins.bool:
-        r"""
-        Have signal chain corrections been applied to the data by the correlator?
-        """
-    @signal_chain_corrections_applied.setter
-    def signal_chain_corrections_applied(self, value: builtins.bool) -> None:
         r"""
         Have signal chain corrections been applied to the data by the correlator?
         """
@@ -1546,20 +933,8 @@ class MetafitsContext:
         Has the correlator divided the data stream by the appropriate digital gain
         value for each tile and coarse channel (DGAINS)?
         """
-    @digital_gains_applied.setter
-    def digital_gains_applied(self, value: builtins.bool) -> None:
-        r"""
-        Has the correlator divided the data stream by the appropriate digital gain
-        value for each tile and coarse channel (DGAINS)?
-        """
     @property
     def delay_mode_description(self) -> builtins.str | None:
-        r"""
-        Human readable description of the correlator delay mode (DELDESC).
-        `None` for older observations where the key is not present.
-        """
-    @delay_mode_description.setter
-    def delay_mode_description(self, value: builtins.str | None) -> None:
         r"""
         Human readable description of the correlator delay mode (DELDESC).
         `None` for older observations where the key is not present.
@@ -1572,22 +947,8 @@ class MetafitsContext:
         to the correlator delay mode fields above. When this is `Some`, all of the
         other `bf_` delay fields are also `Some`.
         """
-    @bf_delay_mode.setter
-    def bf_delay_mode(self, value: DelayMode | None) -> None:
-        r"""
-        The MWAX beamformer real-time correction mode (BDELMOD).
-        `None` if the key is not present, in which case callers should fall back
-        to the correlator delay mode fields above. When this is `Some`, all of the
-        other `bf_` delay fields are also `Some`.
-        """
     @property
     def bf_geometric_delays_applied(self) -> GeometricDelaysApplied | None:
-        r"""
-        Which Geometric delays have been applied to the data by the beamformer (BGEODEL)?
-        Expected to be `AzElTracking` for beamformer observations.
-        """
-    @bf_geometric_delays_applied.setter
-    def bf_geometric_delays_applied(self, value: GeometricDelaysApplied | None) -> None:
         r"""
         Which Geometric delays have been applied to the data by the beamformer (BGEODEL)?
         Expected to be `AzElTracking` for beamformer observations.
@@ -1599,32 +960,14 @@ class MetafitsContext:
         Expected to be `CableAndRecClock` (or in future
         `CableAndRecClockAndBeamformerDipoleDelays`) for beamformer observations.
         """
-    @bf_cable_delays_applied.setter
-    def bf_cable_delays_applied(self, value: CableDelaysApplied | None) -> None:
-        r"""
-        Have cable delays been applied to the data by the beamformer (BCABDEL)?
-        Expected to be `CableAndRecClock` (or in future
-        `CableAndRecClockAndBeamformerDipoleDelays`) for beamformer observations.
-        """
     @property
     def bf_calibration_delays_and_gains_applied(self) -> builtins.bool | None:
         r"""
         Have calibration delays and gains been applied to the data by the beamformer
         (BCALDEL)? Expected to be `true` for beamformer observations.
         """
-    @bf_calibration_delays_and_gains_applied.setter
-    def bf_calibration_delays_and_gains_applied(self, value: builtins.bool | None) -> None:
-        r"""
-        Have calibration delays and gains been applied to the data by the beamformer
-        (BCALDEL)? Expected to be `true` for beamformer observations.
-        """
     @property
     def bf_signal_chain_corrections_applied(self) -> builtins.bool | None:
-        r"""
-        Have signal chain corrections been applied to the data by the beamformer (BSIGDEL)?
-        """
-    @bf_signal_chain_corrections_applied.setter
-    def bf_signal_chain_corrections_applied(self, value: builtins.bool | None) -> None:
         r"""
         Have signal chain corrections been applied to the data by the beamformer (BSIGDEL)?
         """
@@ -1635,20 +978,8 @@ class MetafitsContext:
         value for each tile and coarse channel (BDGAINS)? Expected to be `true` for
         beamformer observations.
         """
-    @bf_digital_gains_applied.setter
-    def bf_digital_gains_applied(self, value: builtins.bool | None) -> None:
-        r"""
-        Has the beamformer divided the data stream by the appropriate digital gain
-        value for each tile and coarse channel (BDGAINS)? Expected to be `true` for
-        beamformer observations.
-        """
     @property
     def bf_delay_mode_description(self) -> builtins.str | None:
-        r"""
-        Human readable description of the beamformer delay mode (BDELDESC).
-        """
-    @bf_delay_mode_description.setter
-    def bf_delay_mode_description(self, value: builtins.str | None) -> None:
         r"""
         Human readable description of the beamformer delay mode (BDELDESC).
         """
@@ -1657,18 +988,8 @@ class MetafitsContext:
         r"""
         Correlator fine_chan_resolution
         """
-    @corr_fine_chan_width_hz.setter
-    def corr_fine_chan_width_hz(self, value: builtins.int) -> None:
-        r"""
-        Correlator fine_chan_resolution
-        """
     @property
     def corr_int_time_ms(self) -> builtins.int:
-        r"""
-        Correlator mode dump time
-        """
-    @corr_int_time_ms.setter
-    def corr_int_time_ms(self, value: builtins.int) -> None:
         r"""
         Correlator mode dump time
         """
@@ -1677,18 +998,8 @@ class MetafitsContext:
         r"""
         Correlator visibility scaling factor used to get the visibilities in Jansky-like units
         """
-    @corr_raw_scale_factor.setter
-    def corr_raw_scale_factor(self, value: builtins.float) -> None:
-        r"""
-        Correlator visibility scaling factor used to get the visibilities in Jansky-like units
-        """
     @property
     def num_corr_fine_chans_per_coarse(self) -> builtins.int:
-        r"""
-        Number of fine channels in each coarse channel for a correlator observation
-        """
-    @num_corr_fine_chans_per_coarse.setter
-    def num_corr_fine_chans_per_coarse(self, value: builtins.int) -> None:
         r"""
         Number of fine channels in each coarse channel for a correlator observation
         """
@@ -1697,18 +1008,8 @@ class MetafitsContext:
         r"""
         Voltage fine_chan_resolution
         """
-    @volt_fine_chan_width_hz.setter
-    def volt_fine_chan_width_hz(self, value: builtins.int) -> None:
-        r"""
-        Voltage fine_chan_resolution
-        """
     @property
     def num_volt_fine_chans_per_coarse(self) -> builtins.int:
-        r"""
-        Number of fine channels in each coarse channel for a voltage observation
-        """
-    @num_volt_fine_chans_per_coarse.setter
-    def num_volt_fine_chans_per_coarse(self, value: builtins.int) -> None:
         r"""
         Number of fine channels in each coarse channel for a voltage observation
         """
@@ -1717,18 +1018,8 @@ class MetafitsContext:
         r"""
         Array of receiver numbers
         """
-    @receivers.setter
-    def receivers(self, value: typing.Sequence[builtins.int]) -> None:
-        r"""
-        Array of receiver numbers
-        """
     @property
     def num_receivers(self) -> builtins.int:
-        r"""
-        Number of recievers
-        """
-    @num_receivers.setter
-    def num_receivers(self, value: builtins.int) -> None:
         r"""
         Number of recievers
         """
@@ -1737,18 +1028,8 @@ class MetafitsContext:
         r"""
         Array of beamformer delays
         """
-    @delays.setter
-    def delays(self, value: typing.Sequence[builtins.int]) -> None:
-        r"""
-        Array of beamformer delays
-        """
     @property
     def num_delays(self) -> builtins.int:
-        r"""
-        Number of beamformer delays
-        """
-    @num_delays.setter
-    def num_delays(self, value: builtins.int) -> None:
         r"""
         Number of beamformer delays
         """
@@ -1757,18 +1038,8 @@ class MetafitsContext:
         r"""
         Intended for calibration
         """
-    @calibrator.setter
-    def calibrator(self, value: builtins.bool) -> None:
-        r"""
-        Intended for calibration
-        """
     @property
     def calibrator_source(self) -> builtins.str:
-        r"""
-        Calibrator source
-        """
-    @calibrator_source.setter
-    def calibrator_source(self, value: builtins.str) -> None:
         r"""
         Calibrator source
         """
@@ -1777,18 +1048,8 @@ class MetafitsContext:
         r"""
         ATTEN_DB  // global analogue attenuation, in dB
         """
-    @global_analogue_attenuation_db.setter
-    def global_analogue_attenuation_db(self, value: builtins.float) -> None:
-        r"""
-        ATTEN_DB  // global analogue attenuation, in dB
-        """
     @property
     def quack_time_duration_ms(self) -> builtins.int:
-        r"""
-        Seconds of bad data after observation starts
-        """
-    @quack_time_duration_ms.setter
-    def quack_time_duration_ms(self, value: builtins.int) -> None:
         r"""
         Seconds of bad data after observation starts
         """
@@ -1797,18 +1058,8 @@ class MetafitsContext:
         r"""
         OBSID+QUACKTIM as Unix timestamp (first good timestep)
         """
-    @good_time_unix_ms.setter
-    def good_time_unix_ms(self, value: builtins.int) -> None:
-        r"""
-        OBSID+QUACKTIM as Unix timestamp (first good timestep)
-        """
     @property
     def good_time_gps_ms(self) -> builtins.int:
-        r"""
-        Good time expressed in GPS seconds
-        """
-    @good_time_gps_ms.setter
-    def good_time_gps_ms(self, value: builtins.int) -> None:
         r"""
         Good time expressed in GPS seconds
         """
@@ -1817,18 +1068,8 @@ class MetafitsContext:
         r"""
         Total number of antennas (tiles) in the array
         """
-    @num_ants.setter
-    def num_ants(self, value: builtins.int) -> None:
-        r"""
-        Total number of antennas (tiles) in the array
-        """
     @property
     def antennas(self) -> builtins.list[Antenna]:
-        r"""
-        We also have just the antennas
-        """
-    @antennas.setter
-    def antennas(self, value: typing.Sequence[Antenna]) -> None:
         r"""
         We also have just the antennas
         """
@@ -1837,18 +1078,8 @@ class MetafitsContext:
         r"""
         Total number of rf_inputs (tiles * 2 pols X&Y)
         """
-    @num_rf_inputs.setter
-    def num_rf_inputs(self, value: builtins.int) -> None:
-        r"""
-        Total number of rf_inputs (tiles * 2 pols X&Y)
-        """
     @property
     def rf_inputs(self) -> builtins.list[Rfinput]:
-        r"""
-        The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
-        """
-    @rf_inputs.setter
-    def rf_inputs(self, value: typing.Sequence[Rfinput]) -> None:
         r"""
         The Metafits defines an rf chain for antennas(tiles) * pol(X,Y)
         """
@@ -1857,18 +1088,8 @@ class MetafitsContext:
         r"""
         Number of antenna pols. e.g. X and Y
         """
-    @num_ant_pols.setter
-    def num_ant_pols(self, value: builtins.int) -> None:
-        r"""
-        Number of antenna pols. e.g. X and Y
-        """
     @property
     def num_metafits_timesteps(self) -> builtins.int:
-        r"""
-        Number of timesteps defined in the metafits file
-        """
-    @num_metafits_timesteps.setter
-    def num_metafits_timesteps(self, value: builtins.int) -> None:
         r"""
         Number of timesteps defined in the metafits file
         """
@@ -1877,18 +1098,8 @@ class MetafitsContext:
         r"""
         Vector of timesteps based on the metafits file
         """
-    @metafits_timesteps.setter
-    def metafits_timesteps(self, value: typing.Sequence[TimeStep]) -> None:
-        r"""
-        Vector of timesteps based on the metafits file
-        """
     @property
     def num_metafits_coarse_chans(self) -> builtins.int:
-        r"""
-        Number of coarse channels based on the metafits file
-        """
-    @num_metafits_coarse_chans.setter
-    def num_metafits_coarse_chans(self, value: builtins.int) -> None:
         r"""
         Number of coarse channels based on the metafits file
         """
@@ -1897,18 +1108,8 @@ class MetafitsContext:
         r"""
         Vector of coarse channels based on the metafits file
         """
-    @metafits_coarse_chans.setter
-    def metafits_coarse_chans(self, value: typing.Sequence[CoarseChannel]) -> None:
-        r"""
-        Vector of coarse channels based on the metafits file
-        """
     @property
     def num_metafits_fine_chan_freqs(self) -> builtins.int:
-        r"""
-        Number of fine channels for the whole observation
-        """
-    @num_metafits_fine_chan_freqs.setter
-    def num_metafits_fine_chan_freqs(self, value: builtins.int) -> None:
         r"""
         Number of fine channels for the whole observation
         """
@@ -1917,18 +1118,8 @@ class MetafitsContext:
         r"""
         Vector of fine channel frequencies for the whole observation
         """
-    @metafits_fine_chan_freqs_hz.setter
-    def metafits_fine_chan_freqs_hz(self, value: typing.Sequence[builtins.float]) -> None:
-        r"""
-        Vector of fine channel frequencies for the whole observation
-        """
     @property
     def obs_bandwidth_hz(self) -> builtins.int:
-        r"""
-        Total bandwidth of observation assuming we have all coarse channels
-        """
-    @obs_bandwidth_hz.setter
-    def obs_bandwidth_hz(self, value: builtins.int) -> None:
         r"""
         Total bandwidth of observation assuming we have all coarse channels
         """
@@ -1937,18 +1128,8 @@ class MetafitsContext:
         r"""
         Bandwidth of each coarse channel
         """
-    @coarse_chan_width_hz.setter
-    def coarse_chan_width_hz(self, value: builtins.int) -> None:
-        r"""
-        Bandwidth of each coarse channel
-        """
     @property
     def centre_freq_hz(self) -> builtins.int:
-        r"""
-        The value of the FREQCENT key in the metafits file, but in Hz.
-        """
-    @centre_freq_hz.setter
-    def centre_freq_hz(self, value: builtins.int) -> None:
         r"""
         The value of the FREQCENT key in the metafits file, but in Hz.
         """
@@ -1957,18 +1138,8 @@ class MetafitsContext:
         r"""
         Number of baselines stored. This is autos plus cross correlations
         """
-    @num_baselines.setter
-    def num_baselines(self, value: builtins.int) -> None:
-        r"""
-        Number of baselines stored. This is autos plus cross correlations
-        """
     @property
     def baselines(self) -> builtins.list[Baseline]:
-        r"""
-        Baslines
-        """
-    @baselines.setter
-    def baselines(self, value: typing.Sequence[Baseline]) -> None:
         r"""
         Baslines
         """
@@ -1977,18 +1148,8 @@ class MetafitsContext:
         r"""
         Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
         """
-    @num_visibility_pols.setter
-    def num_visibility_pols(self, value: builtins.int) -> None:
-        r"""
-        Number of polarisation combinations in the visibilities e.g. XX,XY,YX,YY == 4
-        """
     @property
     def metafits_filename(self) -> builtins.str:
-        r"""
-        Filename of the metafits we were given
-        """
-    @metafits_filename.setter
-    def metafits_filename(self, value: builtins.str) -> None:
         r"""
         Filename of the metafits we were given
         """
@@ -1997,18 +1158,8 @@ class MetafitsContext:
         r"""
         Was this observation using oversampled coarse channels?
         """
-    @oversampled.setter
-    def oversampled(self, value: builtins.bool) -> None:
-        r"""
-        Was this observation using oversampled coarse channels?
-        """
     @property
     def deripple_applied(self) -> builtins.bool:
-        r"""
-        Was deripple applied to this observation?
-        """
-    @deripple_applied.setter
-    def deripple_applied(self, value: builtins.bool) -> None:
         r"""
         Was deripple applied to this observation?
         """
@@ -2018,19 +1169,8 @@ class MetafitsContext:
         What was the configured deripple_param?
         If deripple_applied is False then this deripple param was not applied
         """
-    @deripple_param.setter
-    def deripple_param(self, value: builtins.str) -> None:
-        r"""
-        What was the configured deripple_param?
-        If deripple_applied is False then this deripple param was not applied
-        """
     @property
     def best_cal_fit_id(self) -> builtins.int | None:
-        r"""
-        Best calibration fit ID
-        """
-    @best_cal_fit_id.setter
-    def best_cal_fit_id(self, value: builtins.int | None) -> None:
         r"""
         Best calibration fit ID
         """
@@ -2039,18 +1179,8 @@ class MetafitsContext:
         r"""
         Best calibration observation ID
         """
-    @best_cal_obs_id.setter
-    def best_cal_obs_id(self, value: builtins.int | None) -> None:
-        r"""
-        Best calibration observation ID
-        """
     @property
     def best_cal_code_ver(self) -> builtins.str | None:
-        r"""
-        Best calibration fit code version
-        """
-    @best_cal_code_ver.setter
-    def best_cal_code_ver(self, value: builtins.str | None) -> None:
         r"""
         Best calibration fit code version
         """
@@ -2059,18 +1189,8 @@ class MetafitsContext:
         r"""
         Best calibration fit timestamp
         """
-    @best_cal_fit_timestamp.setter
-    def best_cal_fit_timestamp(self, value: builtins.str | None) -> None:
-        r"""
-        Best calibration fit timestamp
-        """
     @property
     def best_cal_creator(self) -> builtins.str | None:
-        r"""
-        Best calibration fit creator
-        """
-    @best_cal_creator.setter
-    def best_cal_creator(self, value: builtins.str | None) -> None:
         r"""
         Best calibration fit creator
         """
@@ -2079,18 +1199,8 @@ class MetafitsContext:
         r"""
         Best calibration fit iterations
         """
-    @best_cal_fit_iters.setter
-    def best_cal_fit_iters(self, value: builtins.int | None) -> None:
-        r"""
-        Best calibration fit iterations
-        """
     @property
     def best_cal_fit_iter_limit(self) -> builtins.int | None:
-        r"""
-        Best calibration fit iteration limit
-        """
-    @best_cal_fit_iter_limit.setter
-    def best_cal_fit_iter_limit(self, value: builtins.int | None) -> None:
         r"""
         Best calibration fit iteration limit
         """
@@ -2099,18 +1209,8 @@ class MetafitsContext:
         r"""
         Signal Chain corrections
         """
-    @signal_chain_corrections.setter
-    def signal_chain_corrections(self, value: typing.Sequence[SignalChainCorrection] | None) -> None:
-        r"""
-        Signal Chain corrections
-        """
     @property
     def num_signal_chain_corrections(self) -> builtins.int:
-        r"""
-        Number of Signal Chain corrections
-        """
-    @num_signal_chain_corrections.setter
-    def num_signal_chain_corrections(self, value: builtins.int) -> None:
         r"""
         Number of Signal Chain corrections
         """
@@ -2119,18 +1219,8 @@ class MetafitsContext:
         r"""
         Calibration fits
         """
-    @calibration_fits.setter
-    def calibration_fits(self, value: typing.Sequence[CalibrationFit] | None) -> None:
-        r"""
-        Calibration fits
-        """
     @property
     def num_calibration_fits(self) -> builtins.int:
-        r"""
-        Number of calibration fits
-        """
-    @num_calibration_fits.setter
-    def num_calibration_fits(self, value: builtins.int) -> None:
         r"""
         Number of calibration fits
         """
@@ -2139,18 +1229,8 @@ class MetafitsContext:
         r"""
         Beamformer beams
         """
-    @metafits_voltage_beams.setter
-    def metafits_voltage_beams(self, value: typing.Sequence[VoltageBeam] | None) -> None:
-        r"""
-        Beamformer beams
-        """
     @property
     def num_metafits_voltage_beams(self) -> builtins.int:
-        r"""
-        Number of beamformer beams defined in this observation
-        """
-    @num_metafits_voltage_beams.setter
-    def num_metafits_voltage_beams(self, value: builtins.int) -> None:
         r"""
         Number of beamformer beams defined in this observation
         """
@@ -2159,18 +1239,8 @@ class MetafitsContext:
         r"""
         Number of coherent beamformer beams defined in this observation
         """
-    @num_metafits_coherent_beams.setter
-    def num_metafits_coherent_beams(self, value: builtins.int) -> None:
-        r"""
-        Number of coherent beamformer beams defined in this observation
-        """
     @property
     def num_metafits_incoherent_beams(self) -> builtins.int:
-        r"""
-        Number of incoherent beamformer beams defined in this observation
-        """
-    @num_metafits_incoherent_beams.setter
-    def num_metafits_incoherent_beams(self, value: builtins.int) -> None:
         r"""
         Number of incoherent beamformer beams defined in this observation
         """
@@ -2201,21 +1271,8 @@ class Rfinput:
         r"""
         This is the metafits order (0-n inputs)
         """
-    @input.setter
-    def input(self, value: builtins.int) -> None:
-        r"""
-        This is the metafits order (0-n inputs)
-        """
     @property
     def ant(self) -> builtins.int:
-        r"""
-        This is the antenna number.
-        Nominally this is the field we sort by to get the desired output order of antenna.
-        X and Y have the same antenna number. This is the sorted ordinal order of the antenna.None
-        e.g. 0...N-1
-        """
-    @ant.setter
-    def ant(self, value: builtins.int) -> None:
         r"""
         This is the antenna number.
         Nominally this is the field we sort by to get the desired output order of antenna.
@@ -2228,20 +1285,8 @@ class Rfinput:
         Numeric part of tile_name for the antenna. Each pol has the same value
         e.g. tile_name "tile011" hsa tile_id of 11
         """
-    @tile_id.setter
-    def tile_id(self, value: builtins.int) -> None:
-        r"""
-        Numeric part of tile_name for the antenna. Each pol has the same value
-        e.g. tile_name "tile011" hsa tile_id of 11
-        """
     @property
     def tile_name(self) -> builtins.str:
-        r"""
-        Human readable name of the antenna
-        X and Y have the same name
-        """
-    @tile_name.setter
-    def tile_name(self, value: builtins.str) -> None:
         r"""
         Human readable name of the antenna
         X and Y have the same name
@@ -2251,18 +1296,8 @@ class Rfinput:
         r"""
         Polarisation - X or Y
         """
-    @pol.setter
-    def pol(self, value: Pol) -> None:
-        r"""
-        Polarisation - X or Y
-        """
     @property
     def electrical_length_m(self) -> builtins.float:
-        r"""
-        Electrical length in metres for this antenna and polarisation to the receiver
-        """
-    @electrical_length_m.setter
-    def electrical_length_m(self, value: builtins.float) -> None:
         r"""
         Electrical length in metres for this antenna and polarisation to the receiver
         """
@@ -2271,18 +1306,8 @@ class Rfinput:
         r"""
         Antenna position North from the array centre (metres)
         """
-    @north_m.setter
-    def north_m(self, value: builtins.float) -> None:
-        r"""
-        Antenna position North from the array centre (metres)
-        """
     @property
     def east_m(self) -> builtins.float:
-        r"""
-        Antenna position East from the array centre (metres)
-        """
-    @east_m.setter
-    def east_m(self, value: builtins.float) -> None:
         r"""
         Antenna position East from the array centre (metres)
         """
@@ -2291,18 +1316,8 @@ class Rfinput:
         r"""
         Antenna height (metres). See `height_code` for what this value is relative to.
         """
-    @height_m.setter
-    def height_m(self, value: builtins.float) -> None:
-        r"""
-        Antenna height (metres). See `height_code` for what this value is relative to.
-        """
     @property
     def vcs_order(self) -> builtins.int:
-        r"""
-        AKA PFB to correlator input order (only relevant for pre V2 correlator)
-        """
-    @vcs_order.setter
-    def vcs_order(self, value: builtins.int) -> None:
         r"""
         AKA PFB to correlator input order (only relevant for pre V2 correlator)
         """
@@ -2311,30 +1326,13 @@ class Rfinput:
         r"""
         Subfile order is the order in which this rf_input is desired in our final output of data
         """
-    @subfile_order.setter
-    def subfile_order(self, value: builtins.int) -> None:
-        r"""
-        Subfile order is the order in which this rf_input is desired in our final output of data
-        """
     @property
     def flagged(self) -> builtins.bool:
         r"""
         Is this rf_input flagged out (due to tile error, etc from metafits)
         """
-    @flagged.setter
-    def flagged(self, value: builtins.bool) -> None:
-        r"""
-        Is this rf_input flagged out (due to tile error, etc from metafits)
-        """
     @property
     def digital_gains(self) -> builtins.list[builtins.float]:
-        r"""
-        Digital gains
-        metafits digital gains will be divided by 64
-        Digital gains are in mwalib metafits coarse channel order (ascending sky frequency order)
-        """
-    @digital_gains.setter
-    def digital_gains(self, value: typing.Sequence[builtins.float]) -> None:
         r"""
         Digital gains
         metafits digital gains will be divided by 64
@@ -2350,23 +1348,8 @@ class Rfinput:
         reflects that. All other dipoles are assumed to be "live". The values
         are made floats for easy use in beam code.
         """
-    @dipole_gains.setter
-    def dipole_gains(self, value: typing.Sequence[builtins.float]) -> None:
-        r"""
-        Dipole gains.
-        
-        These are either 1 or 0 (on or off), depending on the dipole delay; a
-        dipole delay of 32 corresponds to "dead dipole", so the dipole gain of 0
-        reflects that. All other dipoles are assumed to be "live". The values
-        are made floats for easy use in beam code.
-        """
     @property
     def dipole_delays(self) -> builtins.list[builtins.int]:
-        r"""
-        Dipole delays
-        """
-    @dipole_delays.setter
-    def dipole_delays(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Dipole delays
         """
@@ -2375,18 +1358,8 @@ class Rfinput:
         r"""
         Receiver number
         """
-    @rec_number.setter
-    def rec_number(self, value: builtins.int) -> None:
-        r"""
-        Receiver number
-        """
     @property
     def rec_slot_number(self) -> builtins.int:
-        r"""
-        Receiver slot number
-        """
-    @rec_slot_number.setter
-    def rec_slot_number(self, value: builtins.int) -> None:
         r"""
         Receiver slot number
         """
@@ -2395,18 +1368,8 @@ class Rfinput:
         r"""
         Receiver type
         """
-    @rec_type.setter
-    def rec_type(self, value: ReceiverType) -> None:
-        r"""
-        Receiver type
-        """
     @property
     def flavour(self) -> builtins.str:
-        r"""
-        Cable Flavour
-        """
-    @flavour.setter
-    def flavour(self, value: builtins.str) -> None:
         r"""
         Cable Flavour
         """
@@ -2415,21 +1378,8 @@ class Rfinput:
         r"""
         Has whitening filter (depends on flavour)
         """
-    @has_whitening_filter.setter
-    def has_whitening_filter(self, value: builtins.bool) -> None:
-        r"""
-        Has whitening filter (depends on flavour)
-        """
     @property
     def calib_delay(self) -> builtins.float | None:
-        r"""
-        Calibration delay in meters (if provided)
-        If calibration solution information is not present in the metafits it will be `None`.
-        When calibration solution information is present, some values of `calib_delay` may be NaN.
-        Make sure you understand [how NaNs work in Rust](https://doc.rust-lang.org/std/primitive.f32.html) if you will be using this field!
-        """
-    @calib_delay.setter
-    def calib_delay(self, value: builtins.float | None) -> None:
         r"""
         Calibration delay in meters (if provided)
         If calibration solution information is not present in the metafits it will be `None`.
@@ -2444,14 +1394,6 @@ class Rfinput:
         When calibration solution information is present, some values of `calib_delay` may be NaN.
         Make sure you understand [how NaNs work in Rust](https://doc.rust-lang.org/std/primitive.f32.html) if you will be using this field!
         """
-    @calib_gains.setter
-    def calib_gains(self, value: typing.Sequence[builtins.float] | None) -> None:
-        r"""
-        Calibration gains (vector- 1 per coarse channel) if provided.  Channels are in `MetafitsContext.course_chans` order.
-        If calibration solution information is not present in the metafits it will be `None`.
-        When calibration solution information is present, some values of `calib_delay` may be NaN.
-        Make sure you understand [how NaNs work in Rust](https://doc.rust-lang.org/std/primitive.f32.html) if you will be using this field!
-        """
     @property
     def signal_chain_corrections_index(self) -> builtins.int | None:
         r"""
@@ -2459,22 +1401,8 @@ class Rfinput:
         This is the index into the MetafitsContext.signal_chain_corrections vector, or None if not applicable/not found for the
         receiver type and whitening filter combination
         """
-    @signal_chain_corrections_index.setter
-    def signal_chain_corrections_index(self, value: builtins.int | None) -> None:
-        r"""
-        Signal chain correction index
-        This is the index into the MetafitsContext.signal_chain_corrections vector, or None if not applicable/not found for the
-        receiver type and whitening filter combination
-        """
     @property
     def height_code(self) -> HeightCode:
-        r"""
-        What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
-        If the metafits has no `Height_Code` column, this is `HeightCode::ArrayCentreOffset`, except for Low Band tiles (tile name
-        starts with "LB") which get `HeightCode::EllipsoidHeight`.
-        """
-    @height_code.setter
-    def height_code(self, value: HeightCode) -> None:
         r"""
         What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
         If the metafits has no `Height_Code` column, this is `HeightCode::ArrayCentreOffset`, except for Low Band tiles (tile name
@@ -2491,18 +1419,8 @@ class SignalChainCorrection:
         r"""
         Receiver Type
         """
-    @receiver_type.setter
-    def receiver_type(self, value: ReceiverType) -> None:
-        r"""
-        Receiver Type
-        """
     @property
     def whitening_filter(self) -> builtins.bool:
-        r"""
-        Whitening Filter
-        """
-    @whitening_filter.setter
-    def whitening_filter(self, value: builtins.bool) -> None:
         r"""
         Whitening Filter
         """
@@ -2511,18 +1429,8 @@ class SignalChainCorrection:
         r"""
         Corrections
         """
-    @corrections.setter
-    def corrections(self, value: typing.Sequence[builtins.float]) -> None:
-        r"""
-        Corrections
-        """
     @property
     def num_corrections(self) -> builtins.int:
-        r"""
-        Number of corrections
-        """
-    @num_corrections.setter
-    def num_corrections(self, value: builtins.int) -> None:
         r"""
         Number of corrections
         """
@@ -2538,18 +1446,8 @@ class TimeStep:
         r"""
         UNIX time (in milliseconds to avoid floating point inaccuracy)
         """
-    @unix_time_ms.setter
-    def unix_time_ms(self, value: builtins.int) -> None:
-        r"""
-        UNIX time (in milliseconds to avoid floating point inaccuracy)
-        """
     @property
     def gps_time_ms(self) -> builtins.int:
-        r"""
-        gps time (in milliseconds)
-        """
-    @gps_time_ms.setter
-    def gps_time_ms(self, value: builtins.int) -> None:
         r"""
         gps time (in milliseconds)
         """
@@ -2561,18 +1459,8 @@ class VoltageBeam:
         r"""
         Arbitrary integer identifying this beam
         """
-    @number.setter
-    def number(self, value: builtins.int) -> None:
-        r"""
-        Arbitrary integer identifying this beam
-        """
     @property
     def coherent(self) -> builtins.bool:
-        r"""
-        True if the beam is coherent (has a defined position on the sky), False if incoherent (indicating that all tiles should be summed without phase correction)
-        """
-    @coherent.setter
-    def coherent(self, value: builtins.bool) -> None:
         r"""
         True if the beam is coherent (has a defined position on the sky), False if incoherent (indicating that all tiles should be summed without phase correction)
         """
@@ -2581,36 +1469,17 @@ class VoltageBeam:
         r"""
         azimuth, elevation - for coherent beams, these describe a fixed position relative to the telescope centre (eg, a geosynchronous satellite or ground-based RFI source)
         """
-    @az_deg.setter
-    def az_deg(self, value: builtins.float | None) -> None:
-        r"""
-        azimuth, elevation - for coherent beams, these describe a fixed position relative to the telescope centre (eg, a geosynchronous satellite or ground-based RFI source)
-        """
     @property
     def alt_deg(self) -> builtins.float | None: ...
-    @alt_deg.setter
-    def alt_deg(self, value: builtins.float | None) -> None: ...
     @property
     def ra_deg(self) -> builtins.float | None:
         r"""
         ra, dec - for coherent beams, a fixed source on the sky to track as the Earth rotates.
         """
-    @ra_deg.setter
-    def ra_deg(self, value: builtins.float | None) -> None:
-        r"""
-        ra, dec - for coherent beams, a fixed source on the sky to track as the Earth rotates.
-        """
     @property
     def dec_deg(self) -> builtins.float | None: ...
-    @dec_deg.setter
-    def dec_deg(self, value: builtins.float | None) -> None: ...
     @property
     def tle(self) -> builtins.str | None:
-        r"""
-        tle - for coherent beams, a ‘Two Line Elements’ ephemeris description string for an Earth orbiting satellite.
-        """
-    @tle.setter
-    def tle(self, value: builtins.str | None) -> None:
         r"""
         tle - for coherent beams, a ‘Two Line Elements’ ephemeris description string for an Earth orbiting satellite.
         """
@@ -2619,18 +1488,8 @@ class VoltageBeam:
         r"""
         nsample_avg - number of time samples to average in the output date.
         """
-    @num_time_samples_to_average.setter
-    def num_time_samples_to_average(self, value: builtins.int) -> None:
-        r"""
-        nsample_avg - number of time samples to average in the output date.
-        """
     @property
     def frequency_resolution_hz(self) -> builtins.int:
-        r"""
-        fres_hz - Output frequency resolution, in Hz.
-        """
-    @frequency_resolution_hz.setter
-    def frequency_resolution_hz(self, value: builtins.int) -> None:
         r"""
         fres_hz - Output frequency resolution, in Hz.
         """
@@ -2639,18 +1498,8 @@ class VoltageBeam:
         r"""
         channel_set - list of up to 24 coarse channels to include in the output data. If not present, include all 24 coarse channels.
         """
-    @coarse_channels.setter
-    def coarse_channels(self, value: typing.Sequence[CoarseChannel]) -> None:
-        r"""
-        channel_set - list of up to 24 coarse channels to include in the output data. If not present, include all 24 coarse channels.
-        """
     @property
     def num_coarse_chans(self) -> builtins.int:
-        r"""
-        Number of coarse channels included in this beam
-        """
-    @num_coarse_chans.setter
-    def num_coarse_chans(self, value: builtins.int) -> None:
         r"""
         Number of coarse channels included in this beam
         """
@@ -2659,18 +1508,8 @@ class VoltageBeam:
         r"""
         tileset - Array of antennas which are the tiles used for this beam. Must be the same as, or a subset of, the main observation tileset.
         """
-    @antennas.setter
-    def antennas(self, value: typing.Sequence[Antenna]) -> None:
-        r"""
-        tileset - Array of antennas which are the tiles used for this beam. Must be the same as, or a subset of, the main observation tileset.
-        """
     @property
     def num_ants(self) -> builtins.int:
-        r"""
-        num_antennas - number of antennas / tiles used for this beam
-        """
-    @num_ants.setter
-    def num_ants(self, value: builtins.int) -> None:
         r"""
         num_antennas - number of antennas / tiles used for this beam
         """
@@ -2679,18 +1518,8 @@ class VoltageBeam:
         r"""
         polarisation - string describing the polarisation format in the output data.
         """
-    @polarisation.setter
-    def polarisation(self, value: builtins.str | None) -> None:
-        r"""
-        polarisation - string describing the polarisation format in the output data.
-        """
     @property
     def data_file_type(self) -> DataFileType:
-        r"""
-        data_file_type - integer index into the ‘data_file_types’ database table describing the output format for this beam.
-        """
-    @data_file_type.setter
-    def data_file_type(self, value: DataFileType) -> None:
         r"""
         data_file_type - integer index into the ‘data_file_types’ database table describing the output format for this beam.
         """
@@ -2699,18 +1528,8 @@ class VoltageBeam:
         r"""
         creator - arbitrary string describing the person or script that scheduled this voltage beam.
         """
-    @creator.setter
-    def creator(self, value: builtins.str) -> None:
-        r"""
-        creator - arbitrary string describing the person or script that scheduled this voltage beam.
-        """
     @property
     def modtime(self) -> datetime.datetime:
-        r"""
-        modtime - ISO format timestamp for this voltage beam record.
-        """
-    @modtime.setter
-    def modtime(self, value: datetime.datetime) -> None:
         r"""
         modtime - ISO format timestamp for this voltage beam record.
         """
@@ -2719,18 +1538,8 @@ class VoltageBeam:
         r"""
         beam_index - Starts at zero for the first coherent beam in this observation, and increments by one for each coherent beam. Used to index into the BeamAltAz
         """
-    @beam_index.setter
-    def beam_index(self, value: builtins.int | None) -> None:
-        r"""
-        beam_index - Starts at zero for the first coherent beam in this observation, and increments by one for each coherent beam. Used to index into the BeamAltAz
-        """
     @property
     def target_name(self) -> builtins.str | None:
-        r"""
-        target_name - optional name for the target of this beam
-        """
-    @target_name.setter
-    def target_name(self, value: builtins.str | None) -> None:
         r"""
         target_name - optional name for the target of this beam
         """
@@ -2739,18 +1548,8 @@ class VoltageBeam:
         r"""
         RA at the start of the observation
         """
-    @start_ra_deg.setter
-    def start_ra_deg(self, value: builtins.float | None) -> None:
-        r"""
-        RA at the start of the observation
-        """
     @property
     def start_dec_deg(self) -> builtins.float | None:
-        r"""
-        Dec at the start of the observation
-        """
-    @start_dec_deg.setter
-    def start_dec_deg(self, value: builtins.float | None) -> None:
         r"""
         Dec at the start of the observation
         """
@@ -2759,18 +1558,8 @@ class VoltageBeam:
         r"""
         Azimuth at the start of the observation
         """
-    @start_az_deg.setter
-    def start_az_deg(self, value: builtins.float | None) -> None:
-        r"""
-        Azimuth at the start of the observation
-        """
     @property
     def start_alt_deg(self) -> builtins.float | None:
-        r"""
-        Altitude at the start of the observation
-        """
-    @start_alt_deg.setter
-    def start_alt_deg(self, value: builtins.float | None) -> None:
         r"""
         Altitude at the start of the observation
         """
@@ -2785,18 +1574,8 @@ class VoltageContext:
         r"""
         Observation Metadata obtained from the metafits file
         """
-    @metafits_context.setter
-    def metafits_context(self, value: MetafitsContext) -> None:
-        r"""
-        Observation Metadata obtained from the metafits file
-        """
     @property
     def mwa_version(self) -> MWAVersion:
-        r"""
-        MWA version, derived from the files passed in
-        """
-    @mwa_version.setter
-    def mwa_version(self, value: MWAVersion) -> None:
         r"""
         MWA version, derived from the files passed in
         """
@@ -2806,19 +1585,8 @@ class VoltageContext:
         This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
         offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
         """
-    @timesteps.setter
-    def timesteps(self, value: typing.Sequence[TimeStep]) -> None:
-        r"""
-        This is an array of all known timesteps (union of metafits and provided timesteps from data files). The only exception is when the metafits timesteps are
-        offset from the provided timesteps, in which case see description in `timestep::populate_metafits_provided_superset_of_timesteps`.
-        """
     @property
     def num_timesteps(self) -> builtins.int:
-        r"""
-        Number of timesteps in the timesteps vector
-        """
-    @num_timesteps.setter
-    def num_timesteps(self, value: builtins.int) -> None:
         r"""
         Number of timesteps in the timesteps vector
         """
@@ -2827,18 +1595,8 @@ class VoltageContext:
         r"""
         length in millseconds of each timestep
         """
-    @timestep_duration_ms.setter
-    def timestep_duration_ms(self, value: builtins.int) -> None:
-        r"""
-        length in millseconds of each timestep
-        """
     @property
     def coarse_chans(self) -> builtins.list[CoarseChannel]:
-        r"""
-        Vector of coarse channel structs which is the same as the metafits provided coarse channels
-        """
-    @coarse_chans.setter
-    def coarse_chans(self, value: typing.Sequence[CoarseChannel]) -> None:
         r"""
         Vector of coarse channel structs which is the same as the metafits provided coarse channels
         """
@@ -2847,18 +1605,8 @@ class VoltageContext:
         r"""
         Number of coarse channels in coarse chans struct
         """
-    @num_coarse_chans.setter
-    def num_coarse_chans(self, value: builtins.int) -> None:
-        r"""
-        Number of coarse channels in coarse chans struct
-        """
     @property
     def common_timestep_indices(self) -> builtins.list[builtins.int]:
-        r"""
-        Vector of (in)common timestep indices
-        """
-    @common_timestep_indices.setter
-    def common_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common timestep indices
         """
@@ -2867,18 +1615,8 @@ class VoltageContext:
         r"""
         Number of common timesteps
         """
-    @num_common_timesteps.setter
-    def num_common_timesteps(self, value: builtins.int) -> None:
-        r"""
-        Number of common timesteps
-        """
     @property
     def common_coarse_chan_indices(self) -> builtins.list[builtins.int]:
-        r"""
-        Vector of (in)common coarse channel indices
-        """
-    @common_coarse_chan_indices.setter
-    def common_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common coarse channel indices
         """
@@ -2887,19 +1625,8 @@ class VoltageContext:
         r"""
         Number of common coarse channels
         """
-    @num_common_coarse_chans.setter
-    def num_common_coarse_chans(self, value: builtins.int) -> None:
-        r"""
-        Number of common coarse channels
-        """
     @property
     def common_start_unix_time_ms(self) -> builtins.int:
-        r"""
-        The start of the observation (the time that is common to all
-        provided data files).
-        """
-    @common_start_unix_time_ms.setter
-    def common_start_unix_time_ms(self, value: builtins.int) -> None:
         r"""
         The start of the observation (the time that is common to all
         provided data files).
@@ -2910,19 +1637,8 @@ class VoltageContext:
         `end_unix_time_ms` is the common end time of the observation
         i.e. start time of last common timestep plus integration time.
         """
-    @common_end_unix_time_ms.setter
-    def common_end_unix_time_ms(self, value: builtins.int) -> None:
-        r"""
-        `end_unix_time_ms` is the common end time of the observation
-        i.e. start time of last common timestep plus integration time.
-        """
     @property
     def common_start_gps_time_ms(self) -> builtins.int:
-        r"""
-        `start_unix_time_ms` but in GPS milliseconds
-        """
-    @common_start_gps_time_ms.setter
-    def common_start_gps_time_ms(self, value: builtins.int) -> None:
         r"""
         `start_unix_time_ms` but in GPS milliseconds
         """
@@ -2931,18 +1647,8 @@ class VoltageContext:
         r"""
         `end_unix_time_ms` but in GPS milliseconds
         """
-    @common_end_gps_time_ms.setter
-    def common_end_gps_time_ms(self, value: builtins.int) -> None:
-        r"""
-        `end_unix_time_ms` but in GPS milliseconds
-        """
     @property
     def common_duration_ms(self) -> builtins.int:
-        r"""
-        Total duration of common timesteps
-        """
-    @common_duration_ms.setter
-    def common_duration_ms(self, value: builtins.int) -> None:
         r"""
         Total duration of common timesteps
         """
@@ -2951,18 +1657,8 @@ class VoltageContext:
         r"""
         Total bandwidth of the common coarse channels
         """
-    @common_bandwidth_hz.setter
-    def common_bandwidth_hz(self, value: builtins.int) -> None:
-        r"""
-        Total bandwidth of the common coarse channels
-        """
     @property
     def common_good_timestep_indices(self) -> builtins.list[builtins.int]:
-        r"""
-        Vector of (in)common timestep indices only including timesteps after the quack time
-        """
-    @common_good_timestep_indices.setter
-    def common_good_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common timestep indices only including timesteps after the quack time
         """
@@ -2971,18 +1667,8 @@ class VoltageContext:
         r"""
         Number of common timesteps only including timesteps after the quack time
         """
-    @num_common_good_timesteps.setter
-    def num_common_good_timesteps(self, value: builtins.int) -> None:
-        r"""
-        Number of common timesteps only including timesteps after the quack time
-        """
     @property
     def common_good_coarse_chan_indices(self) -> builtins.list[builtins.int]:
-        r"""
-        Vector of (in)common coarse channel indices only including timesteps after the quack time
-        """
-    @common_good_coarse_chan_indices.setter
-    def common_good_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         Vector of (in)common coarse channel indices only including timesteps after the quack time
         """
@@ -2991,19 +1677,8 @@ class VoltageContext:
         r"""
         Number of common coarse channels only including timesteps after the quack time
         """
-    @num_common_good_coarse_chans.setter
-    def num_common_good_coarse_chans(self, value: builtins.int) -> None:
-        r"""
-        Number of common coarse channels only including timesteps after the quack time
-        """
     @property
     def common_good_start_unix_time_ms(self) -> builtins.int:
-        r"""
-        The start of the observation (the time that is common to all
-        provided data files) only including timesteps after the quack time
-        """
-    @common_good_start_unix_time_ms.setter
-    def common_good_start_unix_time_ms(self, value: builtins.int) -> None:
         r"""
         The start of the observation (the time that is common to all
         provided data files) only including timesteps after the quack time
@@ -3014,19 +1689,8 @@ class VoltageContext:
         `end_unix_time_ms` is the common end time of the observation only including timesteps after the quack time
         i.e. start time of last common timestep plus integration time.
         """
-    @common_good_end_unix_time_ms.setter
-    def common_good_end_unix_time_ms(self, value: builtins.int) -> None:
-        r"""
-        `end_unix_time_ms` is the common end time of the observation only including timesteps after the quack time
-        i.e. start time of last common timestep plus integration time.
-        """
     @property
     def common_good_start_gps_time_ms(self) -> builtins.int:
-        r"""
-        `common_good_start_unix_time_ms` but in GPS milliseconds
-        """
-    @common_good_start_gps_time_ms.setter
-    def common_good_start_gps_time_ms(self, value: builtins.int) -> None:
         r"""
         `common_good_start_unix_time_ms` but in GPS milliseconds
         """
@@ -3035,18 +1699,8 @@ class VoltageContext:
         r"""
         `common_good_end_unix_time_ms` but in GPS milliseconds
         """
-    @common_good_end_gps_time_ms.setter
-    def common_good_end_gps_time_ms(self, value: builtins.int) -> None:
-        r"""
-        `common_good_end_unix_time_ms` but in GPS milliseconds
-        """
     @property
     def common_good_duration_ms(self) -> builtins.int:
-        r"""
-        Total duration of common_good timesteps
-        """
-    @common_good_duration_ms.setter
-    def common_good_duration_ms(self, value: builtins.int) -> None:
         r"""
         Total duration of common_good timesteps
         """
@@ -3055,18 +1709,8 @@ class VoltageContext:
         r"""
         Total bandwidth of the common coarse channels only including timesteps after the quack time
         """
-    @common_good_bandwidth_hz.setter
-    def common_good_bandwidth_hz(self, value: builtins.int) -> None:
-        r"""
-        Total bandwidth of the common coarse channels only including timesteps after the quack time
-        """
     @property
     def provided_timestep_indices(self) -> builtins.list[builtins.int]:
-        r"""
-        The indices of any timesteps which we have *some* data for
-        """
-    @provided_timestep_indices.setter
-    def provided_timestep_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         The indices of any timesteps which we have *some* data for
         """
@@ -3075,18 +1719,8 @@ class VoltageContext:
         r"""
         Number of provided timestep indices we have at least *some* data for
         """
-    @num_provided_timesteps.setter
-    def num_provided_timesteps(self, value: builtins.int) -> None:
-        r"""
-        Number of provided timestep indices we have at least *some* data for
-        """
     @property
     def provided_coarse_chan_indices(self) -> builtins.list[builtins.int]:
-        r"""
-        The indices of any coarse channels which we have *some* data for
-        """
-    @provided_coarse_chan_indices.setter
-    def provided_coarse_chan_indices(self, value: typing.Sequence[builtins.int]) -> None:
         r"""
         The indices of any coarse channels which we have *some* data for
         """
@@ -3095,18 +1729,8 @@ class VoltageContext:
         r"""
         Number of provided coarse channel indices we have at least *some* data for
         """
-    @num_provided_coarse_chans.setter
-    def num_provided_coarse_chans(self, value: builtins.int) -> None:
-        r"""
-        Number of provided coarse channel indices we have at least *some* data for
-        """
     @property
     def coarse_chan_width_hz(self) -> builtins.int:
-        r"""
-        Bandwidth of each coarse channel
-        """
-    @coarse_chan_width_hz.setter
-    def coarse_chan_width_hz(self, value: builtins.int) -> None:
         r"""
         Bandwidth of each coarse channel
         """
@@ -3115,18 +1739,8 @@ class VoltageContext:
         r"""
         Volatge fine_chan_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
         """
-    @fine_chan_width_hz.setter
-    def fine_chan_width_hz(self, value: builtins.int) -> None:
-        r"""
-        Volatge fine_chan_resolution (if applicable- MWA legacy is 10 kHz, MWAX is unchannelised i.e. the full coarse channel width)
-        """
     @property
     def num_fine_chans_per_coarse(self) -> builtins.int:
-        r"""
-        Number of fine channels in each coarse channel
-        """
-    @num_fine_chans_per_coarse.setter
-    def num_fine_chans_per_coarse(self, value: builtins.int) -> None:
         r"""
         Number of fine channels in each coarse channel
         """
@@ -3135,18 +1749,8 @@ class VoltageContext:
         r"""
         Number of bytes in each sample (a sample is a complex, thus includes r and i)
         """
-    @sample_size_bytes.setter
-    def sample_size_bytes(self, value: builtins.int) -> None:
-        r"""
-        Number of bytes in each sample (a sample is a complex, thus includes r and i)
-        """
     @property
     def num_voltage_blocks_per_timestep(self) -> builtins.int:
-        r"""
-        Number of voltage blocks per timestep
-        """
-    @num_voltage_blocks_per_timestep.setter
-    def num_voltage_blocks_per_timestep(self, value: builtins.int) -> None:
         r"""
         Number of voltage blocks per timestep
         """
@@ -3155,18 +1759,8 @@ class VoltageContext:
         r"""
         Number of voltage blocks of samples in each second of data
         """
-    @num_voltage_blocks_per_second.setter
-    def num_voltage_blocks_per_second(self, value: builtins.int) -> None:
-        r"""
-        Number of voltage blocks of samples in each second of data
-        """
     @property
     def num_samples_per_voltage_block(self) -> builtins.int:
-        r"""
-        Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
-        """
-    @num_samples_per_voltage_block.setter
-    def num_samples_per_voltage_block(self, value: builtins.int) -> None:
         r"""
         Number of samples in each voltage_blocks for each second of data per rf_input * fine_chans * real|imag
         """
@@ -3175,18 +1769,8 @@ class VoltageContext:
         r"""
         The size of each voltage block
         """
-    @voltage_block_size_bytes.setter
-    def voltage_block_size_bytes(self, value: builtins.int) -> None:
-        r"""
-        The size of each voltage block
-        """
     @property
     def delay_block_size_bytes(self) -> builtins.int:
-        r"""
-        Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
-        """
-    @delay_block_size_bytes.setter
-    def delay_block_size_bytes(self, value: builtins.int) -> None:
         r"""
         Number of bytes used to store delays - for MWAX this is the same as a voltage block size, for legacy it is 0
         """
@@ -3195,18 +1779,8 @@ class VoltageContext:
         r"""
         The amount of bytes to skip before getting into real data within the voltage files
         """
-    @data_file_header_size_bytes.setter
-    def data_file_header_size_bytes(self, value: builtins.int) -> None:
-        r"""
-        The amount of bytes to skip before getting into real data within the voltage files
-        """
     @property
     def expected_voltage_data_file_size_bytes(self) -> builtins.int:
-        r"""
-        Expected voltage file size
-        """
-    @expected_voltage_data_file_size_bytes.setter
-    def expected_voltage_data_file_size_bytes(self, value: builtins.int) -> None:
         r"""
         Expected voltage file size
         """
@@ -3219,27 +1793,8 @@ class VoltageContext:
         (e.g. `voltage_hdu_limits`). Structured:
         `voltage_batches[batch][filename]`.
         """
-    @voltage_batches.setter
-    def voltage_batches(self, value: typing.Sequence[VoltageFileBatch]) -> None:
-        r"""
-        `voltage_batches` *must* be sorted appropriately. See
-        `voltage::determine_voltage_batches`. The order of the filenames
-        corresponds directly to other voltage-related objects
-        (e.g. `voltage_hdu_limits`). Structured:
-        `voltage_batches[batch][filename]`.
-        """
     @property
     def voltage_time_map(self) -> builtins.dict[builtins.int, builtins.dict[builtins.int, builtins.str]]:
-        r"""
-        We assume as little as possible about the data layout in the voltage
-        files; here, a `BTreeMap` contains each unique GPS time from every
-        voltage file, which is associated with another `BTreeMap`, associating each
-        voltage number with a voltage batch number and HDU index. The voltage
-        number, batch number and HDU index are everything needed to find the
-        correct HDU out of all voltage files.
-        """
-    @voltage_time_map.setter
-    def voltage_time_map(self, value: typing.Mapping[builtins.int, typing.Mapping[builtins.int, builtins.str]]) -> None:
         r"""
         We assume as little as possible about the data layout in the voltage
         files; here, a `BTreeMap` contains each unique GPS time from every
@@ -3372,18 +1927,8 @@ class VoltageFile:
         r"""
         Filename of voltage file
         """
-    @filename.setter
-    def filename(self, value: builtins.str) -> None:
-        r"""
-        Filename of voltage file
-        """
     @property
     def channel_identifier(self) -> builtins.int:
-        r"""
-        channel number (receiver channel number 001..255)
-        """
-    @channel_identifier.setter
-    def channel_identifier(self, value: builtins.int) -> None:
         r"""
         channel number (receiver channel number 001..255)
         """
@@ -3398,15 +1943,8 @@ class VoltageFileBatch:
     """
     @property
     def gps_time_seconds(self) -> builtins.int: ...
-    @gps_time_seconds.setter
-    def gps_time_seconds(self, value: builtins.int) -> None: ...
     @property
     def voltage_files(self) -> builtins.list[VoltageFile]:
-        r"""
-        Vector storing the details of each voltage file in this batch
-        """
-    @voltage_files.setter
-    def voltage_files(self, value: typing.Sequence[VoltageFile]) -> None:
         r"""
         Vector storing the details of each voltage file in this batch
         """

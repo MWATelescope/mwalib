@@ -947,3 +947,52 @@ fn test_mwalib_voltage_metadata_get_null_context() {
         assert_ne!(ret_val, 0);
     }
 }
+
+#[test]
+fn test_mwalib_voltage_context_read_null_buffer_sets_the_error_message() {
+    let voltage_context_ptr: *mut VoltageContext =
+        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, false);
+
+    for name in ["read_file", "read_second"] {
+        let error_message_length: size_t = 256;
+        let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+        let error_message_ptr = error_message.into_raw();
+
+        let retval = unsafe {
+            if name == "read_file" {
+                mwalib_voltage_context_read_file(
+                    voltage_context_ptr,
+                    0,
+                    14,
+                    std::ptr::null_mut(),
+                    0,
+                    error_message_ptr,
+                    error_message_length,
+                )
+            } else {
+                mwalib_voltage_context_read_second(
+                    voltage_context_ptr,
+                    1_101_503_312,
+                    1,
+                    14,
+                    std::ptr::null_mut(),
+                    0,
+                    error_message_ptr,
+                    error_message_length,
+                )
+            }
+        };
+
+        let message = unsafe { CStr::from_ptr(error_message_ptr) }
+            .to_string_lossy()
+            .trim()
+            .to_string();
+        unsafe { drop(CString::from_raw(error_message_ptr)) };
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains("null pointer for buffer_ptr"),
+            "{name}: message was '{message}'"
+        );
+    }
+}

@@ -12,6 +12,7 @@ Notes:
 
 ### Breaking
 
+* Python: all mwalib classes are read-only. Setting an attribute (for example `context.num_timesteps = 0`) raises `AttributeError`. The setters are removed from `mwalib.pyi`.
 * `CorrelatorContext::get_fine_chan_freqs_hz_array` and `VoltageContext::get_fine_chan_freqs_hz_array` return a `Result`. An index out of range is `GpuboxError::InvalidCoarseChanIndex` (`VoltageFileError::InvalidCoarseChanIndex`) instead of a panic.
   * Python: raises `GpuboxErrorInvalidCoarseChanIndex` (`VoltageErrorInvalidCoarseChanIndex`) instead of `PanicException`.
   * FFI/C: returns `MWALIB_FAILURE` with a message instead of aborting. The signature does not change.
@@ -35,6 +36,9 @@ Notes:
 * `VoltageContext::read_second` with a `gps_second_count` of 0 returns `VoltageFileError::InvalidGpsSecondCount` instead of a panic.
 * Reading a visibility or weights HDU moves cfitsio to that HDU first, instead of depending on the HDU having just been opened.
 * Index checks of the correlator reads use the lengths of `timesteps` and `coarse_chans`, so they cannot underflow.
+* FFI/C: the read functions (`mwalib_correlator_context_read_*`, `mwalib_voltage_context_read_*`) and `*_get_fine_chan_freqs_hz_array` use a shared reference to the context, so calling them from many C threads at once is not undefined behaviour. A null `buffer_ptr` now sets the error message.
+* Python: an internal shape mismatch when making a numpy array raises `RuntimeError` instead of a panic.
+* Fixed the `VoltageFileError::InvalidGpsSecondCount` message, which showed the count where the maximum GPS second should be.
 * Bumped pyo3-stubgen to 0.23.2.
 * Bumped pyo3 and numpy (Rust crates) to 0.30.
 * Bumped minimum versions of bytemuck (1.25), regex (1.13) and tempfile (3.27).

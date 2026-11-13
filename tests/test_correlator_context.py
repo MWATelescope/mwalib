@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pytest
+from read_only_helpers import assert_read_only
 
 import mwalib
 
@@ -549,3 +550,9 @@ def test_corr_context_fine_chan_freqs_invalid_index(any_cc: mwalib.CorrelatorCon
     for indices in ([num_coarse_chans], [0, num_coarse_chans + 10]):
         with pytest.raises(mwalib.GpuboxErrorInvalidCoarseChanIndex):
             any_cc.get_fine_chan_freqs_hz_array(indices)
+
+
+def test_corr_context_classes_are_read_only(any_cc: mwalib.CorrelatorContext):
+    for obj in (any_cc, any_cc.timesteps[0], any_cc.coarse_chans[0], any_cc.gpubox_batches[0]):
+        assert_read_only(obj)
+    assert_read_only(any_cc.gpubox_batches[0].gpubox_files[0])

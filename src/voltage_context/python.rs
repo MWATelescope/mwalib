@@ -11,6 +11,8 @@ use ndarray::Array;
 use ndarray::Dim;
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 use numpy::PyArray;
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+use pyo3::exceptions::PyRuntimeError;
 #[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pymethods;
 
@@ -101,7 +103,7 @@ impl VoltageContext {
                 ),
                 data,
             )
-            .expect("shape of data should match expected dimensions of Legacy VCS Recombined data (num_samples_per_voltage_block, num_fine_chans_per_coarse, num_ants, num_ant_pols, 1)"),
+            .map_err(|e| PyRuntimeError::new_err(format!("shape of data should match expected dimensions of Legacy VCS Recombined data (num_samples_per_voltage_block, num_fine_chans_per_coarse, num_ants, num_ant_pols, 1): {e}")))?,
             MWAVersion::VCSMWAXv2 => Array::from_shape_vec(
                 (
                     8, // There are 8 seconds in a timestep for MWAX VCS
@@ -113,7 +115,7 @@ impl VoltageContext {
                 ),
                 data,
             )
-            .expect("shape of data should match expected dimensions of MWAX VCS data (num_voltage_blocks_per_timestep, num_ants, num_ant_pols, num_samples_per_voltage_block, 2)"),
+            .map_err(|e| PyRuntimeError::new_err(format!("shape of data should match expected dimensions of MWAX VCS data (num_voltage_blocks_per_timestep, num_ants, num_ant_pols, num_samples_per_voltage_block, 2): {e}")))?,
             _ => {
                 return Err(voltage_files::error::PyVoltageErrorInvalidMwaVersion::new_err(
                     "Invalid MwaVersion",
@@ -200,7 +202,7 @@ impl VoltageContext {
                 ),
                 data,
             )
-            .expect("shape of data should match expected dimensions of Legacy VCS Recombined data (gps_second_count, num_samples_per_voltage_block, num_fine_chans_per_coarse, num_ants, num_ant_pols, 1)"),
+            .map_err(|e| PyRuntimeError::new_err(format!("shape of data should match expected dimensions of Legacy VCS Recombined data (gps_second_count, num_samples_per_voltage_block, num_fine_chans_per_coarse, num_ants, num_ant_pols, 1): {e}")))?,
             MWAVersion::VCSMWAXv2 => Array::from_shape_vec(
                 (
                     gps_second_count,
@@ -212,7 +214,7 @@ impl VoltageContext {
                 ),
                 data,
             )
-            .expect("shape of data should match expected dimensions of MWAX VCS data (gps_second_count, num_voltage_blocks_per_timestep, num_ants, num_ant_pols, num_samples_per_voltage_block, 2)"),
+            .map_err(|e| PyRuntimeError::new_err(format!("shape of data should match expected dimensions of MWAX VCS data (gps_second_count, num_voltage_blocks_per_timestep, num_ants, num_ant_pols, num_samples_per_voltage_block, 2): {e}")))?,
             _ => {
                 return Err(voltage_files::error::PyVoltageErrorInvalidMwaVersion::new_err(
                     "Invalid MwaVersion",

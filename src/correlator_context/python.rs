@@ -17,6 +17,8 @@ use numpy::PyArray3;
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 use numpy::{ndarray::Dimension, PyArray, PyArrayMethods, PyReadwriteArray, PyUntypedArrayMethods};
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
+use pyo3::exceptions::PyRuntimeError;
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::exceptions::PyValueError;
 #[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pymethods;
@@ -177,7 +179,7 @@ impl CorrelatorContext {
             py.detach(|| self.read_by_baseline(corr_timestep_index, corr_coarse_chan_index))?;
         // Convert the vector to a 3D array (this is free).
         let data = Array3::from_shape_vec(by_baseline_shape(&self.metafits_context), data)
-        .expect("shape of data should match expected dimensions (num_baselines, num_corr_fine_chans_per_coarse, visibility_pols * 2)");
+        .map_err(|e| PyRuntimeError::new_err(format!("shape of data should match expected dimensions (num_baselines, num_corr_fine_chans_per_coarse, visibility_pols * 2): {e}")))?;
         // Convert to a numpy array.
         let data = PyArray3::from_owned_array(py, data);
         Ok(data)
@@ -207,7 +209,7 @@ impl CorrelatorContext {
             py.detach(|| self.read_by_frequency(corr_timestep_index, corr_coarse_chan_index))?;
         // Convert the vector to a 3D array (this is free).
         let data = Array3::from_shape_vec(by_frequency_shape(&self.metafits_context), data)
-        .expect("shape of data should match expected dimensions (num_corr_fine_chans_per_coarse, num_baselines, visibility_pols * 2)");
+        .map_err(|e| PyRuntimeError::new_err(format!("shape of data should match expected dimensions (num_corr_fine_chans_per_coarse, num_baselines, visibility_pols * 2): {e}")))?;
         // Convert to a numpy array.
         let data = PyArray3::from_owned_array(py, data);
         Ok(data)
@@ -237,9 +239,7 @@ impl CorrelatorContext {
             self.read_weights_by_baseline(corr_timestep_index, corr_coarse_chan_index)
         })?;
         // Convert the vector to a 2D array (this is free).
-        let data = Array2::from_shape_vec(weights_shape(&self.metafits_context), data).expect(
-            "shape of data should match expected dimensions (num_baselines, visibility_pols)",
-        );
+        let data = Array2::from_shape_vec(weights_shape(&self.metafits_context), data).map_err(|e| PyRuntimeError::new_err(format!("shape of data should match expected dimensions (num_baselines, visibility_pols): {e}")))?;
         // Convert to a numpy array.
         let data = PyArray2::from_owned_array(py, data);
         Ok(data)

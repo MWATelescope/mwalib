@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pytest
+from read_only_helpers import assert_read_only
 
 import mwalib
 
@@ -392,3 +393,9 @@ def test_voltage_context_read_second_count_of_zero(mwax_vc: mwalib.VoltageContex
 
     with pytest.raises(mwalib.VoltageErrorInvalidGpsSecondCount):
         mwax_vc.read_second(gps_start, 0, mwax_vc.provided_coarse_chan_indices[0])
+
+
+def test_voltage_context_classes_are_read_only(any_vc: mwalib.VoltageContext):
+    for obj in (any_vc, any_vc.timesteps[0], any_vc.coarse_chans[0], any_vc.voltage_batches[0]):
+        assert_read_only(obj)
+    assert_read_only(any_vc.voltage_batches[0].voltage_files[0])
