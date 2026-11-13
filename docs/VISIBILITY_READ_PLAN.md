@@ -1,7 +1,8 @@
 # Plan: safer and faster reading of visibilities
 
 Status: phase 1 (tests) is done. Phase 3 is in progress: steps 1 (benchmarks and the temp buffer experiment) and 2
-(thread-local temp buffer, Python `*_into_buffer` methods) are done. Phases 2, 4 and 5 are not started.
+(thread-local temp buffer, Python `*_into_buffer` methods) are done. Step 3 found that the test files are Rice
+compressed (see "Compressed test files"). Phases 2, 4 and 5 are not started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -160,13 +161,44 @@ What the numbers say:
 - **`legacy_to_baseline_order` is the slowest converter: 11.1 ms, 1.8 times `legacy_to_frequency_order` (6.2 ms)**,
   because it writes with a large stride. The MWAX transpose alone is 5.4 ms (the 6 ms estimate above agrees). A plain
   copy is 1.5 ms, so the converters are 4 to 8 times the floor.
-- **The cfitsio read is the floor: about 42 ms for 34 MB (771 MiB/s)** for MWAX by baseline into buffer with scratch
-  (open, `ffgpv`, byte swap, copy). Check BSCALE/BZERO handling and the read size.
+- **Most of the "cfitsio read" is Rice decompression, because the test gpubox files are tile compressed** (see
+  "Compressed test files" below). It is not the cost of reading an uncompressed file.
 - **Fixed cost of a read is about 2 ms** (the 132 KB weights read: open the file and move to the HDU), about 5 % of a
   data read. A file with many HDUs may cost more (not measured).
 - **Voltage reads look slow: `mwaxvcs_read_file` reads about 41 MB in 378 ms, about 7 times slower per byte than a
   correlator read.** The voltage code was not read for this plan, so the cause is unknown. It is outside this plan;
   worth its own look.
+
+### Compressed test files (phase 3 step 3)
+
+Both gpubox test files are tile-compressed images (`ZIMAGE = T`, `ZCMPTYPE = 'RICE_1'`), so every read decompresses
+in cfitsio:
+- MWAX `1244973688_20190619100110_ch114_000.fits`: `ZBITPIX = -32`, `ZQUANTIZ = 'NO_DITHER'`, one tile per baseline
+  (1024 floats), 6.5 MB on disk, 34 MB decompressed.
+- Legacy `1101503312_20141201210818_gpubox01_00.fits`: `ZBITPIX = 32`, `BSCALE = 0.5`, one tile per fine channel
+  (66048 integers), 14 MB on disk, 34 MB decompressed.
+
+Throwaway benchmark in the sandbox (1 CPU), the same reads from the files and from copies uncompressed with `funpack`
+(same metafits). Only the ratios are useful; the sandbox is slower than the laptop.
+
+| read (`_into_buffer`) | Rice (test file) | uncompressed |
+|---|---|---|
+| MWAX by baseline | 72.4 ms | 5.8 ms |
+| MWAX by frequency | 90.2 ms | 18.6 ms |
+| legacy by baseline | 116.7 ms | 29.6 ms |
+| legacy by frequency | 92.7 ms | 21.2 ms |
+| `std::fs::read` of the uncompressed MWAX file (new 34 MB `Vec`) | | 12.3 ms |
+
+What this says:
+- Decompression is about 66 ms of the 72 ms MWAX read and about 70 to 85 ms of the legacy reads. On an uncompressed
+  file the cfitsio read of MWAX floats is about 5 ms, close to a memory copy. There is little left to gain in the
+  read itself for uncompressed MWAX floats.
+- For uncompressed files, the remaining cost is ours: the conversion (MWAX by frequency is about 13 ms more than by
+  baseline; legacy by baseline about 30 ms) and new buffers (about 12 ms each).
+- Legacy uncompressed by frequency (21.2 ms) minus `legacy_to_frequency_order` (5.4 ms in the sandbox) leaves about
+  16 ms for the read of 32-bit integers with `BSCALE`, against about 5 ms for MWAX floats. So cfitsio's integer to
+  float conversion with scaling may cost about 10 ms. Not measured on its own.
+- The benchmarks so far measure the compressed case only. Which case matters depends on the data people read.
 
 ## Phases
 
