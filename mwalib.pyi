@@ -21,10 +21,12 @@ __all__ = [
     "GpuBoxBatch",
     "GpuBoxFile",
     "GpuboxErrorBatchMissing",
+    "GpuboxErrorBufferTooSmall",
     "GpuboxErrorCorrVerMismatch",
     "GpuboxErrorEmptyBTreeMap",
     "GpuboxErrorFits",
     "GpuboxErrorInvalidCoarseChanIndex",
+    "GpuboxErrorInvalidLegacyConversionTable",
     "GpuboxErrorInvalidMwaVersion",
     "GpuboxErrorInvalidTimeStepIndex",
     "GpuboxErrorLegacyNaxis1Mismatch",
@@ -35,6 +37,7 @@ __all__ = [
     "GpuboxErrorMwaxCorrVerMissing",
     "GpuboxErrorMwaxNaxis1Mismatch",
     "GpuboxErrorMwaxNaxis2Mismatch",
+    "GpuboxErrorMwaxWeightsNaxisMismatch",
     "GpuboxErrorNoDataForTimeStepCoarseChannel",
     "GpuboxErrorNoDataHDUsInGpuboxFile",
     "GpuboxErrorNoGpuboxes",
@@ -42,6 +45,7 @@ __all__ = [
     "GpuboxErrorUnequalHduSizes",
     "GpuboxErrorUnevenCountInBatches",
     "GpuboxErrorUnrecognised",
+    "GpuboxErrorUnsupportedLegacyTileCount",
     "HeightCode",
     "LegacyConversionBaseline",
     "MWAMode",
@@ -1002,6 +1006,9 @@ class GpuBoxFile:
 class GpuboxErrorBatchMissing(builtins.Exception):
     ...
 
+class GpuboxErrorBufferTooSmall(builtins.Exception):
+    ...
+
 class GpuboxErrorCorrVerMismatch(builtins.Exception):
     ...
 
@@ -1012,6 +1019,9 @@ class GpuboxErrorFits(builtins.Exception):
     ...
 
 class GpuboxErrorInvalidCoarseChanIndex(builtins.Exception):
+    ...
+
+class GpuboxErrorInvalidLegacyConversionTable(builtins.Exception):
     ...
 
 class GpuboxErrorInvalidMwaVersion(builtins.Exception):
@@ -1044,6 +1054,9 @@ class GpuboxErrorMwaxNaxis1Mismatch(builtins.Exception):
 class GpuboxErrorMwaxNaxis2Mismatch(builtins.Exception):
     ...
 
+class GpuboxErrorMwaxWeightsNaxisMismatch(builtins.Exception):
+    ...
+
 class GpuboxErrorNoDataForTimeStepCoarseChannel(builtins.Exception):
     ...
 
@@ -1063,6 +1076,9 @@ class GpuboxErrorUnevenCountInBatches(builtins.Exception):
     ...
 
 class GpuboxErrorUnrecognised(builtins.Exception):
+    ...
+
+class GpuboxErrorUnsupportedLegacyTileCount(builtins.Exception):
     ...
 
 @typing.final

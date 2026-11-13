@@ -536,3 +536,16 @@ def test_corr_context_read_into_buffer_from_many_threads(kind: str, request):
 
     for read_method, data in zip(methods, results, strict=True):
         assert sha256_of(data) == GOLDEN_SHA256[(kind, read_method)]
+
+
+#
+# Phase 2 (safety): errors instead of panics
+#
+
+
+def test_corr_context_fine_chan_freqs_invalid_index(any_cc: mwalib.CorrelatorContext):
+    num_coarse_chans = len(any_cc.coarse_chans)
+
+    for indices in ([num_coarse_chans], [0, num_coarse_chans + 10]):
+        with pytest.raises(mwalib.GpuboxErrorInvalidCoarseChanIndex):
+            any_cc.get_fine_chan_freqs_hz_array(indices)

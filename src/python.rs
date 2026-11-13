@@ -58,6 +58,10 @@ create_exception!(
 );
 create_exception!(mwalib, GpuboxErrorNoDataHDUsInGpuboxFile, PyException);
 create_exception!(mwalib, GpuboxErrorNoGpuboxes, PyException);
+create_exception!(mwalib, GpuboxErrorBufferTooSmall, PyException);
+create_exception!(mwalib, GpuboxErrorInvalidLegacyConversionTable, PyException);
+create_exception!(mwalib, GpuboxErrorMwaxWeightsNaxisMismatch, PyException);
+create_exception!(mwalib, GpuboxErrorUnsupportedLegacyTileCount, PyException);
 create_exception!(mwalib, GpuboxErrorObsidMismatch, PyException);
 create_exception!(mwalib, GpuboxErrorUnequalHduSizes, PyException);
 create_exception!(mwalib, GpuboxErrorUnevenCountInBatches, PyException);
@@ -179,6 +183,22 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add(
         "GpuboxErrorNoGpuboxes",
         py.get_type::<PyGpuboxErrorNoGpuboxes>(),
+    )?;
+    m.add(
+        "GpuboxErrorBufferTooSmall",
+        py.get_type::<PyGpuboxErrorBufferTooSmall>(),
+    )?;
+    m.add(
+        "GpuboxErrorInvalidLegacyConversionTable",
+        py.get_type::<PyGpuboxErrorInvalidLegacyConversionTable>(),
+    )?;
+    m.add(
+        "GpuboxErrorMwaxWeightsNaxisMismatch",
+        py.get_type::<PyGpuboxErrorMwaxWeightsNaxisMismatch>(),
+    )?;
+    m.add(
+        "GpuboxErrorUnsupportedLegacyTileCount",
+        py.get_type::<PyGpuboxErrorUnsupportedLegacyTileCount>(),
     )?;
     m.add(
         "GpuboxErrorObsidMismatch",

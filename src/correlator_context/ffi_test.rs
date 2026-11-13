@@ -1004,3 +1004,38 @@ fn test_mwalib_correlator_context_read_matches_rust_read() {
         }
     }
 }
+
+#[test]
+fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_invalid_coarse_chan_index() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_ffi_correlator_context_legacy();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+
+    unsafe {
+        let num_coarse_chans = (*correlator_context_ptr).coarse_chans.len();
+        let chan_indices_len: usize = 1;
+        let chan_indicies: Vec<usize> = vec![num_coarse_chans];
+        let (chan_indicies_ptr, _) = ffi_create_c_array(chan_indicies);
+
+        let buffer_len = 128;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
+
+        let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
+            correlator_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        // A bad index is a failure with a message, not a panic
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE);
+        let message = CStr::from_ptr(error_message_ptr).to_str().unwrap();
+        assert!(message.contains("coarse chan index"), "{message}");
+    }
+}

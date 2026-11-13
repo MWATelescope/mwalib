@@ -871,3 +871,38 @@ fn test_reference_convert_mwax_hdu_to_frequency_order_only_writes_the_expected_p
     assert!(output[len..].iter().all(|x| *x == -1234.5));
     assert!(output[..len].iter().all(|x| *x != -1234.5));
 }
+
+#[test]
+fn test_validate_conversion_table() {
+    let context = MetafitsContext::new(
+        "test_files/1101503312_1_timestep/1101503312.metafits",
+        Some(MWAVersion::CorrLegacy),
+    )
+    .unwrap();
+    let table = generate_conversion_array(&context.rf_inputs);
+    let floats_per_fine_chan =
+        get_baseline_count(LEGACY_NUM_TILES) * LEGACY_FLOATS_PER_BASELINE_FINE_CHAN;
+
+    // The generated table is valid
+    assert!(validate_conversion_table(&table).is_ok());
+
+    // Too short and too long
+    assert!(validate_conversion_table(&table[1..]).is_err());
+    let mut longer = table.clone();
+    longer.push(table[0].clone());
+    assert!(validate_conversion_table(&longer).is_err());
+
+    // An index that would read past the end of a fine channel (each pol checked)
+    for pol in 0..LEGACY_NUM_POLS {
+        let mut bad = table.clone();
+        let last = bad.len() - 1;
+        let index = floats_per_fine_chan - 1;
+        match pol {
+            0 => bad[last].xx_index = index,
+            1 => bad[last].xy_index = index,
+            2 => bad[last].yx_index = index,
+            _ => bad[last].yy_index = index,
+        }
+        assert!(validate_conversion_table(&bad).is_err(), "pol {pol}");
+    }
+}

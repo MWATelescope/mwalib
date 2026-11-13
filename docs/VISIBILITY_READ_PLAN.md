@@ -3,7 +3,8 @@
 Status: phase 1 (tests) is done. Phase 3 is in progress: steps 1 (benchmarks and the temp buffer experiment) and 2
 (thread-local temp buffer, Python `*_into_buffer` methods) are done. Step 3 found that the test files are Rice
 compressed (see "Compressed test files") and added benchmarks of uncompressed copies. Steps 4 (GIL) and 5
-(converter loops) are done, so phase 3 is done. Phases 2, 4 and 5 are not started.
+(converter loops) are done, so phase 3 is done. Phase 2 is in progress (2a done, see Phases). Phases 4 and 5 are not
+started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -305,6 +306,17 @@ converters and the reads must not change (the golden and reference tests enforce
 2. **Safety and breaking changes, version 4.0.0.** Findings 1 to 8 above, V1 to V3, V4. Add tests first for each
    (too small buffer, bad index, count 0, 120-tile legacy metafits if one can be made, assignment raises
    `AttributeError`). Update `mwalib.pyi` (`tools/generate_stubs.sh`; see Notes), CHANGELOG, `Cargo.toml` version.
+   Delivered as three diffs (Greg's decision):
+   - 2a (done): findings 1 to 5 and 8, V1, V2, V4. New `GpuboxError` variants `BufferTooSmall`,
+     `UnsupportedLegacyTileCount`, `InvalidLegacyConversionTable` and `MwaxWeightsNaxisMismatch`, with Python
+     exceptions. The legacy table is checked at construction (`validate_conversion_table`, and the tile count with
+     `check_legacy_tile_count`); the converters take the baseline count from the table. `*_into_buffer` use only the
+     first part of a bigger buffer (MWAX by baseline too) and return `BufferTooSmall` for a smaller one.
+     `get_fine_chan_freqs_hz_array` returns `Result` (both contexts, C and Python). `read_second` with a count of 0 is
+     `InvalidGpsSecondCount`. The float image read moves cfitsio to its HDU first. The first MWAX weights HDU is checked
+     at construction. Greg allowed `.unwrap()` on the existing test calls of `get_fine_chan_freqs_hz_array`.
+   - 2b: findings 6 and 7, V3 (read-only Python classes, Python and C wrapper fixes).
+   - 2c: version 4.0.0, CHANGELOG "Breaking" section, stubs.
 3. **Performance.** MWAX benchmarks are added (see Benchmarks). Order, by what the numbers say:
    1. Add converter-only benchmarks, and the temp buffer experiment above (done, see Benchmarks).
    2. Avoid the allocations (done): a thread-local temp buffer (`with_read_scratch` in

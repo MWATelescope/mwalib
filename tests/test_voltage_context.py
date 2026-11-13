@@ -372,3 +372,23 @@ def test_voltage_context_read_from_many_threads(mwax_vc: mwalib.VoltageContext):
 
     for data in seconds:
         assert np.array_equal(data, expected_by_second)
+
+
+#
+# Phase 2 (safety): errors instead of panics
+#
+
+
+def test_voltage_context_fine_chan_freqs_invalid_index(any_vc: mwalib.VoltageContext):
+    num_coarse_chans = len(any_vc.coarse_chans)
+
+    for indices in ([num_coarse_chans], [0, num_coarse_chans + 10]):
+        with pytest.raises(mwalib.VoltageErrorInvalidCoarseChanIndex):
+            any_vc.get_fine_chan_freqs_hz_array(indices)
+
+
+def test_voltage_context_read_second_count_of_zero(mwax_vc: mwalib.VoltageContext):
+    gps_start = mwax_vc.timesteps[0].gps_time_ms // 1000
+
+    with pytest.raises(mwalib.VoltageErrorInvalidGpsSecondCount):
+        mwax_vc.read_second(gps_start, 0, mwax_vc.provided_coarse_chan_indices[0])

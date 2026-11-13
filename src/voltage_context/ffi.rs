@@ -514,7 +514,17 @@ pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
     }
 
     // Read data into provided buffer
-    let fine_chans = volt_context.get_fine_chan_freqs_hz_array(input_coarse_chan_indices);
+    let fine_chans = match volt_context.get_fine_chan_freqs_hz_array(input_coarse_chan_indices) {
+        Ok(f) => f,
+        Err(e) => {
+            set_c_string(
+                &format!("mwalib_voltage_context_get_fine_chan_freqs_hz_array() {e}"),
+                error_message as *mut c_char,
+                error_message_length,
+            );
+            return MWALIB_FAILURE;
+        }
+    };
 
     // Write the fine chans back into the provided array
     output_slice.clone_from_slice(&fine_chans);

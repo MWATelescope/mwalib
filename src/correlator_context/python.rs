@@ -146,8 +146,11 @@ impl CorrelatorContext {
     /// Returns:
     ///     fine_chan_freqs_hz_array (list[float]): a vector of floats containing the centre sky frequencies of all the fine channels for the given coarse channels.
     #[pyo3(name = "get_fine_chan_freqs_hz_array")]
-    fn pyo3_get_fine_chan_freqs_hz_array(&self, corr_coarse_chan_indices: Vec<usize>) -> Vec<f64> {
-        self.get_fine_chan_freqs_hz_array(&corr_coarse_chan_indices)
+    fn pyo3_get_fine_chan_freqs_hz_array(
+        &self,
+        corr_coarse_chan_indices: Vec<usize>,
+    ) -> PyResult<Vec<f64>> {
+        Ok(self.get_fine_chan_freqs_hz_array(&corr_coarse_chan_indices)?)
     }
 
     /// Read a single timestep for a single coarse channel. The output visibilities are in order: baseline,frequency,pol,r,i

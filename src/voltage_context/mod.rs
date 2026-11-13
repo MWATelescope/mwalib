@@ -489,18 +489,31 @@ impl VoltageContext {
     ///
     /// # Returns
     ///
-    /// * a vector of f64 containing the centre sky frequencies of all the fine channels for the
-    ///   given coarse channels.
+    /// * a Result containing a vector of f64 with the centre sky frequencies of all the fine channels for the
+    ///   given coarse channels, or `VoltageFileError::InvalidCoarseChanIndex` if an index is out of range.
     ///
-    pub fn get_fine_chan_freqs_hz_array(&self, volt_coarse_chan_indices: &[usize]) -> Vec<f64> {
-        CoarseChannel::get_fine_chan_centres_array_hz_inner(
+    pub fn get_fine_chan_freqs_hz_array(
+        &self,
+        volt_coarse_chan_indices: &[usize],
+    ) -> Result<Vec<f64>, VoltageFileError> {
+        // Validate every index first, so a bad index is an error instead of a panic
+        if volt_coarse_chan_indices
+            .iter()
+            .any(|c| *c >= self.coarse_chans.len())
+        {
+            return Err(VoltageFileError::InvalidCoarseChanIndex(
+                self.coarse_chans.len().saturating_sub(1),
+            ));
+        }
+
+        Ok(CoarseChannel::get_fine_chan_centres_array_hz_inner(
             self.mwa_version,
             volt_coarse_chan_indices
                 .iter()
                 .map(|c| &self.coarse_chans[*c]),
             self.metafits_context.volt_fine_chan_width_hz,
             self.metafits_context.num_volt_fine_chans_per_coarse,
-        )
+        ))
     }
 
     /// Validates gps time start and gps seconds count, and returns the end gps time or an Error.
@@ -534,6 +547,15 @@ impl VoltageContext {
         {
             return Err(VoltageFileError::InvalidGpsSecondStart(
                 self.timesteps[0].gps_time_ms / 1000,
+                gps_time_observation_max_ms / 1000,
+            ));
+        }
+
+        // A count of 0 has no end second (and would underflow below)
+        if gps_second_count == 0 {
+            return Err(VoltageFileError::InvalidGpsSecondCount(
+                self.timesteps[0].gps_time_ms / 1000,
+                gps_second_count,
                 gps_time_observation_max_ms / 1000,
             ));
         }

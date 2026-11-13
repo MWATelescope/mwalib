@@ -1142,7 +1142,9 @@ fn test_context_legacy_v1_get_fine_chan_feqs_one_coarse_chan() {
 
     // Get fine channel freqs
     let coarse_channels: Vec<usize> = vec![0];
-    let fine_chan_freqs: Vec<f64> = context.get_fine_chan_freqs_hz_array(&coarse_channels);
+    let fine_chan_freqs: Vec<f64> = context
+        .get_fine_chan_freqs_hz_array(&coarse_channels)
+        .unwrap();
 
     assert_eq!(fine_chan_freqs.len(), 128);
     assert!(approx_eq!(
@@ -1169,7 +1171,9 @@ fn test_context_legacy_v1_get_fine_chan_feqs_some_coarse_chans() {
 
     // Get fine channel freqs
     let coarse_channels: Vec<usize> = vec![10, 20];
-    let fine_chan_freqs: Vec<f64> = context.get_fine_chan_freqs_hz_array(&coarse_channels);
+    let fine_chan_freqs: Vec<f64> = context
+        .get_fine_chan_freqs_hz_array(&coarse_channels)
+        .unwrap();
 
     assert_eq!(fine_chan_freqs.len(), 256);
     assert!(approx_eq!(
@@ -1678,7 +1682,7 @@ fn check_fine_chan_freqs(context: &CorrelatorContext) {
     let width_hz = context.metafits_context.corr_fine_chan_width_hz as f64;
 
     for (index, coarse_chan) in context.coarse_chans.iter().enumerate() {
-        let freqs = context.get_fine_chan_freqs_hz_array(&[index]);
+        let freqs = context.get_fine_chan_freqs_hz_array(&[index]).unwrap();
 
         assert_eq!(freqs.len(), num_fine_chans);
 
@@ -1692,14 +1696,17 @@ fn check_fine_chan_freqs(context: &CorrelatorContext) {
 
     // All of the channels, and in any order, is the same as the channels one at a time
     let indices: Vec<usize> = (0..context.num_coarse_chans).rev().collect();
-    let all = context.get_fine_chan_freqs_hz_array(&indices);
+    let all = context.get_fine_chan_freqs_hz_array(&indices).unwrap();
     let one_at_a_time: Vec<f64> = indices
         .iter()
-        .flat_map(|i| context.get_fine_chan_freqs_hz_array(&[*i]))
+        .flat_map(|i| context.get_fine_chan_freqs_hz_array(&[*i]).unwrap())
         .collect();
 
     assert_eq!(all, one_at_a_time);
-    assert!(context.get_fine_chan_freqs_hz_array(&[]).is_empty());
+    assert!(context
+        .get_fine_chan_freqs_hz_array(&[])
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
@@ -1764,4 +1771,194 @@ fn test_with_read_scratch_sizes_and_nesting() {
     });
     assert!(outer);
     assert_eq!(inner, SMALL);
+}
+
+//
+// Phase 2 (safety) tests: errors instead of panics or partial reads
+//
+
+/// The three `_into_buffer` reads, by name, so a test can run each of them
+const INTO_BUFFER_READS: [&str; 3] = [
+    "read_by_baseline_into_buffer",
+    "read_by_frequency_into_buffer",
+    "read_weights_by_baseline_into_buffer",
+];
+
+/// Run one of the `_into_buffer` reads by name.
+fn read_into_buffer_by_name(
+    context: &CorrelatorContext,
+    read: &str,
+    timestep: usize,
+    coarse_chan: usize,
+    buffer: &mut [f32],
+) -> Result<(), GpuboxError> {
+    match read {
+        "read_by_baseline_into_buffer" => {
+            context.read_by_baseline_into_buffer(timestep, coarse_chan, buffer)
+        }
+        "read_by_frequency_into_buffer" => {
+            context.read_by_frequency_into_buffer(timestep, coarse_chan, buffer)
+        }
+        "read_weights_by_baseline_into_buffer" => {
+            context.read_weights_by_baseline_into_buffer(timestep, coarse_chan, buffer)
+        }
+        _ => panic!("unknown read {read}"),
+    }
+}
+
+/// Number of floats the given `_into_buffer` read gives
+fn floats_for_read(context: &CorrelatorContext, read: &str) -> usize {
+    if read == "read_weights_by_baseline_into_buffer" {
+        context.num_timestep_coarse_chan_weight_floats
+    } else {
+        context.num_timestep_coarse_chan_floats
+    }
+}
+
+#[test]
+fn test_read_into_a_buffer_that_is_too_small_is_an_error() {
+    for (context, timestep, coarse_chan) in [
+        (
+            get_read_legacy_context(),
+            READ_LEGACY_TIMESTEP,
+            READ_LEGACY_COARSE_CHAN,
+        ),
+        (
+            get_read_mwax_context(),
+            READ_MWAX_TIMESTEP,
+            READ_MWAX_COARSE_CHAN,
+        ),
+    ] {
+        for read in INTO_BUFFER_READS {
+            let expected = floats_for_read(&context, read);
+
+            for got in [0, 1, expected - 1] {
+                let mut buffer = vec![READ_SENTINEL; got];
+
+                let result =
+                    read_into_buffer_by_name(&context, read, timestep, coarse_chan, &mut buffer);
+
+                assert!(
+                    matches!(
+                        result,
+                        Err(GpuboxError::BufferTooSmall { expected: e, got: g }) if e == expected && g == got
+                    ),
+                    "{read} with {got} floats: {result:?}"
+                );
+                // Nothing was written
+                assert!(buffer.iter().all(|x| *x == READ_SENTINEL), "{read}");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_read_into_a_bigger_buffer_uses_only_the_first_part_for_every_read() {
+    // Like test_read_into_a_bigger_buffer_leaves_the_rest_of_the_buffer_alone, but for every read, including MWAX by
+    // baseline (which used to read as many floats as the buffer had) and the weights.
+    let extra = 100;
+
+    for (context, timestep, coarse_chan) in [
+        (
+            get_read_legacy_context(),
+            READ_LEGACY_TIMESTEP,
+            READ_LEGACY_COARSE_CHAN,
+        ),
+        (
+            get_read_mwax_context(),
+            READ_MWAX_TIMESTEP,
+            READ_MWAX_COARSE_CHAN,
+        ),
+    ] {
+        for read in INTO_BUFFER_READS {
+            let len = floats_for_read(&context, read);
+            let mut exact = vec![READ_SENTINEL; len];
+            let mut bigger = vec![READ_SENTINEL; len + extra];
+
+            read_into_buffer_by_name(&context, read, timestep, coarse_chan, &mut exact).unwrap();
+            read_into_buffer_by_name(&context, read, timestep, coarse_chan, &mut bigger).unwrap();
+
+            assert_eq!(bigger[..len], exact[..], "{read}");
+            assert!(bigger[len..].iter().all(|x| *x == READ_SENTINEL), "{read}");
+        }
+    }
+}
+
+#[test]
+fn test_get_fine_chan_freqs_hz_array_invalid_index_is_an_error() {
+    for context in [get_read_legacy_context(), get_read_mwax_context()] {
+        let num_coarse_chans = context.coarse_chans.len();
+
+        for indices in [vec![num_coarse_chans], vec![0, num_coarse_chans + 10]] {
+            let result = context.get_fine_chan_freqs_hz_array(&indices);
+
+            assert!(
+                matches!(result, Err(GpuboxError::InvalidCoarseChanIndex(max)) if max == num_coarse_chans - 1),
+                "{indices:?}: {result:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_check_legacy_tile_count() {
+    assert!(CorrelatorContext::check_legacy_tile_count(convert::LEGACY_NUM_TILES).is_ok());
+
+    for num_tiles in [0, 120, 256] {
+        assert!(matches!(
+            CorrelatorContext::check_legacy_tile_count(num_tiles),
+            Err(GpuboxError::UnsupportedLegacyTileCount { expected, num_tiles: n })
+                if expected == convert::LEGACY_NUM_TILES && n == num_tiles
+        ));
+    }
+}
+
+#[test]
+fn test_validate_first_weights_hdu() {
+    let context = get_read_mwax_context();
+    let num_baselines = context.metafits_context.num_baselines;
+    let num_pols = context.metafits_context.num_visibility_pols;
+
+    let mut fptr = fits_open!(&READ_MWAX_GPUBOX).unwrap();
+    assert!(
+        CorrelatorContext::validate_first_weights_hdu(num_baselines, num_pols, &mut fptr).is_ok()
+    );
+
+    // The same file against the wrong number of baselines or pols
+    for (baselines, pols) in [(num_baselines + 1, num_pols), (num_baselines, num_pols + 1)] {
+        let result = CorrelatorContext::validate_first_weights_hdu(baselines, pols, &mut fptr);
+
+        assert!(
+            matches!(
+                result,
+                Err(GpuboxError::MwaxWeightsNaxisMismatch {
+                    naxis1,
+                    naxis2,
+                    expected_naxis1,
+                    expected_naxis2,
+                    ..
+                }) if naxis1 == num_pols && naxis2 == num_baselines && expected_naxis1 == pols && expected_naxis2 == baselines
+            ),
+            "{result:?}"
+        );
+    }
+}
+
+#[test]
+fn test_read_float_image_reads_the_given_hdu_even_if_the_current_hdu_moved() {
+    // cfitsio reads from its "current" HDU. Open the visibilities HDU, then move cfitsio to the weights HDU, then
+    // read with the visibilities HDU: the visibilities must be read, not the weights.
+    let context = get_read_mwax_context();
+    let expected = context
+        .read_by_baseline(READ_MWAX_TIMESTEP, READ_MWAX_COARSE_CHAN)
+        .unwrap();
+
+    let mut fptr = fits_open!(&READ_MWAX_GPUBOX).unwrap();
+    let visibilities_hdu = fits_open_hdu!(&mut fptr, 1).unwrap();
+    let _weights_hdu = fits_open_hdu!(&mut fptr, MWAX_FIRST_WEIGHTS_HDU_INDEX).unwrap();
+
+    let mut buffer = vec![READ_SENTINEL; context.num_timestep_coarse_chan_floats];
+    get_fits_float_image_into_buffer!(&mut fptr, &visibilities_hdu, &mut buffer).unwrap();
+
+    assert_eq!(buffer, expected);
 }

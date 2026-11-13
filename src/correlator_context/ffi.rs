@@ -858,7 +858,17 @@ pub unsafe extern "C" fn mwalib_correlator_context_get_fine_chan_freqs_hz_array(
     }
 
     // Read data into provided buffer
-    let fine_chans = corr_context.get_fine_chan_freqs_hz_array(input_coarse_chan_indices);
+    let fine_chans = match corr_context.get_fine_chan_freqs_hz_array(input_coarse_chan_indices) {
+        Ok(f) => f,
+        Err(e) => {
+            set_c_string(
+                &format!("mwalib_correlator_context_get_fine_chan_freqs_hz_array() {e}"),
+                error_message as *mut c_char,
+                error_message_length,
+            );
+            return MWALIB_FAILURE;
+        }
+    };
 
     // Write the fine chans back into the provided array
     output_slice.clone_from_slice(&fine_chans);

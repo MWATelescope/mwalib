@@ -49,7 +49,7 @@ const FLOATS_PER_COMPLEX: usize = 2;
 const LEGACY_FLOATS_PER_BASELINE_FINE_CHAN: usize = LEGACY_NUM_POLS * FLOATS_PER_COMPLEX;
 
 /// Number of tiles of the legacy correlator. It ALWAYS has 128 tiles.
-const LEGACY_NUM_TILES: usize = 128;
+pub(crate) const LEGACY_NUM_TILES: usize = 128;
 
 /// Number of fine channels `convert_legacy_hdu_to_mwax_baseline_order` does in one pass over the baselines. The
 /// input of one fine channel is about 264 KB, so a block of 4 keeps the input being read (about 1 MB) in cache while
@@ -397,6 +397,48 @@ pub(crate) fn generate_conversion_array(rf_inputs: &[Rfinput]) -> Vec<LegacyConv
     conversion_table
 }
 
+/// Check a legacy conversion table before it is used: it must have one entry per baseline of the legacy correlator,
+/// and every index must point at a complex value (2 floats) inside the input of one fine channel.
+///
+/// # Arguments
+///
+/// * `conversion_table` - The legacy conversion table.
+///
+/// # Returns
+///
+/// * `Ok` if the table is valid, or the reason it is not.
+///
+pub(crate) fn validate_conversion_table(
+    conversion_table: &[LegacyConversionBaseline],
+) -> Result<(), String> {
+    let num_baselines = get_baseline_count(LEGACY_NUM_TILES);
+    let floats_per_fine_chan = num_baselines * LEGACY_FLOATS_PER_BASELINE_FINE_CHAN;
+
+    if conversion_table.len() != num_baselines {
+        return Err(format!(
+            "it has {} entries, but there are {num_baselines} baselines",
+            conversion_table.len()
+        ));
+    }
+
+    for (baseline_index, baseline) in conversion_table.iter().enumerate() {
+        for index in [
+            baseline.xx_index,
+            baseline.xy_index,
+            baseline.yx_index,
+            baseline.yy_index,
+        ] {
+            if index + FLOATS_PER_COMPLEX > floats_per_fine_chan {
+                return Err(format!(
+                    "baseline {baseline_index} has index {index}, but a fine channel has {floats_per_fine_chan} floats"
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Using the precalculated conversion table, reorder the legacy visibilities into our preferred output order
 /// [time][baseline][freq][pol] in a standard triangle of 0,0 .. 0,N 1,1..1,N baseline order.
 /// # Arguments
@@ -422,7 +464,8 @@ pub(crate) fn convert_legacy_hdu_to_mwax_baseline_order(
     output_buffer: &mut [f32],
     num_fine_chans: usize,
 ) {
-    let num_baselines = get_baseline_count(LEGACY_NUM_TILES);
+    // One table entry per baseline (128 tiles for the legacy correlator; checked by `validate_conversion_table`)
+    let num_baselines = conversion_table.len();
 
     // Striding for the input: [fine_chan][baseline][pol][r,i] (the baseline order is given by the table)
     let floats_per_fine_chan = num_baselines * LEGACY_FLOATS_PER_BASELINE_FINE_CHAN;
@@ -488,7 +531,8 @@ pub(crate) fn convert_legacy_hdu_to_mwax_frequency_order(
     output_buffer: &mut [f32],
     num_fine_chans: usize,
 ) {
-    let num_baselines = get_baseline_count(LEGACY_NUM_TILES);
+    // One table entry per baseline (128 tiles for the legacy correlator; checked by `validate_conversion_table`)
+    let num_baselines = conversion_table.len();
 
     // Striding for the input and the output: [fine_chan][baseline][pol][r,i] (the input baseline order is given by
     // the table)

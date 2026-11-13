@@ -1751,7 +1751,9 @@ fn test_context_legacy_v1_get_fine_chan_feqs_one_coarse_chan() {
 
     // Get fine channel freqs
     let coarse_channels: Vec<usize> = vec![0];
-    let fine_chan_freqs: Vec<f64> = context.get_fine_chan_freqs_hz_array(&coarse_channels);
+    let fine_chan_freqs: Vec<f64> = context
+        .get_fine_chan_freqs_hz_array(&coarse_channels)
+        .unwrap();
 
     assert_eq!(fine_chan_freqs.len(), 128);
     assert!(approx_eq!(
@@ -1768,7 +1770,9 @@ fn test_context_legacy_v1_get_fine_chan_feqs_some_coarse_chans() {
 
     // Get fine channel freqs
     let coarse_channels: Vec<usize> = vec![10, 20];
-    let fine_chan_freqs: Vec<f64> = context.get_fine_chan_freqs_hz_array(&coarse_channels);
+    let fine_chan_freqs: Vec<f64> = context
+        .get_fine_chan_freqs_hz_array(&coarse_channels)
+        .unwrap();
 
     assert_eq!(fine_chan_freqs.len(), 256);
     assert!(approx_eq!(
@@ -1856,4 +1860,39 @@ fn test_context_mwax_v2_oversampled() {
     rf_input_copy.sort_by_key(|k| k.subfile_order);
     // Now compare this copy with the 'real' rf_inputs
     assert_eq!(&rf_input_copy, &context.metafits_context.rf_inputs);
+}
+
+#[test]
+fn test_get_fine_chan_freqs_hz_array_invalid_index_is_an_error() {
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+    let num_coarse_chans = context.coarse_chans.len();
+
+    for indices in [vec![num_coarse_chans], vec![0, num_coarse_chans + 10]] {
+        let result = context.get_fine_chan_freqs_hz_array(&indices);
+
+        assert!(
+            matches!(result, Err(VoltageFileError::InvalidCoarseChanIndex(max)) if max == num_coarse_chans - 1),
+            "{indices:?}: {result:?}"
+        );
+    }
+}
+
+#[test]
+fn test_validate_gps_time_parameters_gps_second_count_of_zero_is_an_error() {
+    // This test obs starts at 1_101_503_312 and has 112 seconds.
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 0);
+
+    assert!(
+        matches!(
+            result,
+            Err(VoltageFileError::InvalidGpsSecondCount(
+                1_101_503_312,
+                0,
+                1_101_503_424
+            ))
+        ),
+        "{result:?}"
+    );
 }

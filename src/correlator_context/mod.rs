@@ -137,6 +137,10 @@ pub struct CorrelatorContext {
     pub bscale: f32,
 }
 
+/// Index (0 based, as `fits_open_hdu!` takes it) of the first weights HDU of an MWAX gpubox file: HDU 0 is the
+/// primary HDU, HDU 1 the visibilities of the first timestep, HDU 2 its weights.
+const MWAX_FIRST_WEIGHTS_HDU_INDEX: usize = 2;
+
 thread_local! {
     /// A temp buffer for the reads that must convert the data after cfitsio reads it (legacy by baseline, and by
     /// frequency). There is one per thread, and it is kept after the read, so a read does not pay for a new 34 MB
@@ -285,6 +289,14 @@ impl CorrelatorContext {
                     metafits_context.num_visibility_pols,
                     &mut fptr,
                 )?;
+
+                if gpubox_info.mwa_version == MWAVersion::CorrMWAXv2 {
+                    CorrelatorContext::validate_first_weights_hdu(
+                        metafits_context.num_baselines,
+                        metafits_context.num_visibility_pols,
+                        &mut fptr,
+                    )?;
+                }
             }
         }
 
@@ -388,7 +400,12 @@ impl CorrelatorContext {
         // or just leave it empty if we're in any other format
         let legacy_conversion_table: Vec<LegacyConversionBaseline> = match gpubox_info.mwa_version {
             MWAVersion::CorrOldLegacy | MWAVersion::CorrLegacy => {
-                convert::generate_conversion_array(&metafits_context.rf_inputs)
+                Self::check_legacy_tile_count(metafits_context.num_ants)?;
+
+                let table = convert::generate_conversion_array(&metafits_context.rf_inputs);
+                convert::validate_conversion_table(&table)
+                    .map_err(|reason| GpuboxError::InvalidLegacyConversionTable { reason })?;
+                table
             }
             _ => Vec::new(),
         };
@@ -450,18 +467,31 @@ impl CorrelatorContext {
     ///
     /// # Returns
     ///
-    /// * a vector of f64 containing the centre sky frequencies of all the fine channels for the
-    ///   given coarse channels.
+    /// * a Result containing a vector of f64 with the centre sky frequencies of all the fine channels for the
+    ///   given coarse channels, or `GpuboxError::InvalidCoarseChanIndex` if an index is out of range.
     ///
-    pub fn get_fine_chan_freqs_hz_array(&self, corr_coarse_chan_indices: &[usize]) -> Vec<f64> {
-        CoarseChannel::get_fine_chan_centres_array_hz_inner(
+    pub fn get_fine_chan_freqs_hz_array(
+        &self,
+        corr_coarse_chan_indices: &[usize],
+    ) -> Result<Vec<f64>, GpuboxError> {
+        // Validate every index first, so a bad index is an error instead of a panic
+        if corr_coarse_chan_indices
+            .iter()
+            .any(|c| *c >= self.coarse_chans.len())
+        {
+            return Err(GpuboxError::InvalidCoarseChanIndex(
+                self.coarse_chans.len().saturating_sub(1),
+            ));
+        }
+
+        Ok(CoarseChannel::get_fine_chan_centres_array_hz_inner(
             self.mwa_version,
             corr_coarse_chan_indices
                 .iter()
                 .map(|c| &self.coarse_chans[*c]),
             self.metafits_context.corr_fine_chan_width_hz,
             self.metafits_context.num_corr_fine_chans_per_coarse,
-        )
+        ))
     }
 
     /// Read a single timestep for a single coarse channel
@@ -583,15 +613,18 @@ impl CorrelatorContext {
         corr_timestep_index: usize,
         corr_coarse_chan_index: usize,
     ) -> Result<(&str, usize, usize), GpuboxError> {
-        // Validate the timestep
-        if corr_timestep_index > self.num_timesteps - 1 {
-            return Err(GpuboxError::InvalidTimeStepIndex(self.num_timesteps - 1));
+        // Validate the timestep (use the length of the vector, which cannot be out of step with it, and do not
+        // underflow if there are none)
+        if corr_timestep_index >= self.timesteps.len() {
+            return Err(GpuboxError::InvalidTimeStepIndex(
+                self.timesteps.len().saturating_sub(1),
+            ));
         }
 
         // Validate the coarse chan
-        if corr_coarse_chan_index > self.num_coarse_chans - 1 {
+        if corr_coarse_chan_index >= self.coarse_chans.len() {
             return Err(GpuboxError::InvalidCoarseChanIndex(
-                self.num_coarse_chans - 1,
+                self.coarse_chans.len().saturating_sub(1),
             ));
         }
 
@@ -642,6 +675,50 @@ impl CorrelatorContext {
         Ok((fits_filename, *batch_index, *hdu_index))
     }
 
+    /// Check the number of tiles of a legacy correlator observation. The legacy correlator always has 128 tiles, and
+    /// the legacy conversion table cannot be made for any other number.
+    ///
+    /// # Arguments
+    ///
+    /// * `num_tiles` - Number of tiles (antennas) in the metafits.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok`, or `GpuboxError::UnsupportedLegacyTileCount`.
+    ///
+    fn check_legacy_tile_count(num_tiles: usize) -> Result<(), GpuboxError> {
+        if num_tiles == convert::LEGACY_NUM_TILES {
+            Ok(())
+        } else {
+            Err(GpuboxError::UnsupportedLegacyTileCount {
+                expected: convert::LEGACY_NUM_TILES,
+                num_tiles,
+            })
+        }
+    }
+
+    /// Check that a caller's buffer is big enough for a read, and return the part of it the read fills.
+    ///
+    /// A buffer that is too small is an error. A bigger buffer is accepted, and only its first `expected` floats are
+    /// used; the rest is not changed.
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - The caller's buffer.
+    ///
+    /// * `expected` - Number of floats the read gives.
+    ///
+    /// # Returns
+    ///
+    /// * The first `expected` floats of `buffer`, or `GpuboxError::BufferTooSmall`.
+    ///
+    fn buffer_for_read(buffer: &mut [f32], expected: usize) -> Result<&mut [f32], GpuboxError> {
+        let got = buffer.len();
+        buffer
+            .get_mut(..expected)
+            .ok_or(GpuboxError::BufferTooSmall { expected, got })
+    }
+
     /// Number of floats in the temp buffer of a read: one timestep and coarse channel of visibilities, from the
     /// metafits dimensions (the same size the temp buffer always had).
     ///
@@ -681,6 +758,9 @@ impl CorrelatorContext {
         // Validate input timestep_index and coarse_chan_index and return the fits_filename, batch index and hdu of the corresponding data
         let (fits_filename, _, hdu_index) =
             self.get_fits_filename_and_batch_and_hdu(corr_timestep_index, corr_coarse_chan_index)?;
+
+        // Check the buffer is big enough; only the part the read fills is used
+        let buffer = Self::buffer_for_read(buffer, self.num_timestep_coarse_chan_floats)?;
 
         // Open the fits file
         let mut fptr = fits_open!(&fits_filename)?;
@@ -736,6 +816,9 @@ impl CorrelatorContext {
         // Validate input timestep_index and coarse_chan_index and return the fits_filename, batch index and hdu of the corresponding data
         let (fits_filename, _, hdu_index) =
             self.get_fits_filename_and_batch_and_hdu(corr_timestep_index, corr_coarse_chan_index)?;
+
+        // Check the buffer is big enough; only the part the read fills is used
+        let buffer = Self::buffer_for_read(buffer, self.num_timestep_coarse_chan_floats)?;
 
         // Open the fits file
         let mut fptr = fits_open!(&fits_filename)?;
@@ -795,6 +878,9 @@ impl CorrelatorContext {
         // Validate input timestep_index and coarse_chan_index and return the fits_filename, batch index and hdu of the corresponding data
         let (fits_filename, _, hdu_index) =
             self.get_fits_filename_and_batch_and_hdu(corr_timestep_index, corr_coarse_chan_index)?;
+
+        // Check the buffer is big enough; only the part the read fills is used
+        let buffer = Self::buffer_for_read(buffer, self.num_timestep_coarse_chan_weight_floats)?;
 
         // If we are not MWAXv2, just return an array of 1's
         if self.mwa_version == MWAVersion::CorrMWAXv2 {
@@ -858,6 +944,46 @@ impl CorrelatorContext {
             naxis1,
             naxis2,
         )
+    }
+
+    /// Validates the first weights HDU of an MWAX gpubox file against metafits metadata. The weights of a timestep are
+    /// always in the HDU after its visibilities, so the first weights HDU is HDU 2.
+    ///
+    /// # Arguments
+    ///
+    /// * `metafits_baselines` - the number of baselines as reported by the metafits file.
+    ///
+    /// * `visibility_pols` - the number of pols produced by the correlator (always 4 for MWA)
+    ///
+    /// * `gpubox_fptr` - MWAFITSFile pointer to an MWAX gpubox file
+    ///
+    /// # Returns
+    ///
+    /// * Result containing `Ok` if it is valid, or `GpuboxError::MwaxWeightsNaxisMismatch` if not.
+    ///
+    fn validate_first_weights_hdu(
+        metafits_baselines: usize,
+        visibility_pols: usize,
+        gpubox_fptr: &mut FitsFile,
+    ) -> Result<(), GpuboxError> {
+        let hdu = fits_open_hdu!(gpubox_fptr, MWAX_FIRST_WEIGHTS_HDU_INDEX)?;
+        let dimensions = get_hdu_image_size!(gpubox_fptr, &hdu)?;
+        // get_hdu_image_size gives the axes in the order [NAXIS2, NAXIS1]
+        let naxis1 = dimensions[1];
+        let naxis2 = dimensions[0];
+
+        if naxis1 != visibility_pols || naxis2 != metafits_baselines {
+            return Err(GpuboxError::MwaxWeightsNaxisMismatch {
+                gpubox_filename: gpubox_fptr.file_path().display().to_string(),
+                hdu: MWAX_FIRST_WEIGHTS_HDU_INDEX + 1,
+                naxis1,
+                naxis2,
+                expected_naxis1: visibility_pols,
+                expected_naxis2: metafits_baselines,
+            });
+        }
+
+        Ok(())
     }
 
     /// Validates the first HDU of a gpubox file against metafits metadata
