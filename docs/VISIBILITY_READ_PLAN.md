@@ -2,7 +2,7 @@
 
 Status: phase 1 (tests) is done. Phase 3 is in progress: steps 1 (benchmarks and the temp buffer experiment) and 2
 (thread-local temp buffer, Python `*_into_buffer` methods) are done. Step 3 found that the test files are Rice
-compressed (see "Compressed test files"). Phases 2, 4 and 5 are not started.
+compressed (see "Compressed test files") and added benchmarks of uncompressed copies. Phases 2, 4 and 5 are not started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -82,9 +82,15 @@ Performance (all unmeasured):
 ## Benchmarks
 
 `benches/correlator_context_benches.rs`:
-- Group `mwax` (new): `test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits`, timestep 0, coarse
+- Group `mwax`: `test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits`, timestep 0, coarse
   channel 10. `read_by_baseline`, `read_by_frequency`, both `_into_buffer`, `read_weights_by_baseline`, and its
-  `_into_buffer`. MiB/s is reported. Results are dropped inside the timed code, so allocation is included.
+  `_into_buffer`. MiB/s is reported. Results are dropped inside the timed code, so allocation is included. The file is
+  Rice compressed, but real MWAX gpubox files never are, so this group mostly measures decompression.
+- Groups `mwax_uncompressed` and `legacy_uncompressed`: the same six reads, from copies of the MWAX and legacy test
+  gpubox files that the benchmark writes uncompressed into a temp dir at setup (`fits_img_decompress`, no scaling).
+  Setup checks that each copy reads the same data as the original. Real MWAX files are always uncompressed, and real
+  legacy files are both, so `mwax_uncompressed` is the realistic MWAX group, and legacy needs `my_group` and
+  `legacy_uncompressed`.
 - Group `my_group` (existing): the legacy file. The two `_into_buffer` benchmarks sized their buffer with
   `num_timestep_coarse_chan_bytes` (4 times too many floats); now `num_timestep_coarse_chan_floats`. An oversized buffer
   is also an error for MWAX by baseline today, which is why this mattered.
@@ -93,8 +99,9 @@ Performance (all unmeasured):
   floor) and `reference/alloc_and_copy` (a new buffer each time; the difference from `reference/copy` is the cost of a
   new 34 MB buffer). Run: `cargo bench --features bench-internals --bench convert_benches`.
 - Still to add: a file with many HDUs (to see the cost of moving to a late HDU).
-- Run: `cargo bench --bench correlator_context_benches -- mwax`. Compare before and after on the same machine. The
-  files are read from the OS file cache after the first read, so disk speed is not measured.
+- Run: `cargo bench --bench correlator_context_benches` (or add a group name, for example `-- mwax_uncompressed`).
+  Compare before and after on the same machine. The files are read from the OS file cache after the first read, so
+  disk speed is not measured.
 
 Results on Greg's new laptop (release profile, middle of the range). The numbers from the old laptop are not kept,
 because they cannot be compared. "Scratch" is the throwaway experiment that reuses the temp buffer of
@@ -200,6 +207,29 @@ What this says:
   float conversion with scaling may cost about 10 ms. Not measured on its own.
 - The benchmarks so far measure the compressed case only. Which case matters depends on the data people read.
 
+Real data (Greg): users read all kinds. MWAX gpubox files are never compressed. Some legacy gpubox files are Rice
+compressed, the rest are not.
+
+`mwax_uncompressed` and `legacy_uncompressed` groups in the sandbox (1 CPU; run them on the laptop for real numbers):
+
+| benchmark | `mwax_uncompressed` | `legacy_uncompressed` |
+|---|---|---|
+| `read_by_baseline` | 15.0 ms | 40.5 ms |
+| `read_by_baseline_into_buffer` | 5.7 ms | 31.0 ms |
+| `read_by_frequency` | 29.0 ms | 35.1 ms |
+| `read_by_frequency_into_buffer` | 21.9 ms | 21.7 ms |
+| `read_weights_by_baseline` | 34 µs | 6 µs |
+| `read_weights_by_baseline_into_buffer` | 32 µs | 3 µs |
+
+What this says, for uncompressed files:
+- The fixed cost of a read (open the file, move to the HDU) is about 30 µs, not 2 ms. The 2 ms was decompression of
+  the compressed weights HDU.
+- For MWAX by baseline, the new result buffer (about 9 ms) is more than the read itself (about 6 ms). The
+  `_into_buffer` methods (Rust, C and now Python) avoid it.
+- For MWAX by frequency, the transpose is most of the cost (about 16 ms of 22 ms in the sandbox).
+- For legacy, the converters and cfitsio's 32-bit integer to float scaling are most of the cost.
+
+
 ## Phases
 
 Each phase is one diff. `cargo test` and `uv run pytest` must pass with the diff applied on its own. Outputs of the
@@ -226,10 +256,12 @@ converters and the reads must not change (the golden and reference tests enforce
       `read_by_baseline_into_buffer`, `read_by_frequency_into_buffer` and `read_weights_by_baseline_into_buffer`
       (argument `buffer`, as in Rust and C; exact shape, C contiguous, writeable, else `ValueError`). Cost: one temp
       buffer (34 MB for 128 tiles) kept per thread that has read. Measured: see "After phase 3 step 2".
-   3. The cfitsio read itself (scaling, read size).
+   3. The cfitsio read itself: compressed reads are cfitsio decompression, and uncompressed MWAX float reads are
+      close to a memory copy, so only the legacy 32-bit integer to float scaling (`BSCALE`) is left. Benchmarks of
+      uncompressed copies are added (done); the order of the rest is to be decided with the laptop numbers.
    4. Release the GIL (`py.detach`).
-   5. Converter loop order and blocking, and the sign table. Last: the MWAX transpose is about 6 ms; check
-      `legacy_to_baseline_order` first, it is the slowest converter.
+   5. Converter loop order and blocking, and the sign table. `legacy_to_baseline_order` is the slowest converter, and
+      the MWAX transpose is most of an uncompressed MWAX by frequency read.
    Measure each one on its own, and record numbers here.
 4. **Opt-in threads (V5).** `set_conversion_threads(n)`, default 1. Split the output with `chunks_mut` (one fine
    channel or one baseline per chunk) so no `unsafe` is needed. Keep the setting in an atomic so it can be changed
