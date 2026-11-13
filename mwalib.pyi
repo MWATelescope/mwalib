@@ -1847,6 +1847,8 @@ class VoltageContext:
         r"""
         Read a single timestep / coarse channel worth of data
         
+        The GIL is released during the read.
+        
         Args:
             volt_timestep_index (int): index within the timestep array for the desired timestep. This corresponds to the element within VoltageContext.timesteps. For mwa legacy each index represents 1 second increments, for mwax it is 8 second increments.
             volt_coarse_chan_index (int): index within the coarse_chan array for the desired coarse channel. This corresponds to the element within VoltageContext.coarse_chans.
@@ -1856,12 +1858,28 @@ class VoltageContext:
         
         NOTE: The shape of the ndarray is different between LegacyVCS and MWAX VCS
         Legacy: [second],[time sample],[chan],[ant],[pol],[complexity]
-                where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment    
+                where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment
         MWAX  : [second],[voltage_block],[antenna],[pol],[sample],[r,i]
+        """
+    def read_file_into_buffer(self, volt_timestep_index: builtins.int, volt_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.int8]) -> None:
+        r"""
+        Read a single timestep / coarse channel worth of data into an existing array. The data is the same as
+        `read_file` gives.
+        
+        The GIL is released during the read; do not change `buffer` from another thread until it returns.
+        
+        This does not make a new array, so reading many times into one array is faster than `read_file`.
+        
+        Args:
+            volt_timestep_index (int): index within the timestep array for the desired timestep. This corresponds to the element within VoltageContext.timesteps. For mwa legacy each index represents 1 second increments, for mwax it is 8 second increments.
+            volt_coarse_chan_index (int): index within the coarse_chan array for the desired coarse channel. This corresponds to the element within VoltageContext.coarse_chans.
+            buffer (numpy.typing.NDArray[numpy.int8]): 6 dimensional array to read into, with the shape read_file gives. It must be int8, C contiguous, writeable and have exactly this shape, else ValueError is raised.
         """
     def read_second(self, gps_second_start: builtins.int, gps_second_count: builtins.int, volt_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.int8]:
         r"""
         Read a single or multiple seconds of data for a coarse channel
+        
+        The GIL is released during the read.
         
         Args:
             gps_second_start (int): GPS second within the observation to start returning data.
@@ -1871,10 +1889,25 @@ class VoltageContext:
         Returns:
             data (numpy.typing.NDArray[numpy.int8]): A 6 dimensional ndarray of signed bytes containing the data, if Ok.
         
-        NOTE: The shape is different between LegacyVCS and MWAX VCS
+        NOTE: The shape of the ndarray is different between LegacyVCS and MWAX VCS
         Legacy: [second],[time sample],[chan],[ant],[pol],[complexity]
-                where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment    
+                where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment
         MWAX  : [second],[voltage_block],[antenna],[pol],[sample],[r,i]
+        """
+    def read_second_into_buffer(self, gps_second_start: builtins.int, gps_second_count: builtins.int, volt_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.int8]) -> None:
+        r"""
+        Read a single or multiple seconds of data for a coarse channel into an existing array. The data is the same as
+        `read_second` gives.
+        
+        The GIL is released during the read; do not change `buffer` from another thread until it returns.
+        
+        This does not make a new array, so reading many times into one array is faster than `read_second`.
+        
+        Args:
+            gps_second_start (int): GPS second within the observation to start returning data.
+            gps_second_count (int): number of seconds of data to return.
+            volt_coarse_chan_index (int): index within the coarse_chan array for the desired coarse channel. This corresponds to the element within VoltageContext.coarse_chans.
+            buffer (numpy.typing.NDArray[numpy.int8]): 6 dimensional array to read into, with the shape read_second (for this gps_second_count) gives. It must be int8, C contiguous, writeable and have exactly this shape, else ValueError is raised.
         """
     def __enter__(self) -> VoltageContext: ...
     def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...

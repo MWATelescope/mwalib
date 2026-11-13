@@ -599,10 +599,10 @@ impl VoltageContext {
             return Err(VoltageFileError::NoVoltageFiles);
         }
 
-        // Validate the coarse chan
-        if volt_coarse_chan_index > self.num_coarse_chans - 1 {
+        // Validate the coarse chan (use the length of the vector, and do not underflow if there are none)
+        if volt_coarse_chan_index >= self.coarse_chans.len() {
             return Err(VoltageFileError::InvalidCoarseChanIndex(
-                self.num_coarse_chans - 1,
+                self.coarse_chans.len().saturating_sub(1),
             ));
         }
 
@@ -673,10 +673,10 @@ impl VoltageContext {
             };
 
             // Open the file
-            let mut file_handle = File::open(filename).expect("no file found");
+            let mut file_handle = File::open(filename)?;
 
             // Obtain metadata
-            let metadata = file_handle.metadata().expect("unable to read metadata");
+            let metadata = file_handle.metadata()?;
 
             // Check file is as big as we expect
             if metadata.len() != self.expected_voltage_data_file_size_bytes {
@@ -702,14 +702,11 @@ impl VoltageContext {
                 if current_gps_time >= gps_second_start && current_gps_time <= gps_second_end {
                     // Skip bytes in the file to this block
                     // We skip the header, delays and any intervening voltage blocks
-                    file_handle
-                        .by_ref()
-                        .seek(SeekFrom::Start(
-                            self.data_file_header_size_bytes
-                                + self.delay_block_size_bytes
-                                + (block_index as u64 * chunk_size as u64),
-                        ))
-                        .expect("Unable to seek to next data block in voltage file");
+                    file_handle.by_ref().seek(SeekFrom::Start(
+                        self.data_file_header_size_bytes
+                            + self.delay_block_size_bytes
+                            + (block_index as u64 * chunk_size as u64),
+                    ))?;
 
                     // Our input buffer is &mut [i8] because we want signed data, yet
                     // all the read functions seem to only read as [u8].
@@ -722,13 +719,9 @@ impl VoltageContext {
                         )
                     };
 
-                    let bytes_read = file_handle
-                        .by_ref()
-                        .take(chunk_size as u64)
-                        .read(chunk)
-                        .expect("Unable to read data block in voltage file");
-
-                    assert_eq!(bytes_read, chunk_size);
+                    // `read_exact`: one `read` may return fewer bytes than asked for (allowed by the OS, and seen on network
+                    // file systems), so keep reading until the block is complete
+                    file_handle.read_exact(chunk)?;
 
                     // Set new start and end pos
                     start_pos = end_pos;
@@ -767,17 +760,17 @@ impl VoltageContext {
             return Err(VoltageFileError::NoVoltageFiles);
         }
 
-        // Validate the timestep
-        if volt_timestep_index > self.num_timesteps - 1 {
+        // Validate the timestep (use the length of the vector, and do not underflow if there are none)
+        if volt_timestep_index >= self.timesteps.len() {
             return Err(VoltageFileError::InvalidTimeStepIndex(
-                self.num_timesteps - 1,
+                self.timesteps.len().saturating_sub(1),
             ));
         }
 
-        // Validate the coarse chan
-        if volt_coarse_chan_index > self.num_coarse_chans - 1 {
+        // Validate the coarse chan (use the length of the vector, and do not underflow if there are none)
+        if volt_coarse_chan_index >= self.coarse_chans.len() {
             return Err(VoltageFileError::InvalidCoarseChanIndex(
-                self.num_coarse_chans - 1,
+                self.coarse_chans.len().saturating_sub(1),
             ));
         }
 
@@ -803,7 +796,7 @@ impl VoltageContext {
         let buffer_u8 = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
 
         // Open the file
-        let mut fh = File::open(filename).expect("no file found");
+        let mut fh = File::open(filename)?;
 
         // Normally we would compare the file len to context.expected_voltage_data_file_size_bytes,
         // but it is already checked in new()
@@ -820,11 +813,9 @@ impl VoltageContext {
         }
 
         // Skip header
-        fh.by_ref()
-            .seek(SeekFrom::Start(
-                self.data_file_header_size_bytes + self.delay_block_size_bytes,
-            ))
-            .expect("Unable to seek to data in voltage file");
+        fh.by_ref().seek(SeekFrom::Start(
+            self.data_file_header_size_bytes + self.delay_block_size_bytes,
+        ))?;
 
         // Read the data into the final output buffer in blocks, spaced out with delay blocks (possibly)
         fh.read_exact(buffer_u8)?;

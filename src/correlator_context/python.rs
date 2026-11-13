@@ -7,6 +7,8 @@
 use super::*;
 
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
+use crate::python::borrow_buffer;
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use ndarray::Array2;
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 use ndarray::Array3;
@@ -15,11 +17,7 @@ use numpy::PyArray2;
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 use numpy::PyArray3;
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
-use numpy::{ndarray::Dimension, PyArray, PyArrayMethods, PyReadwriteArray, PyUntypedArrayMethods};
-#[cfg(any(feature = "python", feature = "python-stubgen"))]
 use pyo3::exceptions::PyRuntimeError;
-#[cfg(any(feature = "python", feature = "python-stubgen"))]
-use pyo3::exceptions::PyValueError;
 #[cfg(feature = "python-stubgen")]
 use pyo3_stub_gen_derive::gen_stub_pymethods;
 
@@ -78,42 +76,6 @@ fn by_frequency_shape(mc: &MetafitsContext) -> (usize, usize, usize) {
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 fn weights_shape(mc: &MetafitsContext) -> (usize, usize) {
     (mc.num_baselines, mc.num_visibility_pols)
-}
-
-/// Check that a `buffer` array has the shape `expected_shape` and is C contiguous, then borrow it for writing.
-///
-/// # Arguments
-///
-/// * `buffer` - The array the caller gave to read into.
-///
-/// * `expected_shape` - The shape the read gives.
-///
-/// # Returns
-///
-/// * The borrowed array, or a `ValueError` if the shape is wrong, the array is not C contiguous, is not writeable or is
-///   already borrowed.
-///
-#[cfg(any(feature = "python", feature = "python-stubgen"))]
-fn borrow_buffer<'py, D: Dimension>(
-    buffer: &Bound<'py, PyArray<f32, D>>,
-    expected_shape: &[usize],
-) -> PyResult<PyReadwriteArray<'py, f32, D>> {
-    if buffer.shape() != expected_shape {
-        return Err(PyValueError::new_err(format!(
-            "buffer has shape {:?}, expected {:?}",
-            buffer.shape(),
-            expected_shape
-        )));
-    }
-
-    // A Fortran ordered array is also contiguous, but its elements would be in the wrong order
-    if !buffer.is_c_contiguous() {
-        return Err(PyValueError::new_err("buffer must be C contiguous"));
-    }
-
-    buffer
-        .try_readwrite()
-        .map_err(|e| PyValueError::new_err(format!("buffer cannot be written to: {e}")))
 }
 
 #[cfg_attr(feature = "python-stubgen", gen_stub_pymethods)]

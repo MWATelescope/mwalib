@@ -14,6 +14,7 @@ This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0
 
 ### Breaking
 
+* `VoltageContext::read_file` and `VoltageContext::read_second` return `VoltageFileError::IoError` instead of panicking when a voltage file cannot be opened, seeked or read (for example, if it was removed after the context was made).
 * `Rfinput::height_m` and `Antenna::height_m` are corrected for the Earth's curvature for tiles whose metafits height is above the WGS84 ellipsoid (`height_code` is `EllipsoidHeight`: the long baseline tiles, also by default when the metafits has no `Height_Code` column). `height_m` is now the local "up" above the array centre plus `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` for every tile, so these tiles are lower than before by about (east² + north²) / 2R (0.08 m at 1 km, 0.97 m for LBD7). The metafits value is in the new `height_uncorrected_m`. The conversion is the same as Marlu PR 51 (`ENH::from_ellipsoidal_height`) and agrees with the MWA wiki's survey values to 0.5 mm.
 * Python: all mwalib classes are read-only. Setting an attribute (for example `context.num_timesteps = 0`) raises `AttributeError`. The setters are removed from `mwalib.pyi`.
 * `CorrelatorContext::get_fine_chan_freqs_hz_array` and `VoltageContext::get_fine_chan_freqs_hz_array` return a `Result`. An index out of range is `GpuboxError::InvalidCoarseChanIndex` (`VoltageFileError::InvalidCoarseChanIndex`) instead of a panic.
@@ -33,6 +34,7 @@ This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0
 * Added benchmarks of the visibility converters (`benches/convert_benches.rs`). They need the new internal `bench-internals` feature, which is not part of the public API.
 * Python: `CorrelatorContext.read_by_baseline_into_buffer`, `read_by_frequency_into_buffer` and `read_weights_by_baseline_into_buffer`, like the Rust and C functions of the same names. They read into an existing numpy array (`buffer`) instead of making a new one, and return `None`. `buffer` must be float32, C contiguous, writeable and have exactly the shape of the result of the matching read method, or `ValueError` is raised (`TypeError` for the wrong dtype or number of dimensions). Reusing one array saves about 15 ms per read.
 * New `GpuboxError` variants (and Python exceptions `GpuboxError...`): `BufferTooSmall`, `UnsupportedLegacyTileCount` (a legacy correlator observation must have 128 tiles; this was a panic), `InvalidLegacyConversionTable` (the conversion table is checked when the context is made) and `MwaxWeightsNaxisMismatch` (the first weights HDU of each MWAX gpubox file is checked when the context is made).
+* Python: `VoltageContext.read_file_into_buffer` and `read_second_into_buffer` read into an existing numpy array (`buffer`, int8, C contiguous, writeable, exactly the shape `read_file` or `read_second` gives, else `ValueError`) and return `None`. This avoids a new array for every read, which was most of the time of a Python voltage read.
 
 ### Changed
 
@@ -45,6 +47,9 @@ This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0
 * FFI/C: the read functions (`mwalib_correlator_context_read_*`, `mwalib_voltage_context_read_*`) and `*_get_fine_chan_freqs_hz_array` use a shared reference to the context, so calling them from many C threads at once is not undefined behaviour. A null `buffer_ptr` now sets the error message.
 * Python: an internal shape mismatch when making a numpy array raises `RuntimeError` instead of a panic.
 * Fixed the `VoltageFileError::InvalidGpsSecondCount` message, which showed the count where the maximum GPS second should be.
+* Python: the `VoltageContext` read methods (`read_file`, `read_second` and their `_into_buffer` versions) release the GIL while they read.
+* `VoltageContext::read_second` reads each voltage block with `read_exact`, so a short read (allowed by the OS, and seen on network file systems) no longer panics.
+* The voltage benchmark makes only the one voltage file it reads (5.9 GB instead of 4 files, 23.6 GB), reports throughput, and has a 1 second `read_second` benchmark.
 * Bumped pyo3-stubgen to 0.23.2.
 * Bumped pyo3 and numpy (Rust crates) to 0.30.
 * Bumped minimum versions of bytemuck (1.25), regex (1.13) and tempfile (3.27).

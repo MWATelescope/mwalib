@@ -173,9 +173,8 @@ What the numbers say:
   "Compressed test files" below). It is not the cost of reading an uncompressed file.
 - **Fixed cost of a read is about 2 ms** (the 132 KB weights read: open the file and move to the HDU), about 5 % of a
   data read. A file with many HDUs may cost more (not measured).
-- **Voltage reads look slow: `mwaxvcs_read_file` reads about 41 MB in 378 ms, about 7 times slower per byte than a
-  correlator read.** The voltage code was not read for this plan, so the cause is unknown. It is outside this plan;
-  worth its own look.
+- (Corrected later, see "Voltage reads".) An earlier note here said voltage reads were slow, from a wrong read size
+  (41 MB, the size of the unit test files). The benchmark reads 5.9 GB, so voltage reads are fast.
 
 ### Compressed test files (phase 3 step 3)
 
@@ -285,6 +284,27 @@ On the laptop (after step 5; "change" is what criterion reported against the las
   a new result buffer adds about 6 to 11 ms more to each allocating read.
 
 
+### Voltage reads
+
+`benches/voltage_context_benches.rs` uses obs 1363085416 (288 rf inputs). One MWAX voltage block is 64,000 samples x
+288 rf inputs x 2 bytes = 36.9 MB, and a file (8 seconds) is 160 blocks, so `read_file` and an 8 second `read_second`
+each read 5.9 GB. On the laptop: `read_file` 378 ms (15.6 GB/s), `read_second` 406 ms (14.5 GB/s). That is a copy from
+the file cache at about memory speed, faster per byte than the correlator reads, so there is nothing to gain in the
+Rust reads.
+
+What was changed (Greg's decisions):
+- Python: new `VoltageContext.read_file_into_buffer` and `read_second_into_buffer` (argument `buffer`, exact shape,
+  return `None`, like the correlator ones), and all four voltage reads release the GIL. In the sandbox (41 MB MWAX unit
+  test file): `read_file` 20.0 ms, `read_file_into_buffer` 3.9 ms (plain Python `readinto` an existing buffer: 4.4 ms).
+  So about 80 % of a Python read was the first write into a new array; for a 5.9 GB file this is seconds per read.
+- Robustness: `read_second` read each block with one `read` and then `assert_eq!` on the count, which panics on a short
+  read (allowed by the OS, seen on network file systems); it now uses `read_exact`. The `expect` calls on open,
+  metadata, seek and read are now `VoltageFileError::IoError`. The index checks use `timesteps.len()` and
+  `coarse_chans.len()`.
+- Benchmark: setup makes only the one 5.9 GB file the benchmarks read (it made 4, 23.6 GB). Group `mwaxvcs` with
+  `read_file`, `read_second_8s` and `read_second_1s` (738 MB), with throughput. The names changed, so there is no
+  comparison with earlier runs.
+
 ## Phases
 
 Each phase is one diff. `cargo test` and `uv run pytest` must pass with the diff applied on its own. Outputs of the
@@ -336,7 +356,7 @@ converters and the reads must not change (the golden and reference tests enforce
       released (it cannot be checked without timing); the thread tests check that the data stays correct.
       `tools/gil_check.py` on the laptop (16 legacy `read_by_frequency`): 1 thread 1.290 s, 4 threads 0.354 s
       (3.6 times faster), so the reads do run in parallel.
-      `VoltageContext` reads still hold the GIL (outside this plan).
+      `VoltageContext` reads release the GIL too since the voltage changes (see "Voltage reads").
    5. Converter loop order and blocking, and the sign table (done; see "Phase 3 step 5" in Benchmarks). Outputs
       are unchanged (the reference and golden tests pass without change).
    Measure each one on its own, and record numbers here.
@@ -366,6 +386,5 @@ converters and the reads must not change (the golden and reference tests enforce
   Either run the steps by hand (`cargo build --features python,python-stubgen`, `target/debug/stub_gen`,
   `ruff check --fix`) or set `line-length = 120` first.
 - Other things seen, not part of this plan:
-  - voltage reads are about 7 times slower per byte than correlator reads (see Benchmarks);
   - `examples/mwalib-sum-vcs.py` uses an undefined `t` in `context.timesteps[t]`;
   - the MWAX test metafits `1244973688.metafits` is guessed as `CorrLegacy` when no MWA version is given.

@@ -26,6 +26,47 @@ use crate::{
     SignalChainCorrection, VisPol, VoltageBeam, VoltageContext,
 };
 
+/// Check that a `buffer` array has the shape `expected_shape` and is C contiguous, then borrow it for writing. Used by
+/// the `*_into_buffer` read methods.
+///
+/// # Arguments
+///
+/// * `buffer` - The array the caller gave to read into.
+///
+/// * `expected_shape` - The shape the read gives.
+///
+/// # Returns
+///
+/// * The borrowed array, or a `ValueError` if the shape is wrong, the array is not C contiguous, is not writeable or is
+///   already borrowed.
+///
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+pub(crate) fn borrow_buffer<'py, T: numpy::Element, D: numpy::ndarray::Dimension>(
+    buffer: &Bound<'py, numpy::PyArray<T, D>>,
+    expected_shape: &[usize],
+) -> PyResult<numpy::PyReadwriteArray<'py, T, D>> {
+    use numpy::{PyArrayMethods, PyUntypedArrayMethods};
+
+    if buffer.shape() != expected_shape {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "buffer has shape {:?}, expected {:?}",
+            buffer.shape(),
+            expected_shape
+        )));
+    }
+
+    // A Fortran ordered array is also contiguous, but its elements would be in the wrong order
+    if !buffer.is_c_contiguous() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "buffer must be C contiguous",
+        ));
+    }
+
+    buffer.try_readwrite().map_err(|e| {
+        pyo3::exceptions::PyValueError::new_err(format!("buffer cannot be written to: {e}"))
+    })
+}
+
 // Add a python exception for MmwalibError.
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 create_exception!(mwalib, MwalibError, PyException);

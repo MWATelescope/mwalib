@@ -1906,3 +1906,49 @@ fn test_invalid_gps_second_count_message() {
         "Invalid gps_second_count (gps second start 1101503312 + count 3 - 1 cannot be greater than 1101503424)"
     );
 }
+
+#[test]
+fn test_read_from_a_voltage_file_removed_after_the_context_was_made_is_an_error() {
+    // Copy one MWAX test file to a temp dir, make a context on it, then remove the file. The reads must return an
+    // I/O error instead of panicking.
+    let generated = get_test_voltage_files(MWAVersion::VCSMWAXv2, false);
+    let dir = tempfile::tempdir().unwrap();
+    let copy = dir
+        .path()
+        .join(std::path::Path::new(&generated[0]).file_name().unwrap());
+    std::fs::copy(&generated[0], &copy).unwrap();
+
+    let context = VoltageContext::new(
+        "test_files/1101503312_mwax_vcs/1101503312.metafits",
+        &[copy.to_str().unwrap()],
+    )
+    .unwrap();
+    let timestep_index = context.provided_timestep_indices[0];
+    let coarse_chan_index = context.provided_coarse_chan_indices[0];
+    let gps_start = context.timesteps[timestep_index].gps_time_ms / 1000;
+    let mut buffer: Vec<i8> = vec![
+        0;
+        context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_timestep
+    ];
+
+    std::fs::remove_file(&copy).unwrap();
+
+    let result = context.read_file(timestep_index, coarse_chan_index, &mut buffer);
+    assert!(
+        matches!(result, Err(VoltageFileError::IoError(_))),
+        "{result:?}"
+    );
+
+    let result = context.read_second(
+        gps_start,
+        1,
+        coarse_chan_index,
+        &mut buffer
+            [..context.voltage_block_size_bytes as usize * context.num_voltage_blocks_per_second],
+    );
+    assert!(
+        matches!(result, Err(VoltageFileError::IoError(_))),
+        "{result:?}"
+    );
+}

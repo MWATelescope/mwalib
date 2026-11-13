@@ -399,3 +399,77 @@ def test_voltage_context_classes_are_read_only(any_vc: mwalib.VoltageContext):
     for obj in (any_vc, any_vc.timesteps[0], any_vc.coarse_chans[0], any_vc.voltage_batches[0]):
         assert_read_only(obj)
     assert_read_only(any_vc.voltage_batches[0].voltage_files[0])
+
+
+#
+# Reads into an existing array (`read_file_into_buffer`, `read_second_into_buffer`)
+#
+
+# Value used to fill buffers, so we can see whether the read overwrote them
+VOLTAGE_BUFFER_SENTINEL = np.int8(-77)
+
+
+@pytest.mark.parametrize(("kind", "coarse_chan"), list(GOLDEN_VOLTAGE_SHA256))
+def test_voltage_context_read_file_into_buffer(kind: str, coarse_chan: int, request):
+    vc: mwalib.VoltageContext = request.getfixturevalue(f"{kind}_vc")
+    expected = vc.read_file(0, coarse_chan)
+    buffer = np.full(expected.shape, VOLTAGE_BUFFER_SENTINEL, dtype=np.int8)
+
+    # Twice, so the second read overwrites the data of the first one
+    for _ in range(2):
+        assert vc.read_file_into_buffer(0, coarse_chan, buffer) is None
+        assert hashlib.sha256(buffer.tobytes()).hexdigest() == GOLDEN_VOLTAGE_SHA256[(kind, coarse_chan)]
+
+
+@pytest.mark.parametrize("gps_second_count", [1, 2])
+def test_voltage_context_read_second_into_buffer(any_vc: mwalib.VoltageContext, gps_second_count: int):
+    gps_start = any_vc.timesteps[0].gps_time_ms // 1000
+    coarse_chan = any_vc.provided_coarse_chan_indices[0]
+    expected = any_vc.read_second(gps_start, gps_second_count, coarse_chan)
+    buffer = np.full(expected.shape, VOLTAGE_BUFFER_SENTINEL, dtype=np.int8)
+
+    assert any_vc.read_second_into_buffer(gps_start, gps_second_count, coarse_chan, buffer=buffer) is None
+    assert np.array_equal(buffer, expected)
+
+
+def test_voltage_context_read_into_buffer_with_wrong_shape(mwax_vc: mwalib.VoltageContext):
+    gps_start = mwax_vc.timesteps[0].gps_time_ms // 1000
+    shape = mwax_vc.read_file(0, 14).shape
+    wrong = np.full((shape[0] + 1, *shape[1:]), VOLTAGE_BUFFER_SENTINEL, dtype=np.int8)
+
+    with pytest.raises(ValueError, match="shape"):
+        mwax_vc.read_file_into_buffer(0, 14, wrong)
+    # A buffer for 8 seconds is the wrong shape for 1 second
+    with pytest.raises(ValueError, match="shape"):
+        mwax_vc.read_second_into_buffer(gps_start, 1, 14, np.zeros(shape, dtype=np.int8))
+
+    assert np.all(wrong == VOLTAGE_BUFFER_SENTINEL)
+
+
+def test_voltage_context_read_into_buffer_with_wrong_dtype_or_layout(mwax_vc: mwalib.VoltageContext):
+    shape = mwax_vc.read_file(0, 14).shape
+
+    with pytest.raises(TypeError):
+        mwax_vc.read_file_into_buffer(0, 14, np.zeros(shape, dtype=np.uint8))  # ty: ignore[invalid-argument-type]
+    with pytest.raises(ValueError, match="C contiguous"):
+        mwax_vc.read_file_into_buffer(0, 14, np.zeros(shape, dtype=np.int8, order="F"))
+
+    read_only = np.zeros(shape, dtype=np.int8)
+    read_only.flags.writeable = False
+    with pytest.raises(ValueError, match="written"):
+        mwax_vc.read_file_into_buffer(0, 14, read_only)
+
+
+def test_voltage_context_read_into_buffer_from_many_threads(mwax_vc: mwalib.VoltageContext):
+    expected = {c: mwax_vc.read_file(0, c) for c in (14, 15)}
+
+    def read_file(coarse_chan: int) -> np.ndarray:
+        buffer = np.zeros(expected[coarse_chan].shape, dtype=np.int8)
+        mwax_vc.read_file_into_buffer(0, coarse_chan, buffer)
+        return buffer
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        results = list(executor.map(read_file, [14, 15] * 4))
+
+    for coarse_chan, data in zip([14, 15] * 4, results, strict=True):
+        assert np.array_equal(data, expected[coarse_chan])
