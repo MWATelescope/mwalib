@@ -8,7 +8,9 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changed taged with "Python" are only relevant if you are using mwalib via Python.
 
-## 3.1.0 Unreleased
+## 4.0.0 Unreleased
+
+This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0.0.
 
 ### Breaking
 

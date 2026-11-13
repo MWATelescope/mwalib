@@ -1,10 +1,8 @@
 # Plan: safer and faster reading of visibilities
 
-Status: phase 1 (tests) is done. Phase 3 is in progress: steps 1 (benchmarks and the temp buffer experiment) and 2
-(thread-local temp buffer, Python `*_into_buffer` methods) are done. Step 3 found that the test files are Rice
-compressed (see "Compressed test files") and added benchmarks of uncompressed copies. Steps 4 (GIL) and 5
-(converter loops) are done, so phase 3 is done. Phase 2 is in progress (2a and 2b done, see Phases). Phases 4 and 5 are not
-started.
+Status: phases 1 (tests), 2 (safety and 4.0.0: diffs 2a, 2b, 2c) and 3 (performance: steps 1 to 5) are done. Phase 3
+step 3 found that the test files are Rice compressed (see "Compressed test files") and added benchmarks of
+uncompressed copies. Phases 4 (opt-in threads) and 5 (tile position from the height code) are not started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -22,7 +20,7 @@ after, on the same machine.
 | V3 | All Python classes become read-only (breaking). This is every `pyclass(get_all, set_all, ...)`: antenna, baseline, calibration_fit, coarse_channel, convert, correlator_context, gpubox_files (2), metafits_context, rfinput, signal_chain_correction, timestep, voltage_beam, voltage_context, voltage_files (2). |
 | V4 | The buffer length check is lenient: a buffer that is too small is an error. A bigger buffer is accepted and only the first part is used. |
 | V5 | Threads inside mwalib are opt-in: a runtime setting on the context, default 1 thread, `std::thread::scope`, no new dependency. |
-| - | Version is **4.0.0**. The `3.1.0 Unreleased` section of `CHANGELOG.md` becomes `4.0.0`, with a "Breaking" section. `Cargo.toml` moves to 4.0.0 in the phase 2 diff. |
+| - | Version is **4.0.0**. The `3.1.0 Unreleased` section of `CHANGELOG.md` became `4.0.0 Unreleased`, with a "Breaking" section (done). |
 | - | Not doing: caching open FITS handles. `FitsFile` is not `Sync`, so it would make `CorrelatorContext` `!Sync` and block parallel reads. |
 
 ## API changes
@@ -320,7 +318,9 @@ converters and the reads must not change (the golden and reference tests enforce
      Python wrappers return `RuntimeError` instead of panicking on a shape mismatch. The C read and fine channel
      functions use `&*` (shared) instead of `&mut *`, with a test that reads from 4 C threads at once, and a null
      `buffer_ptr` sets the error message. Also fixed the `InvalidGpsSecondCount` message (`{2}` for the maximum).
-   - 2c: version 4.0.0, CHANGELOG "Breaking" section, stubs.
+   - 2c (done): version 4.0.0 (`Cargo.toml`, set by Greg in the 2b commit) and the CHANGELOG section renamed to
+     `4.0.0 Unreleased`. The stubs have no version in them. Greg kept `GpuboxError` (not `MwalibError`) as the error of
+     `get_fine_chan_freqs_hz_array`; callers such as Birli add `.expect(...)` or map the error.
 3. **Performance.** MWAX benchmarks are added (see Benchmarks). Order, by what the numbers say:
    1. Add converter-only benchmarks, and the temp buffer experiment above (done, see Benchmarks).
    2. Avoid the allocations (done): a thread-local temp buffer (`with_read_scratch` in
