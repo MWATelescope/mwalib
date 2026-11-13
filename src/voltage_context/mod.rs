@@ -556,7 +556,7 @@ impl VoltageContext {
         // A count of 0 has no end second (and would underflow below)
         if gps_second_count == 0 {
             return Err(VoltageFileError::InvalidGpsSecondCount(
-                first_timestep.gps_time_ms / 1000,
+                gps_second_start,
                 gps_second_count,
                 gps_time_observation_max_ms / 1000,
             ));
@@ -566,7 +566,7 @@ impl VoltageContext {
         let gps_second_end: u64 = gps_second_start + gps_second_count as u64 - 1;
         if gps_second_end * 1000 > gps_time_observation_max_ms {
             return Err(VoltageFileError::InvalidGpsSecondCount(
-                first_timestep.gps_time_ms / 1000,
+                gps_second_start,
                 gps_second_count,
                 gps_time_observation_max_ms / 1000,
             ));

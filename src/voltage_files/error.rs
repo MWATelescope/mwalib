@@ -37,6 +37,7 @@ pub enum VoltageFileError {
     #[error(
         "Invalid gps_second_count (gps second start {0} + count {1} - 1 cannot be greater than {2})"
     )]
+    /// (gps_second_start the caller asked for, gps_second_count, last GPS second of the observation)
     InvalidGpsSecondCount(u64, usize, u64),
 
     #[error("Voltage file {0} error: {1}")]

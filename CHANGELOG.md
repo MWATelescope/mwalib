@@ -46,7 +46,7 @@ This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0
 * Index checks of the correlator reads use the lengths of `timesteps` and `coarse_chans`, so they cannot underflow.
 * FFI/C: the read functions (`mwalib_correlator_context_read_*`, `mwalib_voltage_context_read_*`) and `*_get_fine_chan_freqs_hz_array` use a shared reference to the context, so calling them from many C threads at once is not undefined behaviour. A null `buffer_ptr` now sets the error message.
 * Python: an internal shape mismatch when making a numpy array raises `RuntimeError` instead of a panic.
-* Fixed the `VoltageFileError::InvalidGpsSecondCount` message, which showed the count where the maximum GPS second should be.
+* Fixed `VoltageFileError::InvalidGpsSecondCount`: its first value is now the `gps_second_start` the caller asked for (it was the start of the observation), and the message shows the last GPS second of the observation (it showed the count again).
 * Python: the `VoltageContext` read methods (`read_file`, `read_second` and their `_into_buffer` versions) release the GIL while they read.
 * `VoltageContext::read_second` reads each voltage block with `read_exact`, so a short read (allowed by the OS, and seen on network file systems) no longer panics.
 * The voltage benchmark makes only the one voltage file it reads (5.9 GB instead of 4 files, 23.6 GB), reports throughput, and has a 1 second `read_second` benchmark.

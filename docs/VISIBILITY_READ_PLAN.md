@@ -346,7 +346,8 @@ converters and the reads must not change (the golden and reference tests enforce
      that every public attribute of each class raises `AttributeError` when set (`tests/read_only_helpers.py`). The
      Python wrappers return `RuntimeError` instead of panicking on a shape mismatch. The C read and fine channel
      functions use `&*` (shared) instead of `&mut *`, with a test that reads from 4 C threads at once, and a null
-     `buffer_ptr` sets the error message. Also fixed the `InvalidGpsSecondCount` message (`{2}` for the maximum).
+     `buffer_ptr` sets the error message. Also fixed the `InvalidGpsSecondCount` message (`{2}` for the maximum). Later its
+     first value became the requested `gps_second_start` (it was the observation start); Greg allowed the test changes.
    - 2c (done): version 4.0.0 (`Cargo.toml`, set by Greg in the 2b commit) and the CHANGELOG section renamed to
      `4.0.0 Unreleased`. The stubs have no version in them. Greg kept `GpuboxError` (not `MwalibError`) as the error of
      `get_fine_chan_freqs_hz_array`; callers such as Birli add `.expect(...)` or map the error.

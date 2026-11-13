@@ -1254,11 +1254,12 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
 
     assert!(result.is_err(), "{:?}", result);
 
+    // The error has the start second the caller asked for, not the start of the observation
     let error = result.unwrap_err();
     assert!(
         matches!(
             error,
-            VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 3, 1_101_503_424)
+            VoltageFileError::InvalidGpsSecondCount(1_101_503_424, 3, 1_101_503_424)
         ),
         "Error was {:?}",
         error
@@ -1899,11 +1900,11 @@ fn test_validate_gps_time_parameters_gps_second_count_of_zero_is_an_error() {
 
 #[test]
 fn test_invalid_gps_second_count_message() {
-    let error = VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 3, 1_101_503_424);
+    let error = VoltageFileError::InvalidGpsSecondCount(1_101_503_424, 3, 1_101_503_424);
 
     assert_eq!(
         error.to_string(),
-        "Invalid gps_second_count (gps second start 1101503312 + count 3 - 1 cannot be greater than 1101503424)"
+        "Invalid gps_second_count (gps second start 1101503424 + count 3 - 1 cannot be greater than 1101503424)"
     );
 }
 
@@ -1949,6 +1950,28 @@ fn test_read_from_a_voltage_file_removed_after_the_context_was_made_is_an_error(
     );
     assert!(
         matches!(result, Err(VoltageFileError::IoError(_))),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn test_validate_gps_time_parameters_invalid_gps_second_count_reports_the_requested_start_mwax_v2()
+{
+    // This test obs starts at 1_101_503_312 and has 112 seconds. Start 8 seconds in and ask for too many seconds: the
+    // error must have the requested start (not the start of the observation).
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
+
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_320, 110);
+
+    assert!(
+        matches!(
+            result,
+            Err(VoltageFileError::InvalidGpsSecondCount(
+                1_101_503_320,
+                110,
+                1_101_503_424
+            ))
+        ),
         "{result:?}"
     );
 }
