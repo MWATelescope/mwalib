@@ -1254,11 +1254,12 @@ fn test_validate_gps_time_parameters_invalid_gps_second_count_legacy() {
 
     assert!(result.is_err(), "{:?}", result);
 
+    // The error has the start second the caller asked for, not the start of the observation
     let error = result.unwrap_err();
     assert!(
         matches!(
             error,
-            VoltageFileError::InvalidGpsSecondCount(1_101_503_312, 3, 1_101_503_424)
+            VoltageFileError::InvalidGpsSecondCount(1_101_503_424, 3, 1_101_503_424)
         ),
         "Error was {:?}",
         error
@@ -1751,7 +1752,9 @@ fn test_context_legacy_v1_get_fine_chan_feqs_one_coarse_chan() {
 
     // Get fine channel freqs
     let coarse_channels: Vec<usize> = vec![0];
-    let fine_chan_freqs: Vec<f64> = context.get_fine_chan_freqs_hz_array(&coarse_channels);
+    let fine_chan_freqs: Vec<f64> = context
+        .get_fine_chan_freqs_hz_array(&coarse_channels)
+        .unwrap();
 
     assert_eq!(fine_chan_freqs.len(), 128);
     assert!(approx_eq!(
@@ -1768,7 +1771,9 @@ fn test_context_legacy_v1_get_fine_chan_feqs_some_coarse_chans() {
 
     // Get fine channel freqs
     let coarse_channels: Vec<usize> = vec![10, 20];
-    let fine_chan_freqs: Vec<f64> = context.get_fine_chan_freqs_hz_array(&coarse_channels);
+    let fine_chan_freqs: Vec<f64> = context
+        .get_fine_chan_freqs_hz_array(&coarse_channels)
+        .unwrap();
 
     assert_eq!(fine_chan_freqs.len(), 256);
     assert!(approx_eq!(
@@ -1856,4 +1861,117 @@ fn test_context_mwax_v2_oversampled() {
     rf_input_copy.sort_by_key(|k| k.subfile_order);
     // Now compare this copy with the 'real' rf_inputs
     assert_eq!(&rf_input_copy, &context.metafits_context.rf_inputs);
+}
+
+#[test]
+fn test_get_fine_chan_freqs_hz_array_invalid_index_is_an_error() {
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+    let num_coarse_chans = context.coarse_chans.len();
+
+    for indices in [vec![num_coarse_chans], vec![0, num_coarse_chans + 10]] {
+        let result = context.get_fine_chan_freqs_hz_array(&indices);
+
+        assert!(
+            matches!(result, Err(VoltageFileError::InvalidCoarseChanIndex(max)) if max == num_coarse_chans - 1),
+            "{indices:?}: {result:?}"
+        );
+    }
+}
+
+#[test]
+fn test_validate_gps_time_parameters_gps_second_count_of_zero_is_an_error() {
+    // This test obs starts at 1_101_503_312 and has 112 seconds.
+    let context = get_test_voltage_context(MWAVersion::VCSLegacyRecombined, false);
+
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_312, 0);
+
+    assert!(
+        matches!(
+            result,
+            Err(VoltageFileError::InvalidGpsSecondCount(
+                1_101_503_312,
+                0,
+                1_101_503_424
+            ))
+        ),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn test_invalid_gps_second_count_message() {
+    let error = VoltageFileError::InvalidGpsSecondCount(1_101_503_424, 3, 1_101_503_424);
+
+    assert_eq!(
+        error.to_string(),
+        "Invalid gps_second_count (gps second start 1101503424 + count 3 - 1 cannot be greater than 1101503424)"
+    );
+}
+
+#[test]
+fn test_read_from_a_voltage_file_removed_after_the_context_was_made_is_an_error() {
+    // Copy one MWAX test file to a temp dir, make a context on it, then remove the file. The reads must return an
+    // I/O error instead of panicking.
+    let generated = get_test_voltage_files(MWAVersion::VCSMWAXv2, false);
+    let dir = tempfile::tempdir().unwrap();
+    let copy = dir
+        .path()
+        .join(std::path::Path::new(&generated[0]).file_name().unwrap());
+    std::fs::copy(&generated[0], &copy).unwrap();
+
+    let context = VoltageContext::new(
+        "test_files/1101503312_mwax_vcs/1101503312.metafits",
+        &[copy.to_str().unwrap()],
+    )
+    .unwrap();
+    let timestep_index = context.provided_timestep_indices[0];
+    let coarse_chan_index = context.provided_coarse_chan_indices[0];
+    let gps_start = context.timesteps[timestep_index].gps_time_ms / 1000;
+    let mut buffer: Vec<i8> = vec![
+        0;
+        context.voltage_block_size_bytes as usize
+            * context.num_voltage_blocks_per_timestep
+    ];
+
+    std::fs::remove_file(&copy).unwrap();
+
+    let result = context.read_file(timestep_index, coarse_chan_index, &mut buffer);
+    assert!(
+        matches!(result, Err(VoltageFileError::IoError(_))),
+        "{result:?}"
+    );
+
+    let result = context.read_second(
+        gps_start,
+        1,
+        coarse_chan_index,
+        &mut buffer
+            [..context.voltage_block_size_bytes as usize * context.num_voltage_blocks_per_second],
+    );
+    assert!(
+        matches!(result, Err(VoltageFileError::IoError(_))),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn test_validate_gps_time_parameters_invalid_gps_second_count_reports_the_requested_start_mwax_v2()
+{
+    // This test obs starts at 1_101_503_312 and has 112 seconds. Start 8 seconds in and ask for too many seconds: the
+    // error must have the requested start (not the start of the observation).
+    let context = get_test_voltage_context(MWAVersion::VCSMWAXv2, false);
+
+    let result = VoltageContext::validate_gps_time_parameters(&context, 1_101_503_320, 110);
+
+    assert!(
+        matches!(
+            result,
+            Err(VoltageFileError::InvalidGpsSecondCount(
+                1_101_503_320,
+                110,
+                1_101_503_424
+            ))
+        ),
+        "{result:?}"
+    );
 }

@@ -12,6 +12,7 @@
 #
 import argparse
 import os
+import sys
 import time
 
 import numpy as np
@@ -42,9 +43,9 @@ def sum_parallel_by_bl(
                 except mwalib.GpuboxErrorNoDataForTimeStepCoarseChannel:
                     pass
 
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 (CLI example: report any error and exit)
                     print(f"Error: {e}")
-                    exit(-1)
+                    sys.exit(-1)
 
     return chan_sum
 
@@ -71,9 +72,9 @@ def sum_parallel_by_freq(
                 except mwalib.GpuboxErrorNoDataForTimeStepCoarseChannel:
                     pass
 
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 (CLI example: report any error and exit)
                     print(f"Error: {e}")
-                    exit(-1)
+                    sys.exit(-1)
 
     return chan_sum
 

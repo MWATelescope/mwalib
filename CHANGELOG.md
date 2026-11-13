@@ -6,7 +6,55 @@ The format (from Jan 2026 onwards) is based on [Keep a Changelog](https://keepac
 
 Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
-* Changed taged with "Python" are only relevant if you are using mwalib via Python.
+* Changes tagged with "Python" are only relevant if you are using mwalib via Python.
+
+## 4.0.0 Unreleased
+
+This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0.0.
+
+### Breaking
+
+* `VoltageContext::read_file` and `VoltageContext::read_second` return `VoltageFileError::IoError` instead of panicking when a voltage file cannot be opened, seeked or read (for example, if it was removed after the context was made).
+* `Rfinput::height_m` and `Antenna::height_m` are corrected for the Earth's curvature for tiles whose metafits height is above the WGS84 ellipsoid (`height_code` is `EllipsoidHeight`: the long baseline tiles, also by default when the metafits has no `Height_Code` column). `height_m` is now the local "up" above the array centre plus `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` for every tile, so these tiles are lower than before by about (east² + north²) / 2R (0.08 m at 1 km, 0.97 m for LBD7). The metafits value is in the new `height_uncorrected_m`. The conversion is the same as Marlu PR 51 (`ENH::from_ellipsoidal_height`) and agrees with the MWA wiki's survey values to 0.5 mm.
+* Python: all mwalib classes are read-only. Setting an attribute (for example `context.num_timesteps = 0`) raises `AttributeError`. The setters are removed from `mwalib.pyi`.
+* `CorrelatorContext::get_fine_chan_freqs_hz_array` and `VoltageContext::get_fine_chan_freqs_hz_array` return a `Result`. An index out of range is `GpuboxError::InvalidCoarseChanIndex` (`VoltageFileError::InvalidCoarseChanIndex`) instead of a panic.
+  * Python: raises `GpuboxErrorInvalidCoarseChanIndex` (`VoltageErrorInvalidCoarseChanIndex`) instead of `PanicException`.
+  * FFI/C: returns `MWALIB_FAILURE` with a message instead of aborting. The signature does not change.
+* `read_by_baseline_into_buffer`, `read_by_frequency_into_buffer` and `read_weights_by_baseline_into_buffer` return `GpuboxError::BufferTooSmall` if the buffer is too small, instead of a partial read or a panic. A bigger buffer is accepted, and only its first part is used (also for MWAX by baseline, which read as many floats as the buffer had).
+
+### Added
+
+* Added `HeightCode` enum (`EllipsoidHeight` = 0, `ArrayCentreOffset` = 1) and a `height_code` field to `Rfinput` and `Antenna`. It is read from the optional `Height_Code` column of the metafits TILEDATA table and says what the metafits height (`height_uncorrected_m`) is relative to. If the metafits has no `Height_Code` column, `height_code` is `ArrayCentreOffset`, unless the tile name starts with "LB", in which case it is `EllipsoidHeight`. A value other than 0 or 1 returns `RfinputError::UnrecognisedHeightCode`.
+  * Added the constant `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` (377.8269).
+  * Python: `mwalib.HeightCode`, and `height_code` on `Rfinput` and `Antenna`.
+  * FFI/C: `HeightCode` enum, and `height_code` as the last field of the C `Rfinput` and `Antenna` structs.
+* Added `height_uncorrected_m` to `Rfinput` and `Antenna`: the tile height as in the metafits. `height_m` is now corrected (see Breaking).
+  * Python: `height_uncorrected_m` on `Rfinput` and `Antenna`.
+  * FFI/C: `height_uncorrected_m` as the last field of the C `Rfinput` and `Antenna` structs (after `height_code`).
+* Added benchmarks of the visibility converters (`benches/convert_benches.rs`). They need the new internal `bench-internals` feature, which is not part of the public API.
+* Python: `CorrelatorContext.read_by_baseline_into_buffer`, `read_by_frequency_into_buffer` and `read_weights_by_baseline_into_buffer`, like the Rust and C functions of the same names. They read into an existing numpy array (`buffer`) instead of making a new one, and return `None`. `buffer` must be float32, C contiguous, writeable and have exactly the shape of the result of the matching read method, or `ValueError` is raised (`TypeError` for the wrong dtype or number of dimensions). Reusing one array saves about 15 ms per read.
+* New `GpuboxError` variants (and Python exceptions `GpuboxError...`): `BufferTooSmall`, `UnsupportedLegacyTileCount` (a legacy correlator observation must have 128 tiles; this was a panic), `InvalidLegacyConversionTable` (the conversion table is checked when the context is made) and `MwaxWeightsNaxisMismatch` (the first weights HDU of each MWAX gpubox file is checked when the context is made).
+* Python: `VoltageContext.read_file_into_buffer` and `read_second_into_buffer` read into an existing numpy array (`buffer`, int8, C contiguous, writeable, exactly the shape `read_file` or `read_second` gives, else `ValueError`) and return `None`. This avoids a new array for every read, which was most of the time of a Python voltage read.
+
+### Changed
+
+* Reads that convert the data (legacy by baseline, and by frequency) reuse a temp buffer per thread instead of allocating a new one for each read. This saves about 15 ms per read. Each thread that reads keeps one temp buffer of one timestep and coarse channel (about 34 MB for 128 tiles).
+* Faster conversion of legacy visibilities (both orders) and of MWAX visibilities to frequency order: the loops work on blocks that fit in cache, and the legacy conversion uses a compact table. The output is the same. The converters no longer use `unsafe`.
+* Python: the `CorrelatorContext` read methods (`read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their `_into_buffer` versions) release the GIL while they read, so other Python threads can run at the same time.
+* `VoltageContext::read_second` with a `gps_second_count` of 0 returns `VoltageFileError::InvalidGpsSecondCount` instead of a panic.
+* Reading a visibility or weights HDU moves cfitsio to that HDU first, instead of depending on the HDU having just been opened.
+* Index checks of the correlator reads use the lengths of `timesteps` and `coarse_chans`, so they cannot underflow.
+* FFI/C: the read functions (`mwalib_correlator_context_read_*`, `mwalib_voltage_context_read_*`) and `*_get_fine_chan_freqs_hz_array` use a shared reference to the context, so calling them from many C threads at once is not undefined behaviour. A null `buffer_ptr` now sets the error message.
+* Python: an internal shape mismatch when making a numpy array raises `RuntimeError` instead of a panic.
+* Fixed `VoltageFileError::InvalidGpsSecondCount`: its first value is now the `gps_second_start` the caller asked for (it was the start of the observation), and the message shows the last GPS second of the observation (it showed the count again).
+* Python: the `VoltageContext` read methods (`read_file`, `read_second` and their `_into_buffer` versions) release the GIL while they read.
+* `VoltageContext::read_second` reads each voltage block with `read_exact`, so a short read (allowed by the OS, and seen on network file systems) no longer panics.
+* The voltage benchmark makes only the one voltage file it reads (5.9 GB instead of 4 files, 23.6 GB), reports throughput, and has a 1 second `read_second` benchmark.
+* Bumped pyo3-stubgen to 0.23.2.
+* Bumped pyo3 and numpy (Rust crates) to 0.30.
+* Bumped minimum versions of bytemuck (1.25), regex (1.13) and tempfile (3.27).
+* Updated the Python dev dependencies in `uv.lock` and `tools/uv.lock`.
+* Fixed the file name in the header comment of `tools/generate_stubs.sh`.
 
 ## 3.0.2 01-Oct-2026
 

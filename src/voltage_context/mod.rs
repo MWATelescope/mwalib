@@ -33,10 +33,7 @@ pub mod test; // It's pub crate because I reuse some test code in the ffi tests.
 /// This represents the basic metadata and methods for an MWA voltage capture system (VCS) observation.
 ///
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all)
-)]
+#[cfg_attr(any(feature = "python", feature = "python-stubgen"), pyclass(get_all))]
 #[derive(Debug)]
 pub struct VoltageContext {
     /// Observation Metadata obtained from the metafits file
@@ -489,18 +486,31 @@ impl VoltageContext {
     ///
     /// # Returns
     ///
-    /// * a vector of f64 containing the centre sky frequencies of all the fine channels for the
-    ///   given coarse channels.
+    /// * a Result containing a vector of f64 with the centre sky frequencies of all the fine channels for the
+    ///   given coarse channels, or `VoltageFileError::InvalidCoarseChanIndex` if an index is out of range.
     ///
-    pub fn get_fine_chan_freqs_hz_array(&self, volt_coarse_chan_indices: &[usize]) -> Vec<f64> {
-        CoarseChannel::get_fine_chan_centres_array_hz_inner(
+    pub fn get_fine_chan_freqs_hz_array(
+        &self,
+        volt_coarse_chan_indices: &[usize],
+    ) -> Result<Vec<f64>, VoltageFileError> {
+        // Validate every index first, so a bad index is an error instead of a panic
+        if volt_coarse_chan_indices
+            .iter()
+            .any(|c| *c >= self.coarse_chans.len())
+        {
+            return Err(VoltageFileError::InvalidCoarseChanIndex(
+                self.coarse_chans.len().saturating_sub(1),
+            ));
+        }
+
+        Ok(CoarseChannel::get_fine_chan_centres_array_hz_inner(
             self.mwa_version,
             volt_coarse_chan_indices
                 .iter()
                 .map(|c| &self.coarse_chans[*c]),
             self.metafits_context.volt_fine_chan_width_hz,
             self.metafits_context.num_volt_fine_chans_per_coarse,
-        )
+        ))
     }
 
     /// Validates gps time start and gps seconds count, and returns the end gps time or an Error.
@@ -524,16 +534,30 @@ impl VoltageContext {
         gps_second_start: u64,
         gps_second_count: usize,
     ) -> Result<u64, VoltageFileError> {
-        // Validate the gpstime
-        let gps_time_observation_max_ms =
-            self.timesteps[self.num_timesteps - 1].gps_time_ms + self.timestep_duration_ms;
+        // Validate the gpstime. Use the first and last timesteps (not `num_timesteps - 1`, which underflows if there are
+        // none); with no timesteps there is no data to read.
+        let (first_timestep, last_timestep) = match (self.timesteps.first(), self.timesteps.last())
+        {
+            (Some(first), Some(last)) => (first, last),
+            _ => return Err(VoltageFileError::NoVoltageFiles),
+        };
+        let gps_time_observation_max_ms = last_timestep.gps_time_ms + self.timestep_duration_ms;
 
         // Validate the start time
-        if gps_second_start * 1000 < self.timesteps[0].gps_time_ms
+        if gps_second_start * 1000 < first_timestep.gps_time_ms
             || gps_second_start * 1000 > gps_time_observation_max_ms
         {
             return Err(VoltageFileError::InvalidGpsSecondStart(
-                self.timesteps[0].gps_time_ms / 1000,
+                first_timestep.gps_time_ms / 1000,
+                gps_time_observation_max_ms / 1000,
+            ));
+        }
+
+        // A count of 0 has no end second (and would underflow below)
+        if gps_second_count == 0 {
+            return Err(VoltageFileError::InvalidGpsSecondCount(
+                gps_second_start,
+                gps_second_count,
                 gps_time_observation_max_ms / 1000,
             ));
         }
@@ -542,7 +566,7 @@ impl VoltageContext {
         let gps_second_end: u64 = gps_second_start + gps_second_count as u64 - 1;
         if gps_second_end * 1000 > gps_time_observation_max_ms {
             return Err(VoltageFileError::InvalidGpsSecondCount(
-                self.timesteps[0].gps_time_ms / 1000,
+                gps_second_start,
                 gps_second_count,
                 gps_time_observation_max_ms / 1000,
             ));
@@ -580,10 +604,10 @@ impl VoltageContext {
             return Err(VoltageFileError::NoVoltageFiles);
         }
 
-        // Validate the coarse chan
-        if volt_coarse_chan_index > self.num_coarse_chans - 1 {
+        // Validate the coarse chan (use the length of the vector, and do not underflow if there are none)
+        if volt_coarse_chan_index >= self.coarse_chans.len() {
             return Err(VoltageFileError::InvalidCoarseChanIndex(
-                self.num_coarse_chans - 1,
+                self.coarse_chans.len().saturating_sub(1),
             ));
         }
 
@@ -654,10 +678,10 @@ impl VoltageContext {
             };
 
             // Open the file
-            let mut file_handle = File::open(filename).expect("no file found");
+            let mut file_handle = File::open(filename)?;
 
             // Obtain metadata
-            let metadata = file_handle.metadata().expect("unable to read metadata");
+            let metadata = file_handle.metadata()?;
 
             // Check file is as big as we expect
             if metadata.len() != self.expected_voltage_data_file_size_bytes {
@@ -683,14 +707,11 @@ impl VoltageContext {
                 if current_gps_time >= gps_second_start && current_gps_time <= gps_second_end {
                     // Skip bytes in the file to this block
                     // We skip the header, delays and any intervening voltage blocks
-                    file_handle
-                        .by_ref()
-                        .seek(SeekFrom::Start(
-                            self.data_file_header_size_bytes
-                                + self.delay_block_size_bytes
-                                + (block_index as u64 * chunk_size as u64),
-                        ))
-                        .expect("Unable to seek to next data block in voltage file");
+                    file_handle.by_ref().seek(SeekFrom::Start(
+                        self.data_file_header_size_bytes
+                            + self.delay_block_size_bytes
+                            + (block_index as u64 * chunk_size as u64),
+                    ))?;
 
                     // Our input buffer is &mut [i8] because we want signed data, yet
                     // all the read functions seem to only read as [u8].
@@ -703,13 +724,9 @@ impl VoltageContext {
                         )
                     };
 
-                    let bytes_read = file_handle
-                        .by_ref()
-                        .take(chunk_size as u64)
-                        .read(chunk)
-                        .expect("Unable to read data block in voltage file");
-
-                    assert_eq!(bytes_read, chunk_size);
+                    // `read_exact`: one `read` may return fewer bytes than asked for (allowed by the OS, and seen on network
+                    // file systems), so keep reading until the block is complete
+                    file_handle.read_exact(chunk)?;
 
                     // Set new start and end pos
                     start_pos = end_pos;
@@ -748,17 +765,17 @@ impl VoltageContext {
             return Err(VoltageFileError::NoVoltageFiles);
         }
 
-        // Validate the timestep
-        if volt_timestep_index > self.num_timesteps - 1 {
+        // Validate the timestep (use the length of the vector, and do not underflow if there are none)
+        if volt_timestep_index >= self.timesteps.len() {
             return Err(VoltageFileError::InvalidTimeStepIndex(
-                self.num_timesteps - 1,
+                self.timesteps.len().saturating_sub(1),
             ));
         }
 
-        // Validate the coarse chan
-        if volt_coarse_chan_index > self.num_coarse_chans - 1 {
+        // Validate the coarse chan (use the length of the vector, and do not underflow if there are none)
+        if volt_coarse_chan_index >= self.coarse_chans.len() {
             return Err(VoltageFileError::InvalidCoarseChanIndex(
-                self.num_coarse_chans - 1,
+                self.coarse_chans.len().saturating_sub(1),
             ));
         }
 
@@ -784,7 +801,7 @@ impl VoltageContext {
         let buffer_u8 = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
 
         // Open the file
-        let mut fh = File::open(filename).expect("no file found");
+        let mut fh = File::open(filename)?;
 
         // Normally we would compare the file len to context.expected_voltage_data_file_size_bytes,
         // but it is already checked in new()
@@ -801,11 +818,9 @@ impl VoltageContext {
         }
 
         // Skip header
-        fh.by_ref()
-            .seek(SeekFrom::Start(
-                self.data_file_header_size_bytes + self.delay_block_size_bytes,
-            ))
-            .expect("Unable to seek to data in voltage file");
+        fh.by_ref().seek(SeekFrom::Start(
+            self.data_file_header_size_bytes + self.delay_block_size_bytes,
+        ))?;
 
         // Read the data into the final output buffer in blocks, spaced out with delay blocks (possibly)
         fh.read_exact(buffer_u8)?;

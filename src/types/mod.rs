@@ -494,7 +494,7 @@ pub enum ReceiverType {
     Pseudo,
     SHAO,
     EDA2,
-    CIRA
+    CIRA,
 }
 
 /// Implements fmt::Display for ReceiverType
@@ -553,6 +553,48 @@ impl std::str::FromStr for ReceiverType {
             "CIRA" => Ok(ReceiverType::CIRA),
             _ => Ok(ReceiverType::Unknown),
         }
+    }
+}
+
+/// HeightCode enum. Describes what the metafits height of a tile (`height_uncorrected_m`) is relative to.
+/// This is the "Height_Code" column in the metafits TILEDATA table. mwalib converts `EllipsoidHeight` heights, so
+/// `height_m` is always in the `ArrayCentreOffset` convention.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
+#[cfg_attr(
+    any(feature = "python", feature = "python-stubgen"),
+    pyo3::pyclass(eq, eq_int, from_py_object)
+)]
+#[cfg_attr(feature = "python-stubgen", gen_stub_pyclass_enum)]
+pub enum HeightCode {
+    /// Code 0: the raw height above the ellipsoid, in metres (this includes the curvature of the Earth).
+    EllipsoidHeight = 0,
+    /// Code 1: the height above the array centre, plus `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` (377.8269 m).
+    ArrayCentreOffset = 1,
+}
+
+/// Implements fmt::Display for HeightCode
+///
+/// # Arguments
+///
+/// * `f` - A fmt::Formatter
+///
+///
+/// # Returns
+///
+/// * `fmt::Result` - Result of this method
+///
+///
+impl fmt::Display for HeightCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                HeightCode::EllipsoidHeight => "EllipsoidHeight",
+                HeightCode::ArrayCentreOffset => "ArrayCentreOffset",
+            }
+        )
     }
 }
 

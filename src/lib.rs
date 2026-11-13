@@ -8,6 +8,9 @@
 // Public items will be exposed as mwalib::module.
 mod antenna;
 mod baseline;
+#[cfg(feature = "bench-internals")]
+#[doc(hidden)]
+pub mod bench_internals;
 mod calibration_fit;
 mod coarse_channel;
 mod convert;
@@ -37,6 +40,9 @@ pub const MWALIB_MWA_LATITUDE_RADIANS: f64 = -0.4660608448386394;
 pub const MWALIB_MWA_LONGITUDE_RADIANS: f64 = 2.0362898668561042;
 /// The MWA's altitude in metres.
 pub const MWALIB_MWA_ALTITUDE_METRES: f64 = 377.827;
+/// The offset (metres) used by `HeightCode::ArrayCentreOffset`: tile heights with this code are the
+/// height above the array centre plus this value.
+pub const MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES: f64 = 377.8269;
 /// speed of light in m/s
 pub const MWALIB_SPEED_OF_LIGHT_IN_VACUUM_M_PER_S: f64 = 299792458.0;
 /////////////////////////////////////////////////////////////////////////////
@@ -76,8 +82,8 @@ pub use rfinput::{error::RfinputError, Rfinput};
 pub use signal_chain_correction::*;
 pub use timestep::TimeStep;
 pub use types::{
-    CableDelaysApplied, DelayMode, GeometricDelaysApplied, MWAMode, MWAVersion, Pol, ReceiverType,
-    VisPol,
+    CableDelaysApplied, DelayMode, GeometricDelaysApplied, HeightCode, MWAMode, MWAVersion, Pol,
+    ReceiverType, VisPol,
 };
 pub use voltage_beam::VoltageBeam;
 pub use voltage_context::VoltageContext;

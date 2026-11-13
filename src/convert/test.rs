@@ -648,3 +648,261 @@ fn test_mwax_conversion_to_frequency_order() {
         }
     }
 }
+
+//
+// Reference tests for the converters
+//
+// These compare every element of the output of each converter to a simple, obviously correct reference
+// implementation, using an input where every float is unique. So any mistake in where a value ends up (not just
+// in the sum of all values) is caught. They are here to make it safe to change how the converters are written.
+//
+
+const REFERENCE_LEGACY_METAFITS: &str = "test_files/1101503312_1_timestep/1101503312.metafits";
+const REFERENCE_LEGACY_GPUBOX: &str =
+    "test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits";
+const REFERENCE_MWAX_METAFITS: &str = "test_files/1244973688_1_timestep/1244973688.metafits";
+const REFERENCE_MWAX_GPUBOX: &str =
+    "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
+
+/// Floats per baseline per fine channel: xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
+const REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN: usize = 8;
+
+/// Returns a vector of `len` floats where the value of each float is its index. f32 holds integers exactly up to
+/// 16,777,216, and the biggest input we use is 8256 * 128 * 8 = 8,454,144 floats, so every value is unique and exact.
+fn unique_input(len: usize) -> Vec<f32> {
+    (0..len).map(|i| i as f32).collect()
+}
+
+/// Reference implementation of the legacy conversion. Legacy input is [fine_chan][baseline][pol][r][i] but
+/// where each baseline's pols are found, and if they need conjugating, comes from the conversion table.
+/// Output is [baseline][fine_chan][pol][r][i], or [fine_chan][baseline][pol][r][i] if `by_frequency`.
+fn reference_convert_legacy(
+    table: &[LegacyConversionBaseline],
+    input: &[f32],
+    num_fine_chans: usize,
+    by_frequency: bool,
+) -> Vec<f32> {
+    let num_baselines = table.len();
+    let floats_per_fine_chan = num_baselines * REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN;
+    let mut output = vec![f32::NAN; num_fine_chans * floats_per_fine_chan];
+
+    for fine_chan in 0..num_fine_chans {
+        for (baseline, entry) in table.iter().enumerate() {
+            let source_start = fine_chan * floats_per_fine_chan;
+            let destination_start = if by_frequency {
+                fine_chan * floats_per_fine_chan
+                    + baseline * REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN
+            } else {
+                baseline * num_fine_chans * REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN
+                    + fine_chan * REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN
+            };
+
+            // (index of the real part in the input, whether the conversion table says to conjugate it)
+            let pols = [
+                (entry.xx_index, entry.xx_conjugate),
+                (entry.xy_index, entry.xy_conjugate),
+                (entry.yx_index, entry.yx_conjugate),
+                (entry.yy_index, entry.yy_conjugate),
+            ];
+
+            for (pol, (index, conjugate)) in pols.iter().enumerate() {
+                let real = input[source_start + index];
+                let imag = input[source_start + index + 1];
+
+                output[destination_start + pol * 2] = real;
+                // The converters finish by taking the conjugate of everything (to get to the correct
+                // triangle), so a visibility the table says to conjugate ends up with its imaginary part
+                // unchanged and all others end up negated
+                output[destination_start + pol * 2 + 1] = if *conjugate { imag } else { -imag };
+            }
+        }
+    }
+
+    output
+}
+
+/// Make a legacy context, and return the conversion table and the number of fine channels
+fn get_legacy_conversion_table() -> (Vec<LegacyConversionBaseline>, usize) {
+    let context = CorrelatorContext::new(REFERENCE_LEGACY_METAFITS, &[REFERENCE_LEGACY_GPUBOX])
+        .expect("Failed to create CorrelatorContext");
+
+    (
+        context.legacy_conversion_table.clone(),
+        context.metafits_context.num_corr_fine_chans_per_coarse,
+    )
+}
+
+#[test]
+fn test_reference_convert_legacy_hdu_to_mwax_baseline_order() {
+    let (table, num_fine_chans) = get_legacy_conversion_table();
+    assert_eq!(table.len(), 8256);
+
+    let input =
+        unique_input(num_fine_chans * table.len() * REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN);
+    let mut output = vec![f32::NAN; input.len()];
+
+    convert_legacy_hdu_to_mwax_baseline_order(&table, &input, &mut output, num_fine_chans);
+
+    let expected = reference_convert_legacy(&table, &input, num_fine_chans, false);
+
+    assert_eq!(output.len(), expected.len());
+    // Compare by value, so a zero does not need to have the same sign
+    assert!(output.iter().zip(expected.iter()).all(|(a, b)| a == b));
+}
+
+#[test]
+fn test_reference_convert_legacy_hdu_to_mwax_frequency_order() {
+    let (table, num_fine_chans) = get_legacy_conversion_table();
+
+    let input =
+        unique_input(num_fine_chans * table.len() * REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN);
+    let mut output = vec![f32::NAN; input.len()];
+
+    convert_legacy_hdu_to_mwax_frequency_order(&table, &input, &mut output, num_fine_chans);
+
+    let expected = reference_convert_legacy(&table, &input, num_fine_chans, true);
+
+    assert_eq!(output.len(), expected.len());
+    assert!(output.iter().zip(expected.iter()).all(|(a, b)| a == b));
+}
+
+#[test]
+fn test_reference_convert_legacy_baseline_and_frequency_order_are_transposes() {
+    let (table, num_fine_chans) = get_legacy_conversion_table();
+    let num_baselines = table.len();
+
+    let input =
+        unique_input(num_fine_chans * num_baselines * REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN);
+    let mut by_baseline = vec![f32::NAN; input.len()];
+    let mut by_frequency = vec![f32::NAN; input.len()];
+
+    convert_legacy_hdu_to_mwax_baseline_order(&table, &input, &mut by_baseline, num_fine_chans);
+    convert_legacy_hdu_to_mwax_frequency_order(&table, &input, &mut by_frequency, num_fine_chans);
+
+    for baseline in 0..num_baselines {
+        for fine_chan in 0..num_fine_chans {
+            let a =
+                (baseline * num_fine_chans + fine_chan) * REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN;
+            let b =
+                (fine_chan * num_baselines + baseline) * REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN;
+
+            assert_eq!(
+                by_baseline[a..a + REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN],
+                by_frequency[b..b + REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN]
+            );
+        }
+    }
+}
+
+#[test]
+fn test_reference_convert_legacy_only_writes_the_expected_part_of_a_bigger_output() {
+    let (table, num_fine_chans) = get_legacy_conversion_table();
+
+    let input_len = num_fine_chans * table.len() * REFERENCE_FLOATS_PER_BASELINE_FINE_CHAN;
+    let input = unique_input(input_len);
+
+    // The output has 10 extra floats at the end, which must not be touched
+    let mut output = vec![-1234.5; input_len + 10];
+
+    convert_legacy_hdu_to_mwax_baseline_order(&table, &input, &mut output, num_fine_chans);
+    assert!(output[input_len..].iter().all(|x| *x == -1234.5));
+
+    let mut output = vec![-1234.5; input_len + 10];
+
+    convert_legacy_hdu_to_mwax_frequency_order(&table, &input, &mut output, num_fine_chans);
+    assert!(output[input_len..].iter().all(|x| *x == -1234.5));
+}
+
+#[test]
+fn test_reference_convert_mwax_hdu_to_frequency_order() {
+    let context = CorrelatorContext::new(REFERENCE_MWAX_METAFITS, &[REFERENCE_MWAX_GPUBOX])
+        .expect("Failed to create CorrelatorContext");
+    let num_baselines = context.metafits_context.num_baselines;
+    let num_fine_chans = context.metafits_context.num_corr_fine_chans_per_coarse;
+    let num_pols = context.metafits_context.num_visibility_pols;
+    let floats_per_baseline_fine_chan = num_pols * 2;
+
+    let len = num_baselines * num_fine_chans * floats_per_baseline_fine_chan;
+    let input = unique_input(len);
+    let mut output = vec![f32::NAN; len];
+
+    convert_mwax_hdu_to_frequency_order(
+        &input,
+        &mut output,
+        num_baselines,
+        num_fine_chans,
+        num_pols,
+    );
+
+    // MWAX input is [baseline][fine_chan][pol][r][i], output is [fine_chan][baseline][pol][r][i]
+    for baseline in 0..num_baselines {
+        for fine_chan in 0..num_fine_chans {
+            let source = (baseline * num_fine_chans + fine_chan) * floats_per_baseline_fine_chan;
+            let destination =
+                (fine_chan * num_baselines + baseline) * floats_per_baseline_fine_chan;
+
+            assert_eq!(
+                input[source..source + floats_per_baseline_fine_chan],
+                output[destination..destination + floats_per_baseline_fine_chan]
+            );
+        }
+    }
+}
+
+#[test]
+fn test_reference_convert_mwax_hdu_to_frequency_order_only_writes_the_expected_part_of_a_bigger_output(
+) {
+    let num_baselines = 10;
+    let num_fine_chans = 4;
+    let num_pols = 4;
+    let len = num_baselines * num_fine_chans * num_pols * 2;
+
+    let input = unique_input(len);
+    let mut output = vec![-1234.5; len + 10];
+
+    convert_mwax_hdu_to_frequency_order(
+        &input,
+        &mut output,
+        num_baselines,
+        num_fine_chans,
+        num_pols,
+    );
+
+    assert!(output[len..].iter().all(|x| *x == -1234.5));
+    assert!(output[..len].iter().all(|x| *x != -1234.5));
+}
+
+#[test]
+fn test_validate_conversion_table() {
+    let context = MetafitsContext::new(
+        "test_files/1101503312_1_timestep/1101503312.metafits",
+        Some(MWAVersion::CorrLegacy),
+    )
+    .unwrap();
+    let table = generate_conversion_array(&context.rf_inputs);
+    let floats_per_fine_chan =
+        get_baseline_count(LEGACY_NUM_TILES) * LEGACY_FLOATS_PER_BASELINE_FINE_CHAN;
+
+    // The generated table is valid
+    assert!(validate_conversion_table(&table).is_ok());
+
+    // Too short and too long
+    assert!(validate_conversion_table(&table[1..]).is_err());
+    let mut longer = table.clone();
+    longer.push(table[0].clone());
+    assert!(validate_conversion_table(&longer).is_err());
+
+    // An index that would read past the end of a fine channel (each pol checked)
+    for pol in 0..LEGACY_NUM_POLS {
+        let mut bad = table.clone();
+        let last = bad.len() - 1;
+        let index = floats_per_fine_chan - 1;
+        match pol {
+            0 => bad[last].xx_index = index,
+            1 => bad[last].xy_index = index,
+            2 => bad[last].yx_index = index,
+            _ => bad[last].yy_index = index,
+        }
+        assert!(validate_conversion_table(&bad).is_err(), "pol {pol}");
+    }
+}
