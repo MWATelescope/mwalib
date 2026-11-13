@@ -5,6 +5,7 @@
 //! Structs and helper methods for rf_input metadata
 
 pub mod error;
+mod height;
 use crate::misc::{has_whitening_filter, vec_compare_f32, vec_compare_f64};
 use crate::signal_chain_correction::SignalChainCorrection;
 use crate::types::{HeightCode, Pol, ReceiverType};
@@ -29,6 +30,32 @@ const LOW_BAND_TILE_NAME_PREFIX: &str = "LB";
 
 /// Name of the (optional) metafits TILEDATA column holding the height code.
 const HEIGHT_CODE_COLUMN_NAME: &str = "Height_Code";
+
+/// Get a tile's height in the `HeightCode::ArrayCentreOffset` convention from its metafits values: converted if the
+/// metafits height is above the WGS84 ellipsoid, as it is otherwise.
+///
+/// # Arguments
+///
+/// * `height_code` - What `height_m` is relative to.
+///
+/// * `east_m` - Tile position East of the array centre (metres).
+///
+/// * `north_m` - Tile position North of the array centre (metres).
+///
+/// * `height_m` - Tile height from the metafits (metres).
+///
+/// # Returns
+///
+/// * The corrected height (metres).
+///
+fn corrected_height_m(height_code: HeightCode, east_m: f64, north_m: f64, height_m: f64) -> f64 {
+    match height_code {
+        HeightCode::EllipsoidHeight => {
+            height::ellipsoidal_height_to_array_centre_offset_height(east_m, north_m, height_m)
+        }
+        HeightCode::ArrayCentreOffset => height_m,
+    }
+}
 
 /// Returns the height code to use for a tile when the metafits has no `Height_Code` column.
 /// Low Band tiles (name starts with "LB") have raw heights above the ellipsoid. All other tiles have heights
@@ -211,7 +238,10 @@ pub struct Rfinput {
     pub north_m: f64,
     /// Antenna position East from the array centre (metres)
     pub east_m: f64,
-    /// Antenna height (metres). See `height_code` for what this value is relative to.
+    /// Antenna height (metres), corrected for the Earth's curvature: the local "up" above the array centre plus
+    /// `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES`, for every tile. Use this field, not `height_uncorrected_m`.
+    /// For tiles whose metafits height is above the WGS84 ellipsoid (`height_code` is `HeightCode::EllipsoidHeight`,
+    /// the long baseline tiles), mwalib converts the metafits height; for the others it is the metafits height.
     pub height_m: f64,
     /// AKA PFB to correlator input order (only relevant for pre V2 correlator)
     pub vcs_order: u32,
@@ -256,10 +286,14 @@ pub struct Rfinput {
     /// This is the index into the MetafitsContext.signal_chain_corrections vector, or None if not applicable/not found for the
     /// receiver type and whitening filter combination
     pub signal_chain_corrections_index: Option<usize>,
-    /// What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+    /// What the metafits height (`height_uncorrected_m`) is relative to. `height_m` is always in the
+    /// `HeightCode::ArrayCentreOffset` convention.
     /// If the metafits has no `Height_Code` column, this is `HeightCode::ArrayCentreOffset`, except for Low Band tiles (tile name
     /// starts with "LB") which get `HeightCode::EllipsoidHeight`.
     pub height_code: HeightCode,
+    /// Antenna height (metres) as in the metafits, not corrected for the Earth's curvature. See `height_code` for what it
+    /// is relative to. Most callers should use `height_m` instead.
+    pub height_uncorrected_m: f64,
 }
 
 impl PartialEq for Rfinput {
@@ -284,7 +318,8 @@ impl PartialEq for Rfinput {
             && self.flavour == other.flavour
             && self.has_whitening_filter == other.has_whitening_filter
             && self.signal_chain_corrections_index == other.signal_chain_corrections_index
-            && self.height_code == other.height_code;
+            && self.height_code == other.height_code
+            && self.height_uncorrected_m == other.height_uncorrected_m;
 
         // however calib_delay could be Some(NaN) and calib_gains could be Some(Vec<32>) which may have NaNs
         let calib_gains_eq: bool = if self.calib_gains.is_some() && other.calib_gains.is_some() {
@@ -651,7 +686,13 @@ impl Rfinput {
                 electrical_length_m,
                 north_m: metafits_row.north_m,
                 east_m: metafits_row.east_m,
-                height_m: metafits_row.height_m,
+                // Corrected for the Earth's curvature
+                height_m: corrected_height_m(
+                    metafits_row.height_code,
+                    metafits_row.east_m,
+                    metafits_row.north_m,
+                    metafits_row.height_m,
+                ),
                 vcs_order,
                 subfile_order,
                 flagged: metafits_row.flag == 1,
@@ -667,6 +708,7 @@ impl Rfinput {
                 calib_gains,
                 signal_chain_corrections_index,
                 height_code: metafits_row.height_code,
+                height_uncorrected_m: metafits_row.height_m,
             })
         }
         Ok(rf_inputs)

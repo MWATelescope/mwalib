@@ -2,7 +2,7 @@
 
 Status: phases 1 (tests), 2 (safety and 4.0.0: diffs 2a, 2b, 2c) and 3 (performance: steps 1 to 5) are done. Phase 3
 step 3 found that the test files are Rice compressed (see "Compressed test files") and added benchmarks of
-uncompressed copies. Phases 4 (opt-in threads) and 5 (tile position from the height code) are not started.
+uncompressed copies. Phase 5 (tile position from the height code) is done. Phase 4 (opt-in threads) is not started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -344,8 +344,14 @@ converters and the reads must not change (the golden and reference tests enforce
    channel or one baseline per chunk) so no `unsafe` is needed. Keep the setting in an atomic so it can be changed
    through `&self` (a `&mut self` setter would conflict with concurrent reads in Python). C function and Python method.
    Check there is no oversubscription surprise: default stays 1.
-5. **Tile position from the height code.** Adjust the tile position based on `height_code`. How is not decided yet;
-   Greg and Claude discuss it when this phase starts. Note: this changes the 3.1.0 decision that mwalib does not
+5. **Tile position from the height code (done).** Greg's design: `height_m` holds the corrected height and the new
+   `height_uncorrected_m` (last field, also in C) holds the metafits value; `height_code` keeps the metafits value and
+   describes `height_uncorrected_m` (decision 1, option 1). Tiles with `HeightCode::EllipsoidHeight` are converted in
+   `src/rfinput/height.rs` (WGS84 geodetic to geocentric and back, 4 corrections of "up", array centre
+   `MWALIB_MWA_LATITUDE_RADIANS`, `MWALIB_MWA_LONGITUDE_RADIANS` and 377.8269 m), the same method as Marlu PR 51
+   (commit 8fc3896, `ENH::from_ellipsoidal_height`), which will be reverted in Marlu. Against the MWA wiki survey values
+   (LBD7, LBA1, LBB2): within 0.5 mm. Greg allowed adding `height_uncorrected_m` to the 28 `Rfinput` and `Antenna`
+   literals in `src/misc/test.rs` and `src/antenna/test.rs`. This replaces the 3.1.0 decision that mwalib does not
    convert `height_m`.
 
 ## Notes for whoever continues

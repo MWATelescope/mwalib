@@ -140,13 +140,22 @@ class Antenna:
     @property
     def height_m(self) -> builtins.float:
         r"""
-        Antenna height (metres). See `height_code` for what this value is relative to.
+        Antenna height (metres), corrected for the Earth's curvature: the local "up" above the array centre plus
+        `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES`, for every tile. Use this field, not `height_uncorrected_m`.
+        See `Rfinput::height_m`.
         """
     @property
     def height_code(self) -> HeightCode:
         r"""
-        What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+        What the metafits height (`height_uncorrected_m`) is relative to. `height_m` is always in the
+        `HeightCode::ArrayCentreOffset` convention.
         See `Rfinput::height_code` for the default used when the metafits has no `Height_Code` column.
+        """
+    @property
+    def height_uncorrected_m(self) -> builtins.float:
+        r"""
+        Antenna height (metres) as in the metafits, not corrected for the Earth's curvature. See `height_code` for what it
+        is relative to. Most callers should use `height_m` instead.
         """
 
 @typing.final
@@ -1314,7 +1323,10 @@ class Rfinput:
     @property
     def height_m(self) -> builtins.float:
         r"""
-        Antenna height (metres). See `height_code` for what this value is relative to.
+        Antenna height (metres), corrected for the Earth's curvature: the local "up" above the array centre plus
+        `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES`, for every tile. Use this field, not `height_uncorrected_m`.
+        For tiles whose metafits height is above the WGS84 ellipsoid (`height_code` is `HeightCode::EllipsoidHeight`,
+        the long baseline tiles), mwalib converts the metafits height; for the others it is the metafits height.
         """
     @property
     def vcs_order(self) -> builtins.int:
@@ -1404,9 +1416,16 @@ class Rfinput:
     @property
     def height_code(self) -> HeightCode:
         r"""
-        What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+        What the metafits height (`height_uncorrected_m`) is relative to. `height_m` is always in the
+        `HeightCode::ArrayCentreOffset` convention.
         If the metafits has no `Height_Code` column, this is `HeightCode::ArrayCentreOffset`, except for Low Band tiles (tile name
         starts with "LB") which get `HeightCode::EllipsoidHeight`.
+        """
+    @property
+    def height_uncorrected_m(self) -> builtins.float:
+        r"""
+        Antenna height (metres) as in the metafits, not corrected for the Earth's curvature. See `height_code` for what it
+        is relative to. Most callers should use `height_m` instead.
         """
 
 @typing.final
@@ -2036,8 +2055,9 @@ class GeometricDelaysApplied(enum.Enum):
 @typing.final
 class HeightCode(enum.Enum):
     r"""
-    HeightCode enum. Describes what the height value of a tile (`height_m`) is relative to.
-    This is the "Height_Code" column in the metafits TILEDATA table.
+    HeightCode enum. Describes what the metafits height of a tile (`height_uncorrected_m`) is relative to.
+    This is the "Height_Code" column in the metafits TILEDATA table. mwalib converts `EllipsoidHeight` heights, so
+    `height_m` is always in the `ArrayCentreOffset` convention.
     """
     EllipsoidHeight = ...
     r"""

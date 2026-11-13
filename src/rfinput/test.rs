@@ -605,3 +605,101 @@ fn test_read_metafits_tiledata_values_unrecognised_height_code() {
         })
     ));
 }
+
+//
+// Phase 5: heights above the ellipsoid are corrected for the Earth's curvature
+//
+
+/// Mean radius of the Earth (metres), only for the rough curvature check below
+const EARTH_MEAN_RADIUS_M: f64 = 6_371_000.0;
+
+#[test]
+fn test_ellipsoidal_height_at_the_array_centre_is_unchanged() {
+    let height = height::ellipsoidal_height_to_array_centre_offset_height(
+        0.0,
+        0.0,
+        crate::MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES,
+    );
+
+    assert!(
+        (height - crate::MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES).abs() < 1e-6,
+        "{height}"
+    );
+}
+
+#[test]
+fn test_ellipsoidal_height_matches_the_mwa_wiki() {
+    // LBD7, LBA1 and LBB2 with their raw survey heights, and their local "up" (plus the array height) from the MWA
+    // wiki page "MWA Tile coordinate errors", rounded to the nearest millimetre. The same values as Marlu's test.
+    const TOLERANCE_M: f64 = 2e-3;
+
+    for (east, north, ellipsoidal_height, expected) in [
+        (3105.64, 1640.33, 376.795, 375.828),
+        (-1999.81, 206.85, 372.921, 372.604),
+        (-330.61, 2829.62, 373.367, 372.728),
+    ] {
+        let height = height::ellipsoidal_height_to_array_centre_offset_height(
+            east,
+            north,
+            ellipsoidal_height,
+        );
+
+        assert!(
+            (height - expected).abs() < TOLERANCE_M,
+            "({east}, {north}, {ellipsoidal_height}): got {height}, expected {expected}"
+        );
+    }
+}
+
+#[test]
+fn test_populate_rf_inputs_corrects_ellipsoidal_heights() {
+    // Allow 5 % between the exact correction and the rough (e² + n²) / 2R
+    const CURVATURE_TOLERANCE: f64 = 0.05;
+
+    let context = MetafitsContext::new(HEIGHT_CODE_METAFITS, None).unwrap();
+
+    for rf_input in context.rf_inputs.iter() {
+        match rf_input.height_code {
+            HeightCode::EllipsoidHeight => {
+                // The tile is lower than its raw height by about the Earth's curvature
+                let drop = rf_input.height_uncorrected_m - rf_input.height_m;
+                let expected_drop = (rf_input.east_m.powi(2) + rf_input.north_m.powi(2))
+                    / (2.0 * EARTH_MEAN_RADIUS_M);
+
+                assert!(
+                    (drop - expected_drop).abs() <= CURVATURE_TOLERANCE * expected_drop,
+                    "{}: drop {drop}, expected about {expected_drop}",
+                    rf_input.tile_name
+                );
+            }
+            HeightCode::ArrayCentreOffset => {
+                assert_eq!(
+                    rf_input.height_m, rf_input.height_uncorrected_m,
+                    "{}",
+                    rf_input.tile_name
+                );
+            }
+        }
+    }
+
+    // Antennas take both heights from their rf_inputs
+    for antenna in context.antennas.iter() {
+        assert_eq!(antenna.height_m, antenna.rfinput_x.height_m);
+        assert_eq!(
+            antenna.height_uncorrected_m,
+            antenna.rfinput_x.height_uncorrected_m
+        );
+    }
+}
+
+#[test]
+fn test_populate_rf_inputs_without_height_code_column_leaves_heights_alone() {
+    // No Height_Code column and no Low Band tiles: nothing is converted
+    let context =
+        MetafitsContext::new("test_files/1101503312_1_timestep/1101503312.metafits", None).unwrap();
+
+    for rf_input in context.rf_inputs.iter() {
+        assert_eq!(rf_input.height_code, HeightCode::ArrayCentreOffset);
+        assert_eq!(rf_input.height_m, rf_input.height_uncorrected_m);
+    }
+}

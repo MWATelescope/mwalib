@@ -528,3 +528,23 @@ def test_metafits_context_voltage_beam_and_calibration_fit_are_read_only():
 
     assert_read_only(vb_mc.metafits_voltage_beams[0])
     assert_read_only(cal_mc.calibration_fits[0])
+
+
+#
+# Phase 5: heights above the ellipsoid are corrected for the Earth's curvature
+#
+
+
+def test_metafits_context_heights_corrected_for_earth_curvature():
+    mc = mwalib.MetafitsContext(HEIGHT_CODE_METAFITS, None)
+
+    for rf_input in mc.rf_inputs:
+        if rf_input.height_code == mwalib.HeightCode.EllipsoidHeight:
+            # Long baseline tiles are lower than their raw (metafits) height
+            assert rf_input.height_m < rf_input.height_uncorrected_m, rf_input.tile_name
+        else:
+            assert rf_input.height_m == rf_input.height_uncorrected_m, rf_input.tile_name
+
+    for antenna in mc.antennas:
+        assert antenna.height_m == antenna.rfinput_x.height_m
+        assert antenna.height_uncorrected_m == antenna.rfinput_x.height_uncorrected_m

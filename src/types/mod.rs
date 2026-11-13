@@ -556,8 +556,9 @@ impl std::str::FromStr for ReceiverType {
     }
 }
 
-/// HeightCode enum. Describes what the height value of a tile (`height_m`) is relative to.
-/// This is the "Height_Code" column in the metafits TILEDATA table.
+/// HeightCode enum. Describes what the metafits height of a tile (`height_uncorrected_m`) is relative to.
+/// This is the "Height_Code" column in the metafits TILEDATA table. mwalib converts `EllipsoidHeight` heights, so
+/// `height_m` is always in the `ArrayCentreOffset` convention.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 #[cfg_attr(

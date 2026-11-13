@@ -171,6 +171,7 @@ fn test_get_baseline_from_antenna_names1() {
         calib_gains: None,
         signal_chain_corrections_index: None,
         height_code: HeightCode::ArrayCentreOffset,
+        height_uncorrected_m: 0.,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -198,6 +199,7 @@ fn test_get_baseline_from_antenna_names1() {
         calib_gains: None,
         signal_chain_corrections_index: None,
         height_code: HeightCode::ArrayCentreOffset,
+        height_uncorrected_m: 0.,
     };
 
     ants.push(Antenna {
@@ -211,6 +213,7 @@ fn test_get_baseline_from_antenna_names1() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -224,6 +227,7 @@ fn test_get_baseline_from_antenna_names1() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -237,6 +241,7 @@ fn test_get_baseline_from_antenna_names1() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -250,6 +255,7 @@ fn test_get_baseline_from_antenna_names1() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -263,6 +269,7 @@ fn test_get_baseline_from_antenna_names1() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -276,6 +283,7 @@ fn test_get_baseline_from_antenna_names1() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -289,6 +297,7 @@ fn test_get_baseline_from_antenna_names1() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -302,6 +311,7 @@ fn test_get_baseline_from_antenna_names1() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     // Now do some tests!
@@ -364,6 +374,7 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         calib_gains: None,
         signal_chain_corrections_index: None,
         height_code: HeightCode::ArrayCentreOffset,
+        height_uncorrected_m: 0.,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -391,6 +402,7 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         calib_gains: None,
         signal_chain_corrections_index: None,
         height_code: HeightCode::ArrayCentreOffset,
+        height_uncorrected_m: 0.,
     };
 
     ants.push(Antenna {
@@ -404,6 +416,7 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -417,6 +430,7 @@ fn test_get_baseline_from_antenna_names_ant1_not_valid() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     // Now do some tests!
@@ -456,6 +470,7 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         calib_gains: None,
         signal_chain_corrections_index: None,
         height_code: HeightCode::ArrayCentreOffset,
+        height_uncorrected_m: 0.,
     };
 
     let dummy_rf_input_y = Rfinput {
@@ -483,6 +498,7 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         calib_gains: None,
         signal_chain_corrections_index: None,
         height_code: HeightCode::ArrayCentreOffset,
+        height_uncorrected_m: 0.,
     };
 
     ants.push(Antenna {
@@ -496,6 +512,7 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     ants.push(Antenna {
@@ -509,6 +526,7 @@ fn test_get_baseline_from_antenna_names_ant2_not_valid() {
         east_m: dummy_rf_input_x.east_m,
         height_m: dummy_rf_input_x.height_m,
         height_code: dummy_rf_input_x.height_code,
+        height_uncorrected_m: dummy_rf_input_x.height_m,
     });
 
     // Now do some tests!

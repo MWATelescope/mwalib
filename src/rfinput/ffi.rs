@@ -34,7 +34,8 @@ pub struct Rfinput {
     pub north_m: f64,
     /// Antenna position East from the array centre (metres)
     pub east_m: f64,
-    /// Antenna height (metres). See `height_code` for what this value is relative to.
+    /// Antenna height (metres), corrected for the Earth's curvature: the local "up" above the array centre plus
+    /// MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES, for every tile. Use this field, not `height_uncorrected_m`.
     pub height_m: f64,
     /// AKA PFB to correlator input order (only relevant for pre V2 correlator)
     pub vcs_order: u32,
@@ -81,8 +82,12 @@ pub struct Rfinput {
     /// This is the index into the MetafitsContext.signal_chain_corrections vector, or MAX_RECEIVER_CHANNELS if not applicable/not found for the
     /// receiver type and whitening filter combination
     pub signal_chain_corrections_index: usize,
-    /// What `height_m` is relative to. mwalib does not convert `height_m`; the caller must interpret it using this code.
+    /// What the metafits height (`height_uncorrected_m`) is relative to. `height_m` is always in the
+    /// `ArrayCentreOffset` convention.
     pub height_code: HeightCode,
+    /// Antenna height (metres) as in the metafits, not corrected for the Earth's curvature. See `height_code` for what
+    /// it is relative to. Most callers should use `height_m` instead.
+    pub height_uncorrected_m: f64,
 }
 
 impl Rfinput {
@@ -130,6 +135,7 @@ impl Rfinput {
                     calib_gains,
                     signal_chain_corrections_index,
                     height_code,
+                    height_uncorrected_m,
                 } = item;
 
                 // Handle vectors
@@ -179,6 +185,7 @@ impl Rfinput {
                     signal_chain_corrections_index: signal_chain_corrections_index
                         .unwrap_or(MAX_RECEIVER_CHANNELS),
                     height_code: *height_code,
+                    height_uncorrected_m: *height_uncorrected_m,
                 }
             };
             item_vec.push(out_item);

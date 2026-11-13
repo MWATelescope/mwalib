@@ -36,6 +36,7 @@ fn test_populate_antennas() {
             calib_gains: None,
             signal_chain_corrections_index: None,
             height_code: HeightCode::ArrayCentreOffset,
+            height_uncorrected_m: 31.,
         },
         Rfinput {
             input: 1,
@@ -62,6 +63,7 @@ fn test_populate_antennas() {
             calib_gains: None,
             signal_chain_corrections_index: None,
             height_code: HeightCode::ArrayCentreOffset,
+            height_uncorrected_m: 32.,
         },
         Rfinput {
             input: 2,
@@ -88,6 +90,7 @@ fn test_populate_antennas() {
             calib_gains: None,
             signal_chain_corrections_index: None,
             height_code: HeightCode::ArrayCentreOffset,
+            height_uncorrected_m: 33.,
         },
         Rfinput {
             input: 3,
@@ -114,6 +117,7 @@ fn test_populate_antennas() {
             calib_gains: None,
             signal_chain_corrections_index: None,
             height_code: HeightCode::ArrayCentreOffset,
+            height_uncorrected_m: 34.,
         },
         Rfinput {
             input: 4,
@@ -140,6 +144,7 @@ fn test_populate_antennas() {
             calib_gains: None,
             signal_chain_corrections_index: None,
             height_code: HeightCode::ArrayCentreOffset,
+            height_uncorrected_m: 35.,
         },
         Rfinput {
             input: 5,
@@ -166,6 +171,7 @@ fn test_populate_antennas() {
             calib_gains: None,
             signal_chain_corrections_index: None,
             height_code: HeightCode::ArrayCentreOffset,
+            height_uncorrected_m: 36.,
         },
         Rfinput {
             input: 6,
@@ -192,6 +198,7 @@ fn test_populate_antennas() {
             calib_gains: None,
             signal_chain_corrections_index: None,
             height_code: HeightCode::ArrayCentreOffset,
+            height_uncorrected_m: 37.,
         },
         Rfinput {
             input: 7,
@@ -218,6 +225,7 @@ fn test_populate_antennas() {
             calib_gains: None,
             signal_chain_corrections_index: None,
             height_code: HeightCode::ArrayCentreOffset,
+            height_uncorrected_m: 38.,
         },
     ];
 
@@ -288,6 +296,7 @@ fn test_antenna_display() {
             calib_gains: None,
             signal_chain_corrections_index: None,
             height_code: HeightCode::ArrayCentreOffset,
+            height_uncorrected_m: 31.,
         },
         Rfinput {
             input: 1,
@@ -314,6 +323,7 @@ fn test_antenna_display() {
             calib_gains: None,
             signal_chain_corrections_index: None,
             height_code: HeightCode::ArrayCentreOffset,
+            height_uncorrected_m: 32.,
         },
     ];
 

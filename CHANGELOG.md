@@ -14,6 +14,7 @@ This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0
 
 ### Breaking
 
+* `Rfinput::height_m` and `Antenna::height_m` are corrected for the Earth's curvature for tiles whose metafits height is above the WGS84 ellipsoid (`height_code` is `EllipsoidHeight`: the long baseline tiles, also by default when the metafits has no `Height_Code` column). `height_m` is now the local "up" above the array centre plus `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` for every tile, so these tiles are lower than before by about (east² + north²) / 2R (0.08 m at 1 km, 0.97 m for LBD7). The metafits value is in the new `height_uncorrected_m`. The conversion is the same as Marlu PR 51 (`ENH::from_ellipsoidal_height`) and agrees with the MWA wiki's survey values to 0.5 mm.
 * Python: all mwalib classes are read-only. Setting an attribute (for example `context.num_timesteps = 0`) raises `AttributeError`. The setters are removed from `mwalib.pyi`.
 * `CorrelatorContext::get_fine_chan_freqs_hz_array` and `VoltageContext::get_fine_chan_freqs_hz_array` return a `Result`. An index out of range is `GpuboxError::InvalidCoarseChanIndex` (`VoltageFileError::InvalidCoarseChanIndex`) instead of a panic.
   * Python: raises `GpuboxErrorInvalidCoarseChanIndex` (`VoltageErrorInvalidCoarseChanIndex`) instead of `PanicException`.
@@ -22,10 +23,13 @@ This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0
 
 ### Added
 
-* Added `HeightCode` enum (`EllipsoidHeight` = 0, `ArrayCentreOffset` = 1) and a `height_code` field to `Rfinput` and `Antenna`. It is read from the optional `Height_Code` column of the metafits TILEDATA table and says what `height_m` is relative to. mwalib does not convert `height_m`. If the metafits has no `Height_Code` column, `height_code` is `ArrayCentreOffset`, unless the tile name starts with "LB", in which case it is `EllipsoidHeight`. A value other than 0 or 1 returns `RfinputError::UnrecognisedHeightCode`.
+* Added `HeightCode` enum (`EllipsoidHeight` = 0, `ArrayCentreOffset` = 1) and a `height_code` field to `Rfinput` and `Antenna`. It is read from the optional `Height_Code` column of the metafits TILEDATA table and says what the metafits height (`height_uncorrected_m`) is relative to. If the metafits has no `Height_Code` column, `height_code` is `ArrayCentreOffset`, unless the tile name starts with "LB", in which case it is `EllipsoidHeight`. A value other than 0 or 1 returns `RfinputError::UnrecognisedHeightCode`.
   * Added the constant `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` (377.8269).
   * Python: `mwalib.HeightCode`, and `height_code` on `Rfinput` and `Antenna`.
   * FFI/C: `HeightCode` enum, and `height_code` as the last field of the C `Rfinput` and `Antenna` structs.
+* Added `height_uncorrected_m` to `Rfinput` and `Antenna`: the tile height as in the metafits. `height_m` is now corrected (see Breaking).
+  * Python: `height_uncorrected_m` on `Rfinput` and `Antenna`.
+  * FFI/C: `height_uncorrected_m` as the last field of the C `Rfinput` and `Antenna` structs (after `height_code`).
 * Added benchmarks of the visibility converters (`benches/convert_benches.rs`). They need the new internal `bench-internals` feature, which is not part of the public API.
 * Python: `CorrelatorContext.read_by_baseline_into_buffer`, `read_by_frequency_into_buffer` and `read_weights_by_baseline_into_buffer`, like the Rust and C functions of the same names. They read into an existing numpy array (`buffer`) instead of making a new one, and return `None`. `buffer` must be float32, C contiguous, writeable and have exactly the shape of the result of the matching read method, or `ValueError` is raised (`TypeError` for the wrong dtype or number of dimensions). Reusing one array saves about 15 ms per read.
 * New `GpuboxError` variants (and Python exceptions `GpuboxError...`): `BufferTooSmall`, `UnsupportedLegacyTileCount` (a legacy correlator observation must have 128 tiles; this was a panic), `InvalidLegacyConversionTable` (the conversion table is checked when the context is made) and `MwaxWeightsNaxisMismatch` (the first weights HDU of each MWAX gpubox file is checked when the context is made).
