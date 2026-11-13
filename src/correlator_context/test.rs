@@ -1711,3 +1711,57 @@ fn test_get_fine_chan_freqs_hz_array_every_coarse_chan_legacy() {
 fn test_get_fine_chan_freqs_hz_array_every_coarse_chan_mwax() {
     check_fine_chan_freqs(&get_read_mwax_context());
 }
+
+#[test]
+fn test_reads_that_share_the_temp_buffer_give_golden_data() {
+    // The legacy by baseline read and both by frequency reads reuse one temp buffer per thread. Mix them, on one
+    // thread, and check each result is still the golden one (stale data in the temp buffer would change a hash).
+    let legacy = get_read_legacy_context();
+    let mwax = get_read_mwax_context();
+
+    for _ in 0..2 {
+        let legacy_by_frequency = legacy
+            .read_by_frequency(READ_LEGACY_TIMESTEP, READ_LEGACY_COARSE_CHAN)
+            .unwrap();
+        let mwax_by_frequency = mwax
+            .read_by_frequency(READ_MWAX_TIMESTEP, READ_MWAX_COARSE_CHAN)
+            .unwrap();
+        let legacy_by_baseline = legacy
+            .read_by_baseline(READ_LEGACY_TIMESTEP, READ_LEGACY_COARSE_CHAN)
+            .unwrap();
+        let mwax_by_baseline = mwax
+            .read_by_baseline(READ_MWAX_TIMESTEP, READ_MWAX_COARSE_CHAN)
+            .unwrap();
+
+        assert_eq!(
+            hash_floats(&legacy_by_frequency),
+            GOLDEN_LEGACY_BY_FREQUENCY
+        );
+        assert_eq!(hash_floats(&mwax_by_frequency), GOLDEN_MWAX_BY_FREQUENCY);
+        assert_eq!(hash_floats(&legacy_by_baseline), GOLDEN_LEGACY_BY_BASELINE);
+        assert_eq!(hash_floats(&mwax_by_baseline), GOLDEN_MWAX_BY_BASELINE);
+    }
+}
+
+#[test]
+fn test_with_read_scratch_sizes_and_nesting() {
+    const BIG: usize = 16;
+    const SMALL: usize = 4;
+
+    // The buffer has the size asked for, bigger or smaller than last time
+    assert_eq!(with_read_scratch(BIG, |b| b.len()), BIG);
+    assert_eq!(with_read_scratch(SMALL, |b| b.len()), SMALL);
+    assert_eq!(with_read_scratch(BIG, |b| b.len()), BIG);
+
+    // A nested call gets its own buffer, and does not panic
+    let (outer, inner) = with_read_scratch(BIG, |outer| {
+        outer.fill(READ_SENTINEL);
+        let inner_len = with_read_scratch(SMALL, |inner| {
+            inner.fill(0.0);
+            inner.len()
+        });
+        (outer.iter().all(|v| *v == READ_SENTINEL), inner_len)
+    });
+    assert!(outer);
+    assert_eq!(inner, SMALL);
+}

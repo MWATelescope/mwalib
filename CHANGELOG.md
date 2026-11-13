@@ -17,9 +17,11 @@ Notes:
   * Python: `mwalib.HeightCode`, and `height_code` on `Rfinput` and `Antenna`.
   * FFI/C: `HeightCode` enum, and `height_code` as the last field of the C `Rfinput` and `Antenna` structs.
 * Added benchmarks of the visibility converters (`benches/convert_benches.rs`). They need the new internal `bench-internals` feature, which is not part of the public API.
+* Python: `read_by_baseline`, `read_by_frequency` and `read_weights_by_baseline` of `CorrelatorContext` take an optional `out` argument, a numpy array to read into instead of a new array. It must be float32, C contiguous, writeable and have the shape of the result, or a `ValueError` (`TypeError` for the wrong dtype or number of dimensions) is raised. The method returns `out`. Reusing one array saves about 15 ms per read.
 
 ### Changed
 
+* Reads that convert the data (legacy by baseline, and by frequency) reuse a temp buffer per thread instead of allocating a new one for each read. This saves about 15 ms per read. Each thread that reads keeps one temp buffer of one timestep and coarse channel (about 34 MB for 128 tiles).
 * Bumped pyo3-stubgen to 0.23.2.
 * Bumped pyo3 and numpy (Rust crates) to 0.30.
 * Bumped minimum versions of bytemuck (1.25), regex (1.13) and tempfile (3.27).

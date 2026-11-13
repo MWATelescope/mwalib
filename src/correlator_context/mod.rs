@@ -5,6 +5,7 @@
 //! The main interface to MWA data.
 use fitsio::FitsFile;
 use log::warn;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::Path;
@@ -134,6 +135,41 @@ pub struct CorrelatorContext {
     pub(crate) legacy_conversion_table: Vec<LegacyConversionBaseline>,
     /// BSCALE- FITS BSCALE or SCALEFAC value set on the visibility HDUs (used in Legacy Correlator only)
     pub bscale: f32,
+}
+
+thread_local! {
+    /// A temp buffer for the reads that must convert the data after cfitsio reads it (legacy by baseline, and by
+    /// frequency). There is one per thread, and it is kept after the read, so a read does not pay for a new 34 MB
+    /// buffer each time (the cost is the page faults on the first write into new pages, about 15 ms per read).
+    static READ_SCRATCH: RefCell<Vec<f32>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Call `f` with this thread's temp buffer, sized to `len` floats.
+///
+/// The buffer is taken out of the thread-local while `f` runs and put back after, so a nested call (there are none
+/// today) gets its own new buffer instead of a `RefCell` borrow panic. If `f` panics, the buffer is not put back and
+/// the next call makes a new one. The contents are not cleared between calls; callers must fill all `len` floats
+/// before they read them.
+///
+/// # Arguments
+///
+/// * `len` - Number of floats the temp buffer must have.
+///
+/// * `f` - Function to call with the temp buffer.
+///
+/// # Returns
+///
+/// * The result of `f`.
+///
+fn with_read_scratch<R>(len: usize, f: impl FnOnce(&mut [f32]) -> R) -> R {
+    let mut scratch = READ_SCRATCH.with(|cell| std::mem::take(&mut *cell.borrow_mut()));
+    scratch.resize(len, 0.);
+
+    let result = f(&mut scratch);
+
+    READ_SCRATCH.with(|cell| *cell.borrow_mut() = scratch);
+
+    result
 }
 
 impl CorrelatorContext {
@@ -606,6 +642,20 @@ impl CorrelatorContext {
         Ok((fits_filename, *batch_index, *hdu_index))
     }
 
+    /// Number of floats in the temp buffer of a read: one timestep and coarse channel of visibilities, from the
+    /// metafits dimensions (the same size the temp buffer always had).
+    ///
+    /// # Returns
+    ///
+    /// * The number of floats.
+    ///
+    fn temp_buffer_floats(&self) -> usize {
+        self.metafits_context.num_corr_fine_chans_per_coarse
+            * self.metafits_context.num_visibility_pols
+            * self.metafits_context.num_baselines
+            * 2
+    }
+
     /// Read a single timestep for a single coarse channel
     /// The output visibilities are in order:
     /// baseline,frequency,pol,r,i
@@ -640,26 +690,19 @@ impl CorrelatorContext {
         if self.mwa_version == MWAVersion::CorrOldLegacy
             || self.mwa_version == MWAVersion::CorrLegacy
         {
-            // Prepare temporary buffer, if we are reading legacy correlator files
-            let mut temp_buffer = vec![
-                0.;
-                self.metafits_context.num_corr_fine_chans_per_coarse
-                    * self.metafits_context.num_visibility_pols
-                    * self.metafits_context.num_baselines
-                    * 2
-            ];
+            // Read into this thread's temp buffer, then convert into the caller's buffer
+            with_read_scratch(self.temp_buffer_floats(), |temp_buffer| {
+                get_fits_float_image_into_buffer!(&mut fptr, &hdu, temp_buffer)?;
 
-            // Read into temp buffer
-            get_fits_float_image_into_buffer!(&mut fptr, &hdu, &mut temp_buffer)?;
+                convert::convert_legacy_hdu_to_mwax_baseline_order(
+                    &self.legacy_conversion_table,
+                    temp_buffer,
+                    buffer,
+                    self.metafits_context.num_corr_fine_chans_per_coarse,
+                );
 
-            convert::convert_legacy_hdu_to_mwax_baseline_order(
-                &self.legacy_conversion_table,
-                &temp_buffer,
-                buffer,
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-            );
-
-            Ok(())
+                Ok(())
+            })
         } else {
             // Read into caller's buffer
             get_fits_float_image_into_buffer!(&mut fptr, &hdu, buffer)?;
@@ -698,42 +741,33 @@ impl CorrelatorContext {
         let mut fptr = fits_open!(&fits_filename)?;
         let hdu = fits_open_hdu!(&mut fptr, hdu_index)?;
 
-        // Prepare temporary buffer
-        let mut temp_buffer = vec![
-            0.;
-            self.metafits_context.num_corr_fine_chans_per_coarse
-                * self.metafits_context.num_visibility_pols
-                * self.metafits_context.num_baselines
-                * 2
-        ];
+        // Read into this thread's temp buffer, then convert into the caller's buffer
+        with_read_scratch(self.temp_buffer_floats(), |temp_buffer| {
+            get_fits_float_image_into_buffer!(&mut fptr, &hdu, temp_buffer)?;
 
-        // Read the hdu into our temp buffer
-        get_fits_float_image_into_buffer!(&mut fptr, &hdu, &mut temp_buffer)?;
-
-        // If legacy correlator, then convert the HDU into the correct output format
-        if self.mwa_version == MWAVersion::CorrOldLegacy
-            || self.mwa_version == MWAVersion::CorrLegacy
-        {
-            convert::convert_legacy_hdu_to_mwax_frequency_order(
-                &self.legacy_conversion_table,
-                &temp_buffer,
-                buffer,
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-            );
-
-            Ok(())
-        } else {
-            // Do conversion for mwax (it is in baseline order, we want it in freq order)
-            convert::convert_mwax_hdu_to_frequency_order(
-                &temp_buffer,
-                buffer,
-                self.metafits_context.num_baselines,
-                self.metafits_context.num_corr_fine_chans_per_coarse,
-                self.metafits_context.num_visibility_pols,
-            );
+            // If legacy correlator, then convert the HDU into the correct output format
+            if self.mwa_version == MWAVersion::CorrOldLegacy
+                || self.mwa_version == MWAVersion::CorrLegacy
+            {
+                convert::convert_legacy_hdu_to_mwax_frequency_order(
+                    &self.legacy_conversion_table,
+                    temp_buffer,
+                    buffer,
+                    self.metafits_context.num_corr_fine_chans_per_coarse,
+                );
+            } else {
+                // Do conversion for mwax (it is in baseline order, we want it in freq order)
+                convert::convert_mwax_hdu_to_frequency_order(
+                    temp_buffer,
+                    buffer,
+                    self.metafits_context.num_baselines,
+                    self.metafits_context.num_corr_fine_chans_per_coarse,
+                    self.metafits_context.num_visibility_pols,
+                );
+            }
 
             Ok(())
-        }
+        })
     }
 
     /// Read weights from a single timestep for a single coarse channel
