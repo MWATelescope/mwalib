@@ -2,8 +2,8 @@
 
 Status: phase 1 (tests) is done. Phase 3 is in progress: steps 1 (benchmarks and the temp buffer experiment) and 2
 (thread-local temp buffer, Python `*_into_buffer` methods) are done. Step 3 found that the test files are Rice
-compressed (see "Compressed test files") and added benchmarks of uncompressed copies. Step 5 (converter loops) is
-done; step 4 (GIL) is not. Phases 2, 4 and 5 are not started.
+compressed (see "Compressed test files") and added benchmarks of uncompressed copies. Steps 4 (GIL) and 5
+(converter loops) are done, so phase 3 is done. Phases 2, 4 and 5 are not started.
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -255,8 +255,35 @@ Block sizes were chosen with a throwaway sweep in the sandbox (1 CPU):
 `convert` group in the sandbox, before and after: `mwax_to_frequency_order` 10.1 to 4.6 ms, `legacy_to_baseline_order`
 13.2 to 7.5 ms, `legacy_to_frequency_order` 5.4 to 4.3 ms. Reads in the sandbox: `mwax_uncompressed` by frequency into
 buffer 21.9 to 12.0 ms, `legacy_uncompressed` by frequency into buffer 21.7 to 16.0 ms. `legacy_uncompressed` by
-baseline into buffer did not change in the sandbox (31.0 to 31.8 ms), although its converter did; check on the laptop.
-The best block sizes can be different on other machines; check them on the laptop.
+baseline into buffer did not change in the sandbox (31.0 to 31.8 ms), although its converter did.
+
+On the laptop (after step 5; "change" is what criterion reported against the last stored run):
+
+| benchmark | time | change |
+|---|---|---|
+| `convert/mwax_to_frequency_order` | 4.80 ms | -29 % |
+| `convert/legacy_to_baseline_order` | 7.85 ms | -43 % |
+| `convert/legacy_to_frequency_order` | 5.85 ms | -24 % |
+| `convert/reference/copy` | 1.36 ms | |
+| `convert/reference/alloc_and_copy` | 12.1 ms | |
+| `mwax_uncompressed/read_by_baseline` | 17.2 ms | |
+| `mwax_uncompressed/read_by_baseline_into_buffer` | 5.41 ms | |
+| `mwax_uncompressed/read_by_frequency` | 22.0 ms | |
+| `mwax_uncompressed/read_by_frequency_into_buffer` | 11.1 ms | |
+| `mwax_uncompressed/read_weights_by_baseline` | 23 µs | |
+| `legacy_uncompressed/read_by_baseline` | 27.5 ms | -25 % |
+| `legacy_uncompressed/read_by_baseline_into_buffer` | 15.5 ms | -31 % |
+| `legacy_uncompressed/read_by_frequency` | 22.8 ms | -22 % |
+| `legacy_uncompressed/read_by_frequency_into_buffer` | 12.4 ms | -25 % |
+| `my_group/read_by_baseline_into_buffer` (legacy, Rice) | 54.5 ms | -4 % |
+| `mwax/read_by_frequency_into_buffer` (MWAX, Rice) | 48.6 ms | +2 % |
+
+- On the laptop the legacy uncompressed by baseline read did improve (-31 %), so the sandbox result was not real.
+- The `mwax_uncompressed` "change" values were small, so the stored run was probably already taken with step 5; there
+  is no laptop number from before step 5 for that group.
+- The Rice compressed groups hardly changed: decompression is most of their time.
+- Uncompressed MWAX by frequency into buffer (11.1 ms) is now the read (5.4 ms) plus about 5 to 6 ms of transpose, and
+  a new result buffer adds about 6 to 11 ms more to each allocating read.
 
 
 ## Phases
@@ -288,7 +315,10 @@ converters and the reads must not change (the golden and reference tests enforce
    3. The cfitsio read itself: compressed reads are cfitsio decompression, and uncompressed MWAX float reads are
       close to a memory copy, so only the legacy 32-bit integer to float scaling (`BSCALE`) is left. Benchmarks of
       uncompressed copies are added (done); the order of the rest is to be decided with the laptop numbers.
-   4. Release the GIL (`py.detach`).
+   4. Release the GIL (`py.detach`) (done): the six Python correlator read methods read without the GIL. The
+      `_into_buffer` methods keep the numpy array borrowed during the read. There is no test that the GIL is
+      released (it cannot be checked without timing); the thread tests check that the data stays correct.
+      `VoltageContext` reads still hold the GIL (outside this plan).
    5. Converter loop order and blocking, and the sign table (done; see "Phase 3 step 5" in Benchmarks). Outputs
       are unchanged (the reference and golden tests pass without change).
    Measure each one on its own, and record numbers here.

@@ -908,6 +908,8 @@ class CorrelatorContext:
         r"""
         Read a single timestep for a single coarse channel into an existing array. The output visibilities are in order: baseline,frequency,pol,r,i
         
+        The GIL is released during the read; do not change `buffer` from another thread until it returns.
+        
         This does not make a new array, so reading many times into one array is faster than `read_by_baseline`.
         
         Args:
@@ -919,6 +921,8 @@ class CorrelatorContext:
         r"""
         Read a single timestep for a single coarse channel into an existing array. The output visibilities are in order: frequency,baseline,pol,r,i
         
+        The GIL is released during the read; do not change `buffer` from another thread until it returns.
+        
         This does not make a new array, so reading many times into one array is faster than `read_by_frequency`.
         
         Args:
@@ -929,6 +933,8 @@ class CorrelatorContext:
     def read_weights_by_baseline_into_buffer(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.float32]) -> None:
         r"""
         Read a single timestep for a single coarse channel into an existing array. The output weights are in order: baseline,pol
+        
+        The GIL is released during the read; do not change `buffer` from another thread until it returns.
         
         This does not make a new array, so reading many times into one array is faster than `read_weights_by_baseline`.
         

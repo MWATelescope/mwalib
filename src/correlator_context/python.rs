@@ -169,7 +169,9 @@ impl CorrelatorContext {
         corr_coarse_chan_index: usize,
     ) -> PyResult<Bound<'py, PyArray3<f32>>> {
         // Use the existing Rust method.
-        let data = self.read_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
+        // Read without the GIL, so other Python threads can run (and read) at the same time.
+        let data =
+            py.detach(|| self.read_by_baseline(corr_timestep_index, corr_coarse_chan_index))?;
         // Convert the vector to a 3D array (this is free).
         let data = Array3::from_shape_vec(by_baseline_shape(&self.metafits_context), data)
         .expect("shape of data should match expected dimensions (num_baselines, num_corr_fine_chans_per_coarse, visibility_pols * 2)");
@@ -197,7 +199,9 @@ impl CorrelatorContext {
         corr_coarse_chan_index: usize,
     ) -> PyResult<Bound<'py, PyArray3<f32>>> {
         // Use the existing Rust method.
-        let data = self.read_by_frequency(corr_timestep_index, corr_coarse_chan_index)?;
+        // Read without the GIL, so other Python threads can run (and read) at the same time.
+        let data =
+            py.detach(|| self.read_by_frequency(corr_timestep_index, corr_coarse_chan_index))?;
         // Convert the vector to a 3D array (this is free).
         let data = Array3::from_shape_vec(by_frequency_shape(&self.metafits_context), data)
         .expect("shape of data should match expected dimensions (num_corr_fine_chans_per_coarse, num_baselines, visibility_pols * 2)");
@@ -225,7 +229,10 @@ impl CorrelatorContext {
         corr_coarse_chan_index: usize,
     ) -> PyResult<Bound<'py, PyArray2<f32>>> {
         // Use the existing Rust method.
-        let data = self.read_weights_by_baseline(corr_timestep_index, corr_coarse_chan_index)?;
+        // Read without the GIL, so other Python threads can run (and read) at the same time.
+        let data = py.detach(|| {
+            self.read_weights_by_baseline(corr_timestep_index, corr_coarse_chan_index)
+        })?;
         // Convert the vector to a 2D array (this is free).
         let data = Array2::from_shape_vec(weights_shape(&self.metafits_context), data).expect(
             "shape of data should match expected dimensions (num_baselines, visibility_pols)",
@@ -236,6 +243,8 @@ impl CorrelatorContext {
     }
 
     /// Read a single timestep for a single coarse channel into an existing array. The output visibilities are in order: baseline,frequency,pol,r,i
+    ///
+    /// The GIL is released during the read; do not change `buffer` from another thread until it returns.
     ///
     /// This does not make a new array, so reading many times into one array is faster than `read_by_baseline`.
     ///
@@ -255,15 +264,22 @@ impl CorrelatorContext {
     ) -> PyResult<()> {
         let (d0, d1, d2) = by_baseline_shape(&self.metafits_context);
         let mut buffer_rw = borrow_buffer(&buffer, &[d0, d1, d2])?;
-        self.read_by_baseline_into_buffer(
-            corr_timestep_index,
-            corr_coarse_chan_index,
-            buffer_rw.as_slice_mut()?,
-        )?;
+        let buffer_slice = buffer_rw.as_slice_mut()?;
+        // Read without the GIL, so other Python threads can run (and read) at the same time. `buffer_rw` keeps the
+        // array borrowed (for numpy's borrow checking) until the read is done.
+        buffer.py().detach(|| {
+            self.read_by_baseline_into_buffer(
+                corr_timestep_index,
+                corr_coarse_chan_index,
+                buffer_slice,
+            )
+        })?;
         Ok(())
     }
 
     /// Read a single timestep for a single coarse channel into an existing array. The output visibilities are in order: frequency,baseline,pol,r,i
+    ///
+    /// The GIL is released during the read; do not change `buffer` from another thread until it returns.
     ///
     /// This does not make a new array, so reading many times into one array is faster than `read_by_frequency`.
     ///
@@ -283,15 +299,22 @@ impl CorrelatorContext {
     ) -> PyResult<()> {
         let (d0, d1, d2) = by_frequency_shape(&self.metafits_context);
         let mut buffer_rw = borrow_buffer(&buffer, &[d0, d1, d2])?;
-        self.read_by_frequency_into_buffer(
-            corr_timestep_index,
-            corr_coarse_chan_index,
-            buffer_rw.as_slice_mut()?,
-        )?;
+        let buffer_slice = buffer_rw.as_slice_mut()?;
+        // Read without the GIL, so other Python threads can run (and read) at the same time. `buffer_rw` keeps the
+        // array borrowed (for numpy's borrow checking) until the read is done.
+        buffer.py().detach(|| {
+            self.read_by_frequency_into_buffer(
+                corr_timestep_index,
+                corr_coarse_chan_index,
+                buffer_slice,
+            )
+        })?;
         Ok(())
     }
 
     /// Read a single timestep for a single coarse channel into an existing array. The output weights are in order: baseline,pol
+    ///
+    /// The GIL is released during the read; do not change `buffer` from another thread until it returns.
     ///
     /// This does not make a new array, so reading many times into one array is faster than `read_weights_by_baseline`.
     ///
@@ -311,11 +334,16 @@ impl CorrelatorContext {
     ) -> PyResult<()> {
         let (d0, d1) = weights_shape(&self.metafits_context);
         let mut buffer_rw = borrow_buffer(&buffer, &[d0, d1])?;
-        self.read_weights_by_baseline_into_buffer(
-            corr_timestep_index,
-            corr_coarse_chan_index,
-            buffer_rw.as_slice_mut()?,
-        )?;
+        let buffer_slice = buffer_rw.as_slice_mut()?;
+        // Read without the GIL, so other Python threads can run (and read) at the same time. `buffer_rw` keeps the
+        // array borrowed (for numpy's borrow checking) until the read is done.
+        buffer.py().detach(|| {
+            self.read_weights_by_baseline_into_buffer(
+                corr_timestep_index,
+                corr_coarse_chan_index,
+                buffer_slice,
+            )
+        })?;
         Ok(())
     }
 

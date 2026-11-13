@@ -23,6 +23,7 @@ Notes:
 
 * Reads that convert the data (legacy by baseline, and by frequency) reuse a temp buffer per thread instead of allocating a new one for each read. This saves about 15 ms per read. Each thread that reads keeps one temp buffer of one timestep and coarse channel (about 34 MB for 128 tiles).
 * Faster conversion of legacy visibilities (both orders) and of MWAX visibilities to frequency order: the loops work on blocks that fit in cache, and the legacy conversion uses a compact table. The output is the same. The converters no longer use `unsafe`.
+* Python: the `CorrelatorContext` read methods (`read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their `_into_buffer` versions) release the GIL while they read, so other Python threads can run at the same time.
 * Bumped pyo3-stubgen to 0.23.2.
 * Bumped pyo3 and numpy (Rust crates) to 0.30.
 * Bumped minimum versions of bytemuck (1.25), regex (1.13) and tempfile (3.27).
