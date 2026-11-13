@@ -318,6 +318,8 @@ converters and the reads must not change (the golden and reference tests enforce
    4. Release the GIL (`py.detach`) (done): the six Python correlator read methods read without the GIL. The
       `_into_buffer` methods keep the numpy array borrowed during the read. There is no test that the GIL is
       released (it cannot be checked without timing); the thread tests check that the data stays correct.
+      `tools/gil_check.py` on the laptop (16 legacy `read_by_frequency`): 1 thread 1.290 s, 4 threads 0.354 s
+      (3.6 times faster), so the reads do run in parallel.
       `VoltageContext` reads still hold the GIL (outside this plan).
    5. Converter loop order and blocking, and the sign table (done; see "Phase 3 step 5" in Benchmarks). Outputs
       are unchanged (the reference and golden tests pass without change).

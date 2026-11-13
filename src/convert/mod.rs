@@ -117,7 +117,11 @@ impl LegacyGather {
     /// * `output` - The 8 output floats (xx_r, xx_i, ..., yy_r, yy_i) of this baseline and fine channel.
     ///
     #[inline(always)]
-    fn gather(&self, fine_chan_input: &[f32], output: &mut [f32]) {
+    fn gather(
+        &self,
+        fine_chan_input: &[f32],
+        output: &mut [f32; LEGACY_FLOATS_PER_BASELINE_FINE_CHAN],
+    ) {
         for pol in 0..LEGACY_NUM_POLS {
             let source = self.index[pol] as usize;
             output[pol * FLOATS_PER_COMPLEX] = fine_chan_input[source];
@@ -442,15 +446,18 @@ pub(crate) fn convert_legacy_hdu_to_mwax_baseline_order(
             .iter()
             .zip(output_buffer.chunks_exact_mut(floats_per_baseline))
         {
-            for fine_chan_index in fine_chan_block_start..fine_chan_block_end {
-                let source_start = fine_chan_index * floats_per_fine_chan;
-                let destination_start = fine_chan_index * LEGACY_FLOATS_PER_BASELINE_FINE_CHAN;
+            // The output of this baseline, one array of 8 floats per fine channel
+            let (baseline_fine_chan_outputs, _) =
+                baseline_output.as_chunks_mut::<LEGACY_FLOATS_PER_BASELINE_FINE_CHAN>();
 
-                gather.gather(
-                    &input_buffer[source_start..source_start + floats_per_fine_chan],
-                    &mut baseline_output[destination_start
-                        ..destination_start + LEGACY_FLOATS_PER_BASELINE_FINE_CHAN],
-                );
+            let block_inputs = input_buffer[fine_chan_block_start * floats_per_fine_chan
+                ..fine_chan_block_end * floats_per_fine_chan]
+                .chunks_exact(floats_per_fine_chan);
+            let block_outputs =
+                &mut baseline_fine_chan_outputs[fine_chan_block_start..fine_chan_block_end];
+
+            for (fine_chan_input, output) in block_inputs.zip(block_outputs) {
+                gather.gather(fine_chan_input, output);
             }
         }
     }
@@ -498,10 +505,10 @@ pub(crate) fn convert_legacy_hdu_to_mwax_frequency_order(
         .zip(output_buffer.chunks_exact_mut(floats_per_fine_chan))
         .take(num_fine_chans)
     {
-        for (gather, output) in gather_table
-            .iter()
-            .zip(fine_chan_output.chunks_exact_mut(LEGACY_FLOATS_PER_BASELINE_FINE_CHAN))
-        {
+        let (fine_chan_outputs, _) =
+            fine_chan_output.as_chunks_mut::<LEGACY_FLOATS_PER_BASELINE_FINE_CHAN>();
+
+        for (gather, output) in gather_table.iter().zip(fine_chan_outputs) {
             gather.gather(fine_chan_input, output);
         }
     }
