@@ -16,6 +16,7 @@ Notes:
   * Added the constant `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` (377.8269).
   * Python: `mwalib.HeightCode`, and `height_code` on `Rfinput` and `Antenna`.
   * FFI/C: `HeightCode` enum, and `height_code` as the last field of the C `Rfinput` and `Antenna` structs.
+* Added benchmarks of the visibility converters (`benches/convert_benches.rs`). They need the new internal `bench-internals` feature, which is not part of the public API.
 
 ### Changed
 

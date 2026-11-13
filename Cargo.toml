@@ -33,6 +33,8 @@ crate-type = ["rlib", "staticlib", "cdylib"]
 cfitsio-static = ["fitsio-sys/fitsio-src"]
 # Enable optional features needed by examples.
 examples = ["anyhow", "clap", "env_logger"]
+# Internal: expose converters to the benchmarks in benches/. Not part of the public API.
+bench-internals = []
 # Enable python
 python = ["anyhow", "env_logger", "ndarray", "numpy", "pyo3"]
 # Enable python-stubgen
@@ -51,6 +53,11 @@ harness = false
 [[bench]]
 name = "correlator_context_benches"
 harness = false
+
+[[bench]]
+name = "convert_benches"
+harness = false
+required-features = ["bench-internals"]
 
 [profile.release]
 opt-level = 3

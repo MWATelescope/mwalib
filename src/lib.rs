@@ -8,6 +8,9 @@
 // Public items will be exposed as mwalib::module.
 mod antenna;
 mod baseline;
+#[cfg(feature = "bench-internals")]
+#[doc(hidden)]
+pub mod bench_internals;
 mod calibration_fit;
 mod coarse_channel;
 mod convert;
