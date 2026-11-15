@@ -392,6 +392,34 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
     error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
+    if out_correlator_context_ptr.is_null() {
+        set_c_string(
+            "mwalib_correlator_context_new(): out_correlator_context_ptr is NULL",
+            error_message as *mut c_char,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    if metafits_filename.is_null() {
+        set_c_string(
+            "mwalib_correlator_context_new(): metafits_filename is NULL",
+            error_message as *mut c_char,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    // A null pointer is not a valid slice, even an empty one, so only make the slice if there are files
+    if gpubox_count > 0 && gpubox_filenames.is_null() {
+        set_c_string(
+            "mwalib_correlator_context_new(): gpubox_filenames is NULL",
+            error_message as *mut c_char,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
     let m = match CStr::from_ptr(metafits_filename).to_str() {
         Ok(s) => s,
         Err(_) => {
@@ -404,9 +432,22 @@ pub unsafe extern "C" fn mwalib_correlator_context_new(
         }
     };
 
-    let gpubox_slice = slice::from_raw_parts(gpubox_filenames, gpubox_count);
+    let gpubox_slice: &[*const c_char] = if gpubox_count == 0 {
+        &[]
+    } else {
+        slice::from_raw_parts(gpubox_filenames, gpubox_count)
+    };
     let mut gpubox_files = Vec::with_capacity(gpubox_count);
     for g in gpubox_slice {
+        if g.is_null() {
+            set_c_string(
+                "mwalib_correlator_context_new(): gpubox_filenames contains a NULL pointer",
+                error_message as *mut c_char,
+                error_message_length,
+            );
+            return MWALIB_FAILURE;
+        }
+
         let s = match CStr::from_ptr(*g).to_str() {
             Ok(s) => s,
             Err(_) => {

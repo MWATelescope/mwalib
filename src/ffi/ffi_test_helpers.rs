@@ -12,6 +12,22 @@ use std::ffi::{c_char, CString};
 //
 // Helper methods for many tests
 //
+
+/// Owns a C string that was made with `CString::into_raw`, and frees it when it goes out of scope.
+///
+/// The C functions write error messages into a buffer that the test gives them. That buffer must be a pointer that
+/// is allowed to be written to, so it comes from `CString::into_raw` (not from `CString::as_ptr`, which is read-only).
+pub(crate) struct CStringGuard(pub(crate) *mut c_char);
+
+impl Drop for CStringGuard {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            // SAFETY: the pointer came from `CString::into_raw` and is only freed here.
+            unsafe { drop(CString::from_raw(self.0)) };
+        }
+    }
+}
+
 /// Create and return a metafits context based on a test metafits file. Used in many tests in the module.
 ///
 ///
@@ -49,7 +65,8 @@ pub(crate) fn get_test_ffi_metafits_context_ext(
 ) -> *mut MetafitsContext {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file = CString::new(metafits_filename).unwrap();
     let metafits_file_ptr = metafits_file.as_ptr();
@@ -92,7 +109,8 @@ pub(crate) fn get_test_ffi_correlator_context_legacy() -> *mut CorrelatorContext
     // This tests for a valid correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
@@ -101,9 +119,9 @@ pub(crate) fn get_test_ffi_correlator_context_legacy() -> *mut CorrelatorContext
     let gpubox_file =
         CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
             .unwrap();
-    let gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
+    let mut gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
 
-    let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
+    let gpubox_files_ptr = gpubox_files.as_mut_ptr();
 
     unsafe {
         // Create a CorrelatorContext
@@ -144,7 +162,8 @@ pub(crate) fn get_test_ffi_correlator_context_mwax() -> *mut CorrelatorContext {
     // This tests for a valid correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file =
         CString::new("test_files/1244973688_1_timestep/1244973688.metafits").unwrap();
@@ -153,9 +172,9 @@ pub(crate) fn get_test_ffi_correlator_context_mwax() -> *mut CorrelatorContext {
     let gpubox_file =
         CString::new("test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits")
             .unwrap();
-    let gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
+    let mut gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
 
-    let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
+    let gpubox_files_ptr = gpubox_files.as_mut_ptr();
 
     unsafe {
         // Create a CorrelatorContext
@@ -218,6 +237,12 @@ pub(crate) fn get_test_ffi_voltage_context(
 /// * Array of T expressed as Vec<T>
 ///
 pub(crate) fn ffi_boxed_slice_to_array<T>(ptr: *mut T, len: usize) -> Vec<T> {
+    // A null pointer is not valid for `Vec::from_raw_parts`, even for an empty array
+    if ptr.is_null() {
+        assert_eq!(len, 0, "a null pointer must have a length of 0");
+        return Vec::new();
+    }
+
     unsafe {
         let vec: Vec<T> = Vec::from_raw_parts(ptr, len, len);
         vec

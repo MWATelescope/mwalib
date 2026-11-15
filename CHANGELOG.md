@@ -43,6 +43,8 @@ This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0
 * Python: the `CorrelatorContext` read methods (`read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their `_into_buffer` versions) release the GIL while they read, so other Python threads can run at the same time.
 * `VoltageContext::read_second` with a `gps_second_count` of 0 returns `VoltageFileError::InvalidGpsSecondCount` instead of a panic.
 * Reading a visibility or weights HDU moves cfitsio to that HDU first, instead of depending on the HDU having just been opened.
+* FFI/C: `mwalib_metafits_context_new`, `mwalib_metafits_context_new2`, `mwalib_correlator_context_new` and `mwalib_voltage_context_new` return `MWALIB_FAILURE` with a message for a NULL output pointer (and, for the correlator and voltage functions, a NULL `metafits_filename`, a NULL array of file names when the count is not 0, or a NULL entry in it), instead of dereferencing it. The C signatures do not change (in Rust, the type of `out_voltage_context_ptr` is now `*mut *mut VoltageContext`, as in the other functions).
+
 * Index checks of the correlator reads use the lengths of `timesteps` and `coarse_chans`, so they cannot underflow.
 * FFI/C: the read functions (`mwalib_correlator_context_read_*`, `mwalib_voltage_context_read_*`) and `*_get_fine_chan_freqs_hz_array` use a shared reference to the context, so calling them from many C threads at once is not undefined behaviour. A null `buffer_ptr` now sets the error message.
 * Python: an internal shape mismatch when making a numpy array raises `RuntimeError` instead of a panic.

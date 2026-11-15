@@ -9,6 +9,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Only keep the latest run for each pull request. Runs for main and tags are never cancelled, because they publish
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   IMAGE_NAME: mwatelescope/mwalib
 
