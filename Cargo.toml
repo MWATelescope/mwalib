@@ -1,7 +1,6 @@
 [package]
 name = "mwalib"
 version = "4.0.0"
-homepage = "https://github.com/MWATelescope/mwalib"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
 authors = [
@@ -85,7 +84,6 @@ opt-level = 1 # debug builds are too slow for real data sets
 opt-level = 1 # or 3 if tests read large files
 
 [dependencies]
-bytemuck = "1.25"
 fitsio = "0.21"
 fitsio-sys = "0.5"
 hifitime = "4.3"
@@ -117,7 +115,6 @@ pyo3-stub-gen = { version = "0.23.2", optional = true, features = [
 ] }
 pyo3-stub-gen-derive = { version = "0.23.2", optional = true }
 
-# Transitive due to latest versions using higher MSRV than mwalib
 # "examples" feature.
 clap = { version = "4.6", features = ["derive"], optional = true }
 

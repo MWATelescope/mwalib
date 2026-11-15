@@ -433,13 +433,13 @@ fn test_context_legacy_v1_128_tiles() {
     .expect("Failed to create VoltageContext");
 
     // Ensure the antenna->rf_input mapping is still in tact (voltage context reorders them from the metafits)
-    for i in 0..128 {
-        if context.metafits_context.antennas[i].tile_id == 154 {
-            assert_eq!(context.metafits_context.antennas[i].rfinput_y.vcs_order, 1);
+    for i in context.metafits_context.antennas.iter().take(128) {
+        if i.tile_id == 154 {
+            assert_eq!(i.rfinput_y.vcs_order, 1);
         }
 
-        if context.metafits_context.antennas[i].tile_id == 104 {
-            assert_eq!(context.metafits_context.antennas[i].rfinput_y.vcs_order, 0);
+        if i.tile_id == 104 {
+            assert_eq!(i.rfinput_y.vcs_order, 0);
         }
     }
 }
