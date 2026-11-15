@@ -84,6 +84,7 @@ __all__ = [
 ]
 
 __version__: builtins.str
+
 @typing.final
 class Antenna:
     r"""
@@ -124,7 +125,7 @@ class Antenna:
         r"""
         Note: the next 4 values are from the rfinput of which we have X and Y, however these values are the same for each pol so can be safely placed in the antenna struct
         for efficiency
-        
+
         Electrical length in metres for this antenna and polarisation to the receiver.
         """
     @property
@@ -475,7 +476,11 @@ class CorrelatorContext:
         `gpubox_batches[batch][filename]`.
         """
     @property
-    def gpubox_time_map(self) -> builtins.dict[builtins.int, builtins.dict[builtins.int, tuple[builtins.int, builtins.int]]]:
+    def gpubox_time_map(
+        self,
+    ) -> builtins.dict[
+        builtins.int, builtins.dict[builtins.int, tuple[builtins.int, builtins.int]]
+    ]:
         r"""
         We assume as little as possible about the data layout in the gpubox
         files; here, a `BTreeMap` contains each unique UNIX time from every
@@ -494,101 +499,130 @@ class CorrelatorContext:
         r"""
         BSCALE- FITS BSCALE or SCALEFAC value set on the visibility HDUs (used in Legacy Correlator only)
         """
-    def __new__(cls, metafits_filename: builtins.str, gpubox_filenames: typing.Sequence[builtins.str]) -> CorrelatorContext:
+    def __new__(
+        cls,
+        metafits_filename: builtins.str,
+        gpubox_filenames: typing.Sequence[builtins.str],
+    ) -> CorrelatorContext:
         r"""
         From a path to a metafits file and paths to gpubox files, create a `CorrelatorContext`.
-        
+
         Args:
             metafits_filename (str): filename of metafits file as a path or string.
             gpubox_filenames (list[str]): list of filenames of gpubox files.
-        
+
         Returns:
             correlator_context (CorelatorContext): a populated CorrelatorContext object if Ok.
         """
-    def get_fine_chan_freqs_hz_array(self, corr_coarse_chan_indices: typing.Sequence[builtins.int]) -> builtins.list[builtins.float]:
+    def get_fine_chan_freqs_hz_array(
+        self, corr_coarse_chan_indices: typing.Sequence[builtins.int]
+    ) -> builtins.list[builtins.float]:
         r"""
         For a given list of correlator coarse channel indices, return a list of the center frequencies for all the fine channels in the given coarse channels
-        
+
         Args:
             corr_coarse_chan_indices (list[int]): a list containing correlator coarse channel indices for which you want fine channels for. Does not need to be contiguous.
-        
+
         Returns:
             fine_chan_freqs_hz_array (list[float]): a vector of floats containing the centre sky frequencies of all the fine channels for the given coarse channels.
         """
-    def read_by_baseline(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.float32]:
+    def read_by_baseline(
+        self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int
+    ) -> numpy.typing.NDArray[numpy.float32]:
         r"""
         Read a single timestep for a single coarse channel. The output visibilities are in order: baseline,frequency,pol,r,i
-        
+
         Args:
             corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
             corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
-        
+
         Returns:
             data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [baseline],[frequency],[pol,r,i] order, if Ok.
         """
-    def read_by_frequency(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.float32]:
+    def read_by_frequency(
+        self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int
+    ) -> numpy.typing.NDArray[numpy.float32]:
         r"""
         Read a single timestep for a single coarse channel. The output visibilities are in order: frequency,baseline,pol,r,i
-        
+
         Args:
             corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
             corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
-        
+
         Returns:
             data (numpy.typing.NDArray[numpy.float32]): 3 dimensional ndarray of 32 bit floats containing the data in [frequency],[baseline],[pol,r,i] order, if Ok.
         """
-    def read_weights_by_baseline(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.float32]:
+    def read_weights_by_baseline(
+        self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int
+    ) -> numpy.typing.NDArray[numpy.float32]:
         r"""
         Read weights for a single timestep for a single coarse channel. The output weights are in order: baseline,pol
-        
+
         Args:
             corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
             corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
-        
+
         Returns:
             data (numpy.typing.NDArray[numpy.float32]): A 2 dimensional ndarray of 32 bit floats containing the data in [baseline],[pol] order, if Ok.
         """
-    def read_by_baseline_into_buffer(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.float32]) -> None:
+    def read_by_baseline_into_buffer(
+        self,
+        corr_timestep_index: builtins.int,
+        corr_coarse_chan_index: builtins.int,
+        buffer: numpy.typing.NDArray[numpy.float32],
+    ) -> None:
         r"""
         Read a single timestep for a single coarse channel into an existing array. The output visibilities are in order: baseline,frequency,pol,r,i
-        
+
         The GIL is released during the read; do not change `buffer` from another thread until it returns.
-        
+
         This does not make a new array, so reading many times into one array is faster than `read_by_baseline`.
-        
+
         Args:
             corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
             corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
             buffer (numpy.typing.NDArray[numpy.float32]): 3 dimensional array to read into, in [baseline],[frequency],[pol,r,i] order. It must be float32, C contiguous, writeable and have exactly this shape, else ValueError is raised.
         """
-    def read_by_frequency_into_buffer(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.float32]) -> None:
+    def read_by_frequency_into_buffer(
+        self,
+        corr_timestep_index: builtins.int,
+        corr_coarse_chan_index: builtins.int,
+        buffer: numpy.typing.NDArray[numpy.float32],
+    ) -> None:
         r"""
         Read a single timestep for a single coarse channel into an existing array. The output visibilities are in order: frequency,baseline,pol,r,i
-        
+
         The GIL is released during the read; do not change `buffer` from another thread until it returns.
-        
+
         This does not make a new array, so reading many times into one array is faster than `read_by_frequency`.
-        
+
         Args:
             corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
             corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
             buffer (numpy.typing.NDArray[numpy.float32]): 3 dimensional array to read into, in [frequency],[baseline],[pol,r,i] order. It must be float32, C contiguous, writeable and have exactly this shape, else ValueError is raised.
         """
-    def read_weights_by_baseline_into_buffer(self, corr_timestep_index: builtins.int, corr_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.float32]) -> None:
+    def read_weights_by_baseline_into_buffer(
+        self,
+        corr_timestep_index: builtins.int,
+        corr_coarse_chan_index: builtins.int,
+        buffer: numpy.typing.NDArray[numpy.float32],
+    ) -> None:
         r"""
         Read a single timestep for a single coarse channel into an existing array. The output weights are in order: baseline,pol
-        
+
         The GIL is released during the read; do not change `buffer` from another thread until it returns.
-        
+
         This does not make a new array, so reading many times into one array is faster than `read_weights_by_baseline`.
-        
+
         Args:
             corr_timestep_index (int): index within the CorrelatorContext timestep array for the desired timestep. This corresponds to the element within CorrelatorContext.timesteps.
             corr_coarse_chan_index (int): index within the CorrelatorContext coarse_chan array for the desired coarse channel. This corresponds to the element within CorrelatorContext.coarse_chans.
             buffer (numpy.typing.NDArray[numpy.float32]): 2 dimensional array to read into, in [baseline],[pol] order. It must be float32, C contiguous, writeable and have exactly this shape, else ValueError is raised.
         """
     def __enter__(self) -> CorrelatorContext: ...
-    def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...
+    def __exit__(
+        self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any
+    ) -> None: ...
 
 @typing.final
 class GpuBoxBatch:
@@ -623,83 +657,32 @@ class GpuBoxFile:
         channel number (Legacy==gpubox host number 01..24; V2==receiver channel number 001..255)
         """
 
-class GpuboxErrorBatchMissing(builtins.Exception):
-    ...
-
-class GpuboxErrorBufferTooSmall(builtins.Exception):
-    ...
-
-class GpuboxErrorCorrVerMismatch(builtins.Exception):
-    ...
-
-class GpuboxErrorEmptyBTreeMap(builtins.Exception):
-    ...
-
-class GpuboxErrorFits(builtins.Exception):
-    ...
-
-class GpuboxErrorInvalidCoarseChanIndex(builtins.Exception):
-    ...
-
-class GpuboxErrorInvalidLegacyConversionTable(builtins.Exception):
-    ...
-
-class GpuboxErrorInvalidMwaVersion(builtins.Exception):
-    ...
-
-class GpuboxErrorInvalidTimeStepIndex(builtins.Exception):
-    ...
-
-class GpuboxErrorLegacyNaxis1Mismatch(builtins.Exception):
-    ...
-
-class GpuboxErrorLegacyNaxis2Mismatch(builtins.Exception):
-    ...
-
-class GpuboxErrorMissingObsid(builtins.Exception):
-    ...
-
-class GpuboxErrorMixture(builtins.Exception):
-    ...
-
-class GpuboxErrorMwaxCorrVerMismatch(builtins.Exception):
-    ...
-
-class GpuboxErrorMwaxCorrVerMissing(builtins.Exception):
-    ...
-
-class GpuboxErrorMwaxNaxis1Mismatch(builtins.Exception):
-    ...
-
-class GpuboxErrorMwaxNaxis2Mismatch(builtins.Exception):
-    ...
-
-class GpuboxErrorMwaxWeightsNaxisMismatch(builtins.Exception):
-    ...
-
-class GpuboxErrorNoDataForTimeStepCoarseChannel(builtins.Exception):
-    ...
-
-class GpuboxErrorNoDataHDUsInGpuboxFile(builtins.Exception):
-    ...
-
-class GpuboxErrorNoGpuboxes(builtins.Exception):
-    ...
-
-class GpuboxErrorObsidMismatch(builtins.Exception):
-    ...
-
-class GpuboxErrorUnequalHduSizes(builtins.Exception):
-    ...
-
-class GpuboxErrorUnevenCountInBatches(builtins.Exception):
-    ...
-
-class GpuboxErrorUnrecognised(builtins.Exception):
-    ...
-
-class GpuboxErrorUnsupportedLegacyTileCount(builtins.Exception):
-    ...
+class GpuboxErrorBatchMissing(builtins.Exception): ...
+class GpuboxErrorBufferTooSmall(builtins.Exception): ...
+class GpuboxErrorCorrVerMismatch(builtins.Exception): ...
+class GpuboxErrorEmptyBTreeMap(builtins.Exception): ...
+class GpuboxErrorFits(builtins.Exception): ...
+class GpuboxErrorInvalidCoarseChanIndex(builtins.Exception): ...
+class GpuboxErrorInvalidLegacyConversionTable(builtins.Exception): ...
+class GpuboxErrorInvalidMwaVersion(builtins.Exception): ...
+class GpuboxErrorInvalidTimeStepIndex(builtins.Exception): ...
+class GpuboxErrorLegacyNaxis1Mismatch(builtins.Exception): ...
+class GpuboxErrorLegacyNaxis2Mismatch(builtins.Exception): ...
+class GpuboxErrorMissingObsid(builtins.Exception): ...
+class GpuboxErrorMixture(builtins.Exception): ...
+class GpuboxErrorMwaxCorrVerMismatch(builtins.Exception): ...
+class GpuboxErrorMwaxCorrVerMissing(builtins.Exception): ...
+class GpuboxErrorMwaxNaxis1Mismatch(builtins.Exception): ...
+class GpuboxErrorMwaxNaxis2Mismatch(builtins.Exception): ...
+class GpuboxErrorMwaxWeightsNaxisMismatch(builtins.Exception): ...
+class GpuboxErrorNoDataForTimeStepCoarseChannel(builtins.Exception): ...
+class GpuboxErrorNoDataHDUsInGpuboxFile(builtins.Exception): ...
+class GpuboxErrorNoGpuboxes(builtins.Exception): ...
+class GpuboxErrorObsidMismatch(builtins.Exception): ...
+class GpuboxErrorUnequalHduSizes(builtins.Exception): ...
+class GpuboxErrorUnevenCountInBatches(builtins.Exception): ...
+class GpuboxErrorUnrecognised(builtins.Exception): ...
+class GpuboxErrorUnsupportedLegacyTileCount(builtins.Exception): ...
 
 @typing.final
 class LegacyConversionBaseline:
@@ -1253,22 +1236,25 @@ class MetafitsContext:
         r"""
         Number of incoherent beamformer beams defined in this observation
         """
-    def __new__(cls, metafits_filename: builtins.str, mwa_version: MWAVersion | None = None) -> MetafitsContext:
+    def __new__(
+        cls, metafits_filename: builtins.str, mwa_version: MWAVersion | None = None
+    ) -> MetafitsContext:
         r"""
         From a path to a metafits file, create a `MetafitsContext`.
-        
+
         Args:
             metafits_filename (str): filename of metafits file.
             mwa_version (Optional[MWAVersion]): the MWA version the metafits should be interpreted as. Pass None to have mwalib guess based on the MODE in the metafits.
-        
+
         Returns:
             metafits_contex (MetafitsContex): a populated MetafitsContext object if Ok.
         """
     def __enter__(self) -> MetafitsContext: ...
-    def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...
+    def __exit__(
+        self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any
+    ) -> None: ...
 
-class MwalibError(builtins.Exception):
-    ...
+class MwalibError(builtins.Exception): ...
 
 @typing.final
 class Rfinput:
@@ -1354,7 +1340,7 @@ class Rfinput:
     def dipole_gains(self) -> builtins.list[builtins.float]:
         r"""
         Dipole gains.
-        
+
         These are either 1 or 0 (on or off), depending on the dipole delay; a
         dipole delay of 32 corresponds to "dead dipole", so the dipole gain of 0
         reflects that. All other dipoles are assumed to be "live". The values
@@ -1813,7 +1799,9 @@ class VoltageContext:
         `voltage_batches[batch][filename]`.
         """
     @property
-    def voltage_time_map(self) -> builtins.dict[builtins.int, builtins.dict[builtins.int, builtins.str]]:
+    def voltage_time_map(
+        self,
+    ) -> builtins.dict[builtins.int, builtins.dict[builtins.int, builtins.str]]:
         r"""
         We assume as little as possible about the data layout in the voltage
         files; here, a `BTreeMap` contains each unique GPS time from every
@@ -1822,87 +1810,111 @@ class VoltageContext:
         number, batch number and HDU index are everything needed to find the
         correct HDU out of all voltage files.
         """
-    def __new__(cls, metafits_filename: builtins.str, voltage_filenames: typing.Sequence[builtins.str]) -> VoltageContext:
+    def __new__(
+        cls,
+        metafits_filename: builtins.str,
+        voltage_filenames: typing.Sequence[builtins.str],
+    ) -> VoltageContext:
         r"""
         From a path to a metafits file and paths to voltage files, create a `VoltageContext`.
-        
+
         Args:
             metafits_filename (str): filename of metafits file as a path or string.
             voltage_filenames (list[str]): list of filenames of voltage files.
-        
+
         Returns:
             voltage_context (VoltageContext): a populated VoltageContext object if Ok.
         """
-    def get_fine_chan_freqs_hz_array(self, volt_coarse_chan_indices: typing.Sequence[builtins.int]) -> builtins.list[builtins.float]:
+    def get_fine_chan_freqs_hz_array(
+        self, volt_coarse_chan_indices: typing.Sequence[builtins.int]
+    ) -> builtins.list[builtins.float]:
         r"""
         For a given list of voltage coarse channel indices, return a list of the center frequencies for all the fine channels in the given coarse channels.
-        
+
         Args:
             volt_coarse_chan_indices (list[int]): a list containing correlator coarse channel indices for which you want fine channels for. Does not need to be contiguous.
-        
+
         Returns:
             fine_chan_freqs_hz_array (list[float]): a vector of floats containing the centre sky frequencies of all the fine channels for the given coarse channels.
         """
-    def read_file(self, volt_timestep_index: builtins.int, volt_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.int8]:
+    def read_file(
+        self, volt_timestep_index: builtins.int, volt_coarse_chan_index: builtins.int
+    ) -> numpy.typing.NDArray[numpy.int8]:
         r"""
         Read a single timestep / coarse channel worth of data
-        
+
         The GIL is released during the read.
-        
+
         Args:
             volt_timestep_index (int): index within the timestep array for the desired timestep. This corresponds to the element within VoltageContext.timesteps. For mwa legacy each index represents 1 second increments, for mwax it is 8 second increments.
             volt_coarse_chan_index (int): index within the coarse_chan array for the desired coarse channel. This corresponds to the element within VoltageContext.coarse_chans.
-        
+
         Returns:
             data (numpy.typing.NDArray[numpy.int8]): A 6 dimensional ndarray of signed bytes containing the data, if Ok.
-        
+
         NOTE: The shape of the ndarray is different between LegacyVCS and MWAX VCS
         Legacy: [second],[time sample],[chan],[ant],[pol],[complexity]
                 where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment
         MWAX  : [second],[voltage_block],[antenna],[pol],[sample],[r,i]
         """
-    def read_file_into_buffer(self, volt_timestep_index: builtins.int, volt_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.int8]) -> None:
+    def read_file_into_buffer(
+        self,
+        volt_timestep_index: builtins.int,
+        volt_coarse_chan_index: builtins.int,
+        buffer: numpy.typing.NDArray[numpy.int8],
+    ) -> None:
         r"""
         Read a single timestep / coarse channel worth of data into an existing array. The data is the same as
         `read_file` gives.
-        
+
         The GIL is released during the read; do not change `buffer` from another thread until it returns.
-        
+
         This does not make a new array, so reading many times into one array is faster than `read_file`.
-        
+
         Args:
             volt_timestep_index (int): index within the timestep array for the desired timestep. This corresponds to the element within VoltageContext.timesteps. For mwa legacy each index represents 1 second increments, for mwax it is 8 second increments.
             volt_coarse_chan_index (int): index within the coarse_chan array for the desired coarse channel. This corresponds to the element within VoltageContext.coarse_chans.
             buffer (numpy.typing.NDArray[numpy.int8]): 6 dimensional array to read into, with the shape read_file gives. It must be int8, C contiguous, writeable and have exactly this shape, else ValueError is raised.
         """
-    def read_second(self, gps_second_start: builtins.int, gps_second_count: builtins.int, volt_coarse_chan_index: builtins.int) -> numpy.typing.NDArray[numpy.int8]:
+    def read_second(
+        self,
+        gps_second_start: builtins.int,
+        gps_second_count: builtins.int,
+        volt_coarse_chan_index: builtins.int,
+    ) -> numpy.typing.NDArray[numpy.int8]:
         r"""
         Read a single or multiple seconds of data for a coarse channel
-        
+
         The GIL is released during the read.
-        
+
         Args:
             gps_second_start (int): GPS second within the observation to start returning data.
             gps_second_count (int): number of seconds of data to return.
             volt_coarse_chan_index (int): index within the coarse_chan array for the desired coarse channel. This corresponds to the element within VoltageContext.coarse_chans.
-        
+
         Returns:
             data (numpy.typing.NDArray[numpy.int8]): A 6 dimensional ndarray of signed bytes containing the data, if Ok.
-        
+
         NOTE: The shape of the ndarray is different between LegacyVCS and MWAX VCS
         Legacy: [second],[time sample],[chan],[ant],[pol],[complexity]
                 where complexity is a byte (first 4 bits for real, second 4 bits for imaginary) in 2's compliment
         MWAX  : [second],[voltage_block],[antenna],[pol],[sample],[r,i]
         """
-    def read_second_into_buffer(self, gps_second_start: builtins.int, gps_second_count: builtins.int, volt_coarse_chan_index: builtins.int, buffer: numpy.typing.NDArray[numpy.int8]) -> None:
+    def read_second_into_buffer(
+        self,
+        gps_second_start: builtins.int,
+        gps_second_count: builtins.int,
+        volt_coarse_chan_index: builtins.int,
+        buffer: numpy.typing.NDArray[numpy.int8],
+    ) -> None:
         r"""
         Read a single or multiple seconds of data for a coarse channel into an existing array. The data is the same as
         `read_second` gives.
-        
+
         The GIL is released during the read; do not change `buffer` from another thread until it returns.
-        
+
         This does not make a new array, so reading many times into one array is faster than `read_second`.
-        
+
         Args:
             gps_second_start (int): GPS second within the observation to start returning data.
             gps_second_count (int): number of seconds of data to return.
@@ -1910,64 +1922,29 @@ class VoltageContext:
             buffer (numpy.typing.NDArray[numpy.int8]): 6 dimensional array to read into, with the shape read_second (for this gps_second_count) gives. It must be int8, C contiguous, writeable and have exactly this shape, else ValueError is raised.
         """
     def __enter__(self) -> VoltageContext: ...
-    def __exit__(self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any) -> None: ...
+    def __exit__(
+        self, _exc_type: typing.Any, _exc_value: typing.Any, _traceback: typing.Any
+    ) -> None: ...
 
-class VoltageErro(builtins.Exception):
-    ...
-
-class VoltageErrorEmptyBTreeMap(builtins.Exception):
-    ...
-
-class VoltageErrorGpsTimeMissing(builtins.Exception):
-    ...
-
-class VoltageErrorInvalidBufferSize(builtins.Exception):
-    ...
-
-class VoltageErrorInvalidCoarseChanIndex(builtins.Exception):
-    ...
-
-class VoltageErrorInvalidGpsSecondCount(builtins.Exception):
-    ...
-
-class VoltageErrorInvalidGpsSecondStart(builtins.Exception):
-    ...
-
-class VoltageErrorInvalidMwaVersion(builtins.Exception):
-    ...
-
-class VoltageErrorInvalidTimeStepIndex(builtins.Exception):
-    ...
-
-class VoltageErrorInvalidVoltageFileSize(builtins.Exception):
-    ...
-
-class VoltageErrorMetafitsObsidMismatch(builtins.Exception):
-    ...
-
-class VoltageErrorMissingObsid(builtins.Exception):
-    ...
-
-class VoltageErrorMixture(builtins.Exception):
-    ...
-
-class VoltageErrorNoDataForTimeStepCoarseChannel(builtins.Exception):
-    ...
-
-class VoltageErrorNoVoltageFiles(builtins.Exception):
-    ...
-
-class VoltageErrorObsidMismatch(builtins.Exception):
-    ...
-
-class VoltageErrorUnequalFileSizes(builtins.Exception):
-    ...
-
-class VoltageErrorUnevenChannelsForGpsTime(builtins.Exception):
-    ...
-
-class VoltageErrorUnrecognised(builtins.Exception):
-    ...
+class VoltageErro(builtins.Exception): ...
+class VoltageErrorEmptyBTreeMap(builtins.Exception): ...
+class VoltageErrorGpsTimeMissing(builtins.Exception): ...
+class VoltageErrorInvalidBufferSize(builtins.Exception): ...
+class VoltageErrorInvalidCoarseChanIndex(builtins.Exception): ...
+class VoltageErrorInvalidGpsSecondCount(builtins.Exception): ...
+class VoltageErrorInvalidGpsSecondStart(builtins.Exception): ...
+class VoltageErrorInvalidMwaVersion(builtins.Exception): ...
+class VoltageErrorInvalidTimeStepIndex(builtins.Exception): ...
+class VoltageErrorInvalidVoltageFileSize(builtins.Exception): ...
+class VoltageErrorMetafitsObsidMismatch(builtins.Exception): ...
+class VoltageErrorMissingObsid(builtins.Exception): ...
+class VoltageErrorMixture(builtins.Exception): ...
+class VoltageErrorNoDataForTimeStepCoarseChannel(builtins.Exception): ...
+class VoltageErrorNoVoltageFiles(builtins.Exception): ...
+class VoltageErrorObsidMismatch(builtins.Exception): ...
+class VoltageErrorUnequalFileSizes(builtins.Exception): ...
+class VoltageErrorUnevenChannelsForGpsTime(builtins.Exception): ...
+class VoltageErrorUnrecognised(builtins.Exception): ...
 
 @typing.final
 class VoltageFile:
@@ -2006,6 +1983,7 @@ class CableDelaysApplied(enum.Enum):
     r"""
     The type of cable delays applied to the data
     """
+
     NoCableDelaysApplied = ...
     CableAndRecClock = ...
     CableAndRecClockAndBeamformerDipoleDelays = ...
@@ -2015,6 +1993,7 @@ class DataFileType(enum.Enum):
     r"""
     DataFileType enum.
     """
+
     UnknownType = ...
     RawVsib = ...
     AvgVsib = ...
@@ -2042,6 +2021,7 @@ class DelayMode(enum.Enum):
     r"""
     The MWAX real-time correction (delay) mode used for this observation
     """
+
     NoDelays = ...
     r"""
     No corrections applied
@@ -2080,6 +2060,7 @@ class GeometricDelaysApplied(enum.Enum):
     r"""
     The type of geometric delays applied to the data
     """
+
     No = ...
     Zenith = ...
     TilePointing = ...
@@ -2092,6 +2073,7 @@ class HeightCode(enum.Enum):
     This is the "Height_Code" column in the metafits TILEDATA table. mwalib converts `EllipsoidHeight` heights, so
     `height_m` is always in the `ArrayCentreOffset` convention.
     """
+
     EllipsoidHeight = ...
     r"""
     Code 0: the raw height above the ellipsoid, in metres (this includes the curvature of the Earth).
@@ -2106,6 +2088,7 @@ class MWAMode(enum.Enum):
     r"""
     The MODE the system was in for this observation
     """
+
     No_Capture = ...
     Burst_Vsib = ...
     Sw_Cor_Vsib = ...
@@ -2136,6 +2119,7 @@ class MWAVersion(enum.Enum):
     r"""
     Enum for all of the known variants of file format based on Correlator version
     """
+
     CorrOldLegacy = ...
     r"""
     MWA correlator (v1.0), having data files without any batch numbers.
@@ -2170,6 +2154,7 @@ class Pol(enum.Enum):
     r"""
     Instrument polarisation.
     """
+
     X = ...
     Y = ...
 
@@ -2178,6 +2163,7 @@ class ReceiverType(enum.Enum):
     r"""
     ReceiverType enum.
     """
+
     Unknown = ...
     RRI = ...
     NI = ...
@@ -2191,8 +2177,8 @@ class VisPol(enum.Enum):
     r"""
     Visibility polarisations
     """
+
     XX = ...
     XY = ...
     YX = ...
     YY = ...
-

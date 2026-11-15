@@ -56,5 +56,6 @@ jobs:
       - name: Minimum-specified Rust version works
         run: |
           MIN_RUST=$(grep -m1 "rust-version" Cargo.toml | sed 's|.*\"\(.*\)\"|\1|')
-          ~/.cargo/bin/rustup install $MIN_RUST --profile minimal          
+          # Use the rustup on the PATH: on the macOS (Arm64) runners it is not in ~/.cargo/bin
+          rustup toolchain install "${MIN_RUST}" --profile minimal
           cargo +${MIN_RUST} test --features cfitsio-static,examples
