@@ -114,8 +114,7 @@ fn bench_gpubox_read_by_frequency_into_buffer(c: &mut Criterion) {
     });
 }
 
-/// The MWAX test metafits and gpubox file. The gpubox file is Rice tile compressed; real MWAX gpubox files never are,
-/// so the `mwax_uncompressed` group (a copy decompressed at setup) is the realistic one.
+/// The MWAX test metafits and gpubox file. Like all real MWAX gpubox files, the gpubox file is not compressed.
 const MWAX_METAFITS: &str = "test_files/1244973688_1_timestep/1244973688.metafits";
 const MWAX_GPUBOX: &str =
     "test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits";
@@ -372,32 +371,12 @@ fn uncompressed_context(
     uncompressed
 }
 
-/// MWAX reads from the Rice compressed test file
+/// MWAX reads from the test file (not compressed, like real MWAX gpubox files)
 fn bench_mwax_reads(c: &mut Criterion) {
     let context = CorrelatorContext::new(MWAX_METAFITS, &[MWAX_GPUBOX])
         .expect("Error creating correlator context");
 
     bench_reads(c, "mwax", &context, MWAX_TIMESTEP, MWAX_COARSE_CHAN);
-}
-
-/// MWAX reads from an uncompressed copy of the test file (like real MWAX gpubox files)
-fn bench_mwax_uncompressed_reads(c: &mut Criterion) {
-    let dir = tempfile::tempdir().expect("Error creating a temp dir");
-    let context = uncompressed_context(
-        MWAX_METAFITS,
-        MWAX_GPUBOX,
-        dir.path(),
-        MWAX_TIMESTEP,
-        MWAX_COARSE_CHAN,
-    );
-
-    bench_reads(
-        c,
-        "mwax_uncompressed",
-        &context,
-        MWAX_TIMESTEP,
-        MWAX_COARSE_CHAN,
-    );
 }
 
 /// Legacy reads from an uncompressed copy of the test file
@@ -423,6 +402,6 @@ fn bench_legacy_uncompressed_reads(c: &mut Criterion) {
 criterion_group!(
     name = correlator_context_benches;
     config = Criterion::default().sample_size(10).with_plots();
-    targets = bench_gpubox_read_by_baseline, bench_gpubox_read_by_frequency, bench_gpubox_read_by_baseline_into_buffer, bench_gpubox_read_by_frequency_into_buffer, bench_mwax_reads, bench_mwax_uncompressed_reads, bench_legacy_uncompressed_reads
+    targets = bench_gpubox_read_by_baseline, bench_gpubox_read_by_frequency, bench_gpubox_read_by_baseline_into_buffer, bench_gpubox_read_by_frequency_into_buffer, bench_mwax_reads, bench_legacy_uncompressed_reads
 );
 criterion_main!(correlator_context_benches);

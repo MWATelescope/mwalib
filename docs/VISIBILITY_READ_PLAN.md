@@ -1,9 +1,10 @@
 # Plan: safer and faster reading of visibilities
 
 Status: phases 1 (tests), 2 (safety and 4.0.0: diffs 2a, 2b, 2c) and 3 (performance: steps 1 to 5) are done. Phase 3
-step 3 found that the test files are Rice compressed (see "Compressed test files") and added benchmarks of
-uncompressed copies. Phase 5 (tile position from the height code) is done. Phase 4 (opt-in threads) is skipped for
-now (Greg's decision; the conversion left is 5 to 8 ms per read).
+step 3 found that the test files were Rice compressed (see "Compressed test files") and added benchmarks of
+uncompressed copies. The MWAX test files are now stored uncompressed; the legacy test file is still compressed.
+Phase 5 (tile position from the height code) is done. Phase 4 (opt-in threads) is skipped for now (Greg's decision;
+the conversion left is 5 to 8 ms per read).
 
 Scope: `CorrelatorContext::read_by_baseline`, `read_by_frequency`, `read_weights_by_baseline` and their
 `*_into_buffer` versions, the converters in `src/convert/mod.rs`, `get_fine_chan_freqs_hz_array`
@@ -87,12 +88,14 @@ Performance (all unmeasured):
 - Group `mwax`: `test_files/1244973688_1_timestep/1244973688_20190619100110_ch114_000.fits`, timestep 0, coarse
   channel 10. `read_by_baseline`, `read_by_frequency`, both `_into_buffer`, `read_weights_by_baseline`, and its
   `_into_buffer`. MiB/s is reported. Results are dropped inside the timed code, so allocation is included. The file is
-  Rice compressed, but real MWAX gpubox files never are, so this group mostly measures decompression.
-- Groups `mwax_uncompressed` and `legacy_uncompressed`: the same six reads, from copies of the MWAX and legacy test
-  gpubox files that the benchmark writes uncompressed into a temp dir at setup (`fits_img_decompress`, no scaling).
-  Setup checks that each copy reads the same data as the original. Real MWAX files are always uncompressed, and real
-  legacy files are both, so `mwax_uncompressed` is the realistic MWAX group, and legacy needs `my_group` and
-  `legacy_uncompressed`.
+  stored uncompressed, like all real MWAX gpubox files, so this is the realistic MWAX group. (Until the MWAX test
+  files were stored uncompressed, this group read a Rice compressed file and mostly measured decompression; the
+  `mwax` numbers below are from that time. The old `mwax_uncompressed` group, a copy decompressed at setup, was
+  removed because it is now the same as `mwax`.)
+- Group `legacy_uncompressed`: the same six reads, from a copy of the legacy test gpubox file that the benchmark
+  writes uncompressed into a temp dir at setup (`fits_img_decompress`, no scaling). Setup checks that the copy reads
+  the same data as the original. Real legacy files are both compressed and not, so legacy needs `my_group` (Rice
+  compressed) and `legacy_uncompressed`.
 - Group `my_group` (existing): the legacy file. The two `_into_buffer` benchmarks sized their buffer with
   `num_timestep_coarse_chan_bytes` (4 times too many floats); now `num_timestep_coarse_chan_floats`. An oversized buffer
   is also an error for MWAX by baseline today, which is why this mattered.
@@ -101,7 +104,7 @@ Performance (all unmeasured):
   floor) and `reference/alloc_and_copy` (a new buffer each time; the difference from `reference/copy` is the cost of a
   new 34 MB buffer). Run: `cargo bench --features bench-internals --bench convert_benches`.
 - Still to add: a file with many HDUs (to see the cost of moving to a late HDU).
-- Run: `cargo bench --bench correlator_context_benches` (or add a group name, for example `-- mwax_uncompressed`).
+- Run: `cargo bench --bench correlator_context_benches` (or add a group name, for example `-- legacy_uncompressed`).
   Compare before and after on the same machine. The files are read from the OS file cache after the first read, so
   disk speed is not measured.
 
@@ -178,6 +181,11 @@ What the numbers say:
   (41 MB, the size of the unit test files). The benchmark reads 5.9 GB, so voltage reads are fast.
 
 ### Compressed test files (phase 3 step 3)
+
+Note (later): the MWAX test files were made uncompressed after this was written (Greg: MWAX gpubox files are never
+compressed; they were probably compressed to save space in the repository). So `mwax/*` now reads uncompressed
+data, the same as the old `mwax_uncompressed/*`, and the Rice MWAX numbers in this section and in the tables above
+are history that cannot be reproduced with the current test files. The legacy test file is still Rice compressed.
 
 Both gpubox test files are tile-compressed images (`ZIMAGE = T`, `ZCMPTYPE = 'RICE_1'`), so every read decompresses
 in cfitsio:
