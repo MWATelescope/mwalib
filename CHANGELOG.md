@@ -8,14 +8,14 @@ Notes:
 * Changes tagged with "FFI/C" are only relevant if you are using mwalib's C library (you are developing in C/C++).
 * Changes tagged with "Python" are only relevant if you are using mwalib via Python.
 
-## 4.0.0 Unreleased
+## 4.0.0 16-Nov-2026
 
-This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0.0.
+This release has breaking changes (below), so it is 4.0.0.
 
 ### Breaking
 
 * `VoltageContext::read_file` and `VoltageContext::read_second` return `VoltageFileError::IoError` instead of panicking when a voltage file cannot be opened, seeked or read (for example, if it was removed after the context was made).
-* `Rfinput::height_m` and `Antenna::height_m` are corrected for the Earth's curvature for tiles whose metafits height is above the WGS84 ellipsoid (`height_code` is `EllipsoidHeight`: the long baseline tiles, also by default when the metafits has no `Height_Code` column). `height_m` is now the local "up" above the array centre plus `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` for every tile, so these tiles are lower than before by about (east² + north²) / 2R (0.08 m at 1 km, 0.97 m for LBD7). The metafits value is in the new `height_uncorrected_m`. The conversion is the same as Marlu PR 51 (`ENH::from_ellipsoidal_height`) and agrees with the MWA wiki's survey values to 0.5 mm.
+* `Rfinput::height_m` and `Antenna::height_m` are corrected for the Earth's curvature for tiles whose metafits height is above the WGS84 ellipsoid (`height_code` is `EllipsoidHeight`: the long baseline tiles, also by default when the metafits has no `Height_Code` column). `height_m` is now the local "up" above the array centre plus `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES` for every tile, so these tiles are lower than before by about (east² + north²) / 2R (0.08 m at 1 km, 0.97 m for LBD7). The metafits value is still recorded in a new `height_uncorrected_m` attribute for reference. The conversion is the same as Marlu PR 51 (`ENH::from_ellipsoidal_height`) and agrees with the MWA wiki's survey values to 0.5 mm.
 * Python: all mwalib classes are read-only. Setting an attribute (for example `context.num_timesteps = 0`) raises `AttributeError`. The setters are removed from `mwalib.pyi`.
 * `CorrelatorContext::get_fine_chan_freqs_hz_array` and `VoltageContext::get_fine_chan_freqs_hz_array` return a `Result`. An index out of range is `GpuboxError::InvalidCoarseChanIndex` (`VoltageFileError::InvalidCoarseChanIndex`) instead of a panic.
   * Python: raises `GpuboxErrorInvalidCoarseChanIndex` (`VoltageErrorInvalidCoarseChanIndex`) instead of `PanicException`.
@@ -44,7 +44,6 @@ This release was planned as 3.1.0. It has breaking changes (below), so it is 4.0
 * `VoltageContext::read_second` with a `gps_second_count` of 0 returns `VoltageFileError::InvalidGpsSecondCount` instead of a panic.
 * Reading a visibility or weights HDU moves cfitsio to that HDU first, instead of depending on the HDU having just been opened.
 * FFI/C: `mwalib_metafits_context_new`, `mwalib_metafits_context_new2`, `mwalib_correlator_context_new` and `mwalib_voltage_context_new` return `MWALIB_FAILURE` with a message for a NULL output pointer (and, for the correlator and voltage functions, a NULL `metafits_filename`, a NULL array of file names when the count is not 0, or a NULL entry in it), instead of dereferencing it. The C signatures do not change (in Rust, the type of `out_voltage_context_ptr` is now `*mut *mut VoltageContext`, as in the other functions).
-
 * Index checks of the correlator reads use the lengths of `timesteps` and `coarse_chans`, so they cannot underflow.
 * FFI/C: the read functions (`mwalib_correlator_context_read_*`, `mwalib_voltage_context_read_*`) and `*_get_fine_chan_freqs_hz_array` use a shared reference to the context, so calling them from many C threads at once is not undefined behaviour. A null `buffer_ptr` now sets the error message.
 * Python: an internal shape mismatch when making a numpy array raises `RuntimeError` instead of a panic.
