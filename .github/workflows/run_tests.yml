@@ -27,14 +27,9 @@ jobs:
       fail-fast: false
       matrix:
         # see https://github.com/actions/runner-images?tab=readme-ov-file#available-images for runner types
-        os: [
-            ubuntu-24.04,
-            ubuntu-24.04-arm,
-            macos-15,
-            macos-15-intel,
-            macos-26,
-            macos-26-intel,
-          ] # macos-26 & 15 are Arm64
+        # One runner per OS and architecture, the same ones releases.yml builds on
+        # (macos-26 / macos-26-intel only repeated macos-15 / macos-15-intel).
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel] # macos-15 is Arm64
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
