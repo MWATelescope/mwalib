@@ -20,6 +20,15 @@ pub enum RfinputError {
         got: String,
     },
 
+    /// Error when reading in a Rfinput's height code.
+    #[error("{fits_filename} HDU {hdu_num}: Did not recognise the Height_Code in row {row_num} ({got}); expected 0 or 1")]
+    UnrecognisedHeightCode {
+        fits_filename: PathBuf,
+        hdu_num: usize,
+        row_num: usize,
+        got: i32,
+    },
+
     /// An error derived from `FitsError`.
     #[error("{0}")]
     Fits(#[from] crate::fits_read::error::FitsError),

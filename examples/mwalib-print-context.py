@@ -7,6 +7,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import argparse
+import sys
 
 import mwalib
 
@@ -40,7 +41,7 @@ if __name__ == "__main__":
 
         if len(corr_suffixes) + len(dat_suffixes) + len(sub_suffixes) == 0:
             print("Error- no .fits, .dat or .sub files provided")
-            exit(-2)
+            sys.exit(-2)
         elif len(corr_suffixes) > 0 and len(dat_suffixes) + len(sub_suffixes) == 0:
             print(f"{len(corr_suffixes)} correlator/gpubox files detected")
             context = mwalib.CorrelatorContext(args.metafits, args.datafiles)
@@ -54,7 +55,7 @@ if __name__ == "__main__":
             context = mwalib.VoltageContext(args.metafits, args.datafiles)
         else:
             print("Error: Combination of different data files supplied.")
-            exit(-3)
+            sys.exit(-3)
 
     # Test the debug "display" method
     print("\nTesting Display method:")

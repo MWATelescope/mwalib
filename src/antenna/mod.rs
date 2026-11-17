@@ -3,7 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 //! Structs and helper methods for antenna metadata
-use crate::{rfinput::*, types::Pol};
+use crate::{
+    rfinput::*,
+    types::{HeightCode, Pol},
+};
 pub mod ffi;
 use std::fmt;
 
@@ -19,7 +22,7 @@ mod test;
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all, from_py_object)
+    pyclass(get_all, from_py_object)
 )]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Antenna {
@@ -48,8 +51,17 @@ pub struct Antenna {
     pub north_m: f64,
     /// Antenna position East from the array centre (metres)
     pub east_m: f64,
-    /// Antenna height from the array centre (metres)
+    /// Antenna height (metres), corrected for the Earth's curvature: the local "up" above the array centre plus
+    /// `MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES`, for every tile. Use this field, not `height_uncorrected_m`.
+    /// See `Rfinput::height_m`.
     pub height_m: f64,
+    /// What the metafits height (`height_uncorrected_m`) is relative to. `height_m` is always in the
+    /// `HeightCode::ArrayCentreOffset` convention.
+    /// See `Rfinput::height_code` for the default used when the metafits has no `Height_Code` column.
+    pub height_code: HeightCode,
+    /// Antenna height (metres) as in the metafits, not corrected for the Earth's curvature. See `height_code` for what it
+    /// is relative to. Most callers should use `height_m` instead.
+    pub height_uncorrected_m: f64,
 }
 
 impl Antenna {
@@ -77,6 +89,8 @@ impl Antenna {
             north_m: x_pol.north_m,
             east_m: x_pol.east_m,
             height_m: x_pol.height_m,
+            height_code: x_pol.height_code,
+            height_uncorrected_m: x_pol.height_uncorrected_m,
         }
     }
 

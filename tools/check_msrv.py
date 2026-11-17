@@ -13,7 +13,8 @@ def get_msrv(path_to_cargo_toml: str):
         msrv = cargo_toml.get("package", {}).get("rust-version")
         if msrv:
             return msrv
-    except Exception:
+    except (OSError, toml.TomlDecodeError):
+        # No usable Cargo.toml, so fall back to the current rustc version below
         pass
 
     # Fallback: use current rustc version

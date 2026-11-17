@@ -19,12 +19,53 @@ use pyo3_stub_gen::define_stub_info_gatherer;
 
 use crate::{
     gpubox_files::error::*,
-    types::{DataFileType, Pol, ReceiverType},
+    types::{DataFileType, HeightCode, Pol, ReceiverType},
     voltage_files::error::*,
     Antenna, Baseline, CableDelaysApplied, CalibrationFit, CoarseChannel, CorrelatorContext,
     DelayMode, GeometricDelaysApplied, MWAMode, MWAVersion, MetafitsContext, Rfinput,
     SignalChainCorrection, VisPol, VoltageBeam, VoltageContext,
 };
+
+/// Check that a `buffer` array has the shape `expected_shape` and is C contiguous, then borrow it for writing. Used by
+/// the `*_into_buffer` read methods.
+///
+/// # Arguments
+///
+/// * `buffer` - The array the caller gave to read into.
+///
+/// * `expected_shape` - The shape the read gives.
+///
+/// # Returns
+///
+/// * The borrowed array, or a `ValueError` if the shape is wrong, the array is not C contiguous, is not writeable or is
+///   already borrowed.
+///
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+pub(crate) fn borrow_buffer<'py, T: numpy::Element, D: numpy::ndarray::Dimension>(
+    buffer: &Bound<'py, numpy::PyArray<T, D>>,
+    expected_shape: &[usize],
+) -> PyResult<numpy::PyReadwriteArray<'py, T, D>> {
+    use numpy::{PyArrayMethods, PyUntypedArrayMethods};
+
+    if buffer.shape() != expected_shape {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "buffer has shape {:?}, expected {:?}",
+            buffer.shape(),
+            expected_shape
+        )));
+    }
+
+    // A Fortran ordered array is also contiguous, but its elements would be in the wrong order
+    if !buffer.is_c_contiguous() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "buffer must be C contiguous",
+        ));
+    }
+
+    buffer.try_readwrite().map_err(|e| {
+        pyo3::exceptions::PyValueError::new_err(format!("buffer cannot be written to: {e}"))
+    })
+}
 
 // Add a python exception for MmwalibError.
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
@@ -58,6 +99,10 @@ create_exception!(
 );
 create_exception!(mwalib, GpuboxErrorNoDataHDUsInGpuboxFile, PyException);
 create_exception!(mwalib, GpuboxErrorNoGpuboxes, PyException);
+create_exception!(mwalib, GpuboxErrorBufferTooSmall, PyException);
+create_exception!(mwalib, GpuboxErrorInvalidLegacyConversionTable, PyException);
+create_exception!(mwalib, GpuboxErrorMwaxWeightsNaxisMismatch, PyException);
+create_exception!(mwalib, GpuboxErrorUnsupportedLegacyTileCount, PyException);
 create_exception!(mwalib, GpuboxErrorObsidMismatch, PyException);
 create_exception!(mwalib, GpuboxErrorUnequalHduSizes, PyException);
 create_exception!(mwalib, GpuboxErrorUnevenCountInBatches, PyException);
@@ -105,6 +150,7 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<DataFileType>()?;
     m.add_class::<DelayMode>()?;
     m.add_class::<GeometricDelaysApplied>()?;
+    m.add_class::<HeightCode>()?;
     m.add_class::<MWAVersion>()?;
     m.add_class::<MWAMode>()?;
     m.add_class::<Pol>()?;
@@ -178,6 +224,22 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add(
         "GpuboxErrorNoGpuboxes",
         py.get_type::<PyGpuboxErrorNoGpuboxes>(),
+    )?;
+    m.add(
+        "GpuboxErrorBufferTooSmall",
+        py.get_type::<PyGpuboxErrorBufferTooSmall>(),
+    )?;
+    m.add(
+        "GpuboxErrorInvalidLegacyConversionTable",
+        py.get_type::<PyGpuboxErrorInvalidLegacyConversionTable>(),
+    )?;
+    m.add(
+        "GpuboxErrorMwaxWeightsNaxisMismatch",
+        py.get_type::<PyGpuboxErrorMwaxWeightsNaxisMismatch>(),
+    )?;
+    m.add(
+        "GpuboxErrorUnsupportedLegacyTileCount",
+        py.get_type::<PyGpuboxErrorUnsupportedLegacyTileCount>(),
     )?;
     m.add(
         "GpuboxErrorObsidMismatch",
@@ -272,6 +334,10 @@ fn mwalib(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
+
+// `__version__` is added to the module in the `mwalib` function above. Tell the stub generator about it too.
+#[cfg(feature = "python-stubgen")]
+pyo3_stub_gen::module_variable!("mwalib", "__version__", String);
 
 #[cfg(feature = "python-stubgen")]
 define_stub_info_gatherer!(stub_info);

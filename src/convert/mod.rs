@@ -39,11 +39,117 @@ fn fine_pfb_reorder(input: usize) -> usize {
     ((input) & 0xc0) | (((input) & 0x03) << 4) | (((input) & 0x3c) >> 2)
 }
 
+/// Number of visibility polarisations in a legacy correlator HDU (xx, xy, yx, yy)
+const LEGACY_NUM_POLS: usize = 4;
+
+/// Number of floats in one complex value (real and imaginary)
+const FLOATS_PER_COMPLEX: usize = 2;
+
+/// Number of floats for one baseline and one fine channel in a legacy HDU (xx_r, xx_i, ..., yy_r, yy_i)
+const LEGACY_FLOATS_PER_BASELINE_FINE_CHAN: usize = LEGACY_NUM_POLS * FLOATS_PER_COMPLEX;
+
+/// Number of tiles of the legacy correlator. It ALWAYS has 128 tiles.
+pub(crate) const LEGACY_NUM_TILES: usize = 128;
+
+/// Number of fine channels `convert_legacy_hdu_to_mwax_baseline_order` does in one pass over the baselines. The
+/// input of one fine channel is about 264 KB, so a block of 4 keeps the input being read (about 1 MB) in cache while
+/// each baseline gets 4 fine channels (128 bytes) written in a row. Chosen by benchmark (`convert_benches`).
+const LEGACY_BASELINE_ORDER_FINE_CHAN_BLOCK: usize = 4;
+
+/// Number of baselines `convert_mwax_hdu_to_frequency_order` does in one pass over the fine channels. Each fine
+/// channel then gets 32 baselines (1 KB) written in a row, and the input of the block (32 baselines, 128 KB for 128
+/// fine channels) stays in cache. Chosen by benchmark (`convert_benches`).
+const MWAX_FREQUENCY_ORDER_BASELINE_BLOCK: usize = 32;
+
+/// Compact form of a `LegacyConversionBaseline`, for the inner loops of the legacy converters: where each
+/// polarisation is in the input, and the sign to apply to its imaginary part. It is 32 bytes instead of about 80, so
+/// the table is cheaper to read once per fine channel.
+#[derive(Clone, Copy)]
+struct LegacyGather {
+    /// Index in the input (of one fine channel) of the real part of xx, xy, yx and yy
+    index: [u32; LEGACY_NUM_POLS],
+    /// Factor for the imaginary part of xx, xy, yx and yy
+    imag_sign: [f32; LEGACY_NUM_POLS],
+}
+
+impl LegacyGather {
+    /// Make the compact form of a conversion table entry.
+    ///
+    /// The legacy correlator gives the other triangle, so every imaginary part is negated, and the entries flagged
+    /// `*_conjugate` are negated once more. So the factor is +1.0 for a conjugate entry and -1.0 for the others. This
+    /// gives the same values as negating twice, for every value that is not a NaN.
+    ///
+    /// # Arguments
+    ///
+    /// * `baseline` - The conversion table entry.
+    ///
+    /// # Returns
+    ///
+    /// * The compact form.
+    ///
+    fn new(baseline: &LegacyConversionBaseline) -> Self {
+        let index =
+            |i: usize| u32::try_from(i).expect("legacy conversion index should fit in a u32");
+        let sign = |conjugate: bool| if conjugate { 1.0 } else { -1.0 };
+
+        Self {
+            index: [
+                index(baseline.xx_index),
+                index(baseline.xy_index),
+                index(baseline.yx_index),
+                index(baseline.yy_index),
+            ],
+            imag_sign: [
+                sign(baseline.xx_conjugate),
+                sign(baseline.xy_conjugate),
+                sign(baseline.yx_conjugate),
+                sign(baseline.yy_conjugate),
+            ],
+        }
+    }
+
+    /// Copy this baseline's visibilities for one fine channel out of the input of that fine channel.
+    ///
+    /// # Arguments
+    ///
+    /// * `fine_chan_input` - The input floats of one fine channel.
+    ///
+    /// * `output` - The 8 output floats (xx_r, xx_i, ..., yy_r, yy_i) of this baseline and fine channel.
+    ///
+    #[inline(always)]
+    fn gather(
+        &self,
+        fine_chan_input: &[f32],
+        output: &mut [f32; LEGACY_FLOATS_PER_BASELINE_FINE_CHAN],
+    ) {
+        for pol in 0..LEGACY_NUM_POLS {
+            let source = self.index[pol] as usize;
+            output[pol * FLOATS_PER_COMPLEX] = fine_chan_input[source];
+            output[pol * FLOATS_PER_COMPLEX + 1] =
+                fine_chan_input[source + 1] * self.imag_sign[pol];
+        }
+    }
+}
+
+/// Make the compact form of a legacy conversion table.
+///
+/// # Arguments
+///
+/// * `conversion_table` - The legacy conversion table.
+///
+/// # Returns
+///
+/// * One `LegacyGather` per baseline.
+///
+fn legacy_gather_table(conversion_table: &[LegacyConversionBaseline]) -> Vec<LegacyGather> {
+    conversion_table.iter().map(LegacyGather::new).collect()
+}
+
 /// Structure for storing where in the input visibilities to get the specified baseline when converting
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all, from_py_object)
+    pyclass(get_all, from_py_object)
 )]
 #[derive(Clone)]
 pub(crate) struct LegacyConversionBaseline {
@@ -291,6 +397,48 @@ pub(crate) fn generate_conversion_array(rf_inputs: &[Rfinput]) -> Vec<LegacyConv
     conversion_table
 }
 
+/// Check a legacy conversion table before it is used: it must have one entry per baseline of the legacy correlator,
+/// and every index must point at a complex value (2 floats) inside the input of one fine channel.
+///
+/// # Arguments
+///
+/// * `conversion_table` - The legacy conversion table.
+///
+/// # Returns
+///
+/// * `Ok` if the table is valid, or the reason it is not.
+///
+pub(crate) fn validate_conversion_table(
+    conversion_table: &[LegacyConversionBaseline],
+) -> Result<(), String> {
+    let num_baselines = get_baseline_count(LEGACY_NUM_TILES);
+    let floats_per_fine_chan = num_baselines * LEGACY_FLOATS_PER_BASELINE_FINE_CHAN;
+
+    if conversion_table.len() != num_baselines {
+        return Err(format!(
+            "it has {} entries, but there are {num_baselines} baselines",
+            conversion_table.len()
+        ));
+    }
+
+    for (baseline_index, baseline) in conversion_table.iter().enumerate() {
+        for index in [
+            baseline.xx_index,
+            baseline.xy_index,
+            baseline.yx_index,
+            baseline.yy_index,
+        ] {
+            if index + FLOATS_PER_COMPLEX > floats_per_fine_chan {
+                return Err(format!(
+                    "baseline {baseline_index} has index {index}, but a fine channel has {floats_per_fine_chan} floats"
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Using the precalculated conversion table, reorder the legacy visibilities into our preferred output order
 /// [time][baseline][freq][pol] in a standard triangle of 0,0 .. 0,N 1,1..1,N baseline order.
 /// # Arguments
@@ -316,87 +464,43 @@ pub(crate) fn convert_legacy_hdu_to_mwax_baseline_order(
     output_buffer: &mut [f32],
     num_fine_chans: usize,
 ) {
-    // Note: hardcoded values are safe here because they are only for the case where we are using the
-    // legacy correlator which ALWAYS has 128 tiles
-    let num_baselines = get_baseline_count(128);
+    // One table entry per baseline (128 tiles for the legacy correlator; checked by `validate_conversion_table`)
+    let num_baselines = conversion_table.len();
 
-    // Striding for input array
-    let floats_per_baseline_fine_chan = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
-    let floats_per_fine_chan = num_baselines * floats_per_baseline_fine_chan; // All floats for all baselines and 1 fine channel
+    // Striding for the input: [fine_chan][baseline][pol][r,i] (the baseline order is given by the table)
+    let floats_per_fine_chan = num_baselines * LEGACY_FLOATS_PER_BASELINE_FINE_CHAN;
 
-    // Striding for output array
-    let floats_per_baseline = floats_per_baseline_fine_chan * num_fine_chans;
+    // Striding for the output: [baseline][fine_chan][pol][r,i]
+    let floats_per_baseline = LEGACY_FLOATS_PER_BASELINE_FINE_CHAN * num_fine_chans;
 
     assert!(input_buffer.len() >= num_fine_chans * floats_per_fine_chan);
     assert!(output_buffer.len() >= num_fine_chans * floats_per_fine_chan);
 
-    // Read from the input buffer and write into the temp buffer
-    // convert one fine channel at a time
-    for fine_chan_index in 0..num_fine_chans {
-        for (baseline_index, baseline) in conversion_table.iter().enumerate() {
-            // Input visibilities are in [fine_chan][baseline][pol][real][imag] order so we need to stride
-            // through it.
+    let gather_table = legacy_gather_table(conversion_table);
 
-            // We need to work out where to start indexing the source data
-            // Go "down" the fine channels as if they are rows
-            // Go "across" the baselines as if they are columns
-            let source_index = fine_chan_index * floats_per_fine_chan;
-            // We need to work out where to start indexing the destination data
-            // Go "down" the baselines as if they are rows
-            // Go "across" the fine channels as if they are columns
-            let destination_index = (baseline_index * floats_per_baseline)
-                + (fine_chan_index * floats_per_baseline_fine_chan);
+    // Do a block of fine channels at a time, so the input of the block stays in cache while each baseline gets a run
+    // of fine channels written in a row
+    for fine_chan_block_start in (0..num_fine_chans).step_by(LEGACY_BASELINE_ORDER_FINE_CHAN_BLOCK)
+    {
+        let fine_chan_block_end =
+            (fine_chan_block_start + LEGACY_BASELINE_ORDER_FINE_CHAN_BLOCK).min(num_fine_chans);
 
-            unsafe {
-                // xx_r
-                *output_buffer.get_unchecked_mut(destination_index) =
-                    *input_buffer.get_unchecked(source_index + baseline.xx_index);
-                // xx_i
-                *output_buffer.get_unchecked_mut(destination_index + 1) = if baseline.xx_conjugate {
-                    // We have to conjugate the visibility
-                    -input_buffer.get_unchecked(source_index + baseline.xx_index + 1)
-                } else {
-                    *input_buffer.get_unchecked(source_index + baseline.xx_index + 1)
-                };
+        for (gather, baseline_output) in gather_table
+            .iter()
+            .zip(output_buffer.chunks_exact_mut(floats_per_baseline))
+        {
+            // The output of this baseline, one array of 8 floats per fine channel
+            let (baseline_fine_chan_outputs, _) =
+                baseline_output.as_chunks_mut::<LEGACY_FLOATS_PER_BASELINE_FINE_CHAN>();
 
-                // xy_r
-                *output_buffer.get_unchecked_mut(destination_index + 2) =
-                    *input_buffer.get_unchecked(source_index + baseline.xy_index);
-                // xy_i
-                *output_buffer.get_unchecked_mut(destination_index + 3) = if baseline.xy_conjugate {
-                    // We have to conjugate the visibility
-                    -input_buffer.get_unchecked(source_index + baseline.xy_index + 1)
-                } else {
-                    *input_buffer.get_unchecked(source_index + baseline.xy_index + 1)
-                };
+            let block_inputs = input_buffer[fine_chan_block_start * floats_per_fine_chan
+                ..fine_chan_block_end * floats_per_fine_chan]
+                .chunks_exact(floats_per_fine_chan);
+            let block_outputs =
+                &mut baseline_fine_chan_outputs[fine_chan_block_start..fine_chan_block_end];
 
-                // yx_r
-                *output_buffer.get_unchecked_mut(destination_index + 4) =
-                    *input_buffer.get_unchecked(source_index + baseline.yx_index);
-                // yx_i
-                *output_buffer.get_unchecked_mut(destination_index + 5) = if baseline.yx_conjugate {
-                    // We have to conjugate the visibility
-                    -input_buffer.get_unchecked(source_index + baseline.yx_index + 1)
-                } else {
-                    *input_buffer.get_unchecked(source_index + baseline.yx_index + 1)
-                };
-
-                // yy_r
-                *output_buffer.get_unchecked_mut(destination_index + 6) =
-                    *input_buffer.get_unchecked(source_index + baseline.yy_index);
-                // yy_i
-                *output_buffer.get_unchecked_mut(destination_index + 7) = if baseline.yy_conjugate {
-                    // We have to conjugate the visibility
-                    -input_buffer.get_unchecked(source_index + baseline.yy_index + 1)
-                } else {
-                    *input_buffer.get_unchecked(source_index + baseline.yy_index + 1)
-                };
-
-                // Finally take the conjugate so we are in the correct triangle
-                *output_buffer.get_unchecked_mut(destination_index + 1) *= -1.0;
-                *output_buffer.get_unchecked_mut(destination_index + 3) *= -1.0;
-                *output_buffer.get_unchecked_mut(destination_index + 5) *= -1.0;
-                *output_buffer.get_unchecked_mut(destination_index + 7) *= -1.0;
+            for (fine_chan_input, output) in block_inputs.zip(block_outputs) {
+                gather.gather(fine_chan_input, output);
             }
         }
     }
@@ -427,81 +531,29 @@ pub(crate) fn convert_legacy_hdu_to_mwax_frequency_order(
     output_buffer: &mut [f32],
     num_fine_chans: usize,
 ) {
-    // Note: hardcoded values are safe here because they are only for the case where we are using the
-    // legacy correlator which ALWAYS has 128 tiles
-    let num_baselines = get_baseline_count(128);
+    // One table entry per baseline (128 tiles for the legacy correlator; checked by `validate_conversion_table`)
+    let num_baselines = conversion_table.len();
 
-    // Striding for input array
-    let floats_per_baseline_fine_chan = 8; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
-    let floats_per_fine_chan = num_baselines * floats_per_baseline_fine_chan; // All floats for all baselines and 1 fine channel
+    // Striding for the input and the output: [fine_chan][baseline][pol][r,i] (the input baseline order is given by
+    // the table)
+    let floats_per_fine_chan = num_baselines * LEGACY_FLOATS_PER_BASELINE_FINE_CHAN;
 
     assert!(input_buffer.len() >= num_fine_chans * floats_per_fine_chan);
     assert!(output_buffer.len() >= num_fine_chans * floats_per_fine_chan);
 
-    // Read from the input buffer and write into the temp buffer
-    for fine_chan_index in 0..num_fine_chans {
-        // convert one fine channel at a time
-        for (baseline_index, baseline) in conversion_table.iter().enumerate() {
-            // Input visibilities are in [fine_chan][baseline][pol][real][imag] order
-            // We need to work out where to start indexing the source data
-            // Go "down" the fine channels as if they are rows
-            // Go "across" the baselines as if they are columns
-            let source_index = fine_chan_index * floats_per_fine_chan;
-            // Since the destination is also to be in [fine_chan][baseline][pol][real][imag] order
-            // For the destination, we have to stride along each baseline for this channel
-            let destination_index = source_index + (baseline_index * floats_per_baseline_fine_chan);
+    let gather_table = legacy_gather_table(conversion_table);
 
-            unsafe {
-                // xx_r
-                *output_buffer.get_unchecked_mut(destination_index) =
-                    *input_buffer.get_unchecked(source_index + baseline.xx_index);
-                // xx_i
-                *output_buffer.get_unchecked_mut(destination_index + 1) = if baseline.xx_conjugate {
-                    // We have to conjugate the visibility
-                    -input_buffer.get_unchecked(source_index + baseline.xx_index + 1)
-                } else {
-                    *input_buffer.get_unchecked(source_index + baseline.xx_index + 1)
-                };
+    // Convert one fine channel at a time; the output of a fine channel is written in order
+    for (fine_chan_input, fine_chan_output) in input_buffer
+        .chunks_exact(floats_per_fine_chan)
+        .zip(output_buffer.chunks_exact_mut(floats_per_fine_chan))
+        .take(num_fine_chans)
+    {
+        let (fine_chan_outputs, _) =
+            fine_chan_output.as_chunks_mut::<LEGACY_FLOATS_PER_BASELINE_FINE_CHAN>();
 
-                // xy_r
-                *output_buffer.get_unchecked_mut(destination_index + 2) =
-                    *input_buffer.get_unchecked(source_index + baseline.xy_index);
-                // xy_i
-                *output_buffer.get_unchecked_mut(destination_index + 3) = if baseline.xy_conjugate {
-                    // We have to conjugate the visibility
-                    -input_buffer.get_unchecked(source_index + baseline.xy_index + 1)
-                } else {
-                    *input_buffer.get_unchecked(source_index + baseline.xy_index + 1)
-                };
-
-                // yx_r
-                *output_buffer.get_unchecked_mut(destination_index + 4) =
-                    *input_buffer.get_unchecked(source_index + baseline.yx_index);
-                // yx_i
-                *output_buffer.get_unchecked_mut(destination_index + 5) = if baseline.yx_conjugate {
-                    // We have to conjugate the visibility
-                    -input_buffer.get_unchecked(source_index + baseline.yx_index + 1)
-                } else {
-                    *input_buffer.get_unchecked(source_index + baseline.yx_index + 1)
-                };
-
-                // yy_r
-                *output_buffer.get_unchecked_mut(destination_index + 6) =
-                    *input_buffer.get_unchecked(source_index + baseline.yy_index);
-                // yy_i
-                *output_buffer.get_unchecked_mut(destination_index + 7) = if baseline.yy_conjugate {
-                    // We have to conjugate the visibility
-                    -input_buffer.get_unchecked(source_index + baseline.yy_index + 1)
-                } else {
-                    *input_buffer.get_unchecked(source_index + baseline.yy_index + 1)
-                };
-
-                // Finally take the conjugate so we are in the correct triangle
-                *output_buffer.get_unchecked_mut(destination_index + 1) *= -1.0;
-                *output_buffer.get_unchecked_mut(destination_index + 3) *= -1.0;
-                *output_buffer.get_unchecked_mut(destination_index + 5) *= -1.0;
-                *output_buffer.get_unchecked_mut(destination_index + 7) *= -1.0;
-            }
+        for (gather, output) in gather_table.iter().zip(fine_chan_outputs) {
+            gather.gather(fine_chan_input, output);
         }
     }
 }
@@ -532,34 +584,32 @@ pub(crate) fn convert_mwax_hdu_to_frequency_order(
     num_visibility_pols: usize,
 ) {
     // Striding for input array
-    let floats_per_baseline_fine_chan = num_visibility_pols * 2; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
+    let floats_per_baseline_fine_chan = num_visibility_pols * FLOATS_PER_COMPLEX; // xx_r,xx_i,xy_r,xy_i,yx_r,yx_i,yy_r,yy_i
     let floats_per_baseline = num_fine_chans * floats_per_baseline_fine_chan; // All floats for 1 baseline and all fine channels
     let floats_per_fine_chan = num_baselines * floats_per_baseline_fine_chan; // All floats for all baselines and 1 fine channel
 
     assert!(input_buffer.len() >= num_fine_chans * floats_per_fine_chan);
     assert!(output_buffer.len() >= num_fine_chans * floats_per_fine_chan);
 
-    // Read from the input buffer and write into the temp buffer
-    for baseline_index in 0..num_baselines {
-        // convert one baseline at a time
+    // Input visibilities are in [baseline][fine_chan][pol][r,i] order; the output is to be in
+    // [fine_chan][baseline][pol][r,i] order. Do a block of baselines at a time, so the input of the block stays in
+    // cache while each fine channel gets a run of baselines written in a row.
+    for baseline_block_start in (0..num_baselines).step_by(MWAX_FREQUENCY_ORDER_BASELINE_BLOCK) {
+        let baseline_block_end =
+            (baseline_block_start + MWAX_FREQUENCY_ORDER_BASELINE_BLOCK).min(num_baselines);
+
         for fine_chan_index in 0..num_fine_chans {
-            // Input visibilities are in [baseline][fine_chan][pol][real][imag] order
-            //
-            // We need to work out where to start indexing the source data
-            // Go "down" the baselines as if they are rows
-            // Go "across" the fine_chans as if they are columns
-            let source_index = (baseline_index * floats_per_baseline)
-                + (fine_chan_index * floats_per_baseline_fine_chan);
-            // The destination is to be in [fine_chan][baseline][pol][real][imag] order
-            // For the destination, we have to stride along each fine channel for this baseline
-            let destination_index = (fine_chan_index * floats_per_fine_chan)
-                + (baseline_index * floats_per_baseline_fine_chan);
-            // for each polarisation (r,i) => xx_r, xx_i, xy_r, xy_i, ... copy input to output
-            // Copy source into dest
-            output_buffer[destination_index..(floats_per_baseline_fine_chan + destination_index)]
-                .clone_from_slice(
-                    &input_buffer[source_index..(floats_per_baseline_fine_chan + source_index)],
-                );
+            for baseline_index in baseline_block_start..baseline_block_end {
+                let source_index = (baseline_index * floats_per_baseline)
+                    + (fine_chan_index * floats_per_baseline_fine_chan);
+                let destination_index = (fine_chan_index * floats_per_fine_chan)
+                    + (baseline_index * floats_per_baseline_fine_chan);
+
+                output_buffer[destination_index..destination_index + floats_per_baseline_fine_chan]
+                    .copy_from_slice(
+                        &input_buffer[source_index..source_index + floats_per_baseline_fine_chan],
+                    );
+            }
         }
     }
 }

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 use super::*;
+use crate::ffi::ffi_test_helpers::CStringGuard;
 use crate::{
     ffi::ffi_test_helpers::{
         ffi_boxed_slice_to_array, get_test_ffi_metafits_context, get_test_ffi_metafits_context_ext,
@@ -10,14 +11,15 @@ use crate::{
     MWAVersion, MetafitsContext,
 };
 use libc::size_t;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{CStr, CString};
 
 #[test]
 fn test_signal_chain_hdu_in_metafits() {
     // This tests for a valid metafits context and metadata returned
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context_ext(
         MWAVersion::CorrLegacy,
@@ -56,6 +58,7 @@ fn test_signal_chain_hdu_in_metafits() {
         );
 
         // Get the mwalibMetadata struct from the pointer
+        assert!(!metafits_metadata_ptr.is_null());
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
@@ -96,7 +99,8 @@ fn test_signal_chain_hdu_in_metafits() {
 fn test_signal_chain_hdu_not_in_metafits() {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext =
@@ -133,6 +137,7 @@ fn test_signal_chain_hdu_not_in_metafits() {
         );
 
         // Get the mwalibMetadata struct from the pointer
+        assert!(!metafits_metadata_ptr.is_null());
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message

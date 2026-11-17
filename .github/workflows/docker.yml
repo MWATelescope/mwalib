@@ -9,6 +9,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Only keep the latest run for each pull request. Runs for main and tags are never cancelled, because they publish
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   IMAGE_NAME: mwatelescope/mwalib
 
@@ -19,6 +24,10 @@ jobs:
   docker:    
     runs-on: ubuntu-latest
     environment: CI
+    env:
+      # Publish only for main and for version tags, whatever started the run (a push, a manual run on another branch,
+      # or a pull request only builds the image).
+      PUBLISH: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
     steps:
       - name: Debug secret presence
         env:
@@ -35,7 +44,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request'
+        if: env.PUBLISH == 'true'
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -56,7 +65,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ env.PUBLISH == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}

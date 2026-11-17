@@ -111,7 +111,25 @@ maybe you have a mix of different files?"#)]
         coarse_chan_index: usize,
     },
 
-    /// An error derived from `FitsError`.
+    #[error("The buffer has {got} floats, but {expected} are needed")]
+    BufferTooSmall { expected: usize, got: usize },
+
+    #[error("The legacy correlator always has {expected} tiles, but the metafits has {num_tiles}")]
+    UnsupportedLegacyTileCount { expected: usize, num_tiles: usize },
+
+    #[error("Invalid legacy conversion table: {reason}")]
+    InvalidLegacyConversionTable { reason: String },
+
+    #[error("The weights HDU (HDU {hdu}) of MWAX gpubox file {gpubox_filename} has NAXIS1={naxis1} and NAXIS2={naxis2}, but NAXIS1={expected_naxis1} (pols) and NAXIS2={expected_naxis2} (baselines) are expected")]
+    MwaxWeightsNaxisMismatch {
+        gpubox_filename: String,
+        hdu: usize,
+        naxis1: usize,
+        naxis2: usize,
+        expected_naxis1: usize,
+        expected_naxis2: usize,
+    },
+
     #[error("{0}")]
     Fits(#[from] crate::fits_read::error::FitsError),
 }
@@ -287,12 +305,56 @@ create_exception!(
     pyo3::exceptions::PyException
 );
 
+// Add exception for PyGpuboxErrorBufferTooSmall
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorBufferTooSmall,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorInvalidLegacyConversionTable
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorInvalidLegacyConversionTable,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorMwaxWeightsNaxisMismatch
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorMwaxWeightsNaxisMismatch,
+    pyo3::exceptions::PyException
+);
+
+// Add exception for PyGpuboxErrorUnsupportedLegacyTileCount
+#[cfg(any(feature = "python", feature = "python-stubgen"))]
+create_exception!(
+    mwalib,
+    PyGpuboxErrorUnsupportedLegacyTileCount,
+    pyo3::exceptions::PyException
+);
+
 // Convert a rust GpuBoxError to a python exception
 #[cfg(any(feature = "python", feature = "python-stubgen"))]
 impl std::convert::From<GpuboxError> for PyErr {
     fn from(err: GpuboxError) -> PyErr {
         match &err {
             GpuboxError::BatchMissing { .. } => PyGpuboxErrorBatchMissing::new_err(err.to_string()),
+            GpuboxError::BufferTooSmall { .. } => {
+                PyGpuboxErrorBufferTooSmall::new_err(err.to_string())
+            }
+            GpuboxError::InvalidLegacyConversionTable { .. } => {
+                PyGpuboxErrorInvalidLegacyConversionTable::new_err(err.to_string())
+            }
+            GpuboxError::MwaxWeightsNaxisMismatch { .. } => {
+                PyGpuboxErrorMwaxWeightsNaxisMismatch::new_err(err.to_string())
+            }
+            GpuboxError::UnsupportedLegacyTileCount { .. } => {
+                PyGpuboxErrorUnsupportedLegacyTileCount::new_err(err.to_string())
+            }
             GpuboxError::CorrVerMismatch { .. } => {
                 PyGpuboxErrorCorrVerMismatch::new_err(err.to_string())
             }

@@ -11,6 +11,7 @@
 #      pip install joblib
 #
 import argparse
+import sys
 import time
 
 import numpy as np
@@ -21,7 +22,7 @@ import mwalib
 def sum_by_file(context: mwalib.VoltageContext, timestep_index: int, coarse_chan_index: int) -> int:
     total_sum = 0
 
-    start_gpstime_sec = int(context.timesteps[t].gps_time_ms / 1000)
+    start_gpstime_sec = int(context.timesteps[timestep_index].gps_time_ms / 1000)
     gps_seconds_count = int(context.timestep_duration_ms / 1000)
     end_gpstime_sec = start_gpstime_sec + gps_seconds_count
 
@@ -36,15 +37,15 @@ def sum_by_file(context: mwalib.VoltageContext, timestep_index: int, coarse_chan
 
     try:
         data = context.read_file(timestep_index, coarse_chan_index)
-        total_sum = data.sum(dtype=np.int64)
+        total_sum = int(data.sum(dtype=np.int64))
         print(f"{total_sum}")
 
     except mwalib.VoltageErrorNoDataForTimeStepCoarseChannel:
         pass
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 (CLI example: report any error and exit)
         print(f"Error: {e}")
-        exit(-1)
+        sys.exit(-1)
 
     return total_sum
 
@@ -64,15 +65,15 @@ def sum_by_gps_second(
     )
     try:
         data = context.read_second(gps_start_sec, gps_seconds_count, coarse_chan_index)
-        total_sum = data.sum(dtype=np.int64)
+        total_sum = int(data.sum(dtype=np.int64))
         print(f"{total_sum}")
 
     except mwalib.VoltageErrorNoDataForTimeStepCoarseChannel:
         pass
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 (CLI example: report any error and exit)
         print(f"Error: {e}")
-        exit(-1)
+        sys.exit(-1)
 
     return total_sum
 

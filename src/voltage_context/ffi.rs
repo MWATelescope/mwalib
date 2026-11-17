@@ -468,7 +468,8 @@ pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
         );
         return MWALIB_FAILURE;
     } else {
-        &mut *voltage_context_ptr
+        // Shared reference: these calls only read, and C may call them from many threads at once
+        &*voltage_context_ptr
     };
 
     // Don't do anything if the input pointer is null.
@@ -514,7 +515,17 @@ pub unsafe extern "C" fn mwalib_voltage_context_get_fine_chan_freqs_hz_array(
     }
 
     // Read data into provided buffer
-    let fine_chans = volt_context.get_fine_chan_freqs_hz_array(input_coarse_chan_indices);
+    let fine_chans = match volt_context.get_fine_chan_freqs_hz_array(input_coarse_chan_indices) {
+        Ok(f) => f,
+        Err(e) => {
+            set_c_string(
+                &format!("mwalib_voltage_context_get_fine_chan_freqs_hz_array() {e}"),
+                error_message as *mut c_char,
+                error_message_length,
+            );
+            return MWALIB_FAILURE;
+        }
+    };
 
     // Write the fine chans back into the provided array
     output_slice.clone_from_slice(&fine_chans);
@@ -552,10 +563,38 @@ pub unsafe extern "C" fn mwalib_voltage_context_new(
     metafits_filename: *const c_char,
     voltage_filenames: *mut *const c_char,
     voltage_file_count: size_t,
-    out_voltage_context_ptr: &mut *mut VoltageContext,
+    out_voltage_context_ptr: *mut *mut VoltageContext,
     error_message: *mut c_char,
     error_message_length: size_t,
 ) -> i32 {
+    if out_voltage_context_ptr.is_null() {
+        set_c_string(
+            "mwalib_voltage_context_new(): out_voltage_context_ptr is NULL",
+            error_message as *mut c_char,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    if metafits_filename.is_null() {
+        set_c_string(
+            "mwalib_voltage_context_new(): metafits_filename is NULL",
+            error_message as *mut c_char,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
+    // A null pointer is not a valid slice, even an empty one, so only make the slice if there are files
+    if voltage_file_count > 0 && voltage_filenames.is_null() {
+        set_c_string(
+            "mwalib_voltage_context_new(): voltage_filenames is NULL",
+            error_message as *mut c_char,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
     let m = match CStr::from_ptr(metafits_filename).to_str() {
         Ok(s) => s,
         Err(_) => {
@@ -568,9 +607,22 @@ pub unsafe extern "C" fn mwalib_voltage_context_new(
         }
     };
 
-    let voltage_slice = slice::from_raw_parts(voltage_filenames, voltage_file_count);
+    let voltage_slice: &[*const c_char] = if voltage_file_count == 0 {
+        &[]
+    } else {
+        slice::from_raw_parts(voltage_filenames, voltage_file_count)
+    };
     let mut voltage_files = Vec::with_capacity(voltage_file_count);
     for v in voltage_slice {
+        if v.is_null() {
+            set_c_string(
+                "mwalib_voltage_context_new(): voltage_filenames contains a NULL pointer",
+                error_message as *mut c_char,
+                error_message_length,
+            );
+            return MWALIB_FAILURE;
+        }
+
         let s = match CStr::from_ptr(*v).to_str() {
             Ok(s) => s,
             Err(_) => {
@@ -746,11 +798,17 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_file(
         );
         return MWALIB_FAILURE;
     } else {
-        &mut *voltage_context_ptr
+        // Shared reference: these calls only read, and C may call them from many threads at once
+        &*voltage_context_ptr
     };
 
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
+        set_c_string(
+            "mwalib_voltage_context_read_file() ERROR: null pointer for buffer_ptr passed in",
+            error_message as *mut c_char,
+            error_message_length,
+        );
         return MWALIB_FAILURE;
     }
 
@@ -881,11 +939,17 @@ pub unsafe extern "C" fn mwalib_voltage_context_read_second(
         );
         return MWALIB_FAILURE;
     } else {
-        &mut *voltage_context_ptr
+        // Shared reference: these calls only read, and C may call them from many threads at once
+        &*voltage_context_ptr
     };
 
     // Don't do anything if the buffer pointer is null.
     if buffer_ptr.is_null() {
+        set_c_string(
+            "mwalib_voltage_context_read_second() ERROR: null pointer for buffer_ptr passed in",
+            error_message as *mut c_char,
+            error_message_length,
+        );
         return MWALIB_FAILURE;
     }
 

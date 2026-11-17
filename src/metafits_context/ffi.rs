@@ -759,6 +759,15 @@ pub unsafe extern "C" fn mwalib_metafits_context_new(
         return MWALIB_FAILURE;
     }
 
+    if out_metafits_context_ptr.is_null() {
+        set_c_string(
+            "mwalib_metafits_context_new(): out_metafits_context_ptr is NULL",
+            error_message as *mut c_char,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
     if metafits_filename.is_null() {
         set_c_string(
             "mwalib_metafits_context_new(): metafits_filename is NULL",
@@ -837,9 +846,18 @@ pub unsafe extern "C" fn mwalib_metafits_context_new2(
         return MWALIB_FAILURE;
     }
 
+    if out_metafits_context_ptr.is_null() {
+        set_c_string(
+            "mwalib_metafits_context_new2(): out_metafits_context_ptr is NULL",
+            error_message as *mut c_char,
+            error_message_length,
+        );
+        return MWALIB_FAILURE;
+    }
+
     if metafits_filename.is_null() {
         set_c_string(
-            "mwalib_metafits_context_new(): metafits_filename is NULL",
+            "mwalib_metafits_context_new2(): metafits_filename is NULL",
             error_message as *mut c_char,
             error_message_length,
         );

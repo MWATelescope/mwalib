@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 use super::*;
+use crate::ffi::ffi_test_helpers::CStringGuard;
 use crate::{
     ffi::ffi_test_helpers::{
         ffi_boxed_slice_to_array, get_test_ffi_correlator_context_legacy,
@@ -15,7 +16,7 @@ use crate::{
 };
 use float_cmp::{approx_eq, F64Margin};
 use libc::size_t;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{CStr, CString};
 
 //
 // Metafits context Tests
@@ -25,7 +26,8 @@ fn test_mwalib_metafits_context_new_valid() {
     // This tests for a valid metafitscontext
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
@@ -62,7 +64,8 @@ fn test_mwalib_metafits_context_new_invalid() {
     // This tests for an invalid metafitscontext (missing file)
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/missing_file.metafits").unwrap();
@@ -103,11 +106,13 @@ fn test_mwalib_metafits_context_display() {
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let buf_len: size_t = 1280;
     let buf_message = CString::new(" ".repeat(buf_len)).unwrap();
-    let buf_message_ptr = buf_message.as_ptr() as *mut c_char;
+    let buf_message_ptr = buf_message.into_raw();
+    let _buf_message_guard = CStringGuard(buf_message_ptr);
 
     unsafe {
         let retval = mwalib_metafits_context_display(
@@ -132,7 +137,8 @@ fn test_mwalib_metafits_context_display() {
 fn test_mwalib_metafits_context_new_guess_mwa_version() {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
@@ -170,10 +176,12 @@ fn test_mwalib_metafits_context_display_null_ptr() {
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
     let buf_len: size_t = 1280;
     let buf_message = CString::new(" ".repeat(buf_len)).unwrap();
-    let buf_message_ptr = buf_message.as_ptr() as *mut c_char;
+    let buf_message_ptr = buf_message.into_raw();
+    let _buf_message_guard = CStringGuard(buf_message_ptr);
 
     unsafe {
         let retval = mwalib_metafits_context_display(
@@ -196,7 +204,8 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_get_and_free() {
     // This tests for a valid metafits context and metadata returned
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext =
         get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
@@ -231,6 +240,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_get_and_free() {
         );
 
         // Get the mwalibMetadata struct from the pointer
+        assert!(!metafits_metadata_ptr.is_null());
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // Now ensure we can free the rust memory
@@ -249,7 +259,8 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
     // This tests for a valid metafits context and metadata returned
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext =
         get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
@@ -284,6 +295,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_valid() {
         );
 
         // Get the mwalibMetadata struct from the pointer
+        assert!(!metafits_metadata_ptr.is_null());
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
@@ -421,7 +433,8 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_legacy_vcs_valid() {
     // This tests for a valid metafits context and metadata returned
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
     // Create a MetafitsContext
     let metafits_context_ptr: *mut MetafitsContext =
         get_test_ffi_metafits_context(MWAVersion::VCSLegacyRecombined);
@@ -456,6 +469,7 @@ fn test_mwalib_metafits_metadata_get_from_metafits_context_legacy_vcs_valid() {
         );
 
         // Get the mwalibMetadata struct from the pointer
+        assert!(!metafits_metadata_ptr.is_null());
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         //
@@ -481,7 +495,8 @@ fn test_mwalib_metafits_metadata_get_null_contexts() {
     // This tests for a null context passed to mwalib_metafits_metadata_get
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
@@ -504,7 +519,8 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
     // This tests for a valid metafits metadata returned given a correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         // Create a CorrelatorContext
@@ -533,6 +549,7 @@ fn test_mwalib_metafits_metadata_get_from_correlator_context_valid() {
         );
 
         // Get the mwalibMetadata struct from the pointer
+        assert!(!metafits_metadata_ptr.is_null());
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
@@ -556,7 +573,8 @@ fn test_mwalib_metafits_metadata_delay_modes_absent() {
     // strings should be empty, and the enums should hold their default values.
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_context_ptr: *mut MetafitsContext =
         get_test_ffi_metafits_context(MWAVersion::CorrLegacy);
@@ -572,6 +590,8 @@ fn test_mwalib_metafits_metadata_delay_modes_absent() {
             error_len,
         );
         assert_eq!(retval, 0, "mwalib_metafits_metadata_get failure");
+
+        assert!(!metafits_metadata_ptr.is_null());
 
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
@@ -622,7 +642,8 @@ fn test_mwalib_metafits_metadata_correlator_delay_mode_present() {
     // This beamformer metafits has the correlator DELAYMOD/DELDESC keys but no BDELMOD
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context_ext(
         MWAVersion::BeamformerMWAXv2,
@@ -640,6 +661,8 @@ fn test_mwalib_metafits_metadata_correlator_delay_mode_present() {
             error_len,
         );
         assert_eq!(retval, 0, "mwalib_metafits_metadata_get failure");
+
+        assert!(!metafits_metadata_ptr.is_null());
 
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
@@ -674,7 +697,8 @@ fn test_mwalib_metafits_metadata_correlator_delay_mode_present() {
 fn test_mwalib_metafits_metadata_bf_delay_mode_present() {
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_context_ptr: *mut MetafitsContext = get_test_ffi_metafits_context_ext(
         MWAVersion::BeamformerMWAXv2,
@@ -692,6 +716,8 @@ fn test_mwalib_metafits_metadata_bf_delay_mode_present() {
             error_len,
         );
         assert_eq!(retval, 0, "mwalib_metafits_metadata_get failure");
+
+        assert!(!metafits_metadata_ptr.is_null());
 
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
@@ -716,5 +742,79 @@ fn test_mwalib_metafits_metadata_bf_delay_mode_present() {
         assert_eq!(mwalib_metafits_metadata_free(raw), 0);
 
         mwalib_metafits_context_free(metafits_context_ptr);
+    }
+}
+
+#[test]
+fn test_mwalib_metafits_metadata_get_height_code() {
+    // This metafits has the Height_Code column (LB tiles are 0, all others are 1)
+    let error_len: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_len)).unwrap();
+    let error_message_ptr = error_message.into_raw();
+
+    let metafits_file =
+        CString::new("test_files/metafits_tests/1478034080_metafits_height_code.fits").unwrap();
+
+    unsafe {
+        let mut metafits_context_ptr: *mut MetafitsContext = std::ptr::null_mut();
+        let retval = mwalib_metafits_context_new(
+            metafits_file.as_ptr(),
+            MWAVersion::CorrMWAXv2,
+            &mut metafits_context_ptr,
+            error_message_ptr,
+            error_len,
+        );
+        assert_eq!(retval, 0, "mwalib_metafits_context_new failure");
+        assert!(!metafits_context_ptr.is_null());
+
+        let mut metafits_metadata_ptr: *mut MetafitsMetadata = std::ptr::null_mut();
+        let retval = mwalib_metafits_metadata_get(
+            metafits_context_ptr,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut metafits_metadata_ptr,
+            error_message_ptr,
+            error_len,
+        );
+        assert_eq!(retval, 0, "mwalib_metafits_metadata_get failure");
+
+        let metafits_metadata = metafits_metadata_ptr
+            .as_ref()
+            .expect("the metadata pointer should not be null");
+
+        let rf_inputs: Vec<rfinput::ffi::Rfinput> =
+            ffi_boxed_slice_to_array(metafits_metadata.rf_inputs, metafits_metadata.num_rf_inputs);
+        assert_eq!(rf_inputs.len(), 480);
+        // LB tiles are 0 (EllipsoidHeight), all others are 1 (ArrayCentreOffset)
+        for r in rf_inputs.iter() {
+            let tile_name = CStr::from_ptr(r.tile_name).to_str().unwrap();
+            if tile_name.starts_with("LB") {
+                assert_eq!(r.height_code, crate::HeightCode::EllipsoidHeight);
+            } else {
+                assert_eq!(r.height_code, crate::HeightCode::ArrayCentreOffset);
+            }
+        }
+        assert_eq!(
+            rf_inputs
+                .iter()
+                .filter(|r| r.height_code == crate::HeightCode::EllipsoidHeight)
+                .count(),
+            80
+        );
+
+        let antennas: Vec<antenna::ffi::Antenna> =
+            ffi_boxed_slice_to_array(metafits_metadata.antennas, metafits_metadata.num_ants);
+        assert_eq!(antennas.len(), 240);
+        assert_eq!(
+            antennas
+                .iter()
+                .filter(|a| a.height_code == crate::HeightCode::EllipsoidHeight)
+                .count(),
+            40
+        );
+
+        // Note- don't free the metadata here: the arrays were reconstituted above, so a free would be a double free
+        mwalib_metafits_context_free(metafits_context_ptr);
+        drop(CString::from_raw(error_message_ptr));
     }
 }

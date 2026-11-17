@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 use super::*;
+use crate::ffi::ffi_test_helpers::CStringGuard;
 use crate::{
     antenna::ffi::Antenna,
     ffi::{
@@ -39,7 +40,8 @@ fn test_mwalib_voltage_context_new_valid_mwaxv2() {
     // This tests for a valid voltage context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file = CString::new("test_files/1101503312_mwax_vcs/1101503312.metafits").unwrap();
     let metafits_file_ptr = metafits_file.as_ptr();
@@ -48,9 +50,9 @@ fn test_mwalib_voltage_context_new_valid_mwaxv2() {
     let created_voltage_files = get_test_voltage_files(MWAVersion::VCSMWAXv2, false);
     let voltage_file = CString::new(created_voltage_files[0].clone()).unwrap();
 
-    let voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
+    let mut voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
 
-    let voltage_files_ptr = voltage_files.as_ptr() as *mut *const c_char;
+    let voltage_files_ptr = voltage_files.as_mut_ptr();
 
     unsafe {
         // Create a VoltageContext
@@ -95,7 +97,8 @@ fn test_mwalib_voltage_context_new_invalid() {
     // This tests for a invalid voltage context (missing file)
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file =
         CString::new("test_files/1101503312_mwax_vcs/invalid_filename.metafits").unwrap();
@@ -105,9 +108,9 @@ fn test_mwalib_voltage_context_new_invalid() {
     let created_voltage_files = get_test_voltage_files(MWAVersion::VCSMWAXv2, false);
     let voltage_file = CString::new(created_voltage_files[0].clone()).unwrap();
 
-    let voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
+    let mut voltage_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
 
-    let voltage_files_ptr = voltage_files.as_ptr() as *mut *const c_char;
+    let voltage_files_ptr = voltage_files.as_mut_ptr();
 
     unsafe {
         // Create a VoltageContext
@@ -143,7 +146,8 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
     // This tests for a valid metafits metadata returned given a voltage context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         // Create a VoltageContext
@@ -172,6 +176,7 @@ fn test_mwalib_metafits_metadata_get_from_voltage_context_valid() {
         );
 
         // Get the metafits metadata struct from the pointer
+        assert!(!metafits_metadata_ptr.is_null());
         let metafits_metadata = Box::from_raw(metafits_metadata_ptr);
 
         // We should get a valid obsid and no error message
@@ -201,11 +206,13 @@ fn test_mwalib_metafits_get_expected_volt_filename() {
 
     let error_message_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let filename_len: size_t = 32; // 31 + null terminator
     let filename = CString::new(" ".repeat(filename_len)).unwrap();
-    let filename_ptr = filename.as_ptr() as *mut c_char;
+    let filename_ptr = filename.into_raw();
+    let _filename_guard = CStringGuard(filename_ptr);
 
     unsafe {
         let retval = mwalib_metafits_get_expected_volt_filename(
@@ -222,8 +229,9 @@ fn test_mwalib_metafits_get_expected_volt_filename() {
         assert_eq!(retval, 0);
 
         // Check the filename (NOTE it already has a nul terminator)
+        let written = std::slice::from_raw_parts(filename_ptr as *const u8, filename_len);
         assert_eq!(
-            filename.as_bytes(),
+            written,
             CString::new("1101503312_1101503315_ch110.dat")
                 .unwrap()
                 .as_bytes_with_nul()
@@ -238,10 +246,12 @@ fn test_mwalib_voltage_context_display() {
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
     let buf_len: size_t = 1280;
     let buf_message = CString::new(" ".repeat(buf_len)).unwrap();
-    let buf_message_ptr = buf_message.as_ptr() as *mut c_char;
+    let buf_message_ptr = buf_message.into_raw();
+    let _buf_message_guard = CStringGuard(buf_message_ptr);
 
     unsafe {
         let retval = mwalib_voltage_context_display(
@@ -268,10 +278,12 @@ fn test_mwalib_voltage_context_display_null_ptr() {
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
     let buf_len: size_t = 1280;
     let buf_message = CString::new(" ".repeat(buf_len)).unwrap();
-    let buf_message_ptr = buf_message.as_ptr() as *mut c_char;
+    let buf_message_ptr = buf_message.into_raw();
+    let _buf_message_guard = CStringGuard(buf_message_ptr);
 
     unsafe {
         let retval = mwalib_voltage_context_display(
@@ -293,7 +305,8 @@ fn test_mwalib_voltage_context_legacy_read_file_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 14;
@@ -368,7 +381,8 @@ fn test_mwalib_voltage_context_mwaxv2_read_file_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 14;
@@ -448,7 +462,8 @@ fn test_mwalib_voltage_context_mwaxv2_read_os_file_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 14;
@@ -534,7 +549,8 @@ fn test_mwalib_voltage_context_mwaxv2_read_second_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let gps_second_start: u64 = 1_101_503_318;
     let gps_second_count: usize = 4;
@@ -556,7 +572,9 @@ fn test_mwalib_voltage_context_mwaxv2_read_second_valid() {
 
         // Convert the raw pointer into a reference in a single checked step
         // This avoids direct raw-pointer dereference and makes the null case explicit.
-        let voltage_metadata = voltage_metadata_ptr.as_ref().expect("mwalib_voltage_metadata_get returned success but voltage_metadata_ptr is null");
+        let voltage_metadata = voltage_metadata_ptr.as_ref().expect(
+            "mwalib_voltage_metadata_get returned success but voltage_metadata_ptr is null",
+        );
 
         // 2 pols x 1 fine chans x 1 tile * 81920 samples * 160 blocks * 2 bytes per sample
         let buffer_len = (voltage_metadata.voltage_block_size_bytes
@@ -608,8 +626,8 @@ fn test_mwalib_voltage_context_mwaxv2_read_second_valid() {
         // location in file1:  block: 0, rfinput: 0, sample: 0, value: 0
         assert_eq!(
             buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
+                * voltage_metadata.voltage_block_size_bytes as usize
+                * voltage_metadata.num_voltage_blocks_per_second
                 + get_index_for_location_in_test_voltage_file_mwaxv2(0, 0, 0, 0)],
             2
         );
@@ -619,8 +637,8 @@ fn test_mwalib_voltage_context_mwaxv2_read_second_valid() {
         // location in file1:  block: 20, rfinput: 0, sample: 0, value: 0
         assert_eq!(
             buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
+                * voltage_metadata.voltage_block_size_bytes as usize
+                * voltage_metadata.num_voltage_blocks_per_second
                 + get_index_for_location_in_test_voltage_file_mwaxv2(20, 0, 0, 0)],
             102
         );
@@ -646,8 +664,8 @@ fn test_mwalib_voltage_context_mwaxv2_read_second_valid() {
         // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
         assert_eq!(
             buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
+                * voltage_metadata.voltage_block_size_bytes as usize
+                * voltage_metadata.num_voltage_blocks_per_second
                 + get_index_for_location_in_test_voltage_file_mwaxv2(0, 1, 16750, 1)],
             29
         );
@@ -657,8 +675,8 @@ fn test_mwalib_voltage_context_mwaxv2_read_second_valid() {
         // location in file0:  block: 0, rfinput: 1, sample: 16750, value: 1
         assert_eq!(
             buffer[2
-                * (*voltage_metadata_ptr).voltage_block_size_bytes as usize
-                * (*voltage_metadata_ptr).num_voltage_blocks_per_second
+                * voltage_metadata.voltage_block_size_bytes as usize
+                * voltage_metadata.num_voltage_blocks_per_second
                 + get_index_for_location_in_test_voltage_file_mwaxv2(20, 1, 16750, 1)],
             -71
         );
@@ -672,7 +690,8 @@ fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         let chan_indices_len: usize = 1;
@@ -718,7 +737,8 @@ fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_invalid_buffer_len()
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         let chan_indices_len: usize = 1;
@@ -771,7 +791,8 @@ fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_context() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         // Null context
@@ -805,7 +826,8 @@ fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_coarse_chans() 
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         // Null coarse chans
@@ -838,7 +860,8 @@ fn test_mwalib_voltage_context_get_fine_chan_freqs_hz_array_null_buffer() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         let chan_indices_len: usize = 1;
@@ -869,7 +892,8 @@ fn test_mwalib_voltage_metadata_get_valid() {
     // This tests for a valid voltage metadata struct being instantiated
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         // Create a VoltageContext
@@ -896,6 +920,7 @@ fn test_mwalib_voltage_metadata_get_valid() {
         );
 
         // Get the voltage metadata struct from the pointer
+        assert!(!voltage_metadata_ptr.is_null());
         let mut voltage_metadata = Box::from_raw(voltage_metadata_ptr);
 
         // We should get a valid number of coarse channels and no error message
@@ -930,7 +955,8 @@ fn test_mwalib_voltage_metadata_get_null_context() {
     // This tests for passing a null context to the mwalib_voltage_metadata_get() method
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         let mut voltage_metadata_ptr: *mut VoltageMetadata = std::ptr::null_mut();
@@ -946,4 +972,126 @@ fn test_mwalib_voltage_metadata_get_null_context() {
         // We should get a non-zero return code
         assert_ne!(ret_val, 0);
     }
+}
+
+#[test]
+fn test_mwalib_voltage_context_read_null_buffer_sets_the_error_message() {
+    let voltage_context_ptr: *mut VoltageContext =
+        get_test_ffi_voltage_context(MWAVersion::VCSMWAXv2, false);
+
+    for name in ["read_file", "read_second"] {
+        let error_message_length: size_t = 256;
+        let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+        let error_message_ptr = error_message.into_raw();
+
+        let retval = unsafe {
+            if name == "read_file" {
+                mwalib_voltage_context_read_file(
+                    voltage_context_ptr,
+                    0,
+                    14,
+                    std::ptr::null_mut(),
+                    0,
+                    error_message_ptr,
+                    error_message_length,
+                )
+            } else {
+                mwalib_voltage_context_read_second(
+                    voltage_context_ptr,
+                    1_101_503_312,
+                    1,
+                    14,
+                    std::ptr::null_mut(),
+                    0,
+                    error_message_ptr,
+                    error_message_length,
+                )
+            }
+        };
+
+        let message = unsafe { CStr::from_ptr(error_message_ptr) }
+            .to_string_lossy()
+            .trim()
+            .to_string();
+        unsafe { drop(CString::from_raw(error_message_ptr)) };
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains("null pointer for buffer_ptr"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_voltage_context_new_null_pointers() {
+    let metafits_file = CString::new("test_files/1101503312_vcs/1101503312.metafits").unwrap();
+    let voltage_file =
+        CString::new("test_files/1101503312_vcs/1101503312_1101503312_ch123.dat").unwrap();
+    let mut good_files: Vec<*const c_char> = vec![voltage_file.as_ptr()];
+    let mut files_with_null: Vec<*const c_char> = vec![std::ptr::null()];
+
+    let error_message_length: size_t = 256;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
+
+    let mut context_ptr: *mut VoltageContext = std::ptr::null_mut();
+
+    // (name, metafits_filename, voltage_filenames, out_voltage_context_ptr, expected message)
+    let cases = [
+        (
+            "null out pointer",
+            metafits_file.as_ptr(),
+            good_files.as_mut_ptr(),
+            std::ptr::null_mut(),
+            "out_voltage_context_ptr is NULL",
+        ),
+        (
+            "null metafits filename",
+            std::ptr::null(),
+            good_files.as_mut_ptr(),
+            &mut context_ptr as *mut *mut VoltageContext,
+            "metafits_filename is NULL",
+        ),
+        (
+            "null voltage filenames",
+            metafits_file.as_ptr(),
+            std::ptr::null_mut(),
+            &mut context_ptr as *mut *mut VoltageContext,
+            "voltage_filenames is NULL",
+        ),
+        (
+            "null voltage filename in the array",
+            metafits_file.as_ptr(),
+            files_with_null.as_mut_ptr(),
+            &mut context_ptr as *mut *mut VoltageContext,
+            "contains a NULL pointer",
+        ),
+    ];
+
+    for (name, metafits_ptr, files_ptr, out_ptr, expected_message) in cases {
+        let retval = unsafe {
+            mwalib_voltage_context_new(
+                metafits_ptr,
+                files_ptr,
+                1,
+                out_ptr,
+                error_message_ptr,
+                error_message_length,
+            )
+        };
+        let message = unsafe { CStr::from_ptr(error_message_ptr) }
+            .to_string_lossy()
+            .into_owned();
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains(expected_message),
+            "{name}: message was '{message}'"
+        );
+    }
+
+    // No call may make a context
+    assert!(context_ptr.is_null());
 }

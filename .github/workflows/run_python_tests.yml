@@ -9,6 +9,11 @@ on:
     branches:
       - "**"
 
+# Only keep the latest run for each branch: a new push cancels the run that is still going
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always

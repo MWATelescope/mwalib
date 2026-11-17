@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 use super::*;
+use crate::ffi::ffi_test_helpers::CStringGuard;
 use crate::{
     correlator_context::ffi::{
         mwalib_correlator_context_display, mwalib_correlator_context_free,
@@ -30,7 +31,8 @@ fn test_mwalib_correlator_context_new_valid() {
     // This tests for a valid correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
@@ -39,9 +41,9 @@ fn test_mwalib_correlator_context_new_valid() {
     let gpubox_file =
         CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
             .unwrap();
-    let gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
+    let mut gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
 
-    let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
+    let gpubox_files_ptr = gpubox_files.as_mut_ptr();
 
     unsafe {
         // Create a CorrelatorContext
@@ -75,7 +77,8 @@ fn test_mwalib_correlator_context_new_valid_free() {
     // This tests for a valid correlator context
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
@@ -84,9 +87,9 @@ fn test_mwalib_correlator_context_new_valid_free() {
     let gpubox_file =
         CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
             .unwrap();
-    let gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
+    let mut gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
 
-    let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
+    let gpubox_files_ptr = gpubox_files.as_mut_ptr();
 
     unsafe {
         // Create a CorrelatorContext
@@ -120,7 +123,8 @@ fn test_mwalib_correlator_context_new_invalid() {
     // This tests for a invalid correlator context (missing file)
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let metafits_file =
         CString::new("test_files/1101503312_1_timestep/invalid_filename.metafits").unwrap();
@@ -129,9 +133,9 @@ fn test_mwalib_correlator_context_new_invalid() {
     let gpubox_file =
         CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
             .unwrap();
-    let gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
+    let mut gpubox_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
 
-    let gpubox_files_ptr = gpubox_files.as_ptr() as *mut *const c_char;
+    let gpubox_files_ptr = gpubox_files.as_mut_ptr();
 
     unsafe {
         // Create a CorrelatorContext
@@ -168,10 +172,12 @@ fn test_mwalib_correlator_context_display() {
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
     let buf_len: size_t = 1280;
     let buf_message = CString::new(" ".repeat(buf_len)).unwrap();
-    let buf_message_ptr = buf_message.as_ptr() as *mut c_char;
+    let buf_message_ptr = buf_message.into_raw();
+    let _buf_message_guard = CStringGuard(buf_message_ptr);
 
     unsafe {
         let retval = mwalib_correlator_context_display(
@@ -198,10 +204,12 @@ fn test_mwalib_correlator_context_display_null_ptr() {
 
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
     let buf_len: size_t = 1280;
     let buf_message = CString::new(" ".repeat(buf_len)).unwrap();
-    let buf_message_ptr = buf_message.as_ptr() as *mut c_char;
+    let buf_message_ptr = buf_message.into_raw();
+    let _buf_message_guard = CStringGuard(buf_message_ptr);
 
     unsafe {
         let retval = mwalib_correlator_context_display(
@@ -222,7 +230,8 @@ fn test_mwalib_correlator_context_legacy_read_by_baseline_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -279,7 +288,8 @@ fn test_mwalib_correlator_context_legacy_read_by_baseline_null_context() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -310,7 +320,8 @@ fn test_mwalib_correlator_context_legacy_read_by_baseline_null_buffer() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -340,7 +351,8 @@ fn test_mwalib_correlator_context_legacy_read_by_frequency_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -397,7 +409,8 @@ fn test_mwalib_correlator_context_legacy_read_by_frequency_null_context() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -428,7 +441,8 @@ fn test_mwalib_correlator_context_legacy_read_by_frequency_null_buffer() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 0;
@@ -458,7 +472,8 @@ fn test_mwalib_correlator_context_read_weights_by_baseline_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 10;
@@ -515,7 +530,8 @@ fn test_mwalib_correlator_context_read_weights_by_baseline_null_context() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 10;
@@ -546,7 +562,8 @@ fn test_mwalib_correlator_context_read_weights_by_baseline_null_buffer() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     let timestep_index = 0;
     let coarse_chan_index = 10;
@@ -576,7 +593,8 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_valid() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         let chan_indices_len: usize = 1;
@@ -621,7 +639,8 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_invalid_buffer_le
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         let chan_indices_len: usize = 1;
@@ -674,7 +693,8 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_context() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         // Null context
@@ -707,7 +727,8 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_coarse_chans
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         // Null coarse chans
@@ -739,7 +760,8 @@ fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_null_buffer() {
 
     let error_message_length: size_t = 128;
     let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         let chan_indices_len: usize = 1;
@@ -770,7 +792,8 @@ fn test_mwalib_correlator_metadata_get_valid() {
     // This tests for a valid correlator metadata struct being instantiated
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         // Create a CorrelatorContext
@@ -797,6 +820,7 @@ fn test_mwalib_correlator_metadata_get_valid() {
         );
 
         // Get the correlator metadata struct from the pointer
+        assert!(!correlator_metadata_ptr.is_null());
         let mut correlator_metadata = Box::from_raw(correlator_metadata_ptr);
 
         // We should get a valid number of coarse channels and no error message
@@ -837,7 +861,8 @@ fn test_mwalib_correlator_metadata_get_null_context() {
     // This tests for passing a null context to the mwalib_correlator_metadata_get() method
     let error_len: size_t = 128;
     let error_message = CString::new(" ".repeat(error_len)).unwrap();
-    let error_message_ptr = error_message.as_ptr() as *mut c_char;
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
 
     unsafe {
         let mut correlator_metadata_ptr: *mut CorrelatorMetadata = std::ptr::null_mut();
@@ -853,4 +878,373 @@ fn test_mwalib_correlator_metadata_get_null_context() {
         // We should get a non-zero return code
         assert_ne!(ret_val, 0);
     }
+}
+
+//
+// Reads: errors and results for all of the read functions
+//
+
+/// The type of the C functions which read from a correlator context
+type FfiReadFn = unsafe extern "C" fn(
+    *mut CorrelatorContext,
+    size_t,
+    size_t,
+    *mut f32,
+    size_t,
+    *mut c_char,
+    size_t,
+) -> i32;
+
+/// All of the C read functions, and the number of floats each one writes for the test (128T) data
+fn all_ffi_read_functions() -> [(&'static str, FfiReadFn, usize); 3] {
+    [
+        (
+            "read_by_baseline",
+            mwalib_correlator_context_read_by_baseline,
+            8256 * 128 * 8,
+        ),
+        (
+            "read_by_frequency",
+            mwalib_correlator_context_read_by_frequency,
+            8256 * 128 * 8,
+        ),
+        (
+            "read_weights_by_baseline",
+            mwalib_correlator_context_read_weights_by_baseline,
+            8256 * 4,
+        ),
+    ]
+}
+
+/// Call a C read function. Returns the return value and the error message.
+fn call_ffi_read(
+    read_fn: FfiReadFn,
+    context_ptr: *mut CorrelatorContext,
+    timestep_index: usize,
+    coarse_chan_index: usize,
+    buffer: &mut [f32],
+) -> (i32, String) {
+    let error_message_length: size_t = 256;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.into_raw();
+
+    let retval = unsafe {
+        read_fn(
+            context_ptr,
+            timestep_index,
+            coarse_chan_index,
+            buffer.as_mut_ptr(),
+            buffer.len(),
+            error_message_ptr,
+            error_message_length,
+        )
+    };
+
+    let message = unsafe { CStr::from_ptr(error_message_ptr) }
+        .to_string_lossy()
+        .trim()
+        .to_string();
+    unsafe { drop(CString::from_raw(error_message_ptr)) };
+
+    (retval, message)
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_invalid_timestep_index() {
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+
+    for (name, read_fn, len) in all_ffi_read_functions() {
+        let mut buffer = vec![0.0; len];
+        let (retval, message) = call_ffi_read(read_fn, context_ptr, 999_999, 0, &mut buffer);
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains("Invalid timestep index"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_invalid_coarse_chan_index() {
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+
+    for (name, read_fn, len) in all_ffi_read_functions() {
+        let mut buffer = vec![0.0; len];
+        let (retval, message) = call_ffi_read(read_fn, context_ptr, 0, 999_999, &mut buffer);
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains("Invalid coarse chan index"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_no_data_for_coarse_chan() {
+    // The legacy test data only has coarse channel 0, so coarse channel 1 is valid, but has no data
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+
+    for (name, read_fn, len) in all_ffi_read_functions() {
+        let mut buffer = vec![0.0; len];
+        let (retval, message) = call_ffi_read(read_fn, context_ptr, 0, 1, &mut buffer);
+
+        assert_eq!(
+            retval,
+            crate::ffi::MWALIB_NO_DATA_FOR_TIMESTEP_COARSECHAN,
+            "{name}"
+        );
+        assert!(
+            message.contains("No data exists"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_matches_rust_read() {
+    // (context, timestep, coarse chan)
+    for (context_ptr, timestep, coarse_chan) in [
+        (get_test_ffi_correlator_context_legacy(), 0, 0),
+        (get_test_ffi_correlator_context_mwax(), 0, 10),
+    ] {
+        let context =
+            unsafe { context_ptr.as_ref() }.expect("the context pointer should not be null");
+
+        let expected = [
+            context.read_by_baseline(timestep, coarse_chan).unwrap(),
+            context.read_by_frequency(timestep, coarse_chan).unwrap(),
+            context
+                .read_weights_by_baseline(timestep, coarse_chan)
+                .unwrap(),
+        ];
+
+        for ((name, read_fn, _), expected) in all_ffi_read_functions().into_iter().zip(expected) {
+            let mut buffer = vec![0.0; expected.len()];
+            let (retval, message) =
+                call_ffi_read(read_fn, context_ptr, timestep, coarse_chan, &mut buffer);
+
+            assert_eq!(retval, crate::ffi::MWALIB_SUCCESS, "{name}: {message}");
+            assert_eq!(buffer, expected, "{name}");
+        }
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_get_fine_chan_freqs_hz_array_invalid_coarse_chan_index() {
+    let correlator_context_ptr: *mut CorrelatorContext = get_test_ffi_correlator_context_legacy();
+
+    let error_message_length: size_t = 128;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.into_raw();
+
+    unsafe {
+        let num_coarse_chans = correlator_context_ptr
+            .as_ref()
+            .expect("the context pointer should not be null")
+            .coarse_chans
+            .len();
+        let chan_indices_len: usize = 1;
+        let chan_indicies: Vec<usize> = vec![num_coarse_chans];
+        let (chan_indicies_ptr, _) = ffi_create_c_array(chan_indicies);
+
+        let buffer_len = 128;
+        let buffer: Vec<f64> = vec![0.0; buffer_len];
+        let (buffer_ptr, _) = ffi_create_c_array(buffer);
+
+        let retval = mwalib_correlator_context_get_fine_chan_freqs_hz_array(
+            correlator_context_ptr,
+            chan_indicies_ptr,
+            chan_indices_len,
+            buffer_ptr,
+            buffer_len,
+            error_message_ptr,
+            error_message_length,
+        );
+
+        let message = CStr::from_ptr(error_message_ptr)
+            .to_string_lossy()
+            .into_owned();
+        drop(CString::from_raw(error_message_ptr));
+
+        // A bad index is a failure with a message, not a panic
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE);
+        assert!(message.contains("coarse chan index"), "{message}");
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_null_buffer_sets_the_error_message() {
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+
+    for (name, read_fn, _) in all_ffi_read_functions() {
+        let error_message_length: size_t = 256;
+        let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+        let error_message_ptr = error_message.into_raw();
+
+        let retval = unsafe {
+            read_fn(
+                context_ptr,
+                0,
+                0,
+                std::ptr::null_mut(),
+                0,
+                error_message_ptr,
+                error_message_length,
+            )
+        };
+
+        let message = unsafe { CStr::from_ptr(error_message_ptr) }
+            .to_string_lossy()
+            .trim()
+            .to_string();
+        unsafe { drop(CString::from_raw(error_message_ptr)) };
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains("null pointer for buffer_ptr"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_buffer_too_small() {
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+
+    for (name, read_fn, len) in all_ffi_read_functions() {
+        let mut buffer = vec![0.0; len - 1];
+        let (retval, message) = call_ffi_read(read_fn, context_ptr, 0, 0, &mut buffer);
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains("floats"),
+            "{name}: message was '{message}'"
+        );
+    }
+}
+
+/// A pointer to a correlator context which can be used from many threads. The C read functions only take a shared
+/// reference, and the context is `Sync`.
+#[derive(Clone, Copy)]
+struct SharedContextPtr(*mut CorrelatorContext);
+
+// SAFETY: only used to call the read functions, which take `&CorrelatorContext`; `CorrelatorContext` is `Sync`.
+unsafe impl Send for SharedContextPtr {}
+
+impl SharedContextPtr {
+    /// Returns the pointer. Closures call this (rather than using `.0`) so they capture the whole `Send` wrapper.
+    fn get(&self) -> *mut CorrelatorContext {
+        self.0
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_read_from_many_c_threads_at_once() {
+    // The C read functions only take a shared reference to the context, so many threads can read at once
+    const NUM_THREADS: usize = 4;
+    let context_ptr = get_test_ffi_correlator_context_legacy();
+    // Raw pointers are not Send, so wrap it. The context is only read, and it is not freed until the test ends.
+    let shared_context = SharedContextPtr(context_ptr);
+
+    for (name, read_fn, len) in all_ffi_read_functions() {
+        let mut expected = vec![0.0; len];
+        let (retval, _) = call_ffi_read(read_fn, context_ptr, 0, 0, &mut expected);
+        assert_eq!(retval, crate::ffi::MWALIB_SUCCESS, "{name}");
+
+        let results: Vec<Vec<f32>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..NUM_THREADS)
+                .map(|_| {
+                    scope.spawn(move || {
+                        let mut buffer = vec![0.0; len];
+                        let (retval, message) =
+                            call_ffi_read(read_fn, shared_context.get(), 0, 0, &mut buffer);
+                        assert_eq!(retval, crate::ffi::MWALIB_SUCCESS, "{name}: {message}");
+                        buffer
+                    })
+                })
+                .collect();
+            handles.into_iter().map(|h| h.join().unwrap()).collect()
+        });
+
+        for result in results {
+            assert_eq!(result, expected, "{name}");
+        }
+    }
+}
+
+#[test]
+fn test_mwalib_correlator_context_new_null_pointers() {
+    let metafits_file =
+        CString::new("test_files/1101503312_1_timestep/1101503312.metafits").unwrap();
+    let gpubox_file =
+        CString::new("test_files/1101503312_1_timestep/1101503312_20141201210818_gpubox01_00.fits")
+            .unwrap();
+    let mut good_files: Vec<*const c_char> = vec![gpubox_file.as_ptr()];
+    let mut files_with_null: Vec<*const c_char> = vec![std::ptr::null()];
+
+    let error_message_length: size_t = 256;
+    let error_message = CString::new(" ".repeat(error_message_length)).unwrap();
+    let error_message_ptr = error_message.into_raw();
+    let _error_message_guard = CStringGuard(error_message_ptr);
+
+    let mut context_ptr: *mut CorrelatorContext = std::ptr::null_mut();
+
+    // (name, metafits_filename, gpubox_filenames, out_correlator_context_ptr, expected message)
+    let cases = [
+        (
+            "null out pointer",
+            metafits_file.as_ptr(),
+            good_files.as_mut_ptr(),
+            std::ptr::null_mut(),
+            "out_correlator_context_ptr is NULL",
+        ),
+        (
+            "null metafits filename",
+            std::ptr::null(),
+            good_files.as_mut_ptr(),
+            &mut context_ptr as *mut *mut CorrelatorContext,
+            "metafits_filename is NULL",
+        ),
+        (
+            "null gpubox filenames",
+            metafits_file.as_ptr(),
+            std::ptr::null_mut(),
+            &mut context_ptr as *mut *mut CorrelatorContext,
+            "gpubox_filenames is NULL",
+        ),
+        (
+            "null gpubox filename in the array",
+            metafits_file.as_ptr(),
+            files_with_null.as_mut_ptr(),
+            &mut context_ptr as *mut *mut CorrelatorContext,
+            "contains a NULL pointer",
+        ),
+    ];
+
+    for (name, metafits_ptr, files_ptr, out_ptr, expected_message) in cases {
+        let retval = unsafe {
+            mwalib_correlator_context_new(
+                metafits_ptr,
+                files_ptr,
+                1,
+                out_ptr,
+                error_message_ptr,
+                error_message_length,
+            )
+        };
+        let message = unsafe { CStr::from_ptr(error_message_ptr) }
+            .to_string_lossy()
+            .into_owned();
+
+        assert_eq!(retval, crate::ffi::MWALIB_FAILURE, "{name}");
+        assert!(
+            message.contains(expected_message),
+            "{name}: message was '{message}'"
+        );
+    }
+
+    // No call may make a context
+    assert!(context_ptr.is_null());
 }

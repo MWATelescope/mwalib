@@ -624,8 +624,17 @@ pub fn _get_fits_float_img_into_buf(
         let buffer_len = buffer.len() as i64;
         let buffer_ptr = buffer.as_mut_ptr();
 
-        // Call the underlying cfitsio read function for floats
+        // `ffgpv` reads from cfitsio's current HDU, which any other call on this file can move. So move to `hdu`
+        // here, instead of depending on the caller having just opened it. (cfitsio numbers HDUs from 1.)
         let mut status = 0;
+        fitsio_sys::ffmahd(
+            fits_fptr.as_raw(),
+            (hdu.number + 1) as _,
+            ptr::null_mut(),
+            &mut status,
+        );
+
+        // Call the underlying cfitsio read function for floats
         fitsio_sys::ffgpv(
             fits_fptr.as_raw(),
             fitsio_sys::TFLOAT as _,

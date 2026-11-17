@@ -1,5 +1,6 @@
 import argparse
 import math
+import sys
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -16,6 +17,9 @@ matplotlib.use("GTK3Agg")
 dpi = 100
 MODE_RANGE = "RANGE"
 MODE_BASELINE = "BASELINE"
+
+# Set this to True to zero out the data of any flagged tile. This is disabled: flagged tiles are not zeroed out.
+ZERO_OUT_FLAGGED_TILES = False
 
 
 class ViewFITSArgs:
@@ -53,7 +57,7 @@ class ViewFITSArgs:
 
         if not self.any_plotting and self.dumpplot:
             print("You must be plotting to dump out the plot data to file!")
-            exit(-1)
+            sys.exit(-1)
 
         # Some constants not found in fits file
         self.values = 2  # real and imaginary
@@ -87,7 +91,7 @@ class ViewFITSArgs:
         # Check mode
         if self.mode != MODE_RANGE and self.mode != MODE_BASELINE:
             print(f"Error, mode should be {MODE_RANGE} or {MODE_BASELINE}!")
-            exit(-1)
+            sys.exit(-1)
 
         # Check tiles
         if self.tile1 == -1:
@@ -98,15 +102,15 @@ class ViewFITSArgs:
 
         if self.tile1 > self.fits_tiles - 1:
             print("Error ant1 is more than the last tile index!")
-            exit(-1)
+            sys.exit(-1)
 
         if self.tile2 > self.fits_tiles - 1:
             print("Error ant2 is more than the last tile index!")
-            exit(-1)
+            sys.exit(-1)
 
         if self.tile1 > self.tile2:
             print("Error ant1 is more than the ant2!")
-            exit(-1)
+            sys.exit(-1)
 
         # Check time steps
         self.fits_time_steps = self.context.num_timesteps
@@ -119,15 +123,15 @@ class ViewFITSArgs:
 
         if self.time_step1 > self.fits_time_steps:
             print("Error t1 is more than the max time step!")
-            exit(-1)
+            sys.exit(-1)
 
         if self.time_step2 > self.fits_time_steps:
             print("Error t2 is more than the max time step!")
-            exit(-1)
+            sys.exit(-1)
 
         if self.time_step1 > self.time_step2:
             print("Error t1 is more than the t2!")
-            exit(-1)
+            sys.exit(-1)
 
         # Check channels
         if self.channel1 == -1:
@@ -138,15 +142,15 @@ class ViewFITSArgs:
 
         if self.channel1 > self.fits_channels - 1:
             print("Error c1 is more than the number of the last fine channel!")
-            exit(-1)
+            sys.exit(-1)
 
         if self.channel2 > self.fits_channels - 1:
             print("Error c2 is more than the number of the last fine channel!")
-            exit(-1)
+            sys.exit(-1)
 
         if self.channel1 > self.channel2:
             print("Error c1 is more than the c2!")
-            exit(-1)
+            sys.exit(-1)
 
         # Some calculated fields
         self.tile_count = self.tile2 - self.tile1 + 1
@@ -303,7 +307,7 @@ def peek_fits(program_args: ViewFITSArgs):
     if program_args.dumpplot:
         plot_dump_filename = f"plot_dump_{filename}"
         print(f"Openning {plot_dump_filename} for writing")
-        plot_dump_file = open(plot_dump_filename, "w")
+        plot_dump_file = open(plot_dump_filename, "w")  # noqa: SIM115 (closed explicitly at the end of peek_fits)
 
         # Write the csv header depending on the type of plot
         if program_args.ppd_plot:
@@ -322,7 +326,7 @@ def peek_fits(program_args: ViewFITSArgs):
     if program_args.dumpraw:
         raw_dump_filename = f"raw_dump_{filename}"
         print(f"Openning {raw_dump_filename} for writing")
-        raw_dump_file = open(raw_dump_filename, "w")
+        raw_dump_file = open(raw_dump_filename, "w")  # noqa: SIM115 (closed explicitly at the end of peek_fits)
 
         raw_dump_file.write(
             "unix_time, baseline, ant1, ant2, fine_ch, "
@@ -408,7 +412,7 @@ def peek_fits(program_args: ViewFITSArgs):
                             or program_args.context.metafits_context.antennas[i].rfinput_y.flagged
                             or program_args.context.metafits_context.antennas[j].rfinput_x.flagged
                             or program_args.context.metafits_context.antennas[j].rfinput_y.flagged
-                        ) and 1 == 0:
+                        ) and ZERO_OUT_FLAGGED_TILES:
                             xx_r = 0
                             xx_i = 0
 
@@ -451,6 +455,7 @@ def peek_fits(program_args: ViewFITSArgs):
                             phase_y = math.degrees(math.atan2(yy_i, yy_r))
 
                         if program_args.ppd_plot:
+                            assert plot_ppd_data_x is not None and plot_ppd_data_y is not None
                             plot_ppd_data_x[chan][time_index] = plot_ppd_data_x[chan][time_index] + (
                                 power_xx / program_args.baseline_count
                             )
@@ -463,13 +468,16 @@ def peek_fits(program_args: ViewFITSArgs):
                             # does not fail... weird
 
                         elif program_args.ppd_plot2:
+                            assert plot_ppd2_data_x is not None and plot_ppd2_data_y is not None
                             plot_ppd2_data_x[time_index][selected_baseline][chan] = power_xx
                             plot_ppd2_data_y[time_index][selected_baseline][chan] = power_yy
 
                         elif program_args.grid_plot:
+                            assert plot_grid_data is not None
                             plot_grid_data[time_index][j][i] = plot_grid_data[time_index][j][i] + power_xx + power_yy
 
                         elif program_args.grid_plot2:
+                            assert plot_grid2_data is not None
                             # offset index by the polarisation
                             if program_args.grid_pol == "XX":
                                 plot_grid2_data[time_index][j][i] += power_xx
@@ -485,13 +493,15 @@ def peek_fits(program_args: ViewFITSArgs):
                                     "-gp (--gridpol) and "
                                     "takes XX,XY,YX,YY as parameters"
                                 )
-                                exit(-1)
+                                sys.exit(-1)
 
                         elif program_args.phase_plot_all or program_args.phase_plot_one:
+                            assert plot_phase_data_x is not None and plot_phase_data_y is not None
                             plot_phase_data_x[time_index][selected_baseline][chan] = phase_x
                             plot_phase_data_y[time_index][selected_baseline][chan] = phase_y
 
                         if program_args.dumpraw:
+                            assert raw_dump_file is not None
                             raw_dump_file.write(
                                 f"{timestep.unix_time_ms / 1000.0},"
                                 f"{baseline},"
@@ -520,9 +530,8 @@ def peek_fits(program_args: ViewFITSArgs):
 
     print("Processing of data done!")
 
-    if program_args.dumpraw:
-        if raw_dump_file:
-            raw_dump_file.close()
+    if program_args.dumpraw and raw_dump_file:
+        raw_dump_file.close()
 
     if program_args.ppd_plot:
         convert_to_db = False
@@ -566,9 +575,8 @@ def peek_fits(program_args: ViewFITSArgs):
             plot_phase_data_y,
         )
 
-    if program_args.dumpplot:
-        if plot_dump_file:
-            plot_dump_file.close()
+    if program_args.dumpplot and plot_dump_file:
+        plot_dump_file.close()
 
     print("view_fits Done!\n")
 
@@ -744,19 +752,18 @@ def do_grid_plot(title, program_args: ViewFITSArgs, plot_grid_data):
     plot_row = 0
     plot_col = 0
 
-    if 1 == 1:
-        for time_index in range(program_args.time_step_count):
-            for t1 in range(program_args.tile_count):
-                for t2 in range(t1, program_args.tile_count):
-                    plot_grid_data[time_index][t2][t1] = math.log10(plot_grid_data[time_index][t2][t1] + 1) * 10
+    for time_index in range(program_args.time_step_count):
+        for t1 in range(program_args.tile_count):
+            for t2 in range(t1, program_args.tile_count):
+                plot_grid_data[time_index][t2][t1] = math.log10(plot_grid_data[time_index][t2][t1] + 1) * 10
 
-        # Get min dB value
-        # np_array_nonzero = plot_grid_data[plot_grid_data > 1]
-        # min_db = np_array_nonzero.min()
+    # Get min dB value
+    # np_array_nonzero = plot_grid_data[plot_grid_data > 1]
+    # min_db = np_array_nonzero.min()
 
-        # Apply min_db but only to values > 1
-        # plot_grid_data = np.where(plot_grid_data > 1,
-        # plot_grid_data - min_db, plot_grid_data)
+    # Apply min_db but only to values > 1
+    # plot_grid_data = np.where(plot_grid_data > 1,
+    # plot_grid_data - min_db, plot_grid_data)
 
     fig, ax = plt.subplots(
         figsize=(30, 30),
@@ -864,9 +871,9 @@ def do_grid_plot2(title, program_args: ViewFITSArgs, plot_grid_data):
                         plot_grid_data[time_index][t2][t1] = 0
                     else:
                         plot_grid_data[time_index][t2][t1] = math.log10(value * 10000000)
-                except Exception as e:
+                except Exception:
                     print(f"Exception trying math.log10({value * 10000000} / {scaling_value})")
-                    raise e
+                    raise
 
     # Now print some stats
     print(
@@ -976,12 +983,11 @@ def do_phase_plot(title, program_args: ViewFITSArgs, plot_phase_data_x, plot_pha
 
     for i in range(program_args.tile_count):
         for j in range(i, program_args.tile_count):
-            if program_args.phase_plot_one:
-                if not (i == 0 and j == (program_args.tile_count - 1)):
-                    # skip this plot
-                    print(f"{i} vs {j} skip")
-                    baseline = baseline + 1
-                    continue
+            if program_args.phase_plot_one and not (i == 0 and j == (program_args.tile_count - 1)):
+                # skip this plot
+                print(f"{i} vs {j} skip")
+                baseline = baseline + 1
+                continue
 
             print(f"Adding data points for plot({i},{j})...")
             channel_list = range(program_args.channel1, program_args.channel2 + 1)

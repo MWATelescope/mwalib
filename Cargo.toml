@@ -1,7 +1,6 @@
 [package]
 name = "mwalib"
-version = "3.0.2"
-homepage = "https://github.com/MWATelescope/mwalib"
+version = "4.0.0"
 repository = "https://github.com/MWATelescope/mwalib"
 readme = "README.md"
 authors = [
@@ -15,7 +14,7 @@ description = "A library to simplify reading Murchison Widefield Array (MWA) raw
 license = "MPL-2.0"
 keywords = ["radioastronomy", "mwa", "astronomy"]
 categories = ["science", "parsing"]
-exclude = ["test_files/*", "tools/*", ".github/*"]
+exclude = ["test_files/*", "tools/*", ".github/*", "docs/*"]
 
 [[bin]]
 name = "stub_gen"
@@ -33,6 +32,8 @@ crate-type = ["rlib", "staticlib", "cdylib"]
 cfitsio-static = ["fitsio-sys/fitsio-src"]
 # Enable optional features needed by examples.
 examples = ["anyhow", "clap", "env_logger"]
+# Internal: expose converters to the benchmarks in benches/. Not part of the public API.
+bench-internals = []
 # Enable python
 python = ["anyhow", "env_logger", "ndarray", "numpy", "pyo3"]
 # Enable python-stubgen
@@ -51,6 +52,11 @@ harness = false
 [[bench]]
 name = "correlator_context_benches"
 harness = false
+
+[[bench]]
+name = "convert_benches"
+harness = false
+required-features = ["bench-internals"]
 
 [profile.release]
 opt-level = 3
@@ -78,7 +84,6 @@ opt-level = 1 # debug builds are too slow for real data sets
 opt-level = 1 # or 3 if tests read large files
 
 [dependencies]
-bytemuck = "1.24"
 fitsio = "0.21"
 fitsio-sys = "0.5"
 hifitime = "4.3"
@@ -87,7 +92,7 @@ libc = "0.2"
 log = "0.4"
 num-derive = "0.5"
 num-traits = "0.2"
-regex = "1.12"
+regex = "1.13"
 thiserror = "2.0"
 
 # "python" and examples features
@@ -95,22 +100,21 @@ anyhow = { version = "1.0", optional = true }
 env_logger = { version = "0.11", optional = true }
 
 # "python" feature
-ndarray = { version = "0.17", optional = true }
-numpy = { version = "0.29", optional = true }
-pyo3 = { version = "0.29", features = [
+ndarray = { version = "0.17.2", optional = true }
+numpy = { version = "0.30", optional = true }
+pyo3 = { version = "0.30", features = [
     "extension-module",
     "jiff-02",
     "macros",
 ], optional = true }
 
 # "python-stubgen" feature
-pyo3-stub-gen = { version = "0.23.1", optional = true, features = [
+pyo3-stub-gen = { version = "0.23.2", optional = true, features = [
     "jiff-02",
     "infer_signature",
 ] }
-pyo3-stub-gen-derive = { version = "0.23", optional = true }
+pyo3-stub-gen-derive = { version = "0.23.2", optional = true }
 
-# Transitive due to latest versions using higher MSRV than mwalib
 # "examples" feature.
 clap = { version = "4.6", features = ["derive"], optional = true }
 
@@ -118,7 +122,7 @@ clap = { version = "4.6", features = ["derive"], optional = true }
 criterion = "0.8"
 csv = "1.4"
 float-cmp = "0.10"
-tempfile = "3.24"
+tempfile = "3.27"
 
 [build-dependencies]
 built = "0.8"

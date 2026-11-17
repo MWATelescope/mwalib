@@ -1,7 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-use core::f64;
 use std::fmt;
 
 use crate::{
@@ -27,7 +26,7 @@ mod test;
 #[cfg_attr(feature = "python-stubgen", gen_stub_pyclass)]
 #[cfg_attr(
     any(feature = "python", feature = "python-stubgen"),
-    pyclass(get_all, set_all, from_py_object)
+    pyclass(get_all, from_py_object)
 )]
 #[derive(Clone, Debug, PartialEq)]
 pub struct VoltageBeam {

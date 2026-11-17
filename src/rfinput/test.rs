@@ -467,3 +467,239 @@ fn test_populate_rf_inputs_sig_chain_not_in_metafits() {
 
     assert_eq!(rfinput[5].signal_chain_corrections_index, None); // RRI, whitening filter
 }
+
+const HEIGHT_CODE_METAFITS: &str = "test_files/metafits_tests/1478034080_metafits_height_code.fits";
+
+#[test]
+fn test_get_default_height_code() {
+    assert_eq!(get_default_height_code("LBA4"), HeightCode::EllipsoidHeight);
+    assert_eq!(get_default_height_code("LBG8"), HeightCode::EllipsoidHeight);
+    assert_eq!(
+        get_default_height_code("Tile104"),
+        HeightCode::ArrayCentreOffset
+    );
+    assert_eq!(
+        get_default_height_code("HexE12"),
+        HeightCode::ArrayCentreOffset
+    );
+    assert_eq!(get_default_height_code(""), HeightCode::ArrayCentreOffset);
+}
+
+#[test]
+fn test_read_metafits_tiledata_values_height_code_column() {
+    let mut metafits_fptr = fits_open!(&HEIGHT_CODE_METAFITS).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+
+    assert!(Rfinput::has_height_code_column(&metafits_tile_table_hdu));
+
+    // (row, tile name, expected code)
+    for (row, tile_name, expected) in [
+        (0, "Tile104", HeightCode::ArrayCentreOffset),
+        (64, "LBA4", HeightCode::EllipsoidHeight),
+        (256, "HexE12", HeightCode::ArrayCentreOffset),
+    ] {
+        let r = Rfinput::read_metafits_tiledata_values(
+            &mut metafits_fptr,
+            &metafits_tile_table_hdu,
+            row,
+            24,
+        )
+        .unwrap();
+        assert_eq!(r.tile_name, tile_name);
+        assert_eq!(r.height_code, expected, "row {row}");
+    }
+}
+
+#[test]
+fn test_read_metafits_tiledata_values_no_height_code_column() {
+    let metafits_filename = "test_files/1101503312_1_timestep/1101503312.metafits";
+    let mut metafits_fptr = fits_open!(&metafits_filename).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+
+    assert!(!Rfinput::has_height_code_column(&metafits_tile_table_hdu));
+
+    // No column, so the default for a non Low Band tile is used
+    let row =
+        Rfinput::read_metafits_tiledata_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0, 24)
+            .unwrap();
+    assert_eq!(row.tile_name, "Tile104");
+    assert_eq!(row.height_code, HeightCode::ArrayCentreOffset);
+}
+
+#[test]
+fn test_populate_rf_inputs_height_code_metafits_context() {
+    let context = MetafitsContext::new(HEIGHT_CODE_METAFITS, None).unwrap();
+
+    assert_eq!(context.rf_inputs.len(), 480);
+    assert_eq!(context.antennas.len(), 240);
+
+    for rf_input in context.rf_inputs.iter() {
+        if rf_input.tile_name.starts_with("LB") {
+            assert_eq!(rf_input.height_code, HeightCode::EllipsoidHeight);
+        } else {
+            assert_eq!(rf_input.height_code, HeightCode::ArrayCentreOffset);
+        }
+    }
+
+    assert_eq!(
+        context
+            .rf_inputs
+            .iter()
+            .filter(|r| r.height_code == HeightCode::EllipsoidHeight)
+            .count(),
+        80
+    );
+
+    // Antennas take the value from the rf_inputs
+    for antenna in context.antennas.iter() {
+        assert_eq!(antenna.height_code, antenna.rfinput_x.height_code);
+        assert_eq!(antenna.height_code, antenna.rfinput_y.height_code);
+    }
+}
+
+#[test]
+fn test_populate_rf_inputs_height_code_default_metafits_context() {
+    // This metafits has no Height_Code column
+    let metafits_filename = "test_files/metafits_cal_sol/1111842752_metafits.fits";
+    let context = MetafitsContext::new(metafits_filename, Some(MWAVersion::CorrLegacy)).unwrap();
+
+    assert!(context
+        .rf_inputs
+        .iter()
+        .all(|r| r.height_code == HeightCode::ArrayCentreOffset));
+    assert!(context
+        .antennas
+        .iter()
+        .all(|a| a.height_code == HeightCode::ArrayCentreOffset));
+}
+
+#[test]
+fn test_read_metafits_tiledata_values_unrecognised_height_code() {
+    // Copy the metafits and put an invalid height code in row 0
+    let temp_dir = tempfile::Builder::new()
+        .prefix("mwalib_height_code")
+        .tempdir()
+        .unwrap();
+    let temp_metafits = temp_dir.path().join("bad_height_code.metafits");
+    std::fs::copy(HEIGHT_CODE_METAFITS, &temp_metafits).unwrap();
+
+    {
+        let mut fptr = fitsio::FitsFile::edit(&temp_metafits).unwrap();
+        let hdu = fptr.hdu(1).unwrap();
+        hdu.write_col_range(&mut fptr, "Height_Code", &[2_i32], &(0..1))
+            .unwrap();
+    }
+
+    let mut metafits_fptr = fits_open!(&temp_metafits).unwrap();
+    let metafits_tile_table_hdu = fits_open_hdu!(&mut metafits_fptr, 1).unwrap();
+
+    let result =
+        Rfinput::read_metafits_tiledata_values(&mut metafits_fptr, &metafits_tile_table_hdu, 0, 24);
+
+    assert!(matches!(
+        result,
+        Err(RfinputError::UnrecognisedHeightCode {
+            row_num: 0,
+            got: 2,
+            ..
+        })
+    ));
+}
+
+//
+// Phase 5: heights above the ellipsoid are corrected for the Earth's curvature
+//
+
+/// Mean radius of the Earth (metres), only for the rough curvature check below
+const EARTH_MEAN_RADIUS_M: f64 = 6_371_000.0;
+
+#[test]
+fn test_ellipsoidal_height_at_the_array_centre_is_unchanged() {
+    let height = height::ellipsoidal_height_to_array_centre_offset_height(
+        0.0,
+        0.0,
+        crate::MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES,
+    );
+
+    assert!(
+        (height - crate::MWALIB_MWA_HEIGHT_CODE_ARRAY_CENTRE_OFFSET_METRES).abs() < 1e-6,
+        "{height}"
+    );
+}
+
+#[test]
+fn test_ellipsoidal_height_matches_the_mwa_wiki() {
+    // LBD7, LBA1 and LBB2 with their raw survey heights, and their local "up" (plus the array height) from the MWA
+    // wiki page "MWA Tile coordinate errors", rounded to the nearest millimetre. The same values as Marlu's test.
+    const TOLERANCE_M: f64 = 2e-3;
+
+    for (east, north, ellipsoidal_height, expected) in [
+        (3105.64, 1640.33, 376.795, 375.828),
+        (-1999.81, 206.85, 372.921, 372.604),
+        (-330.61, 2829.62, 373.367, 372.728),
+    ] {
+        let height = height::ellipsoidal_height_to_array_centre_offset_height(
+            east,
+            north,
+            ellipsoidal_height,
+        );
+
+        assert!(
+            (height - expected).abs() < TOLERANCE_M,
+            "({east}, {north}, {ellipsoidal_height}): got {height}, expected {expected}"
+        );
+    }
+}
+
+#[test]
+fn test_populate_rf_inputs_corrects_ellipsoidal_heights() {
+    // Allow 5 % between the exact correction and the rough (e² + n²) / 2R
+    const CURVATURE_TOLERANCE: f64 = 0.05;
+
+    let context = MetafitsContext::new(HEIGHT_CODE_METAFITS, None).unwrap();
+
+    for rf_input in context.rf_inputs.iter() {
+        match rf_input.height_code {
+            HeightCode::EllipsoidHeight => {
+                // The tile is lower than its raw height by about the Earth's curvature
+                let drop = rf_input.height_uncorrected_m - rf_input.height_m;
+                let expected_drop = (rf_input.east_m.powi(2) + rf_input.north_m.powi(2))
+                    / (2.0 * EARTH_MEAN_RADIUS_M);
+
+                assert!(
+                    (drop - expected_drop).abs() <= CURVATURE_TOLERANCE * expected_drop,
+                    "{}: drop {drop}, expected about {expected_drop}",
+                    rf_input.tile_name
+                );
+            }
+            HeightCode::ArrayCentreOffset => {
+                assert_eq!(
+                    rf_input.height_m, rf_input.height_uncorrected_m,
+                    "{}",
+                    rf_input.tile_name
+                );
+            }
+        }
+    }
+
+    // Antennas take both heights from their rf_inputs
+    for antenna in context.antennas.iter() {
+        assert_eq!(antenna.height_m, antenna.rfinput_x.height_m);
+        assert_eq!(
+            antenna.height_uncorrected_m,
+            antenna.rfinput_x.height_uncorrected_m
+        );
+    }
+}
+
+#[test]
+fn test_populate_rf_inputs_without_height_code_column_leaves_heights_alone() {
+    // No Height_Code column and no Low Band tiles: nothing is converted
+    let context =
+        MetafitsContext::new("test_files/1101503312_1_timestep/1101503312.metafits", None).unwrap();
+
+    for rf_input in context.rf_inputs.iter() {
+        assert_eq!(rf_input.height_code, HeightCode::ArrayCentreOffset);
+        assert_eq!(rf_input.height_m, rf_input.height_uncorrected_m);
+    }
+}

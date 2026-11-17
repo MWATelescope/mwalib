@@ -112,6 +112,10 @@ impl SignalChainCorrection {
     /// * Nothing
     ///
     pub fn destroy_array(items_ptr: *mut ffi::SignalChainCorrection, items_len: usize) {
+        if items_ptr.is_null() {
+            return;
+        }
+
         let items_slice = unsafe { std::slice::from_raw_parts_mut(items_ptr, items_len) };
         for item in items_slice {
             Self::destroy_item(item);
