@@ -88,7 +88,13 @@ jobs:
 
           for TARGET in $TARGETS; do            
             echo "building kernel-target $KERNEL-$TARGET"
-            export RUSTFLAGS="-C target-cpu=$TARGET"          
+            # "aarch64" is a tarball label, not an LLVM CPU name: rustc ignored it with a
+            # warning until 1.100, which segfaults on it. Build for the default CPU.
+            if [ "$TARGET" = aarch64 ]; then
+              unset RUSTFLAGS
+            else
+              export RUSTFLAGS="-C target-cpu=$TARGET"
+            fi
             
             # Build C objects
             cargo build --release --features cfitsio-static,examples
@@ -167,7 +173,13 @@ jobs:
           esac
                               
           echo "building kernel-target $KERNEL-$TARGET"
-          export RUSTFLAGS="-C target-cpu=$TARGET"          
+          # "arm64" is a tarball label, not an LLVM CPU name: rustc 1.100 segfaults on it.
+          # Build for the default CPU (apple-m1).
+          if [ "$TARGET" = arm64 ]; then
+            unset RUSTFLAGS
+          else
+            export RUSTFLAGS="-C target-cpu=$TARGET"
+          fi
 
           # Build C objects
           cargo build --release --features examples,cfitsio-static
